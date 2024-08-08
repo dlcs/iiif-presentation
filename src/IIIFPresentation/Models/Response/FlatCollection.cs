@@ -11,7 +11,7 @@ public class FlatCollection
     
     public string PublicId { get; set; }
     
-    public string Type { get; set; }
+    public PresentationType Type { get; set; }
     
     public string Behaviour { get; set; }
     

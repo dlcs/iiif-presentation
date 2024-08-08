@@ -33,13 +33,13 @@ public class StorageController : PresentationController
 
         var storageRoot = await Mediator.Send(new GetStorageRoot(customerId));
 
-        if (storageRoot == null) return NotFound();
+        if (storageRoot.root == null) return NotFound();
 
         return Ok(addAdditionalProperties
-            ? storageRoot.ToFlatCollection(GetUrlRoots(), Settings.PageSize, new List<Item>())
-            : storageRoot.ToHierarchicalCollection(GetUrlRoots()));
+            ? storageRoot.root.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.items)
+            : storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
     }
-    
+
     /// <summary>
     /// Used by derived controllers to construct correct fully qualified URLs in returned objects.
     /// </summary>

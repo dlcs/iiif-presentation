@@ -1,10 +1,11 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Models.Database.Collections;
 using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetStorageRoot : IRequest<Models.Database.Collections.Collection>
+public class GetStorageRoot : IRequest<(Collection? root, IQueryable<Collection>? items)>
 {
     public GetStorageRoot(int customerId)
     {
@@ -14,7 +15,7 @@ public class GetStorageRoot : IRequest<Models.Database.Collections.Collection>
     public int CustomerId { get; }
 }
 
-public class GetStorageRootHandler : IRequestHandler<GetStorageRoot, Models.Database.Collections.Collection?>
+public class GetStorageRootHandler : IRequestHandler<GetStorageRoot, (Collection? root, IQueryable<Collection>? items)>
 {
     private readonly PresentationContext dbContext;
 
@@ -23,11 +24,25 @@ public class GetStorageRootHandler : IRequestHandler<GetStorageRoot, Models.Data
         this.dbContext = dbContext;
     }
 
-    public async Task<Models.Database.Collections.Collection?> Handle(GetStorageRoot request, CancellationToken cancellationToken)
+    public async Task<(Collection? root, IQueryable<Collection>? items)> Handle(GetStorageRoot request,
+        CancellationToken cancellationToken)
     {
-        var storage = await dbContext.Collections.FirstOrDefaultAsync(s => s.CustomerId == request.CustomerId && s.Parent == null,
+        var storage = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+            s => s.CustomerId == request.CustomerId && s.Parent == null,
             cancellationToken);
-        
-        return storage;
+
+        IQueryable<Collection> items = null;
+
+        if (storage != null)
+        {
+            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == storage.Id);
+
+            foreach (var item in items)
+            {
+                item.FullPath = $"{storage.Slug}/{item.Id}";
+            }
+        }
+
+        return (storage, items);
     }
 }

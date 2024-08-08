@@ -5,54 +5,69 @@ namespace API.Converters;
 
 public static class CollectionConverter
 {
-    public static HierarchicalCollection ToHierarchicalCollection(this Collection dbAsset, UrlRoots urlRoots)
+    public static HierarchicalCollection ToHierarchicalCollection(this Collection dbAsset, UrlRoots urlRoots,
+        IQueryable<Collection>? items)
     {
         return new HierarchicalCollection()
         {
             Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Slug}",
             Context = "http://iiif.io/api/presentation/3/context.json",
             Label = dbAsset.Label,
-            Items = new List<Item>(),
-            Type = "Collection"
+            Items = items != null ? items.Select(x => new Item
+            {
+                Id =  $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
+                Label = x.Label,
+                Type = PresentationType.Collection
+            }).ToList() : new List<Item>(),
+            Type = PresentationType.Collection
         };
     }
     
-    public static FlatCollection ToFlatCollection(this Collection dbAsset, UrlRoots urlRoots, int pageSize, List<Item> items)
+    public static FlatCollection ToFlatCollection(this Collection dbAsset, UrlRoots urlRoots, int pageSize, 
+        IQueryable<Collection>? items)
     {
+        var itemCount = items?.Count() ?? 0;
+        
         return new FlatCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
+            Id = $"{urlRoots.BaseUrl}/{dbAsset.FullPath ?? dbAsset.Slug}",
             Context = new List<string> 
                 {
                     "http://iiif.io/api/presentation/3/context.json", 
                     "http://tbc.org/iiif-repository/1/context.json" 
                 },
             Label = dbAsset.Label,
-            Type = "Collection",
+            Type = PresentationType.Collection,
             Slug = dbAsset.Slug,
             Parent = dbAsset.Parent,
             
             ItemsOrder = dbAsset.ItemsOrder,
-            Items = new List<Item>(),
+            Items = items != null ? items.Select(i => new Item
+            {
+                Id =  $"{urlRoots.BaseUrl}/{i.FullPath ?? i.Slug}",
+                Label = i.Label,
+                Type = PresentationType.Collection
+            }).ToList() : new List<Item>(),
             
             PartOf = dbAsset.Parent != null ? new List<PartOf>() 
-            { new()
+            { 
+                new()
                 {
-                    Id = dbAsset.Parent,
-                    Label = dbAsset.Label, // TODO: modify to parent
-                    Type = "Collection"
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.FullPath ?? dbAsset.Slug}",
+                    Label = dbAsset.Label,
+                    Type = PresentationType.Collection
                 }
             } : null,
             
-            TotalItems = items.Count,
+            TotalItems = itemCount,
             
             View = new View()
             {
-                Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Slug}?page=1&pageSize={pageSize}",
-                Type = "PartialCollectionView",
+                Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Slug}?page=1&pageSize={pageSize}",
+                Type = PresentationType.PartialCollectionView,
                 Page = 1,
                 PageSize = pageSize,
-                TotalPages = items.Count % pageSize + 1
+                TotalPages = itemCount % pageSize + 1
             },
             
             SeeAlso = new List<SeeAlso>()
@@ -60,7 +75,7 @@ public static class CollectionConverter
                 new()
                 {
                     Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}",
-                    Type = "Collection",
+                    Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()
                     {
@@ -70,7 +85,7 @@ public static class CollectionConverter
                 new()
                 {
                     Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/iiif",
-                    Type = "Collection",
+                    Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()
                     {

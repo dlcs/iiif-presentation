@@ -31,7 +31,7 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "RootStorage",
-            Slug = "root",
+            Slug = "1",
             UsePath = true,
             Label = new LanguageMap
             {

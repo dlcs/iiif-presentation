@@ -8,7 +8,7 @@ public class View
     public string Id { get; set; }
 
     [JsonPropertyName("@type")] 
-    public string Type { get; set; } = "PartialCollectionView";
+    public PresentationType Type { get; set; }
     
     public int Page { get; set; }
     

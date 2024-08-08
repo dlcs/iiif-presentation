@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using Models.Database.Collections;
 using Models.Response;
 
@@ -23,11 +24,11 @@ public class CollectionConverterTests
         var storageRoot = CreateTestStorageRoot();
 
         // Act
-        var hierarchicalCollection = storageRoot.ToHierarchicalCollection(urlRoots);
+        var hierarchicalCollection = storageRoot.ToHierarchicalCollection(urlRoots, new EnumerableQuery<Collection>(new List<Collection>()));
 
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/root");
-        hierarchicalCollection.Type.Should().Be("Collection");
+        hierarchicalCollection.Type.Should().Be(PresentationType.Collection);
         hierarchicalCollection.Label.Count.Should().Be(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
     }
@@ -39,11 +40,11 @@ public class CollectionConverterTests
         var storageRoot = CreateTestStorageRoot();
 
         // Act
-        var flatCollection = storageRoot.ToFlatCollection(urlRoots, pageSize, new List<Item>());
+        var flatCollection = storageRoot.ToFlatCollection(urlRoots, pageSize, new EnumerableQuery<Collection>(new List<Collection>()));
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/someId");
-        flatCollection.Type.Should().Be("Collection");
+        flatCollection.Type.Should().Be(PresentationType.Collection);
         flatCollection.Label.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
         flatCollection.Slug.Should().Be("root");

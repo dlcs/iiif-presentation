@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using IIIF.Presentation.V3.Strings;
 
 namespace Models.Database.Collections;
 
@@ -76,5 +77,14 @@ public class Collection
     /// </summary>
     public bool IsPublic { get; set; }
     
+    /// <summary>
+    /// The customer identifier
+    /// </summary>
     public int CustomerId { get; set; }
+    
+    /// <summary>
+    /// The full path to this object, based on parent collections
+    /// </summary>
+    [NotMapped]
+    public string? FullPath { get; set; }
 }

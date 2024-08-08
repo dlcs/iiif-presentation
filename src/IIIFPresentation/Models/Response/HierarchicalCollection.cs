@@ -9,7 +9,7 @@ public class HierarchicalCollection
     
     public string Id { get; set; }
     
-    public string Type { get; set; }
+    public PresentationType Type { get; set; }
     
     public Dictionary<string, List<string>> Label { get; set; }
     

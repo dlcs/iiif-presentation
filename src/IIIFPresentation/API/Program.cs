@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using API.Infrastructure;
 using API.Settings;
 using Repository;
@@ -14,7 +16,11 @@ builder.Services.AddSerilog(lc => lc
     .WriteTo.Console()
     .ReadFrom.Configuration(builder.Configuration));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -25,6 +31,12 @@ builder.Services.AddOptions<ApiSettings>().BindConfiguration(nameof(ApiSettings)
 
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.ConfigureMediatR();
+
+builder.Services.ConfigureHttpJsonOptions( options =>
+{
+    options.SerializerOptions.WriteIndented = true;
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
 
 var app = builder.Build();
 
