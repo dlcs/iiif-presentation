@@ -30,7 +30,7 @@ public static class CollectionConverter
         
         return new FlatCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.FullPath ?? dbAsset.Slug}",
+            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.FullPath ?? dbAsset.Id}",
             Context = new List<string> 
                 {
                     "http://iiif.io/api/presentation/3/context.json", 
@@ -53,7 +53,7 @@ public static class CollectionConverter
             { 
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.FullPath ?? dbAsset.Slug}",
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Parent}",
                     Label = dbAsset.Label,
                     Type = PresentationType.Collection
                 }
@@ -63,7 +63,7 @@ public static class CollectionConverter
             
             View = new View()
             {
-                Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Slug}?page=1&pageSize={pageSize}",
+                Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}?page=1&pageSize={pageSize}",
                 Type = PresentationType.PartialCollectionView,
                 Page = 1,
                 PageSize = pageSize,
@@ -74,7 +74,7 @@ public static class CollectionConverter
             {
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}",
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()
@@ -84,7 +84,7 @@ public static class CollectionConverter
                 },
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/iiif",
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}/iiif",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()
