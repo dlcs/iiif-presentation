@@ -32,6 +32,7 @@ public class PresentationContext : DbContext
 
         modelBuilder.Entity<Collection>(entity =>
         {
+            entity.HasKey(e => new { e.Id, e.CustomerId });
             entity.Property(e => e.Label).HasColumnType("jsonb");
         });
     }

@@ -39,7 +39,7 @@ public class GetStorageRootHandler : IRequestHandler<GetStorageRoot, (Collection
 
             foreach (var item in items)
             {
-                item.FullPath = $"{storage.Slug}/{item.Id}";
+                item.FullPath = $"{storage.Slug}/{item.Slug}";
             }
         }
 

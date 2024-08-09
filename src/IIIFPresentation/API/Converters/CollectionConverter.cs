@@ -1,4 +1,5 @@
-﻿using Models.Database.Collections;
+﻿using API.Infrastructure.Helpers;
+using Models.Database.Collections;
 using Models.Response;
 
 namespace API.Converters;
@@ -10,12 +11,12 @@ public static class CollectionConverter
     {
         return new HierarchicalCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Slug}",
+            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
             Context = "http://iiif.io/api/presentation/3/context.json",
             Label = dbAsset.Label,
             Items = items != null ? items.Select(x => new Item
             {
-                Id =  $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
+                Id =  $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{x.FullPath}",
                 Label = x.Label,
                 Type = PresentationType.Collection
             }).ToList() : new List<Item>(),
@@ -30,21 +31,25 @@ public static class CollectionConverter
         
         return new FlatCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.FullPath ?? dbAsset.Id}",
+            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
             Context = new List<string> 
                 {
                     "http://iiif.io/api/presentation/3/context.json", 
                     "http://tbc.org/iiif-repository/1/context.json" 
                 },
             Label = dbAsset.Label,
+            PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
+            Behaviour = new List<string>()
+                .AppendIf(dbAsset.IsPublic, "public-iiif")
+                .AppendIf(dbAsset.IsStorageCollection, "storage-collection"),
             Type = PresentationType.Collection,
             Slug = dbAsset.Slug,
-            Parent = dbAsset.Parent,
+            Parent = dbAsset.Parent != null ? $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Parent}" : null,
             
             ItemsOrder = dbAsset.ItemsOrder,
             Items = items != null ? items.Select(i => new Item
             {
-                Id =  $"{urlRoots.BaseUrl}/{i.FullPath ?? i.Slug}",
+                Id =  $"{urlRoots.BaseUrl}/{i.CustomerId}/collections/{i.Id}",
                 Label = i.Label,
                 Type = PresentationType.Collection
             }).ToList() : new List<Item>(),
@@ -67,14 +72,14 @@ public static class CollectionConverter
                 Type = PresentationType.PartialCollectionView,
                 Page = 1,
                 PageSize = pageSize,
-                TotalPages = itemCount % pageSize + 1
+                TotalPages = itemCount % pageSize
             },
             
             SeeAlso = new List<SeeAlso>()
             {
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()
@@ -84,7 +89,7 @@ public static class CollectionConverter
                 },
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}/iiif",
+                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}/iiif",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = new List<string>()

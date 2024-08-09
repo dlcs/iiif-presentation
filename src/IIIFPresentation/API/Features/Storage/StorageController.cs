@@ -12,7 +12,6 @@ using Models.Response;
 
 namespace API.Features.Storage;
 
-[Route("/{customerId}/collections")]
 [Route("/{customerId}")]
 [ApiController]
 public class StorageController : PresentationController
@@ -26,12 +25,23 @@ public class StorageController : PresentationController
     // GET: api/<StorageController>
     [HttpGet]
     [EtagCaching]
-    public async Task<IActionResult> Get(int customerId)
+    public async Task<IActionResult> GetFlatCollection(int customerId)
+    {
+        var storageRoot = await Mediator.Send(new GetStorageRoot(customerId));
+
+        if (storageRoot.root == null) return NotFound();
+
+        return Ok( storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+    }
+    
+    [HttpGet("collections/{*slug}")]
+    [EtagCaching]
+    public async Task<IActionResult> Get(int customerId, string slug)
     {
         var addAdditionalProperties = Request.Headers.Any(x => x.Key == AdditionalPropertiesHeader) &&
-                                   Authorizer.CheckAuthorized(Request);
+                                      Authorizer.CheckAuthorized(Request);
 
-        var storageRoot = await Mediator.Send(new GetStorageRoot(customerId));
+        var storageRoot = await Mediator.Send(new GetCollection(customerId, slug));
 
         if (storageRoot.root == null) return NotFound();
 

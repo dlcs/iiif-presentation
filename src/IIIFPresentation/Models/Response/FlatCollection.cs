@@ -13,7 +13,7 @@ public class FlatCollection
     
     public PresentationType Type { get; set; }
     
-    public string Behaviour { get; set; }
+    public List<string> Behaviour { get; set; }
     
     public Dictionary<string, List<string>> Label { get; set; }
     
