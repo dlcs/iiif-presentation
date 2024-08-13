@@ -31,20 +31,20 @@ public static class CollectionConverter
         
         return new FlatCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Id}",
+            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}",
             Context = new List<string> 
                 {
                     "http://iiif.io/api/presentation/3/context.json", 
                     "http://tbc.org/iiif-repository/1/context.json" 
                 },
             Label = dbAsset.Label,
-            PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
-            Behaviour = new List<string>()
+            PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"{dbAsset.FullPath}" : "")}",
+            Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, "public-iiif")
                 .AppendIf(dbAsset.IsStorageCollection, "storage-collection"),
             Type = PresentationType.Collection,
             Slug = dbAsset.Slug,
-            Parent = dbAsset.Parent != null ? $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Parent}" : null,
+            Parent = dbAsset.Parent != null ? $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Parent}" : null,
             
             ItemsOrder = dbAsset.ItemsOrder,
             Items = items != null ? items.Select(i => new Item

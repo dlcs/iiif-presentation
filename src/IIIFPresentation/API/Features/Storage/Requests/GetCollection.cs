@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Repository;
@@ -8,20 +7,22 @@ namespace API.Features.Storage.Requests;
 
 public class GetCollection : IRequest<(Collection? root, IQueryable<Collection>? items)>
 {
-    public GetCollection(int customerId, string slug)
+    public GetCollection(int customerId, string id)
     {
         CustomerId = customerId;
-        Slug = slug;
+        Id = id;
     }
 
     public int CustomerId { get; }
     
-    public string Slug { get; }
+    public string Id { get; }
 }
 
 public class GetCollectionHandler : IRequestHandler<GetCollection, (Collection? root, IQueryable<Collection>? items)>
 {
     private readonly PresentationContext dbContext;
+    
+    private const string RootCollection = "root";
 
     public GetCollectionHandler(PresentationContext dbContext)
     {
@@ -31,87 +32,46 @@ public class GetCollectionHandler : IRequestHandler<GetCollection, (Collection? 
     public async Task<(Collection? root, IQueryable<Collection>? items)> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        // var storage = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
-        //     s => s.CustomerId == request.CustomerId && s.Parent == null,
-        //     cancellationToken);
+        Collection? collection;
+        
+        if (request.Id.Equals(RootCollection, StringComparison.OrdinalIgnoreCase))
+        {
+            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+                s => s.CustomerId == request.CustomerId && s.Parent == null,
+                cancellationToken);
+        }
+        else
+        {
+            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+                s => s.CustomerId == request.CustomerId && s.Id == request.Id,
+                cancellationToken);
+        }
+        
+        IQueryable<Collection>? items = null;
 
+        if (collection != null)
+        {
+            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == collection.Id);
+
+            foreach (var item in items)
+            { 
+                item.FullPath = $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{item.Slug}";
+            }
+
+            if (collection.Parent != null)
+            {
+                collection.FullPath = RetrieveFullPath(collection);
+            }
+        }
+
+        return (collection, items);
+    }
+
+    private string RetrieveFullPath(Collection collection)
+    {
         var query = $@"
-WITH RECURSIVE tree_path AS (
-    SELECT
-        id,
-        parent,
-        slug,
-        customer_id,
-        created,
-        modified,
-        created_by,
-        modified_by,
-        is_public,
-        is_storage_collection,
-        items_order,
-        label,
-        thumbnail,
-        locked_by,
-        tags,
-        use_path,
-        1 AS level,
-        slug_array,
-        array_length(slug_array, 1) AS max_level
-    FROM
-        (SELECT
-             id,
-             parent,
-             slug,
-             customer_id,
-             created,
-             modified,
-             created_by,
-             modified_by,
-             is_public,
-             is_storage_collection,
-             items_order,
-             label,
-             locked_by,
-             tags,
-             thumbnail,
-             use_path,
-             string_to_array('{request.Slug}', '/') AS slug_array
-         FROM
-             collections
-         WHERE
-             slug = (string_to_array('{request.Slug}', '/'))[1]
-           AND parent IS NULL) AS initial_query
-
-    UNION ALL
-    SELECT
-        t.id,
-        t.parent,
-        t.slug,
-        t.customer_id,
-        t.created,
-        t.modified,
-        t.created_by,
-        t.modified_by,
-        t.is_public,
-        t.is_storage_collection,
-        t.items_order,
-        t.label,
-        t.locked_by,
-        t.tags,
-        t.thumbnail,
-        t.use_path,
-        tp.level + 1 AS level,
-        tp.slug_array,
-        tp.max_level
-    FROM
-        collections t
-            INNER JOIN
-        tree_path tp ON t.parent = tp.id
-    WHERE
-        tp.level < tp.max_level
-      AND t.slug = tp.slug_array[tp.level + 1]
-)
-SELECT
+WITH RECURSIVE parentsearch AS (
+ select
     id,
     parent,
     customer_id,
@@ -127,29 +87,46 @@ SELECT
     tags,
     thumbnail,
     use_path,
-    slug
-FROM
-    tree_path
-WHERE
-    level = max_level
-  AND slug = slug_array[max_level]";
-        
-        var storage = await dbContext.Collections.FromSqlRaw(query).FirstOrDefaultAsync(cancellationToken);
+    slug,
+    0 AS generation_number
+ FROM collections
+ WHERE id = '{collection.Id}'
+ UNION
+ SELECT
+    child.id,
+    child.parent,
+    child.customer_id,
+    child.created,
+    child.modified,
+    child.created_by,
+    child.modified_by,
+    child.is_public,
+    child.is_storage_collection,
+    child.items_order,
+    child.label,
+    child.locked_by,
+    child.tags,
+    child.thumbnail,
+    child.use_path,
+    child.slug,
+    generation_number+1 AS generation_number
+ FROM collections child
+     JOIN parentsearch ps ON child.id=ps.parent
+)
+SELECT * FROM parentsearch ORDER BY generation_number DESC
+";
+        var parentCollections = dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId).ToList();
 
-        IQueryable<Collection> items = null;
+        var fullPath = string.Empty;
 
-        if (storage != null)
+        foreach (var parent in parentCollections)
         {
-            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == storage.Id);
-
-            foreach (var item in items)
+            if (!string.IsNullOrEmpty(parent.Parent))
             {
-                item.FullPath = $"{storage.Slug}/{item.Slug}";
+                fullPath += $"/{parent.Slug}";
             }
-            
-            storage.FullPath = request.Slug;
         }
-
-        return (storage, items);
+        
+        return fullPath;
     }
 }

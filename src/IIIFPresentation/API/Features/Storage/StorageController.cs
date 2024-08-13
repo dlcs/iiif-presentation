@@ -8,7 +8,6 @@ using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.Response;
 
 namespace API.Features.Storage;
 
@@ -21,27 +20,37 @@ public class StorageController : PresentationController
     public StorageController(IOptions<ApiSettings> options, IMediator mediator) : base(options.Value, mediator)
     {
     }
-
-    // GET: api/<StorageController>
+    
     [HttpGet]
     [EtagCaching]
-    public async Task<IActionResult> GetFlatCollection(int customerId)
+    public async Task<IActionResult> GetHierarchicalRootCollection(int customerId)
     {
-        var storageRoot = await Mediator.Send(new GetStorageRoot(customerId));
+        var storageRoot = await Mediator.Send(new GetCollection(customerId, "root"));
 
         if (storageRoot.root == null) return NotFound();
 
         return Ok( storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
     }
     
-    [HttpGet("collections/{*slug}")]
+    [HttpGet("{*slug}")]
     [EtagCaching]
-    public async Task<IActionResult> Get(int customerId, string slug)
+    public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug)
+    {
+        var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
+
+        if (storageRoot.root == null) return NotFound();
+
+        return Ok( storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+    }
+    
+    [HttpGet("collections/{id}")]
+    [EtagCaching]
+    public async Task<IActionResult> Get(int customerId, string id)
     {
         var addAdditionalProperties = Request.Headers.Any(x => x.Key == AdditionalPropertiesHeader) &&
                                       Authorizer.CheckAuthorized(Request);
 
-        var storageRoot = await Mediator.Send(new GetCollection(customerId, slug));
+        var storageRoot = await Mediator.Send(new GetCollection(customerId, id));
 
         if (storageRoot.root == null) return NotFound();
 
