@@ -142,7 +142,7 @@ WHERE
 
             foreach (var item in items)
             {
-                item.FullPath = $"{storage.Slug}/{item.Slug}";
+                item.FullPath = $"{request.Slug}/{item.Slug}";
             }
             
             storage.FullPath = request.Slug;
