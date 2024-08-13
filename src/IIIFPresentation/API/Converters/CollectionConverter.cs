@@ -38,7 +38,7 @@ public static class CollectionConverter
                     "http://tbc.org/iiif-repository/1/context.json" 
                 },
             Label = dbAsset.Label,
-            PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"{dbAsset.FullPath}" : "")}",
+            PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
             Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, "public-iiif")
                 .AppendIf(dbAsset.IsStorageCollection, "storage-collection"),

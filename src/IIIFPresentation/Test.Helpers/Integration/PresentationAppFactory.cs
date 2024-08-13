@@ -9,8 +9,8 @@ namespace Test.Helpers.Integration;
 /// <summary>
 /// Basic appFactory for the presentation API
 /// </summary>
-/// <typeparam name="TStartup"></typeparam>
-public class PresentationAppFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
+/// <typeparam name="TProgram"></typeparam>
+public class PresentationAppFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
     private readonly Dictionary<string, string> configuration = new();
     private readonly List<IDisposable> disposables = new();
@@ -21,7 +21,7 @@ public class PresentationAppFactory<TStartup> : WebApplicationFactory<TStartup> 
     /// </summary>
     /// <param name="connectionString">connection string to use for dbContext - docker instance</param>
     /// <returns>Current instance</returns>
-    public PresentationAppFactory<TStartup> WithConnectionString(string connectionString)
+    public PresentationAppFactory<TProgram> WithConnectionString(string connectionString)
     {
         configuration["ConnectionStrings:PostgreSQLConnection"] = connectionString;
         return this;
@@ -33,21 +33,21 @@ public class PresentationAppFactory<TStartup> : WebApplicationFactory<TStartup> 
     /// <param name="key">Key of setting to update, in format ("Thumbs:ThumbsBucket")</param>
     /// <param name="value">Value to set</param>
     /// <returns>Current instance</returns>
-    public PresentationAppFactory<TStartup> WithConfigValue(string key, string value)
+    public PresentationAppFactory<TProgram> WithConfigValue(string key, string value)
     {
         configuration[key] = value;
         return this;
     }
-    
+
     /// <summary>
     /// <see cref="IDisposable"/> implementation that will be disposed of alongside appfactory
     /// </summary>
-    public PresentationAppFactory<TStartup> WithDisposable(IDisposable disposable)
+    public PresentationAppFactory<TProgram> WithDisposable(IDisposable disposable)
     {
         disposables.Add(disposable);
         return this;
     }
-    
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var projectDir = Directory.GetCurrentDirectory();

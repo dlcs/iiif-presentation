@@ -47,6 +47,8 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1
         });
 
+        var stuff = DbContext.Model.GetEntityTypes();
+
         await DbContext.SaveChangesAsync();
     }
     
@@ -76,7 +78,9 @@ public class PresentationContextFixture : IAsyncLifetime
         // Create new DlcsContext using connection string for Postgres container
         DbContext = new PresentationContext(
             new DbContextOptionsBuilder<PresentationContext>()
-                .UseNpgsql(postgresContainer.GetConnectionString(), builder => builder.SetPostgresVersion(13, 0)).Options
+                .UseNpgsql(postgresContainer.GetConnectionString(), builder => builder.SetPostgresVersion(14, 0))
+                .UseSnakeCaseNamingConvention()
+                .Options
         );
         DbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }

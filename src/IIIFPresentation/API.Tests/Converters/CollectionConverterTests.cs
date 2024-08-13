@@ -144,7 +144,7 @@ public class CollectionConverterTests
     
     private static Collection CreateTestCollection()
     {
-        var storageRoot = new Collection()
+        var storageRoot = new Collection
         {
             Id = "some-id",
             CustomerId = 1,
@@ -156,7 +156,7 @@ public class CollectionConverterTests
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
             Parent = "top",
-            FullPath = "/top/some-id"
+            FullPath = "top/some-id"
         };
         
         return storageRoot;

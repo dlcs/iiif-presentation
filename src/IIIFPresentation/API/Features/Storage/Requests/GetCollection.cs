@@ -123,7 +123,7 @@ SELECT * FROM parentsearch ORDER BY generation_number DESC
         {
             if (!string.IsNullOrEmpty(parent.Parent))
             {
-                fullPath += $"/{parent.Slug}";
+                fullPath += $"{parent.Slug}";
             }
         }
         

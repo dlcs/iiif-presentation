@@ -29,7 +29,7 @@ public class PresentationContext : DbContext
     {
         modelBuilder.HasPostgresExtension("tablefunc")
             .HasAnnotation("Relational:Collation", "en_US.UTF-8");
-
+        
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.Property(e => e.Label).HasColumnType("jsonb");
