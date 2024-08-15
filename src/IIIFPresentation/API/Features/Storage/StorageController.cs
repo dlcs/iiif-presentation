@@ -1,3 +1,4 @@
+using System.Net;
 using API.Attributes;
 using API.Auth;
 using API.Converters;
@@ -8,6 +9,7 @@ using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Models.Response;
 
 namespace API.Features.Storage;
 
@@ -57,6 +59,20 @@ public class StorageController : PresentationController
         return Ok(addAdditionalProperties
             ? storageRoot.root.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.items)
             : storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+    }
+    
+    [HttpPost("collections")]
+    [EtagCaching]
+    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection)
+    {
+        if (!Authorizer.CheckAuthorized(Request))
+        {
+            return Problem(statusCode: (int)HttpStatusCode.Forbidden);
+        }
+        
+        var created = await Mediator.Send(new CreateCollection(customerId, collection));
+
+        return Ok(created);
     }
 
     /// <summary>

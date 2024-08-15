@@ -91,7 +91,7 @@ public abstract class PresentationController : Controller
             var result = await Mediator.Send(request, cancellationToken);
 
             return ConvertDeleteToHttp(result.Value, result.Message);
-            ;
+            
         }, errorTitle);
     }
 

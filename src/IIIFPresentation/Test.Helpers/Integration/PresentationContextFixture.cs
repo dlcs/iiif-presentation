@@ -31,7 +31,7 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "RootStorage",
-            Slug = "1",
+            Slug = "",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -47,7 +47,45 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1
         });
 
-        var stuff = DbContext.Model.GetEntityTypes();
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = "FirstChildCollection",
+            Slug = "first-child",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", new List<string> {"first child"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        });
+        
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = "SecondChildCollection",
+            Slug = "second-child",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", new List<string> {"first child"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = 1,
+            Parent = "FirstChildCollection"
+        });
 
         await DbContext.SaveChangesAsync();
     }
