@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using Core.Exceptions;
+using Models.API.General;
+using Newtonsoft.Json;
 
 namespace Core.Response;
 
@@ -32,7 +34,15 @@ public static class HttpResponseMessageX
             serializer.ContractResolver = settings.ContractResolver;
         }
         serializer.NullValueHandling = settings.NullValueHandling;
-        return serializer.Deserialize<T>(jsonReader);
+
+        try
+        {
+            return serializer.Deserialize<T>(jsonReader);
+        }
+        catch (Exception exception)
+        {
+            return serializer.Deserialize<T>(jsonReader);
+        }
     }
     
     /// <summary>
@@ -45,5 +55,40 @@ public static class HttpResponseMessageX
     {
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         return mediaType != null && mediaType.Contains("json");
+    }
+    
+    public static async Task<T?> ReadAsPresentationResponseAsync<T>(this HttpResponseMessage response,
+        JsonSerializerSettings? settings = null)
+    {
+        if ((int)response.StatusCode < 400)
+        {
+            return await response.ReadWithContext<T>(true, settings);
+        }
+
+        Error? error;
+        try
+        {
+            error = await response.ReadAsJsonAsync<Error>(false, settings);
+        }
+        catch (Exception ex)
+        {
+            throw new PresentationException("Could not find a Hydra error in response", ex);
+        }
+
+        if (error != null)
+        {
+            throw new PresentationException(error.Description);
+        }
+
+        throw new PresentationException("Unable to process error condition");
+    }
+
+    private static async Task<T?> ReadWithContext<T>(
+        this HttpResponseMessage response,
+        bool ensureSuccess,
+        JsonSerializerSettings? settings)
+    {
+        var json = await response.ReadAsJsonAsync<T>(ensureSuccess, settings);
+        return json;
     }
 }

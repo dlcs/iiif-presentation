@@ -3,13 +3,14 @@ using API.Attributes;
 using API.Auth;
 using API.Converters;
 using API.Features.Storage.Requests;
+using API.Features.Storage.Validators;
 using API.Infrastructure;
-using API.Infrastructure.Requests;
 using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.Response;
+using FluentValidation;
+using Models.API.Collection;
 
 namespace API.Features.Storage;
 
@@ -63,28 +64,22 @@ public class StorageController : PresentationController
     
     [HttpPost("collections")]
     [EtagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection)
+    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
     {
         if (!Authorizer.CheckAuthorized(Request))
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
-        
-        var created = await Mediator.Send(new CreateCollection(customerId, collection));
+
+        var validation = await validator.ValidateAsync(collection, policy => policy.IncludeRuleSets("create"));
+
+        if (!validation.IsValid)
+        {
+            return this.ValidationFailed(validation);
+        }
+
+        var created = await Mediator.Send(new CreateCollection(customerId, collection, GetUrlRoots()));
 
         return Ok(created);
-    }
-
-    /// <summary>
-    /// Used by derived controllers to construct correct fully qualified URLs in returned objects.
-    /// </summary>
-    /// <returns></returns>
-    protected UrlRoots GetUrlRoots()
-    {
-        return new UrlRoots
-        {
-            BaseUrl = Request.GetBaseUrl(),
-            ResourceRoot = Settings.ResourceRoot.ToString()
-        };
     }
 }

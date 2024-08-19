@@ -20,7 +20,7 @@ public abstract class PresentationController : Controller
     /// <inheritdoc />
     protected PresentationController(ApiSettings settings, IMediator mediator)
     {
-        Settings = settings;
+        this.Settings = settings;
         Mediator = mediator;
     }
 

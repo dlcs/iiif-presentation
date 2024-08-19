@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Models.Response;
+namespace Models.API.Collection;
 
 public class HierarchicalCollection
 {

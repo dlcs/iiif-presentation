@@ -1,4 +1,4 @@
-namespace Models.Response;
+namespace Models.API.Collection;
 
 public class SeeAlso
 {

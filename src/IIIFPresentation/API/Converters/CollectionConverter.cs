@@ -1,6 +1,7 @@
 ﻿using API.Infrastructure.Helpers;
+using Models.API.Collection;
 using Models.Database.Collections;
-using Models.Response;
+using Models.Infrastucture;
 
 namespace API.Converters;
 
@@ -40,8 +41,8 @@ public static class CollectionConverter
             Label = dbAsset.Label,
             PublicId = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
             Behavior = new List<string>()
-                .AppendIf(dbAsset.IsPublic, "public-iiif")
-                .AppendIf(dbAsset.IsStorageCollection, "storage-collection"),
+                .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
+                .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
             Type = PresentationType.Collection,
             Slug = dbAsset.Slug,
             Parent = dbAsset.Parent != null ? $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Parent}" : null,

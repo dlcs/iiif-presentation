@@ -4,7 +4,7 @@ using API.Tests.Integration.Infrastucture;
 using Core.Response;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Models.Response;
+using Models.API.Collection;
 using Repository;
 using Test.Helpers.Integration;
 
@@ -15,18 +15,11 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    
-    private readonly PresentationContext dbContext;
-    
+
     public GetCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
     {
-        dbContext = dbFixture.DbContext;
-        
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
-            .CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false
-        });
+            .CreateClient(new WebApplicationFactoryClientOptions());
     }
     
     [Fact]
@@ -129,7 +122,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
@@ -153,7 +146,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
@@ -177,7 +170,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");

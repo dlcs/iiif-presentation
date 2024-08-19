@@ -1,9 +1,8 @@
 ﻿using API.Converters;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
-using Microsoft.EntityFrameworkCore.Query.Internal;
+using Models.API.Collection;
 using Models.Database.Collections;
-using Models.Response;
 
 namespace API.Tests.Converters;
 
