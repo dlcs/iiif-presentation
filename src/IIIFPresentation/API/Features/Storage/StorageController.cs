@@ -78,8 +78,6 @@ public class StorageController : PresentationController
             return this.ValidationFailed(validation);
         }
 
-        var created = await Mediator.Send(new CreateCollection(customerId, collection, GetUrlRoots()));
-
-        return Ok(created);
+        return await HandleUpsert(new CreateCollection(customerId, collection, GetUrlRoots()));
     }
 }

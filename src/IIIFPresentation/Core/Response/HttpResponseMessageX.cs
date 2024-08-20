@@ -77,7 +77,7 @@ public static class HttpResponseMessageX
 
         if (error != null)
         {
-            throw new PresentationException(error.Description);
+            throw new PresentationException(error.Detail);
         }
 
         throw new PresentationException("Unable to process error condition");

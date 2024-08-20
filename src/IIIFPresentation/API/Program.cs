@@ -12,9 +12,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-// builder.Services.AddSerilog(lc => lc
-//     .WriteTo.Console()
-//     .ReadFrom.Configuration(builder.Configuration));
+builder.Services.AddSerilog(lc => lc
+    .ReadFrom.Configuration(builder.Configuration));
 
 builder.Services.AddControllers().AddJsonOptions(opt =>
 {
