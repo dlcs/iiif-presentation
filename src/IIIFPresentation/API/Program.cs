@@ -1,8 +1,6 @@
 using System.Text.Json.Serialization;
 using API.Infrastructure;
-using API.Infrastructure.Validation;
 using API.Settings;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repository;
 using Serilog;
 
@@ -47,10 +45,12 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    IiifPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
+    IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 }
 
 app.UseHttpsRedirection();
+
+app.UseSerilogRequestLogging();
 
 app.MapControllers();
 

@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices.JavaScript;
-using API.Infrastructure.Requests;
+﻿using API.Infrastructure.Requests;
 using Core;
 using Microsoft.AspNetCore.Mvc;
 

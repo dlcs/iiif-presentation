@@ -1,8 +1,11 @@
 ﻿using System.Security.Cryptography;
+using AngleSharp.Io;
 using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
+using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
+using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace API.Attributes;
 
@@ -44,12 +47,16 @@ public class EtagCachingAttribute : ActionFilterAttribute
 
             responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
             {
-                Public = true,
+                Public = !requestHeaders.Headers.Keys.Contains("IIIF-CS-Show-Extra"),
                 MaxAge = TimeSpan.FromDays(365)
             };
-            responseHeaders.ETag ??=
-                GenerateETag(memoryStream,
-                    request.Path); // This request generates a hash from the response - this would come from S3 in live
+
+            if (IsEtagSupported(response))
+            {
+                responseHeaders.ETag ??=
+                    GenerateETag(memoryStream,
+                        request.Path); // This request generates a hash from the response - this would come from S3 in live
+            }
 
             if (IsClientCacheValid(requestHeaders, responseHeaders))
             {
@@ -68,6 +75,18 @@ public class EtagCachingAttribute : ActionFilterAttribute
             .CopyToAsync(
                 originalStream); // Writes anything the later middleware wrote to the body (and by extension our `memoryStream`) to the original response body stream, so that it will be sent back to the client as the response body.
     }
+    
+    private static bool IsEtagSupported(HttpResponse response)
+    {
+        // 20kb length limit - can be changed
+        if (response.Body.Length > 20 * 1024)
+            return false;
+
+        if (response.Headers.ContainsKey(HeaderNames.ETag))
+            return false;
+
+        return true;
+    }
 
     private static EntityTagHeaderValue GenerateETag(Stream stream, string path)
     {
@@ -77,7 +96,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
 
         var enityTagHeader =
             new EntityTagHeaderValue('"' + hashString +
-                                     '"'); // An `ETag` needs to be surrounded by quotes. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag#:~:text=It%20is%20a%20string%20of%20ASCII%20characters%20placed%20between%20double%20quotes
+                                     '"');
 
         etagHashes[path] = enityTagHeader.Tag.ToString();
         return enityTagHeader;
@@ -89,7 +108,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
         if (reqHeaders.IfNoneMatch.Any() && resHeaders.ETag is not null)
             return reqHeaders.IfNoneMatch.Any(etag =>
                     etag.Compare(resHeaders.ETag,
-                        false) // We shouldn't use `Contains` here because it would use the `Equals` method which apparently shouldn't be used for ETag equality checks. See https://learn.microsoft.com/en-us/dotnet/api/microsoft.net.http.headers.entitytagheadervalue.equals?view=aspnetcore-7.0. We also use weak comparison, because that seems to what the built-in response caching middleware (which is general-purpose enough in this particular respect to be able to inform us here) is doing. See https://github.com/dotnet/aspnetcore/blob/7f4ee4ac2fc945eab33d004581e7b633bdceb475/src/Middleware/ResponseCaching/src/ResponseCachingMiddleware.cs#LL449C51-L449C70
+                        false)
             );
 
         if (reqHeaders.IfModifiedSince is not null && resHeaders.LastModified is not null)

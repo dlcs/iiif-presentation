@@ -5,12 +5,12 @@ namespace Models.Database.Collections;
 
 public class Collection
 {
-    public string Id { get; set; } = null!;
+    public required  string Id { get; set; }
 
     /// <summary>
     /// Path element
     /// </summary>
-    public string Slug { get; set; } = null!;
+    public required string Slug { get; set; }
     
     /// <summary>
     /// Whether the id (URL) of the stored Collection is its fixed id, or is the path from parent slugs. Each will redirect to the other if requested on the "wrong" canonical URL.
@@ -30,7 +30,7 @@ public class Collection
     /// <summary>
     /// Derived from the stored IIIF collection JSON - a single value on the default language
     /// </summary>
-    public LanguageMap Label { get; set; } = null!;
+    public required LanguageMap Label { get; set; }
     
     /// <summary>
     /// Not the IIIF JSON, just a single path or URI to 100px, for rapid query results

@@ -2,7 +2,7 @@
 
 namespace Repository;
 
-public static class IiifPresentationContextConfiguration
+public static class IIIFPresentationContextConfiguration
 {
     private static readonly string ConnectionStringKey = "PostgreSQLConnection";
     private static readonly string RunMigrationsKey = "RunMigrations";

@@ -1,11 +1,12 @@
-﻿using MediatR;
+﻿using API.Features.Storage.Models;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetCollection : IRequest<(Collection? root, IQueryable<Collection>? items)>
+public class GetCollection : IRequest<CollectionWithItems>
 {
     public GetCollection(int customerId, string id)
     {
@@ -18,7 +19,7 @@ public class GetCollection : IRequest<(Collection? root, IQueryable<Collection>?
     public string Id { get; }
 }
 
-public class GetCollectionHandler : IRequestHandler<GetCollection, (Collection? root, IQueryable<Collection>? items)>
+public class GetCollectionHandler : IRequestHandler<GetCollection, CollectionWithItems>
 {
     private readonly PresentationContext dbContext;
     
@@ -29,7 +30,7 @@ public class GetCollectionHandler : IRequestHandler<GetCollection, (Collection? 
         this.dbContext = dbContext;
     }
 
-    public async Task<(Collection? root, IQueryable<Collection>? items)> Handle(GetCollection request,
+    public async Task<CollectionWithItems> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
         Collection? collection;
@@ -64,7 +65,7 @@ public class GetCollectionHandler : IRequestHandler<GetCollection, (Collection? 
             }
         }
 
-        return (collection, items);
+        return new CollectionWithItems(collection, items);
     }
 
     private string RetrieveFullPath(Collection collection)

@@ -113,7 +113,7 @@ public class PresentationContextFixture : IAsyncLifetime
     {
         ConnectionString = postgresContainer.GetConnectionString();
 
-        // Create new DlcsContext using connection string for Postgres container
+        // Create new PresentationContext using connection string for Postgres container
         DbContext = new PresentationContext(
             new DbContextOptionsBuilder<PresentationContext>()
                 .UseNpgsql(postgresContainer.GetConnectionString(), builder => builder.SetPostgresVersion(14, 0))

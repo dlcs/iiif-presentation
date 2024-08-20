@@ -29,9 +29,9 @@ public class StorageController : PresentationController
     {
         var storageRoot = await Mediator.Send(new GetCollection(customerId, "root"));
 
-        if (storageRoot.root == null) return NotFound();
+        if (storageRoot.Collection == null) return NotFound();
 
-        return Ok( storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+        return Ok( storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpGet("{*slug}")]
@@ -40,9 +40,9 @@ public class StorageController : PresentationController
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
-        if (storageRoot.root == null) return NotFound();
+        if (storageRoot.Collection == null) return NotFound();
 
-        return Ok( storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+        return Ok( storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpGet("collections/{id}")]
@@ -54,11 +54,11 @@ public class StorageController : PresentationController
 
         var storageRoot = await Mediator.Send(new GetCollection(customerId, id));
 
-        if (storageRoot.root == null) return NotFound();
+        if (storageRoot.Collection == null) return NotFound();
 
         return Ok(addAdditionalProperties
-            ? storageRoot.root.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.items)
-            : storageRoot.root.ToHierarchicalCollection(GetUrlRoots(), storageRoot.items));
+            ? storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items)
+            : storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpPost("collections")]

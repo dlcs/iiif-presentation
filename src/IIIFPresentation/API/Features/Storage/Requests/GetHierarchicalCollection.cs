@@ -1,11 +1,12 @@
-﻿using MediatR;
+﻿using API.Features.Storage.Models;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetHierarchicalCollection : IRequest<(Collection? root, IQueryable<Collection>? items)>
+public class GetHierarchicalCollection : IRequest<CollectionWithItems>
 {
     public GetHierarchicalCollection(int customerId, string slug)
     {
@@ -18,7 +19,7 @@ public class GetHierarchicalCollection : IRequest<(Collection? root, IQueryable<
     public string Slug { get; }
 }
 
-public class GetHierarchicalCollectionHandler : IRequestHandler<GetHierarchicalCollection, (Collection? root, IQueryable<Collection>? items)>
+public class GetHierarchicalCollectionHandler : IRequestHandler<GetHierarchicalCollection, CollectionWithItems>
 {
     private readonly PresentationContext dbContext;
 
@@ -27,7 +28,7 @@ public class GetHierarchicalCollectionHandler : IRequestHandler<GetHierarchicalC
         this.dbContext = dbContext;
     }
 
-    public async Task<(Collection? root, IQueryable<Collection>? items)> Handle(GetHierarchicalCollection request,
+    public async Task<CollectionWithItems> Handle(GetHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
                 var query = $@"
@@ -148,6 +149,6 @@ WHERE
             storage.FullPath = request.Slug;
         }
 
-        return (storage, items);
+        return new CollectionWithItems(storage, items);
     }
 }
