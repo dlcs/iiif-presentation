@@ -1,16 +1,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY ["Utils/Migrator/Migrator.csproj", "Utils/Migrator/"]
+COPY ["Migrator/Migrator.csproj", "Migrator/"]
 COPY ["Repository/Repository.csproj", "DLCS.Repository/"]
 COPY ["DLCS.AWS/DLCS.AWS.csproj", "DLCS.AWS/"]
 COPY ["Models/Models.csproj", "DLCS.Model/"]
 COPY ["Core/Core.csproj", "DLCS.Core/"]
 
-RUN dotnet restore "Utils/Migrator/Migrator.csproj"
+RUN dotnet restore "Migrator/Migrator.csproj"
 
 COPY . .
-WORKDIR "/src/Utils/Migrator"
+WORKDIR "/src/Migrator"
 RUN dotnet build "Migrator.csproj" -c Release -o /app/build
 
 FROM build AS publish
