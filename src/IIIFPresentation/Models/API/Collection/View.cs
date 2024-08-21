@@ -5,7 +5,7 @@ namespace Models.API.Collection;
 public class View
 {
     [JsonPropertyName("@id")]
-    public string Id { get; set; }
+    public required string Id { get; set; }
 
     [JsonPropertyName("@type")] 
     public PresentationType Type { get; set; }
