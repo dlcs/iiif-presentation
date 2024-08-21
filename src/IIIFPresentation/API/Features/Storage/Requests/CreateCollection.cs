@@ -75,7 +75,7 @@ public class CreateCollectionHandler : IRequestHandler<CreateCollection, ModifyE
         {
             logger.LogError(ex,"Error creating collection");
 
-            if (ex.InnerException != null && ex.InnerException.Message.Contains("uplicate key value violates unique constraint \"ix_collections_customer_id_slug\""))
+            if (ex.InnerException != null && ex.InnerException.Message.Contains("duplicate key value violates unique constraint \"ix_collections_customer_id_slug_parent\""))
             {
                 return ModifyEntityResult<FlatCollection>.Failure(
                     $"The collection could not be created due to a duplicate slug value", WriteResult.BadRequest);

@@ -72,10 +72,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
+
         // Act
-        var response = await httpClient.SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
 
@@ -111,10 +110,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
+
         // Act
-        var response = await httpClient.SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         var collection = await response.ReadAsJsonAsync<FlatCollection>();
 
@@ -135,10 +133,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/RootStorage");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
+
         // Act
-        var response = await httpClient.SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         var collection = await response.ReadAsJsonAsync<FlatCollection>();
 
@@ -159,10 +156,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/FirstChildCollection");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
+
         // Act
-        var response = await httpClient.SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         var collection = await response.ReadAsJsonAsync<FlatCollection>();
 

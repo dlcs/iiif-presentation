@@ -1,9 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using API.Infrastructure.Requests;
 using API.Tests.Integration.Infrastucture;
 using Core.Exceptions;
 using Core.Response;
@@ -13,11 +10,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
 using Models.API.General;
 using Models.Infrastucture;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Repository;
 using Test.Helpers.Integration;
-using JsonConverter = Newtonsoft.Json.JsonConverter;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace API.Tests.Integration;
@@ -41,7 +35,7 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
             .CreateClient(new WebApplicationFactoryClientOptions());
 
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+       // httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
         parent = dbContext.Collections.FirstOrDefault(x => x.CustomerId == Customer && x.Slug == string.Empty)!
             .Id!;
@@ -64,7 +58,7 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         // Act
-        var response = await httpClient.PostAsync($"{Customer}/collections",
+        var response = await httpClient.AsCustomer(Customer).PostAsync($"{Customer}/collections",
             new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
                 new MediaTypeHeaderValue("application/json")));
 
@@ -98,7 +92,7 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         // Act
-        var response = await httpClient.PostAsync($"{Customer}/collections",
+        var response = await httpClient.AsCustomer(Customer).PostAsync($"{Customer}/collections",
             new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
                 new MediaTypeHeaderValue("application/json")));
         
@@ -108,5 +102,30 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         await action.Should().ThrowAsync<PresentationException>()
             .WithMessage("The collection could not be created due to a duplicate slug value");
+    }
+    
+    [Fact]
+    public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutAuth()
+    {
+        // Arrange
+        var collection = new FlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", new []{"test collection"}),
+            Slug = "first-child",
+            Parent = parent
+        };
+
+        // Act
+        var response = await httpClient.PostAsync($"{Customer}/collections",
+            new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+                new MediaTypeHeaderValue("application/json")));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }
