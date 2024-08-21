@@ -5,7 +5,6 @@ COPY ["API/API.csproj", "API/"]
 COPY ["Repository/Repository.csproj", "DLCS.Repository/"]
 COPY ["Models/Models.csproj", "DLCS.Model/"]
 COPY ["Core/Core.csproj", "DLCS.Core/"]
-COPY ["Web/Web.csproj", "Web/"]
 COPY ["AWS/AWS.csproj", "DLCS.AWS/"]
 
 RUN dotnet restore "API/API.csproj"
