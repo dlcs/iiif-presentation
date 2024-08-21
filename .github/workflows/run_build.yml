@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         run: |
           dotnet build $SOLUTION --configuration $BUILD_CONFIG --no-restore
-          dotnet test --verbosity normal
+          dotnet test --configuration $BUILD_CONFIG --no-restore --no-build --verbosity normal
 
   build-push-api:
     runs-on: ubuntu-latest
