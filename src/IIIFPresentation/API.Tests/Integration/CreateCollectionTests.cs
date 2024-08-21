@@ -39,6 +39,8 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         parent = dbContext.Collections.FirstOrDefault(x => x.CustomerId == Customer && x.Slug == string.Empty)!
             .Id!;
+        
+        dbFixture.CleanUp();
     }
 
     [Fact]

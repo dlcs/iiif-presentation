@@ -20,6 +20,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
             .CreateClient(new WebApplicationFactoryClientOptions());
+        
+        dbFixture.CleanUp();
     }
     
     [Fact]
