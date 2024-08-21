@@ -2,10 +2,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 COPY ["API/API.csproj", "API/"]
-COPY ["Repository/Repository.csproj", "DLCS.Repository/"]
-COPY ["Models/Models.csproj", "DLCS.Model/"]
-COPY ["Core/Core.csproj", "DLCS.Core/"]
-COPY ["AWS/AWS.csproj", "DLCS.AWS/"]
+COPY ["Repository/Repository.csproj", "Repository/"]
+COPY ["Models/Models.csproj", "Model/"]
+COPY ["Core/Core.csproj", "Core/"]
+COPY ["AWS/AWS.csproj", "AWS/"]
 
 RUN dotnet restore "API/API.csproj"
 
@@ -19,8 +19,8 @@ RUN dotnet publish "API.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim AS base
 
 LABEL maintainer="Donald Gray <donald.gray@digirati.com>,Tom Crane <tom.crane@digirati.com>"
-LABEL org.opencontainers.image.source=https://github.com/dlcs/protagonist
-LABEL org.opencontainers.image.description="HTTP API for DLCS interactions."
+LABEL org.opencontainers.image.source=https://github.com/dlcs/iiif-presentation
+LABEL org.opencontainers.image.description="HTTP API for iiif presentation interactions."
 
 WORKDIR /app
 EXPOSE 80
