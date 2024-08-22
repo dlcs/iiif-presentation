@@ -80,23 +80,4 @@ public class StorageController : PresentationController
 
         return await HandleUpsert(new CreateCollection(customerId, collection, GetUrlRoots()));
     }
-    
-    [HttpPut("collections/{collectionId}")]
-    [EtagCaching]
-    public async Task<IActionResult> Put(int customerId, string collectionId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
-    {
-        if (!Authorizer.CheckAuthorized(Request))
-        {
-            return Problem(statusCode: (int)HttpStatusCode.Forbidden);
-        }
-
-        var validation = await validator.ValidateAsync(collection, policy => policy.IncludeRuleSets("update"));
-
-        if (!validation.IsValid)
-        {
-            return this.ValidationFailed(validation);
-        }
-
-        return await HandleUpsert(new UpdateCollection(customerId, collectionId, collection, GetUrlRoots()));
-    }
 }
