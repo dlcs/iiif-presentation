@@ -4,6 +4,8 @@ using Models.Database.Collections;
 using Repository;
 using Testcontainers.PostgreSql;
 
+#nullable disable
+
 namespace Test.Helpers.Integration;
 
 public class PresentationContextFixture : IAsyncLifetime

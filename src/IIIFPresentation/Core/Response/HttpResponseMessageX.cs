@@ -39,7 +39,7 @@ public static class HttpResponseMessageX
         {
             return serializer.Deserialize<T>(jsonReader);
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             return serializer.Deserialize<T>(jsonReader);
         }
