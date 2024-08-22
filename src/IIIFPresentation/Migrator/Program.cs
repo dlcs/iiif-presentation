@@ -50,15 +50,18 @@ class Migrator
     public void Execute()
     {
         var connStr = configuration.GetConnectionString("PostgreSQLConnection");
-        foreach (var part in connStr.Split(";"))
+        if (connStr != null)
         {
-            var lowered = part.ToLower();
-            if (lowered.StartsWith("server") || lowered.StartsWith("database"))
+            foreach (var part in connStr.Split(";"))
             {
-                logger.LogInformation("Got connstr part {StringPart}", lowered);
+                var lowered = part.ToLower();
+                if (lowered.StartsWith("server") || lowered.StartsWith("database"))
+                {
+                    logger.LogInformation("Got connstr part {StringPart}", lowered);
+                }
             }
         }
-        
+
         IIIFPresentationContextConfiguration.TryRunMigrations(configuration, logger);
     }
 }

@@ -8,6 +8,8 @@ using Models.API.Collection;
 using Repository;
 using Test.Helpers.Integration;
 
+#nullable disable
+
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]

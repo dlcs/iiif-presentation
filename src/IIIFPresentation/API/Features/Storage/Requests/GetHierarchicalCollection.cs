@@ -135,7 +135,7 @@ WHERE
         var storage = await dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId)
             .FirstOrDefaultAsync(cancellationToken);
 
-        IQueryable<Collection> items = null;
+        IQueryable<Collection>? items = null;
 
         if (storage != null)
         {

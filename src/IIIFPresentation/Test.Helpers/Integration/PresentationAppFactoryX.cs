@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc.Testing;
 
+#nullable disable
+
 namespace Test.Helpers.Integration;
 
 public static class PresentationAppFactoryX

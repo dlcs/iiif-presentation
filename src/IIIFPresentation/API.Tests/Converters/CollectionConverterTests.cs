@@ -4,6 +4,8 @@ using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
 using Models.Database.Collections;
 
+#nullable disable
+
 namespace API.Tests.Converters;
 
 public class CollectionConverterTests
