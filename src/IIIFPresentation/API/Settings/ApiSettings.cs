@@ -5,7 +5,7 @@ public class ApiSettings
     /// <summary>
     ///     The base URI for image services and other public-facing resources
     /// </summary>
-    public Uri? ResourceRoot { get; set; }
+    public required Uri ResourceRoot { get; set; }
 
     /// <summary>
     /// Page size for paged collections

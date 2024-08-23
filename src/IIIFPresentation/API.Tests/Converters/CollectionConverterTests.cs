@@ -29,7 +29,6 @@ public class CollectionConverterTests
             storageRoot.ToHierarchicalCollection(urlRoots, new EnumerableQuery<Collection>(CreateTestItems()));
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1");
-        hierarchicalCollection.Type.Should().Be(PresentationType.Collection);
         hierarchicalCollection.Label.Count.Should().Be(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
         hierarchicalCollection.Items.Count.Should().Be(1);
@@ -46,7 +45,6 @@ public class CollectionConverterTests
             storageRoot.ToHierarchicalCollection(urlRoots, new EnumerableQuery<Collection>(CreateTestItems()));
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/top/some-id");
-        hierarchicalCollection.Type.Should().Be(PresentationType.Collection);
         hierarchicalCollection.Label.Count.Should().Be(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
         hierarchicalCollection.Items.Count.Should().Be(1);
@@ -65,7 +63,6 @@ public class CollectionConverterTests
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
         flatCollection.PublicId.Should().Be("http://base/1");
-        flatCollection.Type.Should().Be(PresentationType.Collection);
         flatCollection.Label.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
         flatCollection.Slug.Should().Be("root");
@@ -90,7 +87,6 @@ public class CollectionConverterTests
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
         flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        flatCollection.Type.Should().Be(PresentationType.Collection);
         flatCollection.Label.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
         flatCollection.Slug.Should().Be("root");

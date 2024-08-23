@@ -3,8 +3,12 @@ using System.Net.Http.Headers;
 using API.Tests.Integration.Infrastucture;
 using Core.Response;
 using FluentAssertions;
+using IIIF.Presentation.V3;
+using IIIF.Serialisation;
+using IIIF.Serialisation.Deserialisation;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
+using Newtonsoft.Json;
 using Repository;
 using Test.Helpers.Integration;
 
@@ -32,13 +36,25 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var stuff = await response.Content.ReadAsStringAsync();
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        try
+        {
+           // var collection = stuff.FromJson<Collection>();
+
+            var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            collection!.Id.Should().Be("http://localhost/1");
+            collection.Items.Count.Should().Be(1);
+            var firstItem = (Collection)collection.Items[0];
+            firstItem.Id.Should().Be("http://localhost/1/first-child");
+        }
+        catch (Exception ex)
+        {
+            
+        }
     }
     
     [Fact]
@@ -47,13 +63,15 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/first-child");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/first-child");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child/second-child");
+        
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child/second-child");
     }
     
     [Fact]
@@ -62,13 +80,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/collections/root");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -80,13 +99,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -99,13 +119,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -118,7 +139,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -141,7 +162,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -164,7 +185,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

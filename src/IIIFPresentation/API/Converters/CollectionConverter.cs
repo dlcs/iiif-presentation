@@ -1,32 +1,34 @@
 ﻿using API.Infrastructure.Helpers;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
-using Models.Database.Collections;
 using Models.Infrastucture;
 
 namespace API.Converters;
 
 public static class CollectionConverter
 {
-    public static HierarchicalCollection ToHierarchicalCollection(this Collection dbAsset, UrlRoots urlRoots,
-        IQueryable<Collection>? items)
+    public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots,
+        IQueryable<Models.Database.Collections.Collection>? items)
     {
-        return new HierarchicalCollection()
+        var stuff = new Collection()
         {
             Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
             Context = "http://iiif.io/api/presentation/3/context.json",
             Label = dbAsset.Label,
-            Items = items != null ? items.Select(x => new Item
+            Items = items != null ? items.Select(x => new Collection()
             {
                 Id =  $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{x.FullPath}",
-                Label = x.Label,
-                Type = PresentationType.Collection
-            }).ToList() : new List<Item>(),
-            Type = PresentationType.Collection
+                Label = x.Label
+            }).ToList<ICollectionItem>() : new List<ICollectionItem>()
         };
+
+        return stuff;
     }
     
-    public static FlatCollection ToFlatCollection(this Collection dbAsset, UrlRoots urlRoots, int pageSize, 
-        IQueryable<Collection>? items)
+    public static FlatCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize, 
+        IQueryable<Models.Database.Collections.Collection>? items)
     {
         var itemCount = items?.Count() ?? 0;
         
@@ -53,9 +55,9 @@ public static class CollectionConverter
                 Id =  $"{urlRoots.BaseUrl}/{i.CustomerId}/collections/{i.Id}",
                 Label = i.Label,
                 Type = PresentationType.Collection
-            }).ToList() : new List<Item>(),
+            }).ToList() : [],
             
-            PartOf = dbAsset.Parent != null ? new List<PartOf>() 
+            PartOf = dbAsset.Parent != null ? new List<PartOf>
             { 
                 new()
                 {
@@ -67,7 +69,7 @@ public static class CollectionConverter
             
             TotalItems = itemCount,
             
-            View = new View()
+            View = new View
             {
                 Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}?page=1&pageSize={pageSize}",
                 Type = PresentationType.PartialCollectionView,
@@ -76,29 +78,26 @@ public static class CollectionConverter
                 TotalPages = itemCount % pageSize
             },
             
-            SeeAlso = new List<SeeAlso>()
-            {
+            SeeAlso =
+            [
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
+                    Id =
+                        $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
-                    Profile = new List<string>()
-                    {
-                        "Public"
-                    }
+                    Profile = ["Public"]
                 },
+
                 new()
                 {
-                    Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}/iiif",
+                    Id =
+                        $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}/iiif",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
-                    Profile = new List<string>()
-                    {
-                        "api-hierarchical"
-                    }
+                    Profile = ["api-hierarchical"]
                 }
-            },
+            ],
             
             Created = dbAsset.Created,
             Modified = dbAsset.Modified,

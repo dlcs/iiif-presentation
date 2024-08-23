@@ -29,8 +29,6 @@ jobs:
       - id: restore-dotnet-dependencies
         run: dotnet restore $SOLUTION
       - id: build-dotnet
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         run: |
           dotnet build $SOLUTION --configuration $BUILD_CONFIG --no-restore
           dotnet test --configuration $BUILD_CONFIG --no-restore --no-build --verbosity normal

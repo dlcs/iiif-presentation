@@ -1,6 +1,8 @@
-﻿namespace Models.API.General;
+﻿using IIIF;
 
-public class Error
+namespace Models.API.General;
+
+public class Error : JsonLdBase
 {
     public string Type => "Error";
     

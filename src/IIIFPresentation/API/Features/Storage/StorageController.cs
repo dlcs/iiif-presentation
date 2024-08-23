@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Models.API.Collection;
+using NuGet.Protocol;
 
 namespace API.Features.Storage;
 
@@ -32,7 +33,7 @@ public class StorageController : PresentationController
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok( storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpGet("{*slug}")]

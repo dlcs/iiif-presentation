@@ -33,7 +33,7 @@ public abstract class PresentationController : Controller
         return new UrlRoots
         {
             BaseUrl = Request.GetBaseUrl(),
-            ResourceRoot = Settings.ResourceRoot!.ToString()
+            ResourceRoot = Settings.ResourceRoot.ToString()
         };
     }
 

@@ -2,7 +2,6 @@
 using System.Net.Http.Headers;
 using System.Text;
 using API.Tests.Integration.Infrastucture;
-using Core.Exceptions;
 using Core.Response;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
@@ -34,8 +33,6 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
             .CreateClient(new WebApplicationFactoryClientOptions());
-
-       // httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
         parent = dbContext.Collections.FirstOrDefault(x => x.CustomerId == Customer && x.Slug == string.Empty)!
             .Id!;
@@ -98,12 +95,11 @@ public class CreateCollectionTests : IClassFixture<PresentationAppFactory<Progra
             new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
                 new MediaTypeHeaderValue("application/json")));
         
-        Func<Task> action = async () => await response.ReadAsPresentationResponseAsync<Error>();
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        await action.Should().ThrowAsync<PresentationException>()
-            .WithMessage("The collection could not be created due to a duplicate slug value");
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest); 
+        error!.Detail.Should().Be("The collection could not be created due to a duplicate slug value");
     }
     
     [Fact]

@@ -1,11 +1,11 @@
-﻿using System.Text.Json.Serialization;
-using IIIF.Presentation.V3.Strings;
+﻿using IIIF.Presentation.V3.Strings;
+using Newtonsoft.Json;
 
 namespace Models.API.Collection;
 
 public class FlatCollection
 {
-    [JsonPropertyName("@context")]
+    [JsonProperty("@context")]
     public List<string>? Context { get; set; }
     
     public string? Id { get; set; }
@@ -16,9 +16,9 @@ public class FlatCollection
 
     public List<string> Behavior { get; set; } = new ();
 
-    public LanguageMap Label { get; set; } = null!;
+    public required LanguageMap Label { get; set; }
 
-    public string Slug { get; set; } = null!;
+    public required string Slug { get; set; }
     
     public string? Parent { get; set; }
     
