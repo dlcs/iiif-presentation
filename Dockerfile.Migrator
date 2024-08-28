@@ -1,0 +1,28 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY ["Migrator/Migrator.csproj", "Migrator/"]
+COPY ["Repository/Repository.csproj", "Repository/"]
+COPY ["AWS/AWS.csproj", "AWS/"]
+COPY ["Models/Models.csproj", "Model/"]
+COPY ["Core/Core.csproj", "Core/"]
+
+RUN dotnet restore "Migrator/Migrator.csproj"
+
+COPY . .
+WORKDIR "/src/Migrator"
+RUN dotnet build "Migrator.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "Migrator.csproj" -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+
+LABEL maintainer="Donald Gray <donald.gray@digirati.com>, Jack Lewis <jack.lewis@digirati.com>"
+LABEL org.opencontainers.image.source=https://github.com/dlcs/iiif-presentation
+LABEL org.opencontainers.image.description="EF Migration runner for iiif presentation DB"
+
+WORKDIR /app
+EXPOSE 80
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Migrator.dll"]

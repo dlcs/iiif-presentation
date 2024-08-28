@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Settings;
+using Newtonsoft.Json;
 using Repository;
 using Serilog;
 
@@ -12,14 +14,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Services.AddSerilog(lc => lc
-    .WriteTo.Console()
     .ReadFrom.Configuration(builder.Configuration));
 
-builder.Services.AddControllers().AddJsonOptions(opt =>
+builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
-    opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 });
+
+builder.Services.AddScoped<FlatCollectionValidator>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

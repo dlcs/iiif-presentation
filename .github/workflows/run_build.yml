@@ -1,0 +1,58 @@
+name: DLCS Build, Test & Publish
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths-ignore:
+      - "docs/**"
+      - "scripts/**"
+
+jobs:
+  test-dotnet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/IIIFPresentation
+    env:
+      BUILD_CONFIG: "Release"
+      SOLUTION: "IIIFPresentation.sln"
+    steps:   
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup-dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - id: restore-dotnet-dependencies
+        run: dotnet restore $SOLUTION
+      - id: build-dotnet
+        run: |
+          dotnet build $SOLUTION --configuration $BUILD_CONFIG --no-restore
+          dotnet test --configuration $BUILD_CONFIG --no-restore --no-build --verbosity normal
+
+  build-push-api:
+    runs-on: ubuntu-latest
+    needs: test-dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker-build-and-push
+        with:
+          image-name: "presentation-api"
+          dockerfile: "Dockerfile.API"
+          context: "./src/IIIFPresentation"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-push-migrator:
+    runs-on: ubuntu-latest
+    needs: test-dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker-build-and-push
+        with:
+          image-name: "presentation-migrator"
+          dockerfile: "Dockerfile.Migrator"
+          context: "./src/IIIFPresentation"
+          github-token: ${{ secrets.GITHUB_TOKEN }}

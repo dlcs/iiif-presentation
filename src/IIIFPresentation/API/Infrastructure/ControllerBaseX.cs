@@ -1,5 +1,8 @@
-﻿using API.Infrastructure.Requests;
+using System.Net;
+using System.Runtime.InteropServices.JavaScript;
+using API.Infrastructure.Requests;
 using Core;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Infrastructure;
@@ -58,14 +61,24 @@ public static class ControllerBaseX
             WriteResult.Updated => controller.Ok(entityResult.Entity),
             WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
             WriteResult.NotFound => controller.NotFound(entityResult.Error),
-            WriteResult.Error => controller.Problem(entityResult.Error, instance, 500, errorTitle),
-            WriteResult.BadRequest => controller.Problem(entityResult.Error, instance, 400, errorTitle),
-            WriteResult.Conflict => controller.Problem(entityResult.Error, instance, 409, 
+            WriteResult.Error => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            WriteResult.BadRequest => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
+            WriteResult.Conflict => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
                 $"{errorTitle}: Conflict"),
-            WriteResult.FailedValidation => controller.Problem(entityResult.Error, instance, 400,
+            WriteResult.FailedValidation => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
                 $"{errorTitle}: Validation failed"),
-            WriteResult.StorageLimitExceeded => controller.Problem(entityResult.Error, instance, 507,
+            WriteResult.StorageLimitExceeded => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
                 $"{errorTitle}: Storage limit exceeded"),
-            _ => controller.Problem(entityResult.Error, instance, 500, errorTitle),
+            _ => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
         };
+        
+        /// <summary>
+        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+        /// </summary>
+        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+        public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
+        {
+            var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
+            return controller.Problem(message, null, (int)HttpStatusCode.BadRequest, "Bad request");
+        }
 }

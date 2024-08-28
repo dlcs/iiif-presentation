@@ -4,6 +4,8 @@ using Models.Database.Collections;
 using Repository;
 using Testcontainers.PostgreSql;
 
+#nullable disable
+
 namespace Test.Helpers.Integration;
 
 public class PresentationContextFixture : IAsyncLifetime
@@ -121,5 +123,10 @@ public class PresentationContextFixture : IAsyncLifetime
                 .Options
         );
         DbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+    }
+
+    public void CleanUp()
+    {
+        DbContext.Database.ExecuteSqlRawAsync("DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection')");
     }
 }

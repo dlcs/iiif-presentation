@@ -3,13 +3,15 @@ using API.Attributes;
 using API.Auth;
 using API.Converters;
 using API.Features.Storage.Requests;
+using API.Features.Storage.Validators;
 using API.Infrastructure;
-using API.Infrastructure.Requests;
 using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.Response;
+using FluentValidation;
+using Models.API.Collection;
+using NuGet.Protocol;
 
 namespace API.Features.Storage;
 
@@ -31,7 +33,7 @@ public class StorageController : PresentationController
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok( storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpGet("{*slug}")]
@@ -63,28 +65,20 @@ public class StorageController : PresentationController
     
     [HttpPost("collections")]
     [EtagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection)
+    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
     {
         if (!Authorizer.CheckAuthorized(Request))
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
-        
-        var created = await Mediator.Send(new CreateCollection(customerId, collection));
 
-        return Ok(created);
-    }
+        var validation = await validator.ValidateAsync(collection, policy => policy.IncludeRuleSets("create"));
 
-    /// <summary>
-    /// Used by derived controllers to construct correct fully qualified URLs in returned objects.
-    /// </summary>
-    /// <returns></returns>
-    protected UrlRoots GetUrlRoots()
-    {
-        return new UrlRoots
+        if (!validation.IsValid)
         {
-            BaseUrl = Request.GetBaseUrl(),
-            ResourceRoot = Settings.ResourceRoot.ToString()
-        };
+            return this.ValidationFailed(validation);
+        }
+
+        return await HandleUpsert(new CreateCollection(customerId, collection, GetUrlRoots()));
     }
 }

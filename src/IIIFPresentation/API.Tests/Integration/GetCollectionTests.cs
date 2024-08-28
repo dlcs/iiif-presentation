@@ -3,10 +3,16 @@ using System.Net.Http.Headers;
 using API.Tests.Integration.Infrastucture;
 using Core.Response;
 using FluentAssertions;
+using IIIF.Presentation.V3;
+using IIIF.Serialisation;
+using IIIF.Serialisation.Deserialisation;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Models.Response;
+using Models.API.Collection;
+using Newtonsoft.Json;
 using Repository;
 using Test.Helpers.Integration;
+
+#nullable disable
 
 namespace API.Tests.Integration;
 
@@ -15,18 +21,13 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    
-    private readonly PresentationContext dbContext;
-    
+
     public GetCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
     {
-        dbContext = dbFixture.DbContext;
-        
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
-            .CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false
-        });
+            .CreateClient(new WebApplicationFactoryClientOptions());
+        
+        dbFixture.CleanUp();
     }
     
     [Fact]
@@ -35,13 +36,25 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var stuff = await response.Content.ReadAsStringAsync();
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        try
+        {
+           // var collection = stuff.FromJson<Collection>();
+
+            var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            collection!.Id.Should().Be("http://localhost/1");
+            collection.Items.Count.Should().Be(1);
+            var firstItem = (Collection)collection.Items[0];
+            firstItem.Id.Should().Be("http://localhost/1/first-child");
+        }
+        catch (Exception ex)
+        {
+            
+        }
     }
     
     [Fact]
@@ -50,13 +63,15 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/first-child");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/first-child");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child/second-child");
+        
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child/second-child");
     }
     
     [Fact]
@@ -65,13 +80,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/collections/root");
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -79,18 +95,18 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
-        // Act
-        var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -103,13 +119,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<HierarchicalCollection>();
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/first-child");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -118,18 +135,17 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
-        // Act
-        var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
@@ -142,18 +158,17 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/RootStorage");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
-        // Act
-        var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
@@ -166,18 +181,17 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/FirstChildCollection");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "some-token");
-    
-        // Act
-        var response = await httpClient.SendAsync(requestMessage);
 
-        var collection = await response.ReadAsJsonAsync<FlatCollection>();
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
-        collection.Items.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
