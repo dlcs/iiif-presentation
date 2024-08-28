@@ -1,15 +1,10 @@
 ﻿using System.Net;
-using System.Net.Http.Headers;
 using API.Tests.Integration.Infrastucture;
 using Core.Response;
 using FluentAssertions;
 using IIIF.Presentation.V3;
-using IIIF.Serialisation;
-using IIIF.Serialisation.Deserialisation;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
-using Newtonsoft.Json;
-using Repository;
 using Test.Helpers.Integration;
 
 #nullable disable
@@ -35,26 +30,16 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Act
         var response = await httpClient.GetAsync("1");
+        
+        // Act
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
 
-        var stuff = await response.Content.ReadAsStringAsync();
-
-        try
-        {
-           // var collection = stuff.FromJson<Collection>();
-
-            var collection = await response.ReadAsIIIFJsonAsync<Collection>();
-
-            // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            collection!.Id.Should().Be("http://localhost/1");
-            collection.Items.Count.Should().Be(1);
-            var firstItem = (Collection)collection.Items[0];
-            firstItem.Id.Should().Be("http://localhost/1/first-child");
-        }
-        catch (Exception ex)
-        {
-            
-        }
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Id.Should().Be("http://localhost/1");
+        collection.Items.Count.Should().Be(2);
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
     
     [Fact]
@@ -85,7 +70,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items.Count.Should().Be(2);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
@@ -104,7 +89,27 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items.Count.Should().Be(2);
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/first-child");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenIncorrectCsHeader()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
+        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "Incorrect");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Id.Should().Be("http://localhost/1");
+        collection.Items.Count.Should().Be(2);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
@@ -114,7 +119,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
+        requestMessage.AddPrivateHeaders();
     
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -124,7 +129,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(1);
+        collection.Items.Count.Should().Be(2);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
@@ -134,7 +139,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
+        requestMessage.AddPrivateHeaders();
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -145,9 +150,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items!.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(2);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
-        collection.TotalItems.Should().Be(1);
+        collection.TotalItems.Should().Be(2);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
     }
@@ -157,7 +162,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/RootStorage");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
+        requestMessage.AddPrivateHeaders();
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -168,9 +173,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items!.Count.Should().Be(1);
+        collection.Items!.Count.Should().Be(2);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
-        collection.TotalItems.Should().Be(1);
+        collection.TotalItems.Should().Be(2);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
     }
@@ -180,7 +185,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/FirstChildCollection");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "value");
+        requestMessage.AddPrivateHeaders();
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -196,5 +201,29 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+    }
+    
+    [Fact]
+    public async Task Get_PrivateChild_ReturnsCorrectlyFlatAndHierarchical()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/NonPublic");
+        requestMessage.AddPrivateHeaders();
+
+        // Act
+        var flatResponse = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var hierarchicalResponse = await httpClient.AsCustomer(1).GetAsync("1/non-public");
+
+        var flatCollection = await flatResponse.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        // Assert
+        flatResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        flatCollection!.Id.Should().Be("http://localhost/1/collections/NonPublic");
+        flatCollection.PublicId.Should().Be("http://localhost/1/non-public");
+        flatCollection.Items!.Count.Should().Be(0);
+        flatCollection.CreatedBy.Should().Be("admin");
+        flatCollection.Behavior.Should().Contain("storage-collection");
+        flatCollection.Behavior.Should().NotContain("public-iiif");
+        hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

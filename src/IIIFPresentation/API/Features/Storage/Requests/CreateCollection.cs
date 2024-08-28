@@ -12,40 +12,24 @@ using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection : IRequest<ModifyEntityResult<FlatCollection>>
+public class CreateCollection(int customerId, FlatCollection collection, UrlRoots urlRoots)
+    : IRequest<ModifyEntityResult<FlatCollection>>
 {
-    public CreateCollection(int customerId, FlatCollection collection, UrlRoots urlRoots)
-    {
-        CustomerId = customerId;
-        Collection = collection;
-        UrlRoots = urlRoots;
-    }
+    public int CustomerId { get; } = customerId;
 
-    public int CustomerId { get; }
-    
-    public FlatCollection Collection { get; }
-    
-    public UrlRoots UrlRoots { get; }
+    public FlatCollection Collection { get; } = collection;
+
+    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
-public class CreateCollectionHandler : IRequestHandler<CreateCollection, ModifyEntityResult<FlatCollection>>
+public class CreateCollectionHandler(
+    PresentationContext dbContext,
+    ILogger<CreateCollection> logger,
+    IOptions<ApiSettings> options)
+    : IRequestHandler<CreateCollection, ModifyEntityResult<FlatCollection>>
 {
-    private readonly PresentationContext dbContext;
-    
-    private readonly ILogger<CreateCollection> logger;
-    
-    private readonly ApiSettings settings;
+    private readonly ApiSettings settings = options.Value;
 
-    public CreateCollectionHandler(
-        PresentationContext dbContext, 
-        ILogger<CreateCollection> logger, 
-        IOptions<ApiSettings> options)
-    {
-        this.dbContext = dbContext;
-        this.logger = logger;
-        settings = options.Value;
-    }
-    
     public async Task<ModifyEntityResult<FlatCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var collection = new Collection()

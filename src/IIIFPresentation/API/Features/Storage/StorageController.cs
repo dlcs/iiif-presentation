@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Models.API.Collection;
-using NuGet.Protocol;
 
 namespace API.Features.Storage;
 
@@ -19,7 +18,7 @@ namespace API.Features.Storage;
 [ApiController]
 public class StorageController : PresentationController
 {
-    private const string AdditionalPropertiesHeader = "IIIF-CS-Show-Extra";
+    private readonly KeyValuePair<string, string> additionalPropertiesHeader = new KeyValuePair<string, string>("IIIF-CS-Show-Extra", "All");
 
     public StorageController(IOptions<ApiSettings> options, IMediator mediator) : base(options.Value, mediator)
     {
@@ -42,23 +41,20 @@ public class StorageController : PresentationController
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
-        if (storageRoot.Collection == null) return NotFound();
+        if (storageRoot.Collection is not { IsPublic: true }) return NotFound();
 
-        return Ok( storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
     
     [HttpGet("collections/{id}")]
     [EtagCaching]
     public async Task<IActionResult> Get(int customerId, string id)
     {
-        var addAdditionalProperties = Request.Headers.Any(x => x.Key == AdditionalPropertiesHeader) &&
-                                      Authorizer.CheckAuthorized(Request);
-
         var storageRoot = await Mediator.Send(new GetCollection(customerId, id));
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok(addAdditionalProperties
+        return Ok(ShowExtraProperties
             ? storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items)
             : storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
@@ -67,7 +63,7 @@ public class StorageController : PresentationController
     [EtagCaching]
     public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
     {
-        if (!Authorizer.CheckAuthorized(Request))
+        if (!ShowExtraProperties)
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -82,11 +78,12 @@ public class StorageController : PresentationController
         return await HandleUpsert(new CreateCollection(customerId, collection, GetUrlRoots()));
     }
     
-    [HttpPut("collections/{collectionId}")]
+    [HttpPut("collections/{id}")]
     [EtagCaching]
-    public async Task<IActionResult> Put(int customerId, string collectionId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
+    public async Task<IActionResult> Put(int customerId, string id, [FromBody] FlatCollection collection, 
+        [FromServices] FlatCollectionValidator validator)
     {
-        if (!Authorizer.CheckAuthorized(Request))
+        if (!ShowExtraProperties)
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -98,6 +95,9 @@ public class StorageController : PresentationController
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(new UpdateCollection(customerId, collectionId, collection, GetUrlRoots()));
+        return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
     }
+
+    private bool ShowExtraProperties => Request.Headers.FirstOrDefault(x => x.Key == additionalPropertiesHeader.Key).Value == additionalPropertiesHeader.Value &&
+                                          Authorizer.CheckAuthorized(Request);
 }

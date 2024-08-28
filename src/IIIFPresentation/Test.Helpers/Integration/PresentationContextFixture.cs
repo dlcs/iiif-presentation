@@ -88,6 +88,26 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1,
             Parent = "FirstChildCollection"
         });
+        
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = "NonPublic",
+            Slug = "non-public",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", new List<string> {"first child - private"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        });
 
         await DbContext.SaveChangesAsync();
     }
@@ -127,6 +147,6 @@ public class PresentationContextFixture : IAsyncLifetime
 
     public void CleanUp()
     {
-        DbContext.Database.ExecuteSqlRawAsync("DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection')");
+        DbContext.Database.ExecuteSqlRawAsync("DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection', 'NonPublic')");
     }
 }
