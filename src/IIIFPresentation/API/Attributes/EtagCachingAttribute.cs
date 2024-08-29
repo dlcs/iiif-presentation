@@ -1,9 +1,9 @@
 ﻿using System.Security.Cryptography;
-using AngleSharp.Io;
 using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
+using Models.API.General;
 using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
 using HttpMethod = System.Net.Http.HttpMethod;
 
@@ -136,10 +136,16 @@ public class EtagCachingAttribute : ActionFilterAttribute
             etagHashes.TryGetValue(request.Path, out var etag);
 
             if (!request.Headers.IfMatch.Equals(etag))
-                context.Result = new ObjectResult("Cannot match ETag")
+            {
+                context.Result = new ObjectResult(new Error()
+                {
+                    Detail = "Cannot match ETag",
+                    Status = 412
+                })
                 {
                     StatusCode = StatusCodes.Status412PreconditionFailed
                 };
+            }
         }
 
         OnActionExecuting(context);
