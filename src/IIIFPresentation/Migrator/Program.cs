@@ -16,7 +16,16 @@ try
 {
     Log.Information("Configuring IHost");
     var host = Host.CreateDefaultBuilder(args)
-        .ConfigureServices(collection => { collection.AddSingleton<Migrator>(); })
+        .ConfigureServices(
+            collection =>
+            {
+                collection.AddSingleton<Migrator>(); 
+            })
+        .ConfigureAppConfiguration((builderContext, config) =>
+        {
+            config.AddJsonFile("appsettings.json", optional: true);
+            config.AddEnvironmentVariables();
+        })
         .UseSerilog()
         .Build();
 
