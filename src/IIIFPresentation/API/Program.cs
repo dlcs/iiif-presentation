@@ -31,6 +31,7 @@ builder.Services.AddOptions<ApiSettings>()
 
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.ConfigureMediatR();
+builder.Services.AddHealthChecks();
 
 builder.Services.ConfigureHttpJsonOptions( options =>
 {
@@ -55,6 +56,8 @@ app.UseHttpsRedirection();
 app.UseSerilogRequestLogging();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();
 

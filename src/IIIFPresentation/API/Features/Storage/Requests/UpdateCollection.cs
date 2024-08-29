@@ -1,5 +1,7 @@
-﻿using API.Converters;
+﻿using API.Auth;
+using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -7,8 +9,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Models.Infrastucture;
 using Repository;
+using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
@@ -44,36 +46,24 @@ public class UpdateCollectionHandler(
         }
 
         collectionFromDatabase.Modified = DateTime.UtcNow;
-        collectionFromDatabase.ModifiedBy = GetUser(); //TODO: update this to get a real user
-        collectionFromDatabase.IsPublic = request.Collection.Behavior.Contains(Behavior.IsPublic);
-        collectionFromDatabase.IsStorageCollection =
-            request.Collection.Behavior.Contains(Behavior.IsStorageCollection);
+        collectionFromDatabase.ModifiedBy = Authorizer.GetUser();
+        collectionFromDatabase.IsPublic = request.Collection.Behavior.IsPublic();
+        collectionFromDatabase.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
         collectionFromDatabase.ItemsOrder = request.Collection.ItemsOrder;
         collectionFromDatabase.Label = request.Collection.Label;
-        collectionFromDatabase.Parent = request.Collection.Parent!.Split('/').Last();
+        collectionFromDatabase.Parent = request.Collection.Parent!.GetLastPathElement();
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;
         
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex)
-        {
-            logger.LogError(ex,"Error updating collection for customer {Customer} in the database", request.CustomerId);
+        var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
 
-            if (ex.InnerException != null && ex.InnerException.Message.Contains("duplicate key value violates unique constraint \"ix_collections_customer_id_slug_parent\""))
-            {
-                return ModifyEntityResult<FlatCollection>.Failure(
-                    "The collection could not be created due to a duplicate slug value", WriteResult.BadRequest);
-            }
-            
-            return ModifyEntityResult<FlatCollection>.Failure(
-                "The collection could not be created");
+        if (saveErrors != null)
+        {
+            return saveErrors;
         }
 
-        var items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == collectionFromDatabase.Id);
+        var items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == collectionFromDatabase.Id).Take(settings.PageSize); // TODO: add paging when paging is implemented
 
         foreach (var item in items)
         { 
@@ -88,10 +78,5 @@ public class UpdateCollectionHandler(
 
         return ModifyEntityResult<FlatCollection>.Success(
             collectionFromDatabase.ToFlatCollection(request.UrlRoots, settings.PageSize, items));
-    }
-
-    private string? GetUser()
-    {
-        return "Admin";
     }
 }

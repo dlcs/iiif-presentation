@@ -1,8 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
-using Repository;
 
-namespace API.Features.Storage.Helpers;
+namespace Repository.Helpers;
 
 public static class CollectionRetrieval
 {

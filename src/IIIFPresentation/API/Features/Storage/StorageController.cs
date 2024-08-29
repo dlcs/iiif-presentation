@@ -1,10 +1,10 @@
 using System.Net;
 using API.Attributes;
-using API.Auth;
 using API.Converters;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
+using API.Infrastructure.Helpers;
 using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +54,7 @@ public class StorageController : PresentationController
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok(ShowExtraProperties
+        return Ok(Request.ShowExtraProperties()
             ? storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items)
             : storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
     }
@@ -63,7 +63,7 @@ public class StorageController : PresentationController
     [EtagCaching]
     public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
     {
-        if (!ShowExtraProperties)
+        if (!Request.ShowExtraProperties())
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -83,7 +83,7 @@ public class StorageController : PresentationController
     public async Task<IActionResult> Put(int customerId, string id, [FromBody] FlatCollection collection, 
         [FromServices] FlatCollectionValidator validator)
     {
-        if (!ShowExtraProperties)
+        if (!Request.ShowExtraProperties())
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -97,7 +97,4 @@ public class StorageController : PresentationController
 
         return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
     }
-
-    private bool ShowExtraProperties => Request.Headers.FirstOrDefault(x => x.Key == additionalPropertiesHeader.Key).Value == additionalPropertiesHeader.Value &&
-                                          Authorizer.CheckAuthorized(Request);
 }

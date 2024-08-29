@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using API.Tests.Integration.Infrastucture;
+using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FluentAssertions;
 using IIIF.Presentation.V3;
@@ -95,7 +95,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenIncorrectCsHeader()
+    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenShowExtraHeaderNotAll()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
@@ -118,8 +118,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenNoAuth()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.AddPrivateHeaders();
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");
     
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -138,8 +137,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_ReturnsEntryPointFlat_WhenAuthAndHeader()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
-        requestMessage.AddPrivateHeaders();
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -161,8 +159,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_ReturnsEntryPointFlat_WhenCalledById()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/RootStorage");
-        requestMessage.AddPrivateHeaders();
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/RootStorage");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -184,8 +181,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_ChildFlat_ReturnsEntryPointFlat_WhenCalledByChildId()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/FirstChildCollection");
-        requestMessage.AddPrivateHeaders();
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -207,8 +204,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_PrivateChild_ReturnsCorrectlyFlatAndHierarchical()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/NonPublic");
-        requestMessage.AddPrivateHeaders();
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/NonPublic");
 
         // Act
         var flatResponse = await httpClient.AsCustomer(1).SendAsync(requestMessage);

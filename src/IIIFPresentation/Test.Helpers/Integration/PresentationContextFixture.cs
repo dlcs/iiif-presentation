@@ -147,6 +147,7 @@ public class PresentationContextFixture : IAsyncLifetime
 
     public void CleanUp()
     {
-        DbContext.Database.ExecuteSqlRawAsync("DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection', 'NonPublic')");
+        DbContext.Database.ExecuteSqlRawAsync(
+            "DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection', 'NonPublic')");
     }
 }

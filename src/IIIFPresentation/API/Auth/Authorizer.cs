@@ -6,4 +6,9 @@ public static class Authorizer
     {
         return request.Headers.Authorization.Count > 0;
     }
+    
+    public static string GetUser()
+    {
+        return "Admin";
+    }
 }

@@ -1,13 +1,14 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
-using API.Tests.Integration.Infrastucture;
+using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
 using Models.API.General;
+using Models.Database.Collections;
 using Models.Infrastucture;
 using Repository;
 using Test.Helpers.Integration;
@@ -34,8 +35,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
             .CreateClient(new WebApplicationFactoryClientOptions());
 
-        parent = dbContext.Collections.FirstOrDefault(x => x.CustomerId == Customer && x.Slug == string.Empty)!
-            .Id!;
+        parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
         
         dbFixture.CleanUp();
     }
@@ -56,10 +56,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent
         };
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.AddPrivateHeaders();
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -93,10 +90,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent
         };
         
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.AddPrivateHeaders();
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -104,7 +98,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest); 
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict); 
         error!.Detail.Should().Be("The collection could not be created due to a duplicate slug value");
     }
     
@@ -124,10 +118,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent
         };
         
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extra", "All");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
         
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -195,29 +186,33 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_CreatesCollection_WhenAllValuesProvided()
     {
         // Arrange
-        var initialCollection = new FlatCollection()
+        var initialCollection = new Collection()
         {
-            Behavior = new List<string>()
+            Id = "UpdateTester",
+            Slug = "update-test",
+            UsePath = true,
+            Label = new LanguageMap
             {
-                Behavior.IsPublic,
-                Behavior.IsStorageCollection
+                { "en", new List<string> { "update testing" } }
             },
-            Label = new LanguageMap("en", ["test collection"]),
-            Slug = "programmatic-child",
-            Parent = parent
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
         };
-
-        var createRequestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        createRequestMessage.AddPrivateHeaders();
-        createRequestMessage.Content = new StringContent(JsonSerializer.Serialize(initialCollection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
         
-        var createdResponse = await httpClient.AsCustomer(1).SendAsync(createRequestMessage);
-        var createdCollection = await createdResponse.ReadAsPresentationResponseAsync<FlatCollection>();
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
         
         // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, createdCollection!.Id);
-        getRequestMessage.AddPrivateHeaders();
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
@@ -232,12 +227,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "programmatic-child",
             Parent = parent
         };
-        
-        var updateRequestMessage = new HttpRequestMessage(HttpMethod.Put, createdCollection.Id);
-        updateRequestMessage.AddPrivateHeaders();
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
-        updateRequestMessage.Content = new StringContent(JsonSerializer.Serialize(updatedCollection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
@@ -255,7 +248,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
     
-        [Fact]
+    [Fact]
     public async Task UpdateCollection_FailsToCreateCollection_WhenETagIncorrect()
     {
         var updatedCollection = new FlatCollection()
@@ -269,12 +262,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "programmatic-child",
             Parent = parent
         };
-        
-        var updateRequestMessage = new HttpRequestMessage(HttpMethod.Put, "1/collections/FirstChildCollection");
-        updateRequestMessage.AddPrivateHeaders();
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            "1/collections/FirstChildCollection", JsonSerializer.Serialize(updatedCollection));
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
-        updateRequestMessage.Content = new StringContent(JsonSerializer.Serialize(updatedCollection), Encoding.UTF8,
-            new MediaTypeHeaderValue("application/json"));
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
@@ -287,8 +278,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToCreateCollection_WhenCalledWithoutNeededHeaders()
     {
         // Arrange
-        var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/FirstChildCollection");
-        getRequestMessage.AddPrivateHeaders();
+        var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
