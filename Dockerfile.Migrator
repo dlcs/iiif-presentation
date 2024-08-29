@@ -3,7 +3,6 @@ WORKDIR /src
 
 COPY ["Migrator/Migrator.csproj", "Migrator/"]
 COPY ["Repository/Repository.csproj", "Repository/"]
-COPY ["AWS/AWS.csproj", "AWS/"]
 COPY ["Models/Models.csproj", "Model/"]
 COPY ["Core/Core.csproj", "Core/"]
 
@@ -23,6 +22,5 @@ LABEL org.opencontainers.image.source=https://github.com/dlcs/iiif-presentation
 LABEL org.opencontainers.image.description="EF Migration runner for iiif presentation DB"
 
 WORKDIR /app
-EXPOSE 80
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Migrator.dll"]

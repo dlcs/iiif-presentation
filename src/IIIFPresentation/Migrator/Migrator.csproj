@@ -16,7 +16,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\AWS\AWS.csproj" />
       <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

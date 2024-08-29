@@ -23,6 +23,6 @@ LABEL org.opencontainers.image.source=https://github.com/dlcs/iiif-presentation
 LABEL org.opencontainers.image.description="HTTP API for iiif presentation interactions."
 
 WORKDIR /app
-EXPOSE 80
+EXPOSE 8080
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "API.dll"]
