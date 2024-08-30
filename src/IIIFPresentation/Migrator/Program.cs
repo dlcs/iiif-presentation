@@ -21,11 +21,6 @@ try
             {
                 collection.AddSingleton<Migrator>(); 
             })
-        .ConfigureAppConfiguration((builderContext, config) =>
-        {
-            config.AddJsonFile("appsettings.json", optional: true);
-            config.AddEnvironmentVariables();
-        })
         .UseSerilog()
         .Build();
 
