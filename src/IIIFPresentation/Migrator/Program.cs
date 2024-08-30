@@ -1,6 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using AWS.SSM;
 using Serilog;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +16,11 @@ try
 {
     Log.Information("Configuring IHost");
     var host = Host.CreateDefaultBuilder(args)
-        .ConfigureServices(collection => { collection.AddSingleton<Migrator>(); })
-        .ConfigureAppConfiguration((context, builder) => { builder.AddSystemsManager(context); })
+        .ConfigureServices(
+            collection =>
+            {
+                collection.AddSingleton<Migrator>(); 
+            })
         .UseSerilog()
         .Build();
 

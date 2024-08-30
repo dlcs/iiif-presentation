@@ -6,28 +6,16 @@ using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetHierarchicalCollection : IRequest<CollectionWithItems>
+public class GetHierarchicalCollection(int customerId, string slug) : IRequest<CollectionWithItems>
 {
-    public GetHierarchicalCollection(int customerId, string slug)
-    {
-        CustomerId = customerId;
-        Slug = slug;
-    }
+    public int CustomerId { get; } = customerId;
 
-    public int CustomerId { get; }
-    
-    public string Slug { get; }
+    public string Slug { get; } = slug;
 }
 
-public class GetHierarchicalCollectionHandler : IRequestHandler<GetHierarchicalCollection, CollectionWithItems>
+public class GetHierarchicalCollectionHandler(PresentationContext dbContext)
+    : IRequestHandler<GetHierarchicalCollection, CollectionWithItems>
 {
-    private readonly PresentationContext dbContext;
-
-    public GetHierarchicalCollectionHandler(PresentationContext dbContext)
-    {
-        this.dbContext = dbContext;
-    }
-
     public async Task<CollectionWithItems> Handle(GetHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
