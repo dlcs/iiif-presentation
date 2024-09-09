@@ -9,19 +9,20 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
+using Models.API.Collection.Update;
 using Repository;
 using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpdateCollection(int customerId, string collectionId, FlatCollection collection, UrlRoots urlRoots)
+public class UpdateCollection(int customerId, string collectionId, UpdateFlatCollection collection, UrlRoots urlRoots)
     : IRequest<ModifyEntityResult<FlatCollection>>
 {
     public int CustomerId { get; } = customerId;
 
     public string CollectionId { get; set; } = collectionId;
 
-    public FlatCollection Collection { get; } = collection;
+    public UpdateFlatCollection Collection { get; } = collection;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
@@ -49,9 +50,8 @@ public class UpdateCollectionHandler(
         collectionFromDatabase.ModifiedBy = Authorizer.GetUser();
         collectionFromDatabase.IsPublic = request.Collection.Behavior.IsPublic();
         collectionFromDatabase.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
-        collectionFromDatabase.ItemsOrder = request.Collection.ItemsOrder;
         collectionFromDatabase.Label = request.Collection.Label;
-        collectionFromDatabase.Parent = request.Collection.Parent!.GetLastPathElement();
+        collectionFromDatabase.Parent = request.Collection.Parent.GetLastPathElement();
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;

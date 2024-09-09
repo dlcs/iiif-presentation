@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Models.API.Collection;
+using Models.API.Collection.Update;
 
 namespace API.Features.Storage;
 
@@ -75,8 +76,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     
     [HttpPut("collections/{id}")]
     [EtagCaching]
-    public async Task<IActionResult> Put(int customerId, string id, [FromBody] FlatCollection collection, 
-        [FromServices] FlatCollectionValidator validator)
+    public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpdateFlatCollection collection, 
+        [FromServices] UpdateFlatCollectionValidator validator)
     {
         if (!Request.ShowExtraProperties())
         {

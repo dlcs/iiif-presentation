@@ -7,6 +7,7 @@ using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
+using Models.API.Collection.Update;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Infrastucture;
@@ -183,7 +184,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task UpdateCollection_CreatesCollection_WhenAllValuesProvided()
+    public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvided()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -216,7 +217,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -248,8 +249,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
     
-        [Fact]
-    public async Task UpdateCollection_CreatesCollection_WhenAllValuesProvidedWithoutLabel()
+    [Fact]
+    public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvidedWithoutLabel()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -282,7 +283,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -313,8 +314,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
     
-        [Fact]
-    public async Task UpdateCollection_FailsToCreateCollection_WhenNotStorageCollection()
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenNotStorageCollection()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -347,7 +348,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -370,9 +371,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task UpdateCollection_FailsToCreateCollection_WhenETagIncorrect()
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -396,14 +397,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task UpdateCollection_FailsToCreateCollection_WhenCalledWithoutNeededHeaders()
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders()
     {
         // Arrange
         var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
