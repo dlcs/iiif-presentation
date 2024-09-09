@@ -9,18 +9,10 @@ public class FlatCollectionValidator : AbstractValidator<FlatCollection>
     {
         RuleSet("create", () =>
         {
-            RuleFor(a => a.Created).Empty().WithMessage("Created cannot be set");
-            RuleFor(a => a.Modified).Empty().WithMessage("Modified cannot be set");
-            RuleFor(a => a.Id).Empty().WithMessage("Id cannot be set");
-            RuleFor(a => a.Parent).NotEmpty().WithMessage("Creating a new collection requires a parent");
-        });
-        
-        RuleSet("update", () =>
-        {
-            RuleFor(a => a.Created).Empty().WithMessage("Created cannot be set");
-            RuleFor(a => a.Modified).Empty().WithMessage("Modified cannot be set");
-            RuleFor(a => a.Id).Empty().WithMessage("Id cannot be set");
-            RuleFor(a => a.Parent).NotEmpty().WithMessage("Updating a collection requires a parent to be set");
+            RuleFor(f => f.Created).Empty().WithMessage("'Created' cannot be set");
+            RuleFor(f => f.Modified).Empty().WithMessage("'Modified' cannot be set");
+            RuleFor(f => f.Id).Empty().WithMessage("'Id' cannot be set");
+            RuleFor(f => f.Parent).NotEmpty().WithMessage("Creating a new collection requires a parent");
         });
     }
 }

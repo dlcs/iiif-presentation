@@ -7,6 +7,7 @@ using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
+using Models.API.Collection.Update;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Infrastucture;
@@ -68,7 +69,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Label.Values.First()[0].Should().Be("test collection");
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
@@ -183,7 +184,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task UpdateCollection_CreatesCollection_WhenAllValuesProvided()
+    public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvided()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -216,7 +217,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -242,16 +243,137 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         fromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Label.Values.First()[0].Should().Be("test collection - updated");
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
         fromDatabase.Slug.Should().Be("programmatic-child");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
     
     [Fact]
-    public async Task UpdateCollection_FailsToCreateCollection_WhenETagIncorrect()
+    public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvidedWithoutLabel()
     {
-        var updatedCollection = new FlatCollection()
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-2",
+            Slug = "update-test-2",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new UpdateFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Slug = "programmatic-child-2",
+            Parent = parent
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Slug.Should().Be("programmatic-child-2");
+        fromDatabase.Label.Should().BeNull();
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenNotStorageCollection()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-3",
+            Slug = "update-test-3",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new UpdateFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child-3",
+            Parent = parent
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
+    {
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -275,14 +397,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task UpdateCollection_FailsToCreateCollection_WhenCalledWithoutNeededHeaders()
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders()
     {
         // Arrange
         var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new FlatCollection()
+        var updatedCollection = new UpdateFlatCollection()
         {
             Behavior = new List<string>()
             {

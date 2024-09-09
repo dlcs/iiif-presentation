@@ -11,19 +11,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Models.API.Collection;
+using Models.API.Collection.Update;
 
 namespace API.Features.Storage;
 
 [Route("/{customerId}")]
 [ApiController]
-public class StorageController : PresentationController
+public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
+    : PresentationController(options.Value, mediator)
 {
-    private readonly KeyValuePair<string, string> additionalPropertiesHeader = new KeyValuePair<string, string>("IIIF-CS-Show-Extra", "All");
-
-    public StorageController(IOptions<ApiSettings> options, IMediator mediator) : base(options.Value, mediator)
-    {
-    }
-    
     [HttpGet]
     [EtagCaching]
     public async Task<IActionResult> GetHierarchicalRootCollection(int customerId)
@@ -80,8 +76,8 @@ public class StorageController : PresentationController
     
     [HttpPut("collections/{id}")]
     [EtagCaching]
-    public async Task<IActionResult> Put(int customerId, string id, [FromBody] FlatCollection collection, 
-        [FromServices] FlatCollectionValidator validator)
+    public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpdateFlatCollection collection, 
+        [FromServices] UpdateFlatCollectionValidator validator)
     {
         if (!Request.ShowExtraProperties())
         {
