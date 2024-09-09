@@ -68,7 +68,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Label.Values.First()[0].Should().Be("test collection");
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
