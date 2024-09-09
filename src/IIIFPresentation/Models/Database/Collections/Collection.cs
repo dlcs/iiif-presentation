@@ -30,7 +30,7 @@ public class Collection
     /// <summary>
     /// Derived from the stored IIIF collection JSON - a single value on the default language
     /// </summary>
-    public required LanguageMap Label { get; set; }
+    public LanguageMap? Label { get; set; }
     
     /// <summary>
     /// Not the IIIF JSON, just a single path or URI to 100px, for rapid query results

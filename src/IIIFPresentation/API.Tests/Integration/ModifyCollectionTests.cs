@@ -242,10 +242,131 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         fromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Label.Values.First()[0].Should().Be("test collection - updated");
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
         fromDatabase.Slug.Should().Be("programmatic-child");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+    
+        [Fact]
+    public async Task UpdateCollection_CreatesCollection_WhenAllValuesProvidedWithoutLabel()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-2",
+            Slug = "update-test-2",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new FlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Slug = "programmatic-child-2",
+            Parent = parent
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Slug.Should().Be("programmatic-child-2");
+        fromDatabase.Label.Should().BeNull();
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+    
+        [Fact]
+    public async Task UpdateCollection_FailsToCreateCollection_WhenNotStorageCollection()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-2",
+            Slug = "update-test-2",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new FlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child",
+            Parent = parent
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
     [Fact]

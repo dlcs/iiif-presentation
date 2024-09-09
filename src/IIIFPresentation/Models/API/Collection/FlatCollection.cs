@@ -16,7 +16,7 @@ public class FlatCollection
 
     public List<string> Behavior { get; set; } = new ();
 
-    public required LanguageMap Label { get; set; }
+    public LanguageMap? Label { get; set; }
 
     public required string Slug { get; set; }
     

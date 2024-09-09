@@ -16,14 +16,9 @@ namespace API.Features.Storage;
 
 [Route("/{customerId}")]
 [ApiController]
-public class StorageController : PresentationController
+public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
+    : PresentationController(options.Value, mediator)
 {
-    private readonly KeyValuePair<string, string> additionalPropertiesHeader = new KeyValuePair<string, string>("IIIF-CS-Show-Extra", "All");
-
-    public StorageController(IOptions<ApiSettings> options, IMediator mediator) : base(options.Value, mediator)
-    {
-    }
-    
     [HttpGet]
     [EtagCaching]
     public async Task<IActionResult> GetHierarchicalRootCollection(int customerId)
