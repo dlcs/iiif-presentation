@@ -21,8 +21,7 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
     options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 });
 
-builder.Services.AddScoped<FlatCollectionValidator>();
-builder.Services.AddScoped<UpdateFlatCollectionValidator>();
+builder.Services.AddScoped<UpsertFlatCollectionValidator>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

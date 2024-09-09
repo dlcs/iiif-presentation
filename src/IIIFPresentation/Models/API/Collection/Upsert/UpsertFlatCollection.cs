@@ -1,8 +1,8 @@
 ﻿using IIIF.Presentation.V3.Strings;
 
-namespace Models.API.Collection.Update;
+namespace Models.API.Collection.Upsert;
 
-public class UpdateFlatCollection
+public class UpsertFlatCollection
 {
     public List<string> Behavior { get; set; } = new ();
 

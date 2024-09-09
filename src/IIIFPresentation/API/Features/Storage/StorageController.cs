@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Models.API.Collection;
-using Models.API.Collection.Update;
+using Models.API.Collection.Upsert;
 
 namespace API.Features.Storage;
 
@@ -57,14 +57,15 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     
     [HttpPost("collections")]
     [EtagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromBody] FlatCollection collection, [FromServices] FlatCollectionValidator validator)
+    public async Task<IActionResult> Post(int customerId, [FromBody] UpsertFlatCollection collection, 
+        [FromServices] UpsertFlatCollectionValidator validator)
     {
         if (!Request.ShowExtraProperties())
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
 
-        var validation = await validator.ValidateAsync(collection, policy => policy.IncludeRuleSets("create"));
+        var validation = await validator.ValidateAsync(collection);
 
         if (!validation.IsValid)
         {
@@ -76,15 +77,15 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     
     [HttpPut("collections/{id}")]
     [EtagCaching]
-    public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpdateFlatCollection collection, 
-        [FromServices] UpdateFlatCollectionValidator validator)
+    public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
+        [FromServices] UpsertFlatCollectionValidator validator)
     {
         if (!Request.ShowExtraProperties())
         {
             return Problem(statusCode: (int)HttpStatusCode.Forbidden);
         }
 
-        var validation = await validator.ValidateAsync(collection, policy => policy.IncludeRuleSets("update"));
+        var validation = await validator.ValidateAsync(collection);
 
         if (!validation.IsValid)
         {
