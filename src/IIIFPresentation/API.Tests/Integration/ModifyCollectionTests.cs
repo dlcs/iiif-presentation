@@ -319,8 +319,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Arrange
         var initialCollection = new Collection()
         {
-            Id = "UpdateTester-2",
-            Slug = "update-test-2",
+            Id = "UpdateTester-3",
+            Slug = "update-test-3",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -354,7 +354,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsPublic
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = "programmatic-child-3",
             Parent = parent
         };
 
