@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20240909120824_optionalLabel")]
+    [Migration("20240909124355_optionalLabel")]
     partial class optionalLabel
     {
         /// <inheritdoc />
