@@ -11,4 +11,10 @@ public static class HttpRequestX
         return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value == AdditionalPropertiesHeader.Value &&
                Authorizer.CheckAuthorized(request);
     }
+    
+    public static bool HasShowExtraHeader(this HttpRequest request)
+    {
+        return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value ==
+               AdditionalPropertiesHeader.Value;
+    }
 }
