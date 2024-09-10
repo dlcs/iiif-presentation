@@ -47,7 +47,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
 
             responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
             {
-                Public = !requestHeaders.Headers.Keys.Contains("IIIF-CS-Show-Extra"),
+                Public = !requestHeaders.Headers.Keys.Contains("IIIF-CS-Show-Extras"),
                 MaxAge = TimeSpan.FromDays(365)
             };
 

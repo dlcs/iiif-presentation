@@ -4,7 +4,7 @@ namespace API.Infrastructure.Helpers;
 
 public static class HttpRequestX
 {
-    private static readonly KeyValuePair<string, string> AdditionalPropertiesHeader = new KeyValuePair<string, string>("IIIF-CS-Show-Extra", "All");
+    private static readonly KeyValuePair<string, string> AdditionalPropertiesHeader = new ("IIIF-CS-Show-Extras", "All");
 
     public static bool ShowExtraProperties(this HttpRequest request)
     {
