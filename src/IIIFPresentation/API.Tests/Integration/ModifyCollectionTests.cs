@@ -145,7 +145,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
         
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.Headers.Add("IIIF-CS-Show-Extras", "Incorrect");
+        requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
         requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
         
