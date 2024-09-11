@@ -1,4 +1,5 @@
 ﻿using API.Features.Storage.Validators;
+using FluentAssertions;
 using FluentValidation.TestHelper;
 using Models.API.Collection.Upsert;
 
@@ -18,6 +19,8 @@ public class UpsertFlatCollectionValidatorTests
         };
         
         var result = sut.TestValidate(upsertFlatCollection);
+        
+        result.IsValid.Should().BeFalse();
         result.ShouldHaveValidationErrorFor(f => f.Behavior);
     }
 }
