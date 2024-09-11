@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using API.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -42,12 +43,11 @@ public class EtagCachingAttribute : ActionFilterAttribute
 
         if (response.StatusCode == StatusCodes.Status200OK)
         {
-            var requestHeaders = request.GetTypedHeaders();
             var responseHeaders = response.GetTypedHeaders();
 
             responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
             {
-                Public = !requestHeaders.Headers.Keys.Contains("IIIF-CS-Show-Extra"),
+                Public = request.HasShowExtraHeader(),
                 MaxAge = TimeSpan.FromDays(365)
             };
 
@@ -57,6 +57,8 @@ public class EtagCachingAttribute : ActionFilterAttribute
                     GenerateETag(memoryStream,
                         request.Path); // This request generates a hash from the response - this would come from S3 in live
             }
+            
+            var requestHeaders = request.GetTypedHeaders();
 
             if (IsClientCacheValid(requestHeaders, responseHeaders))
             {
