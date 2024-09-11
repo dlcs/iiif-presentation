@@ -1,7 +1,5 @@
-﻿using API.Infrastructure.Helpers;
+﻿using Core.Helpers;
 using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Infrastucture;
 
@@ -10,7 +8,7 @@ namespace API.Converters;
 public static class CollectionConverter
 {
     public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots,
-        IQueryable<Models.Database.Collections.Collection>? items)
+        List<Models.Database.Collections.Collection>? items)
     {
         var stuff = new Collection()
         {
@@ -27,10 +25,10 @@ public static class CollectionConverter
         return stuff;
     }
     
-    public static FlatCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize, 
-        IQueryable<Models.Database.Collections.Collection>? items)
+    public static FlatCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
+        List<Models.Database.Collections.Collection>? items)
     {
-        var itemCount = items?.Count() ?? 0;
+        var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
         
         return new FlatCollection()
         {
@@ -67,15 +65,15 @@ public static class CollectionConverter
                 }
             } : null,
             
-            TotalItems = itemCount,
+            TotalItems = totalItems,
             
             View = new View
             {
                 Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}?page=1&pageSize={pageSize}",
                 Type = PresentationType.PartialCollectionView,
-                Page = 1,
+                Page = currentPage,
                 PageSize = pageSize,
-                TotalPages = itemCount % pageSize
+                TotalPages = totalPages
             },
             
             SeeAlso =

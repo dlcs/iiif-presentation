@@ -123,11 +123,12 @@ WHERE
         var storage = await dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId)
             .FirstOrDefaultAsync(cancellationToken);
 
-        IQueryable<Collection>? items = null;
+        List<Collection>? items = null;
 
         if (storage != null)
         {
-            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == storage.Id);
+            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == storage.Id)
+                .ToList();
 
             foreach (var item in items)
             {
@@ -137,6 +138,6 @@ WHERE
             storage.FullPath = request.Slug;
         }
 
-        return new CollectionWithItems(storage, items);
+        return new CollectionWithItems(storage, items, items?.Count ?? 0);
     }
 }

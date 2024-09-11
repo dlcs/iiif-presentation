@@ -2,6 +2,7 @@ using System.Net;
 using System.Runtime.InteropServices.JavaScript;
 using API.Infrastructure.Requests;
 using Core;
+using Core.Helpers;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 
@@ -80,5 +81,27 @@ public static class ControllerBaseX
         {
             var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
             return controller.Problem(message, null, (int)HttpStatusCode.BadRequest, "Bad request");
+        }
+        
+        /// <summary>
+        /// Evaluates incoming orderBy and orderByDescending fields to get a suitable
+        /// ordering field and its direction.
+        /// </summary>
+        public static string? GetOrderBy(this ControllerBase _, string? orderBy, string? orderByDescending,
+            out bool descending)
+        {
+            string? orderByField = null;
+            descending = false;
+            if (orderBy.HasText())
+            {
+                orderByField = orderBy;
+            }
+            else if (orderByDescending.HasText())
+            {
+                orderByField = orderByDescending;
+                descending = true;
+            }
+
+            return orderByField;
         }
 }

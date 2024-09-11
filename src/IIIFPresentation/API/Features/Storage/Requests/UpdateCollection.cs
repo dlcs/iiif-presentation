@@ -1,10 +1,10 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
+using Core.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -64,7 +64,12 @@ public class UpdateCollectionHandler(
             return saveErrors;
         }
 
-        var items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == collectionFromDatabase.Id).Take(settings.PageSize); // TODO: add paging when paging is implemented
+        var total = await dbContext.Collections.CountAsync(
+            c => c.CustomerId == request.CustomerId && c.Parent == collectionFromDatabase.Id);
+
+        var items = dbContext.Collections
+            .Where(s => s.CustomerId == request.CustomerId && s.Parent == collectionFromDatabase.Id)
+            .Take(settings.PageSize);
 
         foreach (var item in items)
         { 
@@ -78,6 +83,7 @@ public class UpdateCollectionHandler(
         }
 
         return ModifyEntityResult<FlatCollection>.Success(
-            collectionFromDatabase.ToFlatCollection(request.UrlRoots, settings.PageSize, items));
+            collectionFromDatabase.ToFlatCollection(request.UrlRoots, 1, settings.PageSize, total,
+                await items.ToListAsync(cancellationToken: cancellationToken)));
     }
 }

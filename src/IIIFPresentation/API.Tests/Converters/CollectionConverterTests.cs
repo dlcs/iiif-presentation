@@ -1,7 +1,6 @@
 ﻿using API.Converters;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
-using Models.API.Collection;
 using Models.Database.Collections;
 
 #nullable disable
@@ -26,7 +25,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, new EnumerableQuery<Collection>(CreateTestItems()));
+            storageRoot.ToHierarchicalCollection(urlRoots, new List<Collection>(CreateTestItems()));
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1");
         hierarchicalCollection.Label.Count.Should().Be(1);
@@ -42,7 +41,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, new EnumerableQuery<Collection>(CreateTestItems()));
+            storageRoot.ToHierarchicalCollection(urlRoots, new List<Collection>(CreateTestItems()));
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/top/some-id");
         hierarchicalCollection.Label.Count.Should().Be(1);
@@ -58,7 +57,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, pageSize, new EnumerableQuery<Collection>(CreateTestItems()));
+            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 1, new List<Collection>(CreateTestItems()));
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -82,7 +81,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, pageSize, new EnumerableQuery<Collection>(CreateTestItems()));
+            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 0, new List<Collection>(CreateTestItems()));
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
