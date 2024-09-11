@@ -20,24 +20,9 @@ namespace API.Features.Storage;
 public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    [HttpGet]
-    [EtagCaching]
-    public async Task<IActionResult> GetHierarchicalRootCollection(int customerId, int? page = 1, int? pageSize = -1, 
-        string? orderBy = null, string? orderByDescending = null)
-    {
-        (page, pageSize, var descending) = SetPaging(page, pageSize, orderBy, orderByDescending);
-        var storageRoot =
-            await Mediator.Send(new GetCollection(customerId, "root", page.Value, pageSize.Value, orderBy, descending));
-
-        if (storageRoot.Collection == null) return NotFound();
-
-        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
-            ContentTypes.V3);
-    }
-    
     [HttpGet("{*slug}")]
     [EtagCaching]
-    public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug)
+    public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
