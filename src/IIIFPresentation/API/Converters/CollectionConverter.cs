@@ -27,13 +27,17 @@ public static class CollectionConverter
 
     public static FlatCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
         UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
-        List<Models.Database.Collections.Collection>? items)
+        List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
     {
         var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
 
+        var id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}";
+
+        var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+        
         return new FlatCollection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}",
+            Id = id,
             Context = new List<string>
             {
                 "http://iiif.io/api/presentation/3/context.json",
@@ -77,11 +81,17 @@ public static class CollectionConverter
 
             View = new View
             {
-                Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}?page=1&pageSize={pageSize}",
+                Id = $"{id}?page={currentPage}&pageSize={pageSize}{orderQueryParamConverted}",
                 Type = PresentationType.PartialCollectionView,
                 Page = currentPage,
                 PageSize = pageSize,
-                TotalPages = totalPages
+                TotalPages = totalPages,
+                Next = totalPages > currentPage
+                    ? $"{id}?page={currentPage + 1}&pageSize={pageSize}{orderQueryParamConverted}"
+                    : null,
+                Last = currentPage > 1 
+                    ? $"{id}?page={currentPage - 1}&pageSize={pageSize}{orderQueryParamConverted}" 
+                    : null
             },
 
             SeeAlso =

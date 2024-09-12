@@ -37,7 +37,11 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1, 
         string? orderBy = null, string? orderByDescending = null)
     {
-        (page, pageSize, var descending) = SetPaging(page, pageSize, orderBy, orderByDescending);
+        if (pageSize is null or <= 0) pageSize = Settings.PageSize;
+        if (pageSize > Settings.MaxPageSize) pageSize = Settings.MaxPageSize;
+        if (page is null or <= 0) page = 1;
+        
+        var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
         var storageRoot =
             await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderBy, descending));
 
@@ -50,18 +54,6 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
             ContentTypes.V3);
-    }
-
-    private (int page, int pageSize, bool descending) SetPaging(int? page, int? pageSize, string? orderBy = null, 
-        string? orderByDescending = null)
-    {
-        if (pageSize is null or <= 0) pageSize = Settings.PageSize;
-        if (pageSize > Settings.MaxPageSize) pageSize = Settings.MaxPageSize;
-        if (page is null or <= 0) page = 1;
-        
-        var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
-        
-        return (page.Value, pageSize.Value, descending);
     }
 
     [HttpPost("collections")]

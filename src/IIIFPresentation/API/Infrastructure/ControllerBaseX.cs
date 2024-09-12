@@ -94,11 +94,11 @@ public static class ControllerBaseX
             descending = false;
             if (orderBy.HasText())
             {
-                orderByField = orderBy;
+                orderByField = $"orderBy={orderBy}";
             }
             else if (orderByDescending.HasText())
             {
-                orderByField = orderByDescending;
+                orderByField = $"orderByDescending={orderByDescending}";
                 descending = true;
             }
 
