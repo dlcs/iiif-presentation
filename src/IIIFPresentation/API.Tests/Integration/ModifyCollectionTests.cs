@@ -54,7 +54,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "programmatic-child",
-            Parent = parent
+            Parent = parent,
+            Thumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
@@ -71,6 +74,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
+        fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
@@ -250,7 +256,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = "programmatic-child",
-            Parent = parent
+            Parent = parent,
+            ItemsOrder = 1,
+            Thumbnail = "some/location/2",
+            Tags = "some, tags, 2",
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -269,6 +278,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
         fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/location/2");
+        fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }

@@ -55,6 +55,7 @@ public class UpdateCollectionHandler(
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;
+        collectionFromDatabase.ItemsOrder = request.Collection.ItemsOrder;
         
         var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
 

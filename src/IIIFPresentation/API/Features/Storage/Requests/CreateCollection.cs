@@ -48,7 +48,8 @@ public class CreateCollectionHandler(
             Parent = request.Collection.Parent!.GetLastPathElement(),
             Slug = request.Collection.Slug,
             Thumbnail = request.Collection.Thumbnail,
-            Tags = request.Collection.Tags
+            Tags = request.Collection.Tags,
+            ItemsOrder = request.Collection.ItemsOrder
         };
 
         dbContext.Collections.Add(collection);
