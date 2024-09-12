@@ -8,18 +8,19 @@ using Core;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
+using Models.API.Collection.Upsert;
 using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection(int customerId, FlatCollection collection, UrlRoots urlRoots)
+public class CreateCollection(int customerId, UpsertFlatCollection collection, UrlRoots urlRoots)
     : IRequest<ModifyEntityResult<FlatCollection>>
 {
     public int CustomerId { get; } = customerId;
 
-    public FlatCollection Collection { get; } = collection;
+    public UpsertFlatCollection Collection { get; } = collection;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
@@ -43,12 +44,12 @@ public class CreateCollectionHandler(
             CustomerId = request.CustomerId,
             IsPublic = request.Collection.Behavior.IsPublic(),
             IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
-            ItemsOrder = request.Collection.ItemsOrder,
             Label = request.Collection.Label,
             Parent = request.Collection.Parent!.GetLastPathElement(),
             Slug = request.Collection.Slug,
             Thumbnail = request.Collection.Thumbnail,
-            Tags = request.Collection.Tags
+            Tags = request.Collection.Tags,
+            ItemsOrder = request.Collection.ItemsOrder
         };
 
         dbContext.Collections.Add(collection);

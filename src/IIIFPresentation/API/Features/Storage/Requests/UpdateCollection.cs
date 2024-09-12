@@ -9,20 +9,20 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Models.API.Collection.Update;
+using Models.API.Collection.Upsert;
 using Repository;
 using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpdateCollection(int customerId, string collectionId, UpdateFlatCollection collection, UrlRoots urlRoots)
+public class UpdateCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots)
     : IRequest<ModifyEntityResult<FlatCollection>>
 {
     public int CustomerId { get; } = customerId;
 
     public string CollectionId { get; set; } = collectionId;
 
-    public UpdateFlatCollection Collection { get; } = collection;
+    public UpsertFlatCollection Collection { get; } = collection;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
@@ -55,6 +55,7 @@ public class UpdateCollectionHandler(
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;
+        collectionFromDatabase.ItemsOrder = request.Collection.ItemsOrder;
         
         var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
 

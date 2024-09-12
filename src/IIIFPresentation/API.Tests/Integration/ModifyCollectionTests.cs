@@ -7,7 +7,7 @@ using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
-using Models.API.Collection.Update;
+using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Infrastucture;
@@ -45,7 +45,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvided()
     {
         // Arrange
-        var collection = new FlatCollection()
+        var collection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -54,7 +54,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "programmatic-child",
-            Parent = parent
+            Parent = parent,
+            Thumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
@@ -71,8 +74,35 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
+        fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+    
+    [Fact]
+    public async Task CreateCollection_FailsToCreateCollection_WhenIsStorageCollectionFalse()
+    {
+        // Arrange
+        var collection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "programmatic-child",
+            Parent = parent
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
     [Fact]
@@ -107,7 +137,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutAuth()
     {
         // Arrange
-        var collection = new FlatCollection()
+        var collection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -132,7 +162,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
-        var collection = new FlatCollection()
+        var collection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -160,7 +190,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutShowExtras()
     {
         // Arrange
-        var collection = new FlatCollection()
+        var collection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -217,7 +247,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpdateFlatCollection()
+        var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -226,7 +256,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = "programmatic-child",
-            Parent = parent
+            Parent = parent,
+            ItemsOrder = 1,
+            Thumbnail = "some/location/2",
+            Tags = "some, tags, 2",
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -245,6 +278,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
         fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/location/2");
+        fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
@@ -283,7 +319,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpdateFlatCollection()
+        var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -348,7 +384,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpdateFlatCollection()
+        var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -373,7 +409,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
-        var updatedCollection = new UpdateFlatCollection()
+        var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
@@ -404,7 +440,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpdateFlatCollection()
+        var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
             {
