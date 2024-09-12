@@ -54,7 +54,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (Request.ShowExtraProperties())
         {
-            return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+            return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items));
         }
 
         return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
