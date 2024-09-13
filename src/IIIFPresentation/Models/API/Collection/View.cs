@@ -16,7 +16,7 @@ public class View
     
     public int TotalPages { get; set; }
     
-    public string? Next { get; set; }
+    public Uri? Next { get; set; }
     
-    public string? Last { get; set; }
+    public Uri? Last { get; set; }
 }

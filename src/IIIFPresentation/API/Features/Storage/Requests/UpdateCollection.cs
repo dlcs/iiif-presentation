@@ -35,6 +35,8 @@ public class UpdateCollectionHandler(
 {
     private readonly ApiSettings settings = options.Value;
 
+    private const int DefaultCurrentPage = 1;
+
     public async Task<ModifyEntityResult<FlatCollection>> Handle(UpdateCollection request, CancellationToken cancellationToken)
     {
         var collectionFromDatabase =
@@ -65,7 +67,8 @@ public class UpdateCollectionHandler(
         }
 
         var total = await dbContext.Collections.CountAsync(
-            c => c.CustomerId == request.CustomerId && c.Parent == collectionFromDatabase.Id);
+            c => c.CustomerId == request.CustomerId && c.Parent == collectionFromDatabase.Id,
+            cancellationToken: cancellationToken);
 
         var items = dbContext.Collections
             .Where(s => s.CustomerId == request.CustomerId && s.Parent == collectionFromDatabase.Id)
@@ -83,7 +86,7 @@ public class UpdateCollectionHandler(
         }
 
         return ModifyEntityResult<FlatCollection>.Success(
-            collectionFromDatabase.ToFlatCollection(request.UrlRoots, 1, settings.PageSize, total,
+            collectionFromDatabase.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
                 await items.ToListAsync(cancellationToken: cancellationToken)));
     }
 }

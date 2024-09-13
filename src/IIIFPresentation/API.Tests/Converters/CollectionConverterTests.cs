@@ -31,6 +31,7 @@ public class CollectionConverterTests
         hierarchicalCollection.Label!.Count.Should().Be(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
         hierarchicalCollection.Items!.Count.Should().Be(1);
+        hierarchicalCollection.Context!.Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
     
     [Fact]
@@ -47,6 +48,7 @@ public class CollectionConverterTests
         hierarchicalCollection.Label!.Count.Should().Be(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
         hierarchicalCollection.Items!.Count.Should().Be(1);
+        hierarchicalCollection.Context!.Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
     
     [Fact]
@@ -66,7 +68,9 @@ public class CollectionConverterTests
         flatCollection.Label["en"].Should().Contain("repository root");
         flatCollection.Slug.Should().Be("root");
         flatCollection.SeeAlso.Should().HaveCount(2);
+        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1");
         flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/iiif");
         flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
         flatCollection.Created.Should().Be(DateTime.MinValue);
         flatCollection.Parent.Should().BeNull();
@@ -93,7 +97,9 @@ public class CollectionConverterTests
         flatCollection.Label["en"].Should().Contain("repository root");
         flatCollection.Slug.Should().Be("root");
         flatCollection.SeeAlso.Should().HaveCount(2);
+        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
         flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
         flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
         flatCollection.Created.Should().Be(DateTime.MinValue);
         flatCollection.Parent.Should().Be("http://base/1/collections/top");

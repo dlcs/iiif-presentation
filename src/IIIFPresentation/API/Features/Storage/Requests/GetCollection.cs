@@ -1,4 +1,5 @@
 ﻿using API.Features.Storage.Models;
+using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
@@ -64,7 +65,7 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
             
             foreach (var item in items)
             { 
-                item.FullPath = $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{item.Slug}";
+                item.FullPath = collection.GenerateFullPath(item.Slug);
             }
 
             if (collection.Parent != null)

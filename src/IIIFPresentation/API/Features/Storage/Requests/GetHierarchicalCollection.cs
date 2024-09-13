@@ -1,4 +1,5 @@
 ﻿using API.Features.Storage.Models;
+using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
@@ -144,7 +145,7 @@ WHERE
 
             foreach (var item in items)
             {
-                item.FullPath = string.IsNullOrEmpty(request.Slug) ? item.Slug : $"{request.Slug}/{item.Slug}";
+                item.FullPath = collection.GenerateFullPath(item.Slug);
             }
             
             collection.FullPath = request.Slug;

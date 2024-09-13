@@ -1,4 +1,6 @@
-﻿using Core.Helpers;
+﻿using API.Helpers;
+using Core.Helpers;
+using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Models.Infrastucture;
@@ -12,15 +14,16 @@ public static class CollectionConverter
     {
         var collection = new Collection()
         {
-            Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(string.IsNullOrEmpty(dbAsset.FullPath) ? string.Empty : $"/{dbAsset.FullPath}")}",
-            Context = "http://iiif.io/api/presentation/3/context.json",
+            Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Label = dbAsset.Label,
             Items = items != null ? items.Select(x => new Collection()
             {
-                Id =  $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{x.FullPath}",
+                Id =  x.GenerateHierarchicalCollectionId(urlRoots),
                 Label = x.Label
-            }).ToList<ICollectionItem>() : new List<ICollectionItem>()
+            }).ToList<ICollectionItem>() : []
         };
+        
+        collection.EnsurePresentation3Context();
 
         return collection;
     }
@@ -31,35 +34,32 @@ public static class CollectionConverter
     {
         var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
 
-        var id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Id}";
-
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
         
         return new FlatCollection()
         {
-            Id = id,
+            Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = new List<string>
             {
-                "http://iiif.io/api/presentation/3/context.json",
-                "http://tbc.org/iiif-repository/1/context.json"
+                "http://tbc.org/iiif-repository/1/context.json",
+                "http://iiif.io/api/presentation/3/context.json"
             },
             Label = dbAsset.Label,
-            PublicId =
-                $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
+            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
                 .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
             Type = PresentationType.Collection,
             Slug = dbAsset.Slug,
             Parent = dbAsset.Parent != null
-                ? $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/collections/{dbAsset.Parent}"
+                ? dbAsset.GenerateFlatCollectionParent(urlRoots)
                 : null,
 
             ItemsOrder = dbAsset.ItemsOrder,
             Items = items != null
                 ? items.Select(i => new Item
                 {
-                    Id = $"{urlRoots.BaseUrl}/{i.CustomerId}/collections/{i.Id}",
+                    Id = i.GenerateFlatCollectionId(urlRoots),
                     Label = i.Label,
                     Type = PresentationType.Collection
                 }).ToList()
@@ -81,16 +81,16 @@ public static class CollectionConverter
 
             View = new View
             {
-                Id = $"{id}?page={currentPage}&pageSize={pageSize}{orderQueryParamConverted}",
+                Id = dbAsset.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParamConverted),
                 Type = PresentationType.PartialCollectionView,
                 Page = currentPage,
                 PageSize = pageSize,
                 TotalPages = totalPages,
                 Next = totalPages > currentPage
-                    ? $"{id}?page={currentPage + 1}&pageSize={pageSize}{orderQueryParamConverted}"
+                    ? dbAsset.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParamConverted)
                     : null,
-                Last = currentPage > 1 
-                    ? $"{id}?page={currentPage - 1}&pageSize={pageSize}{orderQueryParamConverted}" 
+                Last = currentPage > 1 // check if we're on a page after the first
+                    ? dbAsset.GenerateFlatCollectionViewLast(urlRoots, currentPage, pageSize, orderQueryParamConverted)
                     : null
             },
 
@@ -98,8 +98,7 @@ public static class CollectionConverter
             [
                 new()
                 {
-                    Id =
-                        $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}",
+                    Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = ["Public"]
@@ -107,8 +106,7 @@ public static class CollectionConverter
 
                 new()
                 {
-                    Id =
-                        $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}{(dbAsset.FullPath != null ? $"/{dbAsset.FullPath}" : "")}/iiif",
+                    Id = $"{dbAsset.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
                     Type = PresentationType.Collection,
                     Label = dbAsset.Label,
                     Profile = ["api-hierarchical"]
