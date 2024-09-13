@@ -123,7 +123,7 @@ WHERE
                 
         Collection? collection;
 
-        if (request.Slug.Equals(string.Empty, StringComparison.OrdinalIgnoreCase))
+        if (request.Slug.Equals(string.Empty))
         {
             collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
                 s => s.CustomerId == request.CustomerId && s.Parent == null,
