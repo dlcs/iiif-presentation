@@ -9,8 +9,8 @@ using API.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using FluentValidation;
-using Models.API.Collection;
+using IIIF.Presentation;
+using IIIF.Serialisation;
 using Models.API.Collection.Upsert;
 
 namespace API.Features.Storage;
@@ -28,7 +28,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+            ContentTypes.V3);
     }
     
     [HttpGet("{*slug}")]
@@ -39,7 +40,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (storageRoot.Collection is not { IsPublic: true }) return NotFound();
 
-        return Ok(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+            ContentTypes.V3);
     }
     
     [HttpGet("collections/{id}")]
@@ -50,9 +52,13 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (storageRoot.Collection == null) return NotFound();
 
-        return Ok(Request.ShowExtraProperties()
-            ? storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items)
-            : storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items));
+        if (Request.ShowExtraProperties())
+        {
+            return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items));
+        }
+
+        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+            ContentTypes.V3);
     }
     
     [HttpPost("collections")]
