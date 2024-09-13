@@ -369,6 +369,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         collection.TotalItems.Should().Be(2);
         collection.View!.PageSize.Should().Be(1);
+        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1&orderByDescending={field}");
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
