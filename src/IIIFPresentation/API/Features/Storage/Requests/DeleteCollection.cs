@@ -2,6 +2,7 @@
 using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Models.API.General;
 using Repository;
 
 namespace API.Features.Storage.Requests;
@@ -26,7 +27,8 @@ public class DeleteCollectionHandler(
         
         if (request.CollectionId.Equals(RootCollection, StringComparison.OrdinalIgnoreCase))
         {
-            return new ResultMessage<DeleteResult>("Cannot delete a root collection", DeleteResult.BadRequest);
+            return new ResultMessage<DeleteResult>(DeleteResult.BadRequest, "Cannot delete a root collection",
+                (int)DeleteCollectionType.CannotDeleteRootCollection);
         }
 
         var collection = await dbContext.Collections.FirstOrDefaultAsync(
@@ -37,7 +39,8 @@ public class DeleteCollectionHandler(
 
         if (collection.Parent is null)
         {
-            return new ResultMessage<DeleteResult>("Cannot delete a root collection", DeleteResult.BadRequest);
+            return new ResultMessage<DeleteResult>(DeleteResult.BadRequest, "Cannot delete a root collection",
+                (int)DeleteCollectionType.CannotDeleteRootCollection);
         }
 
         var itemCount = await dbContext.Collections.CountAsync(
@@ -46,8 +49,8 @@ public class DeleteCollectionHandler(
 
         if (itemCount != 0)
         {
-            return new ResultMessage<DeleteResult>("Cannot delete a collection with child items",
-                DeleteResult.BadRequest);
+            return new ResultMessage<DeleteResult>(DeleteResult.BadRequest,
+                "Cannot delete a collection with child items", (int)DeleteCollectionType.CollectionNotEmpty);
         }
 
         dbContext.Collections.Remove(collection);
@@ -58,7 +61,7 @@ public class DeleteCollectionHandler(
         catch (DbUpdateConcurrencyException ex)
         {
             logger.LogError(ex, "Error attempting to delete collection {CollectionId}", request.CollectionId);
-            return new ResultMessage<DeleteResult>("Error deleting collection", DeleteResult.Error);
+            return new ResultMessage<DeleteResult>(DeleteResult.Error, "Error deleting collection", (int)DeleteCollectionType.Unknown);
         }
 
         return new ResultMessage<DeleteResult>(DeleteResult.Deleted);

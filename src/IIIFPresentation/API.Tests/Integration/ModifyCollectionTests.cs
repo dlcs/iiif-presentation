@@ -464,4 +464,114 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+    
+    [Fact]
+    public async Task DeleteCollection_DeletesCollection_WhenAllValuesProvided()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "DeleteTester",
+            Slug = "delete-test",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "RootStorage"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/{initialCollection.Id}");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+
+        var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == initialCollection.Id);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        fromDatabase.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task DeleteCollection_FailsToDeleteCollection_WhenNotFound()
+    {
+        // Arrange
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/doesNotExist");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+    
+    [Fact]
+    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRoot()
+    {
+        // Arrange
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/root");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        errorResponse!.Code.Should().Be(1);
+        errorResponse.Detail.Should().Be("Cannot delete a root collection");
+    }
+    
+    
+    [Fact]
+    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRootDirectly()
+    {
+        // Arrange
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/RootStorage");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        errorResponse!.Code.Should().Be(1);
+        errorResponse.Detail.Should().Be("Cannot delete a root collection");
+    }
+    
+    [Fact]
+    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteCollectionWithItems()
+    {
+        // Arrange
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/FirstChildCollection");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        errorResponse!.Code.Should().Be(2);
+        errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
+    }
 }

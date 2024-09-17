@@ -1,4 +1,5 @@
-﻿using API.Converters;
+﻿using System.Net;
+using API.Converters;
 using API.Exceptions;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -89,7 +90,7 @@ public abstract class PresentationController : Controller
         {
             var result = await Mediator.Send(request, cancellationToken);
 
-            return ConvertDeleteToHttp(result.Value, result.Message);
+            return ConvertDeleteToHttp(result.Value, result.Message, result.Code);
             
         }, errorTitle);
     }
@@ -114,19 +115,19 @@ public abstract class PresentationController : Controller
         {
             var result = await Mediator.Send(request, cancellationToken);
 
-            return ConvertDeleteToHttp(result.Value, result.Message);
+            return ConvertDeleteToHttp(result.Value, result.Message, result.Code);
         }, errorTitle);
     }
 
-    private IActionResult ConvertDeleteToHttp(DeleteResult result, string? message)
+    private IActionResult ConvertDeleteToHttp(DeleteResult result, string? message, int? errorCode)
     {
         // Note: this is temporary until DeleteResult used for all deletions
         return result switch
         {
-            DeleteResult.NotFound => NotFound(),
-            DeleteResult.Conflict => new ObjectResult(message) { StatusCode = 409 },
-            DeleteResult.Error => new ObjectResult(message) { StatusCode = 500 },
-            DeleteResult.BadRequest => new ObjectResult(message) { StatusCode = 500 },
+            DeleteResult.NotFound => this.PresentationNotFound(),
+            DeleteResult.Conflict => this.PresentationProblem(detail: message, errorCode: errorCode, statusCode: (int)HttpStatusCode.Conflict),
+            DeleteResult.Error => this.PresentationProblem(detail: message, errorCode: errorCode, statusCode: (int)HttpStatusCode.InternalServerError),
+            DeleteResult.BadRequest => this.PresentationProblem(detail: message, errorCode: errorCode, statusCode: (int)HttpStatusCode.BadRequest),
             DeleteResult.Deleted => NoContent(),
             _ => throw new ArgumentOutOfRangeException(nameof(DeleteResult), $"No deletion value of {result}")
         };
