@@ -107,6 +107,8 @@ public class CollectionConverterTests
         flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
         flatCollection.View.Next.Should().BeNull();
         flatCollection.View.Last.Should().BeNull();
+        flatCollection.View.First.Should().BeNull();
+        flatCollection.View.Next.Should().BeNull();
     }
     
     [Fact]
@@ -136,7 +138,9 @@ public class CollectionConverterTests
         flatCollection.View.PageSize.Should().Be(1);
         flatCollection.View.Id.Should().Be("http://base/1/collections/some-id?page=2&pageSize=1&orderBy=created");
         flatCollection.View.Next.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
-        flatCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
+        flatCollection.View.Previous.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
+        flatCollection.View.First.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
+        flatCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
         flatCollection.TotalItems.Should().Be(3);
     }
 

@@ -26,10 +26,20 @@ public static class CollectionHelperX
         new(
             $"{collection.GenerateFlatCollectionId(urlRoots)}?page={currentPage + 1}&pageSize={pageSize}{orderQueryParam}");
     
-    public static Uri GenerateFlatCollectionViewLast(this Collection collection, UrlRoots urlRoots, 
+    public static Uri GenerateFlatCollectionViewPrevious(this Collection collection, UrlRoots urlRoots, 
         int currentPage, int pageSize, string orderQueryParam) =>
         new(
             $"{collection.GenerateFlatCollectionId(urlRoots)}?page={currentPage - 1}&pageSize={pageSize}{orderQueryParam}");
+    
+    public static Uri GenerateFlatCollectionViewFirst(this Collection collection, UrlRoots urlRoots, 
+        int pageSize, string orderQueryParam) =>
+        new(
+            $"{collection.GenerateFlatCollectionId(urlRoots)}?page=1&pageSize={pageSize}{orderQueryParam}");
+    
+    public static Uri GenerateFlatCollectionViewLast(this Collection collection, UrlRoots urlRoots, 
+        int lastPage, int pageSize, string orderQueryParam) =>
+        new(
+            $"{collection.GenerateFlatCollectionId(urlRoots)}?page={lastPage}&pageSize={pageSize}{orderQueryParam}");
     
     public static string GenerateFullPath(this Collection collection, string itemSlug) => 
         $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{itemSlug}";

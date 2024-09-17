@@ -129,7 +129,7 @@ public class CollectionHelperXTests
         };
 
         // Act
-        var id = collection.GenerateFlatCollectionViewLast(urlRoots, 2, 10, "&test");
+        var id = collection.GenerateFlatCollectionViewPrevious(urlRoots, 2, 10, "&test");
 
         // Assert
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");

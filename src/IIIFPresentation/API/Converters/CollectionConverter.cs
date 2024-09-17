@@ -79,20 +79,7 @@ public static class CollectionConverter
 
             TotalItems = totalItems,
 
-            View = new View
-            {
-                Id = dbAsset.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParamConverted),
-                Type = PresentationType.PartialCollectionView,
-                Page = currentPage,
-                PageSize = pageSize,
-                TotalPages = totalPages,
-                Next = totalPages > currentPage
-                    ? dbAsset.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParamConverted)
-                    : null,
-                Last = currentPage > 1 // check if we're on a page after the first
-                    ? dbAsset.GenerateFlatCollectionViewLast(urlRoots, currentPage, pageSize, orderQueryParamConverted)
-                    : null
-            },
+            View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
 
             SeeAlso =
             [
@@ -118,5 +105,33 @@ public static class CollectionConverter
             CreatedBy = dbAsset.CreatedBy,
             ModifiedBy = dbAsset.ModifiedBy
         };
+    }
+
+    private static View GenerateView(Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize,
+        int currentPage, int totalPages, string? orderQueryParam = null)
+
+    {
+        var view = new View()
+        {
+            Id = dbAsset.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParam),
+            Type = PresentationType.PartialCollectionView,
+            Page = currentPage,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+        };
+
+        if (totalPages > 1)
+        {
+            view.First = dbAsset.GenerateFlatCollectionViewFirst(urlRoots, pageSize, orderQueryParam);
+            view.Previous = dbAsset.GenerateFlatCollectionViewPrevious(urlRoots, currentPage, pageSize, orderQueryParam);
+        }
+
+        if (totalPages > currentPage)
+        {
+            view.Next = dbAsset.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParam);
+            view.Last = dbAsset.GenerateFlatCollectionViewLast(urlRoots, totalPages, pageSize, orderQueryParam);
+        }
+        
+        return view;
     }
 }
