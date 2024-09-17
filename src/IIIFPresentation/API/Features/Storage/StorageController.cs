@@ -1,12 +1,15 @@
+using System.Diagnostics;
 using System.Net;
 using API.Attributes;
 using API.Converters;
+using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using Core;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -59,7 +62,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 storageRoot.TotalItems, storageRoot.Items, orderByField));
         }
 
-        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots())); ;
+        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+            ContentTypes.V3);
     }
 
     [HttpPost("collections")]
@@ -100,6 +104,33 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         }
 
         return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
+    }
+    
+    [HttpDelete("collections/{id}")]
+    public async Task<IActionResult> Delete(int customerId, string id)
+    {
+        if (!Request.ShowExtraProperties())
+        {
+            return Problem(statusCode: (int)HttpStatusCode.Forbidden);
+        }
+
+        var deleteResult = await Mediator.Send(new DeleteCollection(customerId, id));
+        
+        return ConvertDeleteCollectionToHttp(deleteResult, id);
+    }
+    
+    private IActionResult ConvertDeleteCollectionToHttp(ResultMessage<DeleteResult> deleteStorageCollection, string collectionId)
+    {
+        // Note: this is temporary until DeleteResult used for all deletions
+        return deleteStorageCollection.Value switch
+        {
+            DeleteResult.NotFound => NotFound(),
+            DeleteResult.Conflict => new ObjectResult(new DeleteStorageCollection(deleteStorageCollection.Value)) { StatusCode = 409 },
+            DeleteResult.Error => new ObjectResult(new DeleteStorageCollection(deleteStorageCollection.Message!, 1, Activity.Current?.Id ?? Request.HttpContext?.TraceIdentifier,  deleteStorageCollection.Value)) { StatusCode = 500 },
+            DeleteResult.BadRequest => new ObjectResult(new DeleteStorageCollection(deleteStorageCollection.Message!, 1, Activity.Current?.Id ?? Request.HttpContext?.TraceIdentifier,  deleteStorageCollection.Value)) { StatusCode = 400 },
+            DeleteResult.Deleted => NoContent(),
+            _ => throw new ArgumentOutOfRangeException(nameof(DeleteResult), $"No deletion value of {collectionId}")
+        };
     }
     
     private IActionResult SeeOther(string location)

@@ -126,6 +126,7 @@ public abstract class PresentationController : Controller
             DeleteResult.NotFound => NotFound(),
             DeleteResult.Conflict => new ObjectResult(message) { StatusCode = 409 },
             DeleteResult.Error => new ObjectResult(message) { StatusCode = 500 },
+            DeleteResult.BadRequest => new ObjectResult(message) { StatusCode = 500 },
             DeleteResult.Deleted => NoContent(),
             _ => throw new ArgumentOutOfRangeException(nameof(DeleteResult), $"No deletion value of {result}")
         };

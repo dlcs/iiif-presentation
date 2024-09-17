@@ -12,6 +12,15 @@ public class ResultMessage<T>
         Value = value;
         Message = message;
     }
+    
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="ResultStatus{T}" /> class.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public ResultMessage(T value)
+    {
+        Value = value;
+    }
 
     /// <summary>
     ///     The associated value.
@@ -21,5 +30,5 @@ public class ResultMessage<T>
     /// <summary>
     ///     The message related to the result
     /// </summary>
-    public string Message { get; }
+    public string? Message { get; }
 }
