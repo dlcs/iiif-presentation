@@ -15,6 +15,4 @@ public class Error : JsonLdBase
     public string? ErrorTypeUri { get; set; }
     
     public int Status { get; set; }
-    
-    public int? Code { get; set; }
 }

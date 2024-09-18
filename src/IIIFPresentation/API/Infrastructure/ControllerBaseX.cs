@@ -115,7 +115,6 @@ public static class ControllerBaseX
         /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
         /// <param name="title">The value for <see cref="Error.Title" />.</param>
         /// <param name="type">The value for <see cref="Error.Type" />.</param>
-        /// <param name="errorCode">The value for <see cref="Error.Code" />.</param>
         /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
         public static ObjectResult PresentationProblem(
             this ControllerBase controller,
@@ -123,8 +122,7 @@ public static class ControllerBaseX
             string? instance = null,
             int? statusCode = null,
             string? title = null,
-            string? type = null,
-            int? errorCode = null)
+            string? type = null)
         {
             var error = new Error
             {
@@ -132,8 +130,7 @@ public static class ControllerBaseX
                 Instance = instance ?? controller.Request.GetDisplayUrl(),
                 Status = statusCode ?? 500,
                 Title = title,
-                ErrorTypeUri = type,
-                Code = errorCode
+                ErrorTypeUri = type
             };
 
             return new ObjectResult(error)

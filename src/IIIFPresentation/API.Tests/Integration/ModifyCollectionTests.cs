@@ -534,7 +534,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.Code.Should().Be(1);
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
         errorResponse.Detail.Should().Be("Cannot delete a root collection");
     }
     
@@ -553,7 +553,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.Code.Should().Be(1);
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
         errorResponse.Detail.Should().Be("Cannot delete a root collection");
     }
     
@@ -571,7 +571,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.Code.Should().Be(2);
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CollectionNotEmpty");
         errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
     }
 }
