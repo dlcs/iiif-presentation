@@ -222,4 +222,180 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection.Behavior.Should().NotContain("public-iiif");
         hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task Get_RootFlat_ReturnsItems_WhenCalledWithPageSize()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=100");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(100);
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(1);
+        collection.Items!.Count.Should().Be(2);
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsReducedItems_WhenCalledWithSmallPageSize()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=1");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsSecondPage_WhenCalledWithSmallPageSize()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=2&pageSize=1");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Page.Should().Be(2);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/NonPublic");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsDefaults_WhenCalledWithZeroPage()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=0&pageSize=0");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(20);
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(1);
+        collection.Items!.Count.Should().Be(2);
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsMaxPageSize_WhenCalledPageSizeExceedsMax()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=1000");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(100);
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(1);
+        collection.Items!.Count.Should().Be(2);
+    }
+    
+    [Theory]
+    [InlineData("id")]
+    [InlineData("slug")]
+    [InlineData("created")]
+    public async Task Get_RootFlat_ReturnsCorrectItem_WhenCalledWithSmallPageSizeAndOrderBy(string field)
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/root?page=1&pageSize=1&orderBy={field}");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+    
+    [Theory]
+    [InlineData("id")]
+    [InlineData("slug")]
+    [InlineData("created")]
+    public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field)
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/root?page=1&pageSize=1&orderByDescending={field}");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1&orderByDescending={field}");
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/NonPublic");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_IgnoresOrderBy_WhenCalledWithInvalidOrderBy()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/root?page=1&pageSize=1&orderByDescending=notValid");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1");
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
 }

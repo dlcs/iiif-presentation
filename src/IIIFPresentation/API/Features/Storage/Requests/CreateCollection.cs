@@ -1,10 +1,10 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
+using Core.Helpers;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -67,8 +67,7 @@ public class CreateCollectionHandler(
         }
 
         return ModifyEntityResult<FlatCollection>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, 
-                new EnumerableQuery<Collection>([])), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, 1, settings.PageSize, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 }

@@ -20,21 +20,9 @@ namespace API.Features.Storage;
 public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    [HttpGet]
-    [EtagCaching]
-    public async Task<IActionResult> GetHierarchicalRootCollection(int customerId)
-    {
-        var storageRoot = await Mediator.Send(new GetCollection(customerId, "root"));
-
-        if (storageRoot.Collection == null) return NotFound();
-
-        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
-            ContentTypes.V3);
-    }
-    
     [HttpGet("{*slug}")]
     [EtagCaching]
-    public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug)
+    public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
@@ -43,24 +31,32 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
             ContentTypes.V3);
     }
-    
+
     [HttpGet("collections/{id}")]
     [EtagCaching]
-    public async Task<IActionResult> Get(int customerId, string id)
+    public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1, 
+        string? orderBy = null, string? orderByDescending = null)
     {
-        var storageRoot = await Mediator.Send(new GetCollection(customerId, id));
+        if (pageSize is null or <= 0) pageSize = Settings.PageSize;
+        if (pageSize > Settings.MaxPageSize) pageSize = Settings.MaxPageSize;
+        if (page is null or <= 0) page = 1;
+        
+        var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
+        var storageRoot =
+            await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderBy, descending));
 
         if (storageRoot.Collection == null) return NotFound();
 
         if (Request.ShowExtraProperties())
         {
-            return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), Settings.PageSize, storageRoot.Items));
+            return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
+                storageRoot.TotalItems, storageRoot.Items, orderByField));
         }
 
         return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
             ContentTypes.V3);
     }
-    
+
     [HttpPost("collections")]
     [EtagCaching]
     public async Task<IActionResult> Post(int customerId, [FromBody] UpsertFlatCollection collection, 

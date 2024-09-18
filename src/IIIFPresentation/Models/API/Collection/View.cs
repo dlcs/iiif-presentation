@@ -15,4 +15,12 @@ public class View
     public int PageSize { get; set; }
     
     public int TotalPages { get; set; }
+    
+    public Uri? Next { get; set; }
+    
+    public Uri? Previous { get; set; }
+    
+    public Uri? First { get; set; }
+    
+    public Uri? Last { get; set; }
 }

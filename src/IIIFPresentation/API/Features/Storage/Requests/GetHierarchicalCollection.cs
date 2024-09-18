@@ -1,4 +1,5 @@
 ﻿using API.Features.Storage.Models;
+using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
@@ -119,24 +120,37 @@ WHERE
     level = max_level
   AND slug = slug_array[max_level]
   AND tree_path.customer_id = {request.CustomerId}";
+                
+        Collection? collection;
 
-        var storage = await dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        IQueryable<Collection>? items = null;
-
-        if (storage != null)
+        if (request.Slug.Equals(string.Empty))
         {
-            items = dbContext.Collections.Where(s => s.CustomerId == request.CustomerId && s.Parent == storage.Id);
+            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+                s => s.CustomerId == request.CustomerId && s.Parent == null,
+                cancellationToken);
+        }
+        else
+        {
+            collection =  await dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        List<Collection>? items = null;
+
+        if (collection != null)
+        {
+            items = await dbContext.Collections
+                .Where(s => s.CustomerId == request.CustomerId && s.Parent == collection.Id)
+                .ToListAsync(cancellationToken: cancellationToken);
 
             foreach (var item in items)
             {
-                item.FullPath = $"{request.Slug}/{item.Slug}";
+                item.FullPath = collection.GenerateFullPath(item.Slug);
             }
             
-            storage.FullPath = request.Slug;
+            collection.FullPath = request.Slug;
         }
 
-        return new CollectionWithItems(storage, items);
+        return new CollectionWithItems(collection, items, items?.Count ?? 0);
     }
 }
