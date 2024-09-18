@@ -375,4 +375,27 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Items!.Count.Should().Be(1);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
+    
+    [Fact]
+    public async Task Get_RootFlat_IgnoresOrderBy_WhenCalledWithInvalidOrderBy()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/root?page=1&pageSize=1&orderByDescending=notValid");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        
+        // Assert
+        collection.TotalItems.Should().Be(2);
+        collection.View!.PageSize.Should().Be(1);
+        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1");
+        collection.View.Page.Should().Be(1);
+        collection.View.TotalPages.Should().Be(2);
+        collection.Items!.Count.Should().Be(1);
+        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
 }

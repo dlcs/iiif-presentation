@@ -1,5 +1,6 @@
 using System.Net;
 using System.Runtime.InteropServices.JavaScript;
+using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using Core;
 using Core.Helpers;
@@ -92,11 +93,11 @@ public static class ControllerBaseX
         {
             string? orderByField = null;
             descending = false;
-            if (orderBy.HasText())
+            if (orderBy.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderBy.ToLower()))
             {
                 orderByField = $"orderBy={orderBy}";
             }
-            else if (orderByDescending.HasText())
+            else if (orderByDescending.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
             {
                 orderByField = $"orderByDescending={orderByDescending}";
                 descending = true;
