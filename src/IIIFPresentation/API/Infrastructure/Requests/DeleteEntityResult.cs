@@ -17,17 +17,14 @@ public class DeleteEntityResult : IModifyRequest
     /// </summary>
     public string? Message { get; private init; }
     
-    /// <summary>
-    /// The code related to the result
-    /// </summary>
-    public int? Code { get; private init; }
+    public string? Type { get; private init; }
 
     public static DeleteEntityResult Success => new() { Value = DeleteResult.Deleted };
 
     public bool IsSuccess => Value == DeleteResult.Deleted;
 
-    public static DeleteEntityResult Failure(string message, DeleteResult result, int code)
+    public static DeleteEntityResult Failure(string message, DeleteResult result, string type)
     {
-        return new DeleteEntityResult { Message = message, Value = result, Code = code};
+        return new DeleteEntityResult { Message = message, Value = result, Type = type};
     }
 }

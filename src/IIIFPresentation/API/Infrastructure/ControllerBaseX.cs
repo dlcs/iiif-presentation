@@ -6,7 +6,6 @@ using Core;
 using Core.Helpers;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Models.API.General;
 
 namespace API.Infrastructure;
@@ -65,15 +64,15 @@ public static class ControllerBaseX
             WriteResult.Updated => controller.Ok(entityResult.Entity),
             WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
             WriteResult.NotFound => controller.NotFound(entityResult.Error),
-            WriteResult.Error => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
-            WriteResult.BadRequest => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
-            WriteResult.Conflict => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
+            WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
+            WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
                 $"{errorTitle}: Conflict"),
-            WriteResult.FailedValidation => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
+            WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
                 $"{errorTitle}: Validation failed"),
-            WriteResult.StorageLimitExceeded => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
+            WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
                 $"{errorTitle}: Storage limit exceeded"),
-            _ => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
         };
         
         /// <summary>

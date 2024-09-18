@@ -1,18 +1,29 @@
 ﻿namespace Core;
 
-public class ResultMessage<T>
+public class ResultMessage<T, TEnum>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ResultStatus{T}" /> class.
     /// </summary>
     /// <param name="value">The value.</param>
+    /// <param name="type">A type used to generate an error</param>
     /// <param name="message">A message related to the result</param>
-    /// <param name="code">A code associated with the result</param>
-    public ResultMessage(T value, string? message = null, int? code = null)
+    public ResultMessage(T value, TEnum? type, string? message = null)
     {
         Value = value;
         Message = message;
-        Code = code;
+        Type = type;
+    }
+    
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ResultStatus{T}" /> class.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    /// <param name="message">A message related to the result</param>
+    public ResultMessage(T value, string? message = null)
+    {
+        Value = value;
+        Message = message;
     }
 
     /// <summary>
@@ -28,5 +39,5 @@ public class ResultMessage<T>
     /// <summary>
     /// A code associated with the result message
     /// </summary>
-    public int? Code { get; }
+    public TEnum? Type { get; }
 }

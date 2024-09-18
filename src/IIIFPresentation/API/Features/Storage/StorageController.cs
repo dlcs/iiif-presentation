@@ -9,7 +9,6 @@ using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
-using Core;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
