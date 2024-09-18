@@ -20,7 +20,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public GetCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
     {
         httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
-            .CreateClient(new WebApplicationFactoryClientOptions());
+            .CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); ;
         
         dbFixture.CleanUp();
     }
@@ -60,42 +60,46 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenNoAuthAndCsHeader()
+    public async Task Get_Hierarchical_Redirects_WhenAuthAndShowExtrasHeaders()
     {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1");
+        
         // Act
-        var response = await httpClient.GetAsync("1/collections/root");
-
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(2);
-        var firstItem = (Collection)collection.Items[0];
-        firstItem.Id.Should().Be("http://localhost/1/first-child");
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1/collections/RootStorage");
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenNoCsHeader()
+    public async Task Get_RootFlat_Redirects_WhenNoAuthAndCsHeader()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/collections/root");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_Redirects_WhenNoCsHeader()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
-
+        
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(2);
-        var firstItem = (Collection)collection.Items[0];
-        firstItem.Id.Should().Be("http://localhost/1/first-child");
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1");
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenShowExtraHeaderNotAll()
+    public async Task Get_RootFlat_Redirects_WhenShowExtraHeaderNotAll()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
@@ -103,34 +107,24 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
-
+        
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(2);
-        var firstItem = (Collection)collection.Items[0];
-        firstItem.Id.Should().Be("http://localhost/1/first-child");
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1");
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointHierarchical_WhenNoAuth()
+    public async Task Get_RootFlat_Redirects_WhenNoAuth()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");
     
         // Act
         var response = await httpClient.SendAsync(requestMessage);
-
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
-
+        
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(2);
-        var firstItem = (Collection)collection.Items[0];
-        firstItem.Id.Should().Be("http://localhost/1/first-child");
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1");
     }
     
     [Fact]

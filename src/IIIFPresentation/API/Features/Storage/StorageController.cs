@@ -3,6 +3,7 @@ using API.Attributes;
 using API.Converters;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
+using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
@@ -27,6 +28,11 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
         if (storageRoot.Collection is not { IsPublic: true }) return NotFound();
+
+        if (Request.ShowExtraProperties())
+        {
+            return SeeOther(storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots()));
+        }
 
         return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
             ContentTypes.V3);
@@ -53,8 +59,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 storageRoot.TotalItems, storageRoot.Items, orderByField));
         }
 
-        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
-            ContentTypes.V3);
+        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots())); ;
     }
 
     [HttpPost("collections")]
@@ -96,4 +101,11 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
     }
+    
+    private IActionResult SeeOther(string location)
+    {
+        Response.Headers.Location = location;
+
+        return StatusCode((int)HttpStatusCode.SeeOther);
+    } 
 }
