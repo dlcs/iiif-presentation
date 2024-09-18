@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Settings;
+using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
 using Serilog;
@@ -32,6 +33,10 @@ builder.Services.AddOptions<ApiSettings>()
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.ConfigureMediatR();
 builder.Services.AddHealthChecks();
+builder.Services.Configure<ForwardedHeadersOptions>(opts =>
+{
+    opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
+});
 
 builder.Services.ConfigureHttpJsonOptions( options =>
 {
@@ -42,6 +47,8 @@ builder.Services.ConfigureHttpJsonOptions( options =>
 builder.Services.AddOptionsWithValidateOnStart<Program>();
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
