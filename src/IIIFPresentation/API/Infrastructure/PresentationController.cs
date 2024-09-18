@@ -125,9 +125,9 @@ public abstract class PresentationController : Controller
         return result switch
         {
             DeleteResult.NotFound => this.PresentationNotFound(),
-            DeleteResult.Conflict => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.Conflict, title: HttpStatusCode.Conflict.ToString()),
-            DeleteResult.Error => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.InternalServerError, title: HttpStatusCode.InternalServerError.ToString()),
-            DeleteResult.BadRequest => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.BadRequest, title: HttpStatusCode.BadRequest.ToString()),
+            DeleteResult.Conflict => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.Conflict, title: "Conflict"),
+            DeleteResult.Error => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.InternalServerError, title: "Internal Server Error"),
+            DeleteResult.BadRequest => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.BadRequest, title: "Bad Request"),
             DeleteResult.Deleted => NoContent(),
             _ => throw new ArgumentOutOfRangeException(nameof(DeleteResult), $"No deletion value of {result}")
         };

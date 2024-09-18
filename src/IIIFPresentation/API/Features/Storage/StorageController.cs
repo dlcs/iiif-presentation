@@ -106,6 +106,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
     
     [HttpDelete("collections/{id}")]
+    [EtagCaching]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
         if (!Request.ShowExtraProperties())
