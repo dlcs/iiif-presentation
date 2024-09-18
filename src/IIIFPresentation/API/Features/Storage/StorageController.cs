@@ -59,8 +59,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 storageRoot.TotalItems, storageRoot.Items, orderByField));
         }
 
-        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
-            ContentTypes.V3);
+        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()));
     }
 
     [HttpPost("collections")]
@@ -104,7 +103,6 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
     
     [HttpDelete("collections/{id}")]
-    [EtagCaching]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
         if (!Request.ShowExtraProperties())

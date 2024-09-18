@@ -22,7 +22,8 @@ public class DeleteCollectionHandler(
     
     public async Task<ResultMessage<DeleteResult, DeleteCollectionType>> Handle(DeleteCollection request, CancellationToken cancellationToken)
     {
-        logger.LogDebug("Deleting collection {CollectionId}", request.CollectionId);
+        logger.LogDebug("Deleting collection {CollectionId} for customer {CustomerId}", request.CollectionId,
+            request.CustomerId);
         
         if (request.CollectionId.Equals(RootCollection, StringComparison.OrdinalIgnoreCase))
         {
@@ -42,11 +43,11 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
-        var itemCount = await dbContext.Collections.CountAsync(
+        var hasItems = await dbContext.Collections.AnyAsync(
             c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
             cancellationToken: cancellationToken);
 
-        if (itemCount != 0)
+        if (hasItems)
         {
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
                 DeleteCollectionType.CollectionNotEmpty, "Cannot delete a collection with child items");
@@ -59,7 +60,8 @@ public class DeleteCollectionHandler(
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            logger.LogError(ex, "Error attempting to delete collection {CollectionId}", request.CollectionId);
+            logger.LogError(ex, "Error attempting to delete collection {CollectionId} for customer {CustomerId}",
+                request.CollectionId, request.CustomerId);
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.Error,
                 DeleteCollectionType.Unknown, "Error deleting collection");
         }
