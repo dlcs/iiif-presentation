@@ -33,6 +33,8 @@ public class CreateCollectionHandler(
     : IRequestHandler<CreateCollection, ModifyEntityResult<FlatCollection>>
 {
     private readonly ApiSettings settings = options.Value;
+
+    private const int CurrentPage = 1;
     
     public async Task<ModifyEntityResult<FlatCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
@@ -80,7 +82,7 @@ public class CreateCollectionHandler(
         collection.UpdateParentForRootIfRequired(request.Collection.Parent);
 
         return ModifyEntityResult<FlatCollection>.Success(
-            collection.ToFlatCollection(request.UrlRoots, 1, settings.PageSize, 0, []), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 }
