@@ -120,7 +120,7 @@ public static class CollectionConverter
             TotalPages = totalPages,
         };
 
-        if (totalPages > 1)
+        if (currentPage > 1)
         {
             view.First = dbAsset.GenerateFlatCollectionViewFirst(urlRoots, pageSize, orderQueryParam);
             view.Previous = dbAsset.GenerateFlatCollectionViewPrevious(urlRoots, currentPage, pageSize, orderQueryParam);

@@ -1,6 +1,7 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -47,13 +48,22 @@ public class UpdateCollectionHandler(
             return ModifyEntityResult<FlatCollection>.Failure(
                 "Could not find a matching record for the provided collection id", WriteResult.NotFound);
         }
+        
+        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
+            request.Collection.Parent.GetLastPathElement(), RootCollection.Id, cancellationToken);
+
+        if (parentCollection == null)
+        {
+            return ModifyEntityResult<FlatCollection>.Failure(
+                $"The parent collection could not be found", WriteResult.Conflict);
+        }
 
         collectionFromDatabase.Modified = DateTime.UtcNow;
         collectionFromDatabase.ModifiedBy = Authorizer.GetUser();
         collectionFromDatabase.IsPublic = request.Collection.Behavior.IsPublic();
         collectionFromDatabase.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
         collectionFromDatabase.Label = request.Collection.Label;
-        collectionFromDatabase.Parent = request.Collection.Parent.GetLastPathElement();
+        collectionFromDatabase.Parent = parentCollection.Id;
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;
@@ -84,6 +94,8 @@ public class UpdateCollectionHandler(
             collectionFromDatabase.FullPath =
                 CollectionRetrieval.RetrieveFullPathForCollection(collectionFromDatabase, dbContext);
         }
+
+        collectionFromDatabase.UpdateParentForRootIfRequired(request.Collection.Parent);
 
         return ModifyEntityResult<FlatCollection>.Success(
             collectionFromDatabase.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,

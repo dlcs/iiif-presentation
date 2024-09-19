@@ -1,4 +1,6 @@
 ﻿using API.Converters;
+using API.Features.Storage.Helpers;
+using Core.Helpers;
 using Models.Database.Collections;
 
 namespace API.Helpers;
@@ -43,4 +45,15 @@ public static class CollectionHelperX
     
     public static string GenerateFullPath(this Collection collection, string itemSlug) => 
         $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{itemSlug}";
+    
+    public static Collection UpdateParentForRootIfRequired(this Collection collection, string parentToChangeTo)
+    {
+        // everything saved so set the response value to be the root collection if required
+        if (parentToChangeTo.GetLastPathElement() == RootCollection.Id)
+        {
+            collection.Parent = RootCollection.Id;
+        }
+
+        return collection;
+    }
 }

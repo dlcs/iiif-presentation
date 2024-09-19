@@ -140,7 +140,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
+        collection!.Id.Should().Be("http://localhost/1/collections/root");
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(2);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
@@ -162,13 +162,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1/collections/RootStorage");
+        collection!.Id.Should().Be("http://localhost/1/collections/root");
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(2);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(2);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+        collection.Parent.Should().BeNull();
     }
     
     [Fact]
@@ -192,6 +193,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+        collection.Parent.Should().Be("http://localhost/1/collections/root");
     }
     
     [Fact]
@@ -214,6 +216,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection.CreatedBy.Should().Be("admin");
         flatCollection.Behavior.Should().Contain("storage-collection");
         flatCollection.Behavior.Should().NotContain("public-iiif");
+        flatCollection.Parent.Should().Be("http://localhost/1/collections/root");
         hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -238,7 +241,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_ReturnsReducedItems_WhenCalledWithSmallPageSize()
+    public async Task Get_ChildFlat_ReturnsReducedItems_WhenCalledWithSmallPageSize()
     {
         // Arrange
         var requestMessage =
@@ -323,7 +326,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     [InlineData("id")]
     [InlineData("slug")]
     [InlineData("created")]
-    public async Task Get_RootFlat_ReturnsCorrectItem_WhenCalledWithSmallPageSizeAndOrderBy(string field)
+    public async Task Get_ChildFlat_ReturnsCorrectItem_WhenCalledWithSmallPageSizeAndOrderBy(string field)
     {
         // Arrange
         var requestMessage =
@@ -363,7 +366,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         collection.TotalItems.Should().Be(2);
         collection.View!.PageSize.Should().Be(1);
-        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1&orderByDescending={field}");
+        collection.View.Id.Should().Be($"http://localhost/1/collections/root?page=1&pageSize=1&orderByDescending={field}");
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
@@ -371,7 +374,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_IgnoresOrderBy_WhenCalledWithInvalidOrderBy()
+    public async Task Get_ChildFlat_IgnoresOrderBy_WhenCalledWithInvalidOrderBy()
     {
         // Arrange
         var requestMessage =
@@ -386,7 +389,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         collection.TotalItems.Should().Be(2);
         collection.View!.PageSize.Should().Be(1);
-        collection.View.Id.Should().Be($"http://localhost/1/collections/RootStorage?page=1&pageSize=1");
+        collection.View.Id.Should().Be($"http://localhost/1/collections/root?page=1&pageSize=1");
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
