@@ -21,7 +21,12 @@ public enum DeleteResult
     Conflict,
 
     /// <summary>
+    ///     There was an internal error deleting
+    /// </summary>
+    Error,
+    
+    /// <summary>
     ///     There was an error deleting
     /// </summary>
-    Error
+    BadRequest
 }

@@ -6,6 +6,7 @@ using Core;
 using Core.Helpers;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using Models.API.General;
 
 namespace API.Infrastructure;
 
@@ -27,17 +28,17 @@ public static class ControllerBaseX
         where T : class
     {
         if (entityResult.Error)
-            return new ObjectResult(entityResult.ErrorMessage)
-            {
-                StatusCode = 500
-            };
+        {
+            return controller.PresentationProblem(detail: entityResult.ErrorMessage,
+                statusCode: (int)HttpStatusCode.InternalServerError);
+        }
 
-        if (entityResult.EntityNotFound || entityResult.Entity == null) return new NotFoundResult();
+        if (entityResult.EntityNotFound || entityResult.Entity == null) return controller.PresentationNotFound();
 
         return controller.Ok(entityResult.Entity);
     }
-    
-        /// <summary>
+
+    /// <summary>
     /// Create an IActionResult from specified ModifyEntityResult{T}.
     /// This will be the model + 200/201 on success. Or an
     /// error and appropriate status code if failed.
@@ -63,15 +64,15 @@ public static class ControllerBaseX
             WriteResult.Updated => controller.Ok(entityResult.Entity),
             WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
             WriteResult.NotFound => controller.NotFound(entityResult.Error),
-            WriteResult.Error => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
-            WriteResult.BadRequest => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
-            WriteResult.Conflict => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
+            WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
+            WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
                 $"{errorTitle}: Conflict"),
-            WriteResult.FailedValidation => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
+            WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
                 $"{errorTitle}: Validation failed"),
-            WriteResult.StorageLimitExceeded => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
+            WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
                 $"{errorTitle}: Storage limit exceeded"),
-            _ => controller.Problem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
         };
         
         /// <summary>
@@ -104,5 +105,46 @@ public static class ControllerBaseX
             }
 
             return orderByField;
+        }
+
+        /// <summary>
+        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response.
+        /// </summary>
+        /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
+        /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
+        /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+        /// <param name="title">The value for <see cref="Error.Title" />.</param>
+        /// <param name="type">The value for <see cref="Error.Type" />.</param>
+        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+        public static ObjectResult PresentationProblem(
+            this ControllerBase controller,
+            string? detail = null,
+            string? instance = null,
+            int? statusCode = null,
+            string? title = null,
+            string? type = null)
+        {
+            var error = new Error
+            {
+                Detail = detail,
+                Instance = instance ?? controller.Request.GetDisplayUrl(),
+                Status = statusCode ?? 500,
+                Title = title,
+                ErrorTypeUri = type
+            };
+
+            return new ObjectResult(error)
+            {
+                StatusCode = error.Status
+            };
+        }
+        
+        /// <summary> 
+        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+        /// </summary>
+        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+        public static ObjectResult PresentationNotFound(this ControllerBase controller, string? detail = null)
+        {
+            return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
         }
 }

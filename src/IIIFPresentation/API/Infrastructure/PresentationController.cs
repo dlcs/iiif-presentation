@@ -1,10 +1,12 @@
-﻿using API.Converters;
+﻿using System.Net;
+using API.Converters;
 using API.Exceptions;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Models.API.General;
 
 namespace API.Infrastructure;
 
@@ -81,7 +83,7 @@ public abstract class PresentationController : Controller
     /// </returns>
     /// <remarks>This will be replaced with overload that takes DeleteEntityResult in future</remarks>
     protected async Task<IActionResult> HandleDelete(
-        IRequest<ResultMessage<DeleteResult>> request,
+        IRequest<ResultMessage<DeleteResult, DeleteCollectionType>> request,
         string? errorTitle = "Delete failed",
         CancellationToken cancellationToken = default)
     {
@@ -89,7 +91,7 @@ public abstract class PresentationController : Controller
         {
             var result = await Mediator.Send(request, cancellationToken);
 
-            return ConvertDeleteToHttp(result.Value, result.Message);
+            return ConvertDeleteToHttp(result.Value, result.Message, result.Type);
             
         }, errorTitle);
     }
@@ -114,22 +116,25 @@ public abstract class PresentationController : Controller
         {
             var result = await Mediator.Send(request, cancellationToken);
 
-            return ConvertDeleteToHttp(result.Value, result.Message);
+            return ConvertDeleteToHttp(result.Value, result.Message, result.Type);
         }, errorTitle);
     }
 
-    private IActionResult ConvertDeleteToHttp(DeleteResult result, string? message)
+    private IActionResult ConvertDeleteToHttp<TType>(DeleteResult result, string? message, TType type)
     {
-        // Note: this is temporary until DeleteResult used for all deletions
         return result switch
         {
-            DeleteResult.NotFound => NotFound(),
-            DeleteResult.Conflict => new ObjectResult(message) { StatusCode = 409 },
-            DeleteResult.Error => new ObjectResult(message) { StatusCode = 500 },
+            DeleteResult.NotFound => this.PresentationNotFound(),
+            DeleteResult.Conflict => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.Conflict, title: "Conflict"),
+            DeleteResult.Error => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.InternalServerError, title: "Internal Server Error"),
+            DeleteResult.BadRequest => this.PresentationProblem(detail: message, type: GetErrorType(type), statusCode: (int)HttpStatusCode.BadRequest, title: "Bad Request"),
             DeleteResult.Deleted => NoContent(),
             _ => throw new ArgumentOutOfRangeException(nameof(DeleteResult), $"No deletion value of {result}")
         };
     }
+
+    private string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
+
 
     /// <summary>
     ///     Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.

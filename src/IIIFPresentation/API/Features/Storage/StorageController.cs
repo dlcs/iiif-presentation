@@ -27,7 +27,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
 
-        if (storageRoot.Collection is not { IsPublic: true }) return NotFound();
+        if (storageRoot.Collection is not { IsPublic: true }) return this.PresentationNotFound();
 
         if (Request.ShowExtraProperties())
         {
@@ -51,7 +51,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         var storageRoot =
             await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderBy, descending));
 
-        if (storageRoot.Collection == null) return NotFound();
+        if (storageRoot.Collection == null) return this.PresentationNotFound();
 
         if (Request.ShowExtraProperties())
         {
@@ -59,7 +59,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 storageRoot.TotalItems, storageRoot.Items, orderByField));
         }
 
-        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots())); ;
+        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()));
     }
 
     [HttpPost("collections")]
@@ -69,7 +69,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     {
         if (!Request.ShowExtraProperties())
         {
-            return Problem(statusCode: (int)HttpStatusCode.Forbidden);
+            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
 
         var validation = await validator.ValidateAsync(collection);
@@ -89,7 +89,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     {
         if (!Request.ShowExtraProperties())
         {
-            return Problem(statusCode: (int)HttpStatusCode.Forbidden);
+            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
 
         var validation = await validator.ValidateAsync(collection);
@@ -100,6 +100,17 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         }
 
         return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
+    }
+    
+    [HttpDelete("collections/{id}")]
+    public async Task<IActionResult> Delete(int customerId, string id)
+    {
+        if (!Request.ShowExtraProperties())
+        {
+            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
+        }
+
+        return await HandleDelete(new DeleteCollection(customerId, id));
     }
     
     private IActionResult SeeOther(string location)

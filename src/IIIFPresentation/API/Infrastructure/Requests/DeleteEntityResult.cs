@@ -3,26 +3,28 @@
 namespace API.Infrastructure.Requests;
 
 /// <summary>
-///     Represents the result of a request to delete an entity
+/// Represents the result of a request to delete an entity
 /// </summary>
 public class DeleteEntityResult : IModifyRequest
 {
     /// <summary>
-    ///     The associated value.
+    /// The associated value.
     /// </summary>
     public DeleteResult Value { get; private init; }
 
     /// <summary>
-    ///     The message related to the result
+    /// The message related to the result
     /// </summary>
     public string? Message { get; private init; }
+    
+    public string? Type { get; private init; }
 
     public static DeleteEntityResult Success => new() { Value = DeleteResult.Deleted };
 
     public bool IsSuccess => Value == DeleteResult.Deleted;
 
-    public static DeleteEntityResult Failure(string message, DeleteResult result)
+    public static DeleteEntityResult Failure(string message, DeleteResult result, string type)
     {
-        return new DeleteEntityResult { Message = message, Value = result };
+        return new DeleteEntityResult { Message = message, Value = result, Type = type};
     }
 }
