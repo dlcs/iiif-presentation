@@ -29,6 +29,7 @@ public class PresentationContext : DbContext
     {
         modelBuilder.Entity<Collection>(entity =>
         {
+            entity.HasKey(e => new {e.Id, e.CustomerId});
             entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
             
             entity.Property(e => e.Label).HasColumnType("jsonb");

@@ -37,22 +37,12 @@ public static class PresentationContextX
         return null;
     }
     
-    public static async Task<Collection?> RetrieveCollection(this PresentationContext dbContext,  int customerId, string collectionId,
-        string rootCollectionId, CancellationToken cancellationToken)
+    public static async Task<Collection?> RetrieveCollection(this PresentationContext dbContext,  int customerId, 
+        string collectionId, CancellationToken cancellationToken)
     {
-        Collection? collection;
-        if (collectionId.Equals(rootCollectionId, StringComparison.OrdinalIgnoreCase))
-        {
-            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
-                s => s.CustomerId == customerId && s.Parent == null,
-                cancellationToken);
-        }
-        else
-        {
-            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
-                s => s.CustomerId == customerId && s.Id == collectionId,
-                cancellationToken);
-        }
+        var collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+            s => s.CustomerId == customerId && s.Id == collectionId,
+            cancellationToken);
         
         return collection;
     }

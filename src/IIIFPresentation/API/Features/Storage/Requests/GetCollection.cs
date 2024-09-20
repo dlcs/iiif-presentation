@@ -32,8 +32,7 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
     public async Task<CollectionWithItems> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        Collection? collection = await dbContext.RetrieveCollection(request.CustomerId, request.Id, RootCollection.Id, 
-            cancellationToken);
+        Collection? collection = await dbContext.RetrieveCollection(request.CustomerId, request.Id, cancellationToken);
         
         List<Collection>? items = null;
         int total = 0;
@@ -58,17 +57,6 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
             if (collection.Parent != null)
             {
                 collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
-                
-                var parentCollection = await dbContext.RetrieveCollection(request.CustomerId, collection.Parent, RootCollection.Id, 
-                    cancellationToken);
-                if (parentCollection!.Parent == null)
-                {
-                    collection.Parent = RootCollection.Id;
-                }
-            }
-            else
-            {
-                collection.Id = RootCollection.Id;
             }
         }
 

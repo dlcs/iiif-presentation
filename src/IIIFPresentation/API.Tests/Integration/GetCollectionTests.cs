@@ -70,7 +70,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1/collections/RootStorage");
+        response.Headers.Location!.Should().Be("http://localhost/1/collections/root");
     }
     
     [Fact]
@@ -147,29 +147,6 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(2);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
-    }
-    
-    [Fact]
-    public async Task Get_RootFlat_ReturnsEntryPointFlat_WhenCalledById()
-    {
-        // Arrange
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/RootStorage");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1/collections/root");
-        collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items!.Count.Should().Be(2);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
-        collection.TotalItems.Should().Be(2);
-        collection.CreatedBy.Should().Be("admin");
-        collection.Behavior.Should().Contain("public-iiif");
-        collection.Parent.Should().BeNull();
     }
     
     [Fact]

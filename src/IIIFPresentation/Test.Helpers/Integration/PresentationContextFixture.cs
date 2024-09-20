@@ -32,7 +32,7 @@ public class PresentationContextFixture : IAsyncLifetime
     {
         await DbContext.Collections.AddAsync(new Collection()
         {
-            Id = "RootStorage",
+            Id = "root",
             Slug = "",
             UsePath = true,
             Label = new LanguageMap
@@ -66,7 +66,7 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = true,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -106,7 +106,7 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         });
 
         await DbContext.SaveChangesAsync();
@@ -148,6 +148,6 @@ public class PresentationContextFixture : IAsyncLifetime
     public void CleanUp()
     {
         DbContext.Database.ExecuteSqlRawAsync(
-            "DELETE FROM collections WHERE id NOT IN ('RootStorage','FirstChildCollection','SecondChildCollection', 'NonPublic')");
+            "DELETE FROM collections WHERE id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic')");
     }
 }

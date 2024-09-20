@@ -40,7 +40,7 @@ public class CreateCollectionHandler(
     {
         // check parent exists
         var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), RootCollection.Id, cancellationToken);
+            request.Collection.Parent.GetLastPathElement(), cancellationToken);
 
         if (parentCollection == null)
         {
@@ -78,9 +78,7 @@ public class CreateCollectionHandler(
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
-
-        collection.UpdateParentForRootIfRequired(request.Collection.Parent);
-
+        
         return ModifyEntityResult<FlatCollection>.Success(
             collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);

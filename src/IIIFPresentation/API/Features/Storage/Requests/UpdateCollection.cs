@@ -48,14 +48,17 @@ public class UpdateCollectionHandler(
             return ModifyEntityResult<FlatCollection>.Failure(
                 "Could not find a matching record for the provided collection id", WriteResult.NotFound);
         }
-        
-        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), RootCollection.Id, cancellationToken);
 
-        if (parentCollection == null)
+        if (collectionFromDatabase.Parent != request.Collection.Parent)
         {
-            return ModifyEntityResult<FlatCollection>.Failure(
-                $"The parent collection could not be found", WriteResult.Conflict);
+            var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
+                request.Collection.Parent.GetLastPathElement(), cancellationToken);
+
+            if (parentCollection == null)
+            {
+                return ModifyEntityResult<FlatCollection>.Failure(
+                    $"The parent collection could not be found", WriteResult.BadRequest);
+            }
         }
 
         collectionFromDatabase.Modified = DateTime.UtcNow;
@@ -63,7 +66,7 @@ public class UpdateCollectionHandler(
         collectionFromDatabase.IsPublic = request.Collection.Behavior.IsPublic();
         collectionFromDatabase.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
         collectionFromDatabase.Label = request.Collection.Label;
-        collectionFromDatabase.Parent = parentCollection.Id;
+        collectionFromDatabase.Parent = request.Collection.Parent;
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;
@@ -94,8 +97,6 @@ public class UpdateCollectionHandler(
             collectionFromDatabase.FullPath =
                 CollectionRetrieval.RetrieveFullPathForCollection(collectionFromDatabase, dbContext);
         }
-
-        collectionFromDatabase.UpdateParentForRootIfRequired(request.Collection.Parent);
 
         return ModifyEntityResult<FlatCollection>.Success(
             collectionFromDatabase.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
