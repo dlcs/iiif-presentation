@@ -12,6 +12,7 @@ using Models.API.General;
 using Models.Database.Collections;
 using Models.Infrastucture;
 using Repository;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -412,7 +413,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
-        [Fact]
+    [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenParentDoesNotExist()
     {
         // Arrange
@@ -590,7 +591,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         // Arrange
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/root");
+            $"{Customer}/collections/{RootCollection.Id}");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
@@ -609,7 +610,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         // Arrange
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/root");
+            $"{Customer}/collections/{RootCollection.Id}");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);

@@ -5,6 +5,7 @@ using FluentAssertions;
 using IIIF.Presentation.V3;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
 #nullable disable
@@ -70,14 +71,14 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1/collections/root");
+        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
     
     [Fact]
     public async Task Get_RootFlat_Redirects_WhenNoAuthAndCsHeader()
     {
         // Act
-        var response = await httpClient.GetAsync("1/collections/root");
+        var response = await httpClient.GetAsync($"1/collections/{RootCollection.Id}");
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -88,7 +89,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_Redirects_WhenNoCsHeader()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -102,7 +103,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_Redirects_WhenShowExtraHeaderNotAll()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root");
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "Incorrect");
 
         // Act
@@ -117,7 +118,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_Redirects_WhenNoAuth()
     {
         // Arrange
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
     
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -131,7 +132,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_ReturnsEntryPointFlat_WhenAuthAndHeader()
     {
         // Arrange
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -140,7 +141,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be("http://localhost/1/collections/root");
+        collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(2);
         collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
@@ -170,7 +171,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
-        collection.Parent.Should().Be("http://localhost/1/collections/root");
+        collection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
     
     [Fact]
@@ -193,7 +194,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection.CreatedBy.Should().Be("admin");
         flatCollection.Behavior.Should().Contain("storage-collection");
         flatCollection.Behavior.Should().NotContain("public-iiif");
-        flatCollection.Parent.Should().Be("http://localhost/1/collections/root");
+        flatCollection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -202,7 +203,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=100");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=100");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -222,7 +223,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=1");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=1");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -243,7 +244,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=2&pageSize=1");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=2&pageSize=1");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -264,7 +265,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=0&pageSize=0");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=0&pageSize=0");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -284,7 +285,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root?page=1&pageSize=1000");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=1000");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -308,7 +309,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"1/collections/root?page=1&pageSize=1&orderBy={field}");
+                $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderBy={field}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -333,7 +334,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"1/collections/root?page=1&pageSize=1&orderByDescending={field}");
+                $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending={field}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -343,7 +344,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         collection.TotalItems.Should().Be(2);
         collection.View!.PageSize.Should().Be(1);
-        collection.View.Id.Should().Be($"http://localhost/1/collections/root?page=1&pageSize=1&orderByDescending={field}");
+        collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending={field}");
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
@@ -356,7 +357,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"1/collections/root?page=1&pageSize=1&orderByDescending=notValid");
+                $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending=notValid");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -366,7 +367,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         collection.TotalItems.Should().Be(2);
         collection.View!.PageSize.Should().Be(1);
-        collection.View.Id.Should().Be($"http://localhost/1/collections/root?page=1&pageSize=1");
+        collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1");
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);

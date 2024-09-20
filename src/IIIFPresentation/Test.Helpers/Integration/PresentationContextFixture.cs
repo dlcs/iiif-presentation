@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Repository;
+using Test.Helpers.Helpers;
 using Testcontainers.PostgreSql;
 
 #nullable disable
@@ -32,7 +33,7 @@ public class PresentationContextFixture : IAsyncLifetime
     {
         await DbContext.Collections.AddAsync(new Collection()
         {
-            Id = "root",
+            Id = RootCollection.Id,
             Slug = "",
             UsePath = true,
             Label = new LanguageMap
@@ -66,7 +67,7 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = true,
             CustomerId = 1,
-            Parent = "root"
+            Parent = RootCollection.Id
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -106,7 +107,7 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "root"
+            Parent = RootCollection.Id
         });
 
         await DbContext.SaveChangesAsync();
