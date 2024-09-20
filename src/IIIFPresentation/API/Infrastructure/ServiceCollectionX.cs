@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
+using API.Settings;
 using MediatR;
 using Repository;
 
@@ -16,6 +17,17 @@ public static class ServiceCollectionX
         return services
             .AddPresentationContext(configuration);
     }
+    
+    /// <summary>
+    /// Configure caching
+    /// </summary>
+    public static IServiceCollection AddCaching(this IServiceCollection services, CacheSettings cacheSettings)
+        => services.AddMemoryCache(memoryCacheOptions =>
+            {
+                memoryCacheOptions.SizeLimit = cacheSettings.MemoryCacheSizeLimit;
+                memoryCacheOptions.CompactionPercentage = cacheSettings.MemoryCacheCompactionPercentage;
+            })
+            .AddLazyCache();
 
     /// <summary>
     ///     Add MediatR services and pipeline behaviours to service collection.

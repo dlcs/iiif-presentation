@@ -29,8 +29,13 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddOptions<ApiSettings>()
     .BindConfiguration(nameof(ApiSettings));
+builder.Services.AddOptions<CacheSettings>()
+    .BindConfiguration(nameof(CacheSettings));
+
+var cacheSettings = builder.Configuration.Get<CacheSettings>() ?? new CacheSettings();
 
 builder.Services.AddDataAccess(builder.Configuration);
+builder.Services.AddCaching(cacheSettings);
 builder.Services.ConfigureMediatR();
 builder.Services.AddHealthChecks();
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
