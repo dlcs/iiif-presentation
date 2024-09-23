@@ -55,96 +55,96 @@ public static class ControllerBaseX
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
     public static IActionResult ModifyResultToHttpResult<T>(this ControllerBase controller,
-        ModifyEntityResult<T> entityResult, 
-        string? instance,
-        string? errorTitle)
-        where T : class =>
-        entityResult.WriteResult switch
+    ModifyEntityResult<T> entityResult, 
+    string? instance,
+    string? errorTitle)
+    where T : class =>
+    entityResult.WriteResult switch
+    {
+        WriteResult.Updated => controller.Ok(entityResult.Entity),
+        WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
+        WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
+        WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+        WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
+        WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
+            $"{errorTitle}: Conflict"),
+        WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
+            $"{errorTitle}: Validation failed"),
+        WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
+            $"{errorTitle}: Storage limit exceeded"),
+        _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+    };
+    
+    /// <summary>
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+    /// </summary>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
+    {
+        var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
+        return controller.Problem(message, null, (int)HttpStatusCode.BadRequest, "Bad request");
+    }
+    
+    /// <summary>
+    /// Evaluates incoming orderBy and orderByDescending fields to get a suitable
+    /// ordering field and its direction.
+    /// </summary>
+    public static string? GetOrderBy(this ControllerBase _, string? orderBy, string? orderByDescending,
+        out bool descending)
+    {
+        string? orderByField = null;
+        descending = false;
+        if (orderBy.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderBy.ToLower()))
         {
-            WriteResult.Updated => controller.Ok(entityResult.Entity),
-            WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
-            WriteResult.NotFound => controller.NotFound(entityResult.Error),
-            WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
-            WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
-            WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
-                $"{errorTitle}: Conflict"),
-            WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
-                $"{errorTitle}: Validation failed"),
-            WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
-                $"{errorTitle}: Storage limit exceeded"),
-            _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            orderByField = $"orderBy={orderBy}";
+        }
+        else if (orderByDescending.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
+        {
+            orderByField = $"orderByDescending={orderByDescending}";
+            descending = true;
+        }
+
+        return orderByField;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response.
+    /// </summary>
+    /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
+    /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+    /// <param name="title">The value for <see cref="Error.Title" />.</param>
+    /// <param name="type">The value for <see cref="Error.Type" />.</param>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    public static ObjectResult PresentationProblem(
+        this ControllerBase controller,
+        string? detail = null,
+        string? instance = null,
+        int? statusCode = null,
+        string? title = null,
+        string? type = null)
+    {
+        var error = new Error
+        {
+            Detail = detail,
+            Instance = instance ?? controller.Request.GetDisplayUrl(),
+            Status = statusCode ?? 500,
+            Title = title,
+            ErrorTypeUri = type
         };
-        
-        /// <summary>
-        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
-        /// </summary>
-        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-        public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
-        {
-            var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
-            return controller.Problem(message, null, (int)HttpStatusCode.BadRequest, "Bad request");
-        }
-        
-        /// <summary>
-        /// Evaluates incoming orderBy and orderByDescending fields to get a suitable
-        /// ordering field and its direction.
-        /// </summary>
-        public static string? GetOrderBy(this ControllerBase _, string? orderBy, string? orderByDescending,
-            out bool descending)
-        {
-            string? orderByField = null;
-            descending = false;
-            if (orderBy.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderBy.ToLower()))
-            {
-                orderByField = $"orderBy={orderBy}";
-            }
-            else if (orderByDescending.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
-            {
-                orderByField = $"orderByDescending={orderByDescending}";
-                descending = true;
-            }
 
-            return orderByField;
-        }
-
-        /// <summary>
-        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response.
-        /// </summary>
-        /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
-        /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
-        /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
-        /// <param name="title">The value for <see cref="Error.Title" />.</param>
-        /// <param name="type">The value for <see cref="Error.Type" />.</param>
-        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-        public static ObjectResult PresentationProblem(
-            this ControllerBase controller,
-            string? detail = null,
-            string? instance = null,
-            int? statusCode = null,
-            string? title = null,
-            string? type = null)
+        return new ObjectResult(error)
         {
-            var error = new Error
-            {
-                Detail = detail,
-                Instance = instance ?? controller.Request.GetDisplayUrl(),
-                Status = statusCode ?? 500,
-                Title = title,
-                ErrorTypeUri = type
-            };
-
-            return new ObjectResult(error)
-            {
-                StatusCode = error.Status
-            };
-        }
-        
-        /// <summary> 
-        /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
-        /// </summary>
-        /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-        public static ObjectResult PresentationNotFound(this ControllerBase controller, string? detail = null)
-        {
-            return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
-        }
+            StatusCode = error.Status
+        };
+    }
+    
+    /// <summary> 
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+    /// </summary>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    public static ObjectResult PresentationNotFound(this ControllerBase controller, string? detail = null)
+    {
+        return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
+    }
 }

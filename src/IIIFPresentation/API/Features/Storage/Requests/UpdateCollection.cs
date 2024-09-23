@@ -1,6 +1,7 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -48,12 +49,24 @@ public class UpdateCollectionHandler(
                 "Could not find a matching record for the provided collection id", WriteResult.NotFound);
         }
 
+        if (collectionFromDatabase.Parent != request.Collection.Parent)
+        {
+            var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
+                request.Collection.Parent.GetLastPathElement(), cancellationToken);
+
+            if (parentCollection == null)
+            {
+                return ModifyEntityResult<FlatCollection>.Failure(
+                    $"The parent collection could not be found", WriteResult.BadRequest);
+            }
+        }
+
         collectionFromDatabase.Modified = DateTime.UtcNow;
         collectionFromDatabase.ModifiedBy = Authorizer.GetUser();
         collectionFromDatabase.IsPublic = request.Collection.Behavior.IsPublic();
         collectionFromDatabase.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
         collectionFromDatabase.Label = request.Collection.Label;
-        collectionFromDatabase.Parent = request.Collection.Parent.GetLastPathElement();
+        collectionFromDatabase.Parent = request.Collection.Parent;
         collectionFromDatabase.Slug = request.Collection.Slug;
         collectionFromDatabase.Thumbnail = request.Collection.Thumbnail;
         collectionFromDatabase.Tags = request.Collection.Tags;

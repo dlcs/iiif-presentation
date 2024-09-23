@@ -12,6 +12,7 @@ using Models.API.General;
 using Models.Database.Collections;
 using Models.Infrastucture;
 using Repository;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -79,6 +80,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
     [Fact]
@@ -234,7 +238,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         };
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -283,6 +287,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
     [Fact]
@@ -306,7 +313,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         };
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -371,7 +378,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         };
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -404,6 +411,65 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenParentDoesNotExist()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-4",
+            Slug = "update-test-4",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "root"
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child-3",
+            Parent = "doesNotExist"
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        responseCollection!.Detail.Should().Be("The parent collection could not be found");
     }
     
     [Fact]
@@ -486,7 +552,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             IsStorageCollection = true,
             IsPublic = false,
             CustomerId = 1,
-            Parent = "RootStorage"
+            Parent = "root"
         };
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -525,7 +591,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         // Arrange
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/root");
+            $"{Customer}/collections/{RootCollection.Id}");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
@@ -544,7 +610,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         // Arrange
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/RootStorage");
+            $"{Customer}/collections/{RootCollection.Id}");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);

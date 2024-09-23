@@ -2,6 +2,7 @@
 using Core;
 using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
+using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
 
@@ -34,5 +35,15 @@ public static class PresentationContextX
         }
 
         return null;
+    }
+    
+    public static async Task<Collection?> RetrieveCollection(this PresentationContext dbContext,  int customerId, 
+        string collectionId, CancellationToken cancellationToken)
+    {
+        var collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+            s => s.CustomerId == customerId && s.Id == collectionId,
+            cancellationToken);
+        
+        return collection;
     }
 }

@@ -1,4 +1,5 @@
-﻿using API.Features.Storage.Models;
+﻿using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
 using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -28,25 +29,10 @@ public class GetCollection(
 
 public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandler<GetCollection, CollectionWithItems>
 {
-    private const string RootCollection = "root";
-
     public async Task<CollectionWithItems> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        Collection? collection;
-        
-        if (request.Id.Equals(RootCollection, StringComparison.OrdinalIgnoreCase))
-        {
-            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
-                s => s.CustomerId == request.CustomerId && s.Parent == null,
-                cancellationToken);
-        }
-        else
-        {
-            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
-                s => s.CustomerId == request.CustomerId && s.Id == request.Id,
-                cancellationToken);
-        }
+        Collection? collection = await dbContext.RetrieveCollection(request.CustomerId, request.Id, cancellationToken);
         
         List<Collection>? items = null;
         int total = 0;

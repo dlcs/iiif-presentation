@@ -1,6 +1,7 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -33,8 +34,20 @@ public class CreateCollectionHandler(
 {
     private readonly ApiSettings settings = options.Value;
 
+    private const int CurrentPage = 1;
+    
     public async Task<ModifyEntityResult<FlatCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
+        // check parent exists
+        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
+            request.Collection.Parent.GetLastPathElement(), cancellationToken);
+
+        if (parentCollection == null)
+        {
+            return ModifyEntityResult<FlatCollection>.Failure(
+                $"The parent collection could not be found", WriteResult.Conflict);
+        }
+        
         var collection = new Collection()
         {
             Id = Guid.NewGuid().ToString(),
@@ -45,7 +58,7 @@ public class CreateCollectionHandler(
             IsPublic = request.Collection.Behavior.IsPublic(),
             IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
             Label = request.Collection.Label,
-            Parent = request.Collection.Parent!.GetLastPathElement(),
+            Parent = parentCollection.Id,
             Slug = request.Collection.Slug,
             Thumbnail = request.Collection.Thumbnail,
             Tags = request.Collection.Tags,
@@ -65,9 +78,9 @@ public class CreateCollectionHandler(
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
-
+        
         return ModifyEntityResult<FlatCollection>.Success(
-            collection.ToFlatCollection(request.UrlRoots, 1, settings.PageSize, 0, []), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 }
