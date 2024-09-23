@@ -1,12 +1,13 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Strings;
 
 namespace Models.API.Collection;
 
-public class PartOf
+public class PartOf(string type) : ResourceBase
 {
-    public required string Id { get; set; }
+    #region Overrides of ResourceBase
 
-    public PresentationType Type { get; set; }
-    
-    public LanguageMap? Label { get; set; }
+    public override string Type { get; } = type;
+
+    #endregion
 }

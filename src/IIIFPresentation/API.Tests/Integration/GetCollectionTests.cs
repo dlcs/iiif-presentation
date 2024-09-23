@@ -144,7 +144,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(2);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(2);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
@@ -167,7 +167,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
@@ -236,7 +236,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Fact]
@@ -257,7 +257,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(2);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/NonPublic");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
     
     [Fact]
@@ -322,7 +322,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Theory]
@@ -348,7 +348,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/NonPublic");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
     
     [Fact]
@@ -371,6 +371,6 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
-        collection.Items[0].Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
 }
