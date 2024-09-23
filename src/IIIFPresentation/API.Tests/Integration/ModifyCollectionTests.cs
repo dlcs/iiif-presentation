@@ -292,6 +292,51 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
+     [Fact]
+    public async Task UpdateCollection_CreatesCollection_WhenUnknownCollectionIdProvided()
+    {
+        // Arrange
+        var updatedCollection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - create from update"]),
+            Slug = "create-from-update",
+            Parent = parent,
+            ItemsOrder = 1,
+            Thumbnail = "some/location/2",
+            Tags = "some, tags, 2",
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/createFromUpdate", JsonSerializer.Serialize(updatedCollection));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        fromDatabase.Id.Should().Be("createFromUpdate");
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
+        fromDatabase.Slug.Should().Be("create-from-update");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/location/2");
+        fromDatabase.Tags.Should().Be("some, tags, 2");
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+    }
+    
     [Fact]
     public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvidedWithoutLabel()
     {
