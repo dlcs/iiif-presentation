@@ -47,12 +47,13 @@ public class CreateCollectionHandler(
             return ModifyEntityResult<FlatCollection>.Failure(
                 $"The parent collection could not be found", WriteResult.Conflict);
         }
-        
+
+        var dateCreated = DateTime.UtcNow;
         var collection = new Collection()
         {
             Id = Guid.NewGuid().ToString(),
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
+            Created = dateCreated,
+            Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
             IsPublic = request.Collection.Behavior.IsPublic(),
