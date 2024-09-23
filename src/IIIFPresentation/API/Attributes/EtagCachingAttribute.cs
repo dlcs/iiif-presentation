@@ -10,7 +10,7 @@ using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace API.Attributes;
 
-public class EtagCachingAttribute : ActionFilterAttribute
+public class EtagCachingAttribute() : ActionFilterAttribute
 {
     // When a "304 Not Modified" response is to be sent back to the client, all headers apart from the following list should be stripped from the response to keep the response size minimal. See https://datatracker.ietf.org/doc/html/rfc7232#section-4.1:~:text=200%20(OK)%20response.-,The%20server%20generating%20a%20304,-response%20MUST%20generate
     private static readonly string[] headersToKeepFor304 =
@@ -22,7 +22,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
         HeaderNames.Vary
     };
 
-    private static readonly Dictionary<string, string> etagHashes = new();
+   // private static readonly Dictionary<string, string> etagHashes = new();
 
     // Adds cache headers to response
     public override async Task OnResultExecutionAsync(
@@ -32,6 +32,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
     {
         var request = context.HttpContext.Request;
         var response = context.HttpContext.Response;
+        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>();
 
         // For more info on this technique, see https://stackoverflow.com/a/65901913 and https://www.madskristensen.net/blog/send-etag-headers-in-aspnet-core/ and https://gist.github.com/madskristensen/36357b1df9ddbfd123162cd4201124c4
         var originalStream = response.Body;
@@ -55,7 +56,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
             {
                 responseHeaders.ETag ??=
                     GenerateETag(memoryStream,
-                        request.Path); // This request generates a hash from the response - this would come from S3 in live
+                        request.Path, eTagManager!); // This request generates a hash from the response - this would come from S3 in live
             }
             
             var requestHeaders = request.GetTypedHeaders();
@@ -90,7 +91,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
         return true;
     }
 
-    private static EntityTagHeaderValue GenerateETag(Stream stream, string path)
+    private static EntityTagHeaderValue GenerateETag(Stream stream, string path, IETagManager eTagManager)
     {
         var hashBytes = MD5.HashData(stream);
         stream.Position = 0;
@@ -100,7 +101,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
             new EntityTagHeaderValue('"' + hashString +
                                      '"');
 
-        etagHashes[path] = enityTagHeader.Tag.ToString();
+        eTagManager.UpsertETag(path, enityTagHeader.Tag.ToString());
         return enityTagHeader;
     }
 
@@ -126,6 +127,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
         ArgumentNullException.ThrowIfNull(next);
 
         var request = context.HttpContext.Request;
+        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>();
 
         if (request.Method == HttpMethod.Put.ToString())
         {
@@ -135,7 +137,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
                     StatusCode = StatusCodes.Status400BadRequest
                 };
 
-            etagHashes.TryGetValue(request.Path, out var etag);
+            eTagManager!.TryGetETag(request.Path, out var etag);
 
             if (!request.Headers.IfMatch.Equals(etag))
             {

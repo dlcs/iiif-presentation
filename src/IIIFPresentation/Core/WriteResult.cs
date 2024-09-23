@@ -48,5 +48,10 @@ public enum WriteResult
     /// <summary>
     ///     Predefined storage limits exceeded
     /// </summary>
-    StorageLimitExceeded
+    StorageLimitExceeded,
+    
+    /// <summary>
+    ///     Request failed a precondition
+    /// </summary>
+    PreConditionFailed
 }

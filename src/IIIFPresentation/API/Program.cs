@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
+using API.Infrastructure.Helpers;
 using API.Settings;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
@@ -36,7 +37,9 @@ var cacheSettings = builder.Configuration.Get<CacheSettings>() ?? new CacheSetti
 
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
+builder.Services.AddSingleton<IETagManager, ETagManager>();
 builder.Services.ConfigureMediatR();
+builder.Services.AddSingleton<ETagManager>();
 builder.Services.AddHealthChecks();
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
