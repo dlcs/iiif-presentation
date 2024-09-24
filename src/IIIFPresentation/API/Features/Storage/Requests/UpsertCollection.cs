@@ -54,7 +54,7 @@ public class UpsertCollectionHandler(
             if (request.ETag is not null)
             {
                 return ModifyEntityResult<FlatCollection>.Failure(
-                    "ETag should not be added when inserting collection via PUT", WriteResult.PreConditionFailed);
+                    "ETag should not be added when inserting a collection via PUT", WriteResult.PreConditionFailed);
             }
 
             var createdDate = DateTime.UtcNow;
