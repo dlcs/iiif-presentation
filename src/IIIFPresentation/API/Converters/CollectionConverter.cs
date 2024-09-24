@@ -47,13 +47,10 @@ public static class CollectionConverter
                 "http://iiif.io/api/presentation/3/context.json"
             },
             Label = dbAsset.Label,
-            // Explicitly excluded from returning
-            // PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
                 .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
-            // Explicitly excluded from returning
-            // PresentationType = PresentationType.Collection,
             Slug = dbAsset.Slug,
             Parent = dbAsset.Parent != null
                 ? dbAsset.GenerateFlatCollectionParent(urlRoots)
