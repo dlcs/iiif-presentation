@@ -338,6 +338,36 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
+    public async Task UpdateCollection_FailsToCreateCollection_WhenUnknownCollectionWithETag()
+    {
+        // Arrange
+        var updatedCollection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - create from update"]),
+            Slug = "create-from-update-2",
+            Parent = parent,
+            ItemsOrder = 1,
+            Thumbnail = "some/location/2",
+            Tags = "some, tags, 2",
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/createFromUpdate2", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"someTag\""));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+    }
+    
+    [Fact]
     public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvidedWithoutLabel()
     {
         // Arrange

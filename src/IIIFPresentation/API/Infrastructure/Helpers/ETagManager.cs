@@ -5,7 +5,7 @@ namespace API.Infrastructure.Helpers;
 
 public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETagManager
 {
-    MemoryCacheEntryOptions options = new MemoryCacheEntryOptions().SetSize(1);
+    private readonly MemoryCacheEntryOptions options = new MemoryCacheEntryOptions().SetSize(1);
     
     public bool TryGetETag(string id, out string? eTag)
     {
@@ -25,10 +25,4 @@ public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETa
     {
         appCache.Add(id, etag, options);
     }
-}
-
-public interface IETagManager
-{
-    bool TryGetETag(string id, out string? eTag);
-    void UpsertETag(string id, string eTag);
 }

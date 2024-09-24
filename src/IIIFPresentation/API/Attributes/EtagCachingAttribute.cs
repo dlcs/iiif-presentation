@@ -10,10 +10,10 @@ using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace API.Attributes;
 
-public class EtagCachingAttribute() : ActionFilterAttribute
+public class ETagCachingAttribute : ActionFilterAttribute
 {
     // When a "304 Not Modified" response is to be sent back to the client, all headers apart from the following list should be stripped from the response to keep the response size minimal. See https://datatracker.ietf.org/doc/html/rfc7232#section-4.1:~:text=200%20(OK)%20response.-,The%20server%20generating%20a%20304,-response%20MUST%20generate
-    private static readonly string[] headersToKeepFor304 =
+    private static readonly string[] HeadersToKeepFor304 =
     {
         HeaderNames.CacheControl,
         HeaderNames.ContentLocation,
@@ -21,8 +21,6 @@ public class EtagCachingAttribute() : ActionFilterAttribute
         HeaderNames.Expires,
         HeaderNames.Vary
     };
-
-   // private static readonly Dictionary<string, string> etagHashes = new();
 
     // Adds cache headers to response
     public override async Task OnResultExecutionAsync(
@@ -42,7 +40,7 @@ public class EtagCachingAttribute() : ActionFilterAttribute
         await next();
         memoryStream.Position = 0;
 
-        if (response.StatusCode == StatusCodes.Status200OK)
+        if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created)
         {
             var responseHeaders = response.GetTypedHeaders();
 
@@ -67,7 +65,7 @@ public class EtagCachingAttribute() : ActionFilterAttribute
 
                 // Remove all unnecessary headers while only keeping the ones that should be included in a `304` response.
                 foreach (var header in response.Headers)
-                    if (!headersToKeepFor304.Contains(header.Key))
+                    if (!HeadersToKeepFor304.Contains(header.Key))
                         response.Headers.Remove(header.Key);
 
                 return;
@@ -118,41 +116,5 @@ public class EtagCachingAttribute() : ActionFilterAttribute
             return reqHeaders.IfModifiedSince >= resHeaders.LastModified;
 
         return false;
-    }
-
-    // checks request for valid cache headers
-    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(next);
-
-        var request = context.HttpContext.Request;
-        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>();
-
-        if (request.Method == HttpMethod.Put.ToString())
-        {
-            if (request.Headers.IfMatch.Count == 0)
-                context.Result = new ObjectResult("This method requires a valid ETag to be present")
-                {
-                    StatusCode = StatusCodes.Status400BadRequest
-                };
-
-            eTagManager!.TryGetETag(request.Path, out var etag);
-
-            if (!request.Headers.IfMatch.Equals(etag))
-            {
-                context.Result = new ObjectResult(new Error()
-                {
-                    Detail = "Cannot match ETag",
-                    Status = 412
-                })
-                {
-                    StatusCode = StatusCodes.Status412PreconditionFailed
-                };
-            }
-        }
-
-        OnActionExecuting(context);
-        if (context.Result == null) OnActionExecuted(await next());
     }
 }

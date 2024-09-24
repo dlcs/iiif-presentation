@@ -18,13 +18,11 @@ namespace API.Features.Storage;
 
 [Route("/{customerId}")]
 [ApiController]
-public class StorageController(IOptions<ApiSettings> options, IMediator mediator, IETagManager etagManager)
+public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    private readonly IETagManager etagManager = etagManager;
-    
     [HttpGet("{*slug}")]
-    [EtagCaching()]
+    [ETagCaching()]
     public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
@@ -41,7 +39,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
 
     [HttpGet("collections/{id}")]
-    [EtagCaching]
+    [ETagCaching]
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1, 
         string? orderBy = null, string? orderByDescending = null)
     {
@@ -65,7 +63,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
 
     [HttpPost("collections")]
-    [EtagCaching]
+    [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
@@ -85,6 +83,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
     
     [HttpPut("collections/{id}")]
+    [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {

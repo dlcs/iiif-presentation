@@ -17,7 +17,8 @@ using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpsertCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots, string? eTag)
+public class UpsertCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots, 
+    string? eTag)
     : IRequest<ModifyEntityResult<FlatCollection>>
 {
     public int CustomerId { get; } = customerId;
@@ -42,13 +43,20 @@ public class UpsertCollectionHandler(
 
     private const int DefaultCurrentPage = 1;
 
-    public async Task<ModifyEntityResult<FlatCollection>> Handle(UpsertCollection request, CancellationToken cancellationToken)
+    public async Task<ModifyEntityResult<FlatCollection>> Handle(UpsertCollection request, 
+        CancellationToken cancellationToken)
     {
         var databaseCollection =
             await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == request.CollectionId, cancellationToken);
 
         if (databaseCollection == null)
         {
+            if (request.ETag is not null)
+            {
+                return ModifyEntityResult<FlatCollection>.Failure(
+                    "ETag should not be added when inserting collection via PUT", WriteResult.PreConditionFailed);
+            }
+
             var createdDate = DateTime.UtcNow;
             
             var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
