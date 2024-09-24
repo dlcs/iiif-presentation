@@ -38,7 +38,7 @@ public static class CollectionConverter
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
 
-        return new FlatCollection()
+        return new()
         {
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = new List<string>
@@ -47,11 +47,13 @@ public static class CollectionConverter
                 "http://iiif.io/api/presentation/3/context.json"
             },
             Label = dbAsset.Label,
-            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+            // Explicitly excluded from returning
+            // PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
                 .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
-            PresentationType = PresentationType.Collection,
+            // Explicitly excluded from returning
+            // PresentationType = PresentationType.Collection,
             Slug = dbAsset.Slug,
             Parent = dbAsset.Parent != null
                 ? dbAsset.GenerateFlatCollectionParent(urlRoots)
