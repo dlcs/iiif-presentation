@@ -51,14 +51,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddOptionsWithValidateOnStart<Program>();
 
-#pragma warning disable SYSLIB0050
-HttpResponseMessageX.SerializationContext = new StreamingContext(StreamingContextStates.All,
-    new Dictionary<string, Func<JObject, ResourceBase>>
-    {
-        [nameof(FlatCollection)] = _ => new FlatCollection {Slug = string.Empty}
-    });
-#pragma warning restore SYSLIB0050
-
 var app = builder.Build();
 
 app.UseForwardedHeaders();

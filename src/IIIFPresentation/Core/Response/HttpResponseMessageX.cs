@@ -39,7 +39,7 @@ public static class HttpResponseMessageX
     /// <typeparam name="T">Type to convert response to</typeparam>
     /// <returns>Converted Http response.</returns>
     public static async Task<T?> ReadAsPresentationJsonAsync<T>(this HttpResponseMessage response,
-        bool ensureSuccess = true, JsonSerializerSettings? settings = null)
+        bool ensureSuccess = true, JsonSerializerSettings? settings = null) where T : new()
     {
         if (ensureSuccess) response.EnsureSuccessStatusCode();
 
@@ -56,7 +56,9 @@ public static class HttpResponseMessageX
 
         var serializer = JsonSerializer.Create(settings);
 
-        return serializer.Deserialize<T>(jsonReader);
+        var result = new T();
+        serializer.Populate(jsonReader, result);
+        return result;
     }
 
     /// <summary>
@@ -90,7 +92,7 @@ public static class HttpResponseMessageX
     }
 
     public static async Task<T?> ReadAsPresentationResponseAsync<T>(this HttpResponseMessage response,
-        JsonSerializerSettings? settings = null)
+        JsonSerializerSettings? settings = null) where T : new()
     {
         if ((int) response.StatusCode < 400)
         {
@@ -119,7 +121,7 @@ public static class HttpResponseMessageX
     private static async Task<T?> ReadWithContext<T>(
         this HttpResponseMessage response,
         bool ensureSuccess,
-        JsonSerializerSettings? settings)
+        JsonSerializerSettings? settings) where T : new()
     {
         var json = await response.ReadAsPresentationJsonAsync<T>(ensureSuccess,
             settings ?? new JsonSerializerSettings(IIIFSerialiserX.DeserializerSettings));

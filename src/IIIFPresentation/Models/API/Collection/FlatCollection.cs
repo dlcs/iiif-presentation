@@ -1,6 +1,4 @@
-﻿using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Strings;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
 namespace Models.API.Collection;
 
@@ -13,17 +11,11 @@ public class FlatCollection : IIIF.Presentation.V3.Collection
         set => base.Context = value;
     }
 
-    #region Overrides of Collection
-
-    public override string Type { get; } = nameof(FlatCollection);
-
-    #endregion
-
     public string? PublicId { get; set; }
 
     public PresentationType PresentationType { get; set; }
 
-    public required string Slug { get; set; }
+    [JsonRequired] public string? Slug { get; set; }
 
     public string? Parent { get; set; }
 
