@@ -30,7 +30,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
     {
         var request = context.HttpContext.Request;
         var response = context.HttpContext.Response;
-        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>();
+        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>()!;
 
         // For more info on this technique, see https://stackoverflow.com/a/65901913 and https://www.madskristensen.net/blog/send-etag-headers-in-aspnet-core/ and https://gist.github.com/madskristensen/36357b1df9ddbfd123162cd4201124c4
         var originalStream = response.Body;
@@ -47,7 +47,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
             responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
             {
                 Public = request.HasShowExtraHeader(),
-                MaxAge = TimeSpan.FromDays(365)
+                MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
             };
 
             if (IsEtagSupported(response))
