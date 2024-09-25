@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace Models.API.Collection;
 
@@ -7,7 +8,8 @@ public class View
     [JsonProperty("@id")]
     public required string Id { get; set; }
 
-    [JsonProperty("@type")] 
+    [JsonProperty("@type")]
+    [JsonConverter(typeof(StringEnumConverter))]
     public PresentationType Type { get; set; }
     
     public int Page { get; set; }

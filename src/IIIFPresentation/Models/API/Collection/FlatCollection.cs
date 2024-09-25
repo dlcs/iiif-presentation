@@ -13,8 +13,6 @@ public class FlatCollection : IIIF.Presentation.V3.Collection
 
     public string? PublicId { get; set; }
 
-    public PresentationType PresentationType { get; set; }
-
     [JsonRequired] public string? Slug { get; set; }
 
     public string? Parent { get; set; }
