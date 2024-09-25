@@ -1,9 +1,14 @@
+using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Settings;
+using Core.Response;
+using IIIF.Presentation.V3;
 using Microsoft.AspNetCore.HttpOverrides;
+using Models.API.Collection;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Serilog;
 
@@ -38,7 +43,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(opts =>
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
 });
 
-builder.Services.ConfigureHttpJsonOptions( options =>
+builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.WriteIndented = true;
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;

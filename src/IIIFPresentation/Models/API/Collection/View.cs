@@ -1,13 +1,15 @@
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace Models.API.Collection;
 
 public class View
 {
-    [JsonPropertyName("@id")]
+    [JsonProperty("@id")]
     public required string Id { get; set; }
 
-    [JsonPropertyName("@type")] 
+    [JsonProperty("@type")]
+    [JsonConverter(typeof(StringEnumConverter))]
     public PresentationType Type { get; set; }
     
     public int Page { get; set; }
