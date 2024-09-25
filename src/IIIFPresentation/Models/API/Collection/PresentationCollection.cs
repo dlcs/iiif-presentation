@@ -2,7 +2,7 @@
 
 namespace Models.API.Collection;
 
-public class FlatCollection : IIIF.Presentation.V3.Collection
+public class PresentationCollection : IIIF.Presentation.V3.Collection
 {
     [JsonProperty("@context")]
     public new List<string>? Context

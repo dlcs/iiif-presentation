@@ -66,7 +66,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
@@ -114,7 +114,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenDuplicateSlug()
     {
         // Arrange
-        var collection = new FlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -274,7 +274,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
 
-        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
@@ -318,7 +318,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
 
-        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
@@ -420,7 +420,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
 
-        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         

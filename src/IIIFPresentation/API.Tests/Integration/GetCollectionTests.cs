@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿#nullable disable
+
+using System.Net;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FluentAssertions;
@@ -7,8 +9,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-
-#nullable disable
 
 namespace API.Tests.Integration;
 
@@ -137,7 +137,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -160,7 +160,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -184,7 +184,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var flatResponse = await httpClient.AsCustomer(1).SendAsync(requestMessage);
         var hierarchicalResponse = await httpClient.AsCustomer(1).GetAsync("1/non-public");
 
-        var flatCollection = await flatResponse.ReadAsPresentationJsonAsync<FlatCollection>();
+        var flatCollection = await flatResponse.ReadAsPresentationJsonAsync<PresentationCollection>();
 
         // Assert
         flatResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -207,8 +207,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -227,8 +227,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -248,8 +248,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -269,8 +269,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -289,8 +289,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -313,8 +313,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -338,8 +338,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
@@ -361,8 +361,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
-        var collection = await response.ReadAsPresentationJsonAsync<FlatCollection>();
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
         collection.TotalItems.Should().Be(2);
