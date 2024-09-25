@@ -22,7 +22,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     : PresentationController(options.Value, mediator)
 {
     [HttpGet("{*slug}")]
-    [EtagCaching]
+    [ETagCaching()]
     public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
@@ -39,7 +39,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
 
     [HttpGet("collections/{id}")]
-    [EtagCaching]
+    [ETagCaching]
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1, 
         string? orderBy = null, string? orderByDescending = null)
     {
@@ -63,7 +63,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
 
     [HttpPost("collections")]
-    [EtagCaching]
+    [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
@@ -83,7 +83,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     }
     
     [HttpPut("collections/{id}")]
-    [EtagCaching]
+    [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
@@ -99,7 +99,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(new UpdateCollection(customerId, id, collection, GetUrlRoots()));
+        return await HandleUpsert(new UpsertCollection(customerId, id, collection, GetUrlRoots(),
+            Request.Headers.IfMatch));
     }
     
     [HttpDelete("collections/{id}")]

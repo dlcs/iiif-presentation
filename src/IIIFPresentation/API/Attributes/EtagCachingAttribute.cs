@@ -10,10 +10,10 @@ using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace API.Attributes;
 
-public class EtagCachingAttribute : ActionFilterAttribute
+public class ETagCachingAttribute : ActionFilterAttribute
 {
     // When a "304 Not Modified" response is to be sent back to the client, all headers apart from the following list should be stripped from the response to keep the response size minimal. See https://datatracker.ietf.org/doc/html/rfc7232#section-4.1:~:text=200%20(OK)%20response.-,The%20server%20generating%20a%20304,-response%20MUST%20generate
-    private static readonly string[] headersToKeepFor304 =
+    private static readonly string[] HeadersToKeepFor304 =
     {
         HeaderNames.CacheControl,
         HeaderNames.ContentLocation,
@@ -21,8 +21,6 @@ public class EtagCachingAttribute : ActionFilterAttribute
         HeaderNames.Expires,
         HeaderNames.Vary
     };
-
-    private static readonly Dictionary<string, string> etagHashes = new();
 
     // Adds cache headers to response
     public override async Task OnResultExecutionAsync(
@@ -32,6 +30,7 @@ public class EtagCachingAttribute : ActionFilterAttribute
     {
         var request = context.HttpContext.Request;
         var response = context.HttpContext.Response;
+        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>()!;
 
         // For more info on this technique, see https://stackoverflow.com/a/65901913 and https://www.madskristensen.net/blog/send-etag-headers-in-aspnet-core/ and https://gist.github.com/madskristensen/36357b1df9ddbfd123162cd4201124c4
         var originalStream = response.Body;
@@ -41,21 +40,21 @@ public class EtagCachingAttribute : ActionFilterAttribute
         await next();
         memoryStream.Position = 0;
 
-        if (response.StatusCode == StatusCodes.Status200OK)
+        if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created)
         {
             var responseHeaders = response.GetTypedHeaders();
 
             responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
             {
                 Public = request.HasShowExtraHeader(),
-                MaxAge = TimeSpan.FromDays(365)
+                MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
             };
 
             if (IsEtagSupported(response))
             {
                 responseHeaders.ETag ??=
                     GenerateETag(memoryStream,
-                        request.Path); // This request generates a hash from the response - this would come from S3 in live
+                        request.Path, eTagManager!); // This request generates a hash from the response - this would come from S3 in live
             }
             
             var requestHeaders = request.GetTypedHeaders();
@@ -66,8 +65,10 @@ public class EtagCachingAttribute : ActionFilterAttribute
 
                 // Remove all unnecessary headers while only keeping the ones that should be included in a `304` response.
                 foreach (var header in response.Headers)
-                    if (!headersToKeepFor304.Contains(header.Key))
-                        response.Headers.Remove(header.Key);
+                    if (!HeadersToKeepFor304.Contains(header.Key))
+                    {
+                        response.Headers.Remove(header.Key);   
+                    }
 
                 return;
             }
@@ -81,27 +82,23 @@ public class EtagCachingAttribute : ActionFilterAttribute
     private static bool IsEtagSupported(HttpResponse response)
     {
         // 20kb length limit - can be changed
-        if (response.Body.Length > 20 * 1024)
-            return false;
+        if (response.Body.Length > 20 * 1024) return false;
 
-        if (response.Headers.ContainsKey(HeaderNames.ETag))
-            return false;
+        if (response.Headers.ContainsKey(HeaderNames.ETag)) return false;
 
         return true;
     }
 
-    private static EntityTagHeaderValue GenerateETag(Stream stream, string path)
+    private static EntityTagHeaderValue GenerateETag(Stream stream, string path, IETagManager eTagManager)
     {
         var hashBytes = MD5.HashData(stream);
         stream.Position = 0;
         var hashString = Convert.ToBase64String(hashBytes);
 
-        var enityTagHeader =
-            new EntityTagHeaderValue('"' + hashString +
-                                     '"');
+        var entityTagHeader = new EntityTagHeaderValue($"\"{hashString}\"");
 
-        etagHashes[path] = enityTagHeader.Tag.ToString();
-        return enityTagHeader;
+        eTagManager.UpsertETag(path, entityTagHeader.Tag.ToString());
+        return entityTagHeader;
     }
 
     private static bool IsClientCacheValid(RequestHeaders reqHeaders, ResponseHeaders resHeaders)
@@ -114,43 +111,10 @@ public class EtagCachingAttribute : ActionFilterAttribute
             );
 
         if (reqHeaders.IfModifiedSince is not null && resHeaders.LastModified is not null)
-            return reqHeaders.IfModifiedSince >= resHeaders.LastModified;
-
-        return false;
-    }
-
-    // checks request for valid cache headers
-    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(next);
-
-        var request = context.HttpContext.Request;
-
-        if (request.Method == HttpMethod.Put.ToString())
         {
-            if (request.Headers.IfMatch.Count == 0)
-                context.Result = new ObjectResult("This method requires a valid ETag to be present")
-                {
-                    StatusCode = StatusCodes.Status400BadRequest
-                };
-
-            etagHashes.TryGetValue(request.Path, out var etag);
-
-            if (!request.Headers.IfMatch.Equals(etag))
-            {
-                context.Result = new ObjectResult(new Error()
-                {
-                    Detail = "Cannot match ETag",
-                    Status = 412
-                })
-                {
-                    StatusCode = StatusCodes.Status412PreconditionFailed
-                };
-            }
+            return reqHeaders.IfModifiedSince >= resHeaders.LastModified;
         }
 
-        OnActionExecuting(context);
-        if (context.Result == null) OnActionExecuted(await next());
+        return false;
     }
 }
