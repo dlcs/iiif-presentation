@@ -1,57 +1,57 @@
 ﻿namespace Core;
 
 /// <summary>
-///     Represents the result of a Create or Update operation
+///  Represents the result of a Create or Update operation
 /// </summary>
 public enum WriteResult
 {
     /// <summary>
-    ///     Default state - likely operation has yet to be run.
+    /// Default state - likely operation has yet to be run.
     /// </summary>
     Unknown,
 
     /// <summary>
-    ///     Source item not found
+    /// Source item not found
     /// </summary>
     NotFound,
 
     /// <summary>
-    ///     An error occurred handling update
+    ///  An error occurred handling update
     /// </summary>
     Error,
 
     /// <summary>
-    ///     The update values would have resulted in a conflict with an existing resource
+    /// The update values would have resulted in a conflict with an existing resource
     /// </summary>
     Conflict,
 
     /// <summary>
-    ///     Request failed validation
+    /// Request failed validation
     /// </summary>
     FailedValidation,
 
     /// <summary>
-    ///     Entity was successfully updated
+    /// Entity was successfully updated
     /// </summary>
     Updated,
 
     /// <summary>
-    ///     Entity was successfully created
+    /// Entity was successfully created
     /// </summary>
     Created,
 
     /// <summary>
-    ///     Entity had an invalid request
+    /// Entity had an invalid request
     /// </summary>
     BadRequest,
 
     /// <summary>
-    ///     Predefined storage limits exceeded
+    /// Predefined storage limits exceeded
     /// </summary>
     StorageLimitExceeded,
     
     /// <summary>
-    ///     Request failed a precondition
+    /// Request failed a precondition
     /// </summary>
     PreConditionFailed
 }

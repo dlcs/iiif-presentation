@@ -66,7 +66,9 @@ public class ETagCachingAttribute : ActionFilterAttribute
                 // Remove all unnecessary headers while only keeping the ones that should be included in a `304` response.
                 foreach (var header in response.Headers)
                     if (!HeadersToKeepFor304.Contains(header.Key))
-                        response.Headers.Remove(header.Key);
+                    {
+                        response.Headers.Remove(header.Key);   
+                    }
 
                 return;
             }
@@ -80,11 +82,9 @@ public class ETagCachingAttribute : ActionFilterAttribute
     private static bool IsEtagSupported(HttpResponse response)
     {
         // 20kb length limit - can be changed
-        if (response.Body.Length > 20 * 1024)
-            return false;
+        if (response.Body.Length > 20 * 1024) return false;
 
-        if (response.Headers.ContainsKey(HeaderNames.ETag))
-            return false;
+        if (response.Headers.ContainsKey(HeaderNames.ETag)) return false;
 
         return true;
     }
@@ -95,12 +95,10 @@ public class ETagCachingAttribute : ActionFilterAttribute
         stream.Position = 0;
         var hashString = Convert.ToBase64String(hashBytes);
 
-        var enityTagHeader =
-            new EntityTagHeaderValue('"' + hashString +
-                                     '"');
+        var entityTagHeader = new EntityTagHeaderValue($"\"{hashString}\"");
 
-        eTagManager.UpsertETag(path, enityTagHeader.Tag.ToString());
-        return enityTagHeader;
+        eTagManager.UpsertETag(path, entityTagHeader.Tag.ToString());
+        return entityTagHeader;
     }
 
     private static bool IsClientCacheValid(RequestHeaders reqHeaders, ResponseHeaders resHeaders)
@@ -113,7 +111,9 @@ public class ETagCachingAttribute : ActionFilterAttribute
             );
 
         if (reqHeaders.IfModifiedSince is not null && resHeaders.LastModified is not null)
+        {
             return reqHeaders.IfModifiedSince >= resHeaders.LastModified;
+        }
 
         return false;
     }

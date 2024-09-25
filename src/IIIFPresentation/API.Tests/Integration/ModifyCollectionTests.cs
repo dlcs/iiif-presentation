@@ -292,7 +292,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
-     [Fact]
+    [Fact]
     public async Task UpdateCollection_CreatesCollection_WhenUnknownCollectionIdProvided()
     {
         // Arrange
