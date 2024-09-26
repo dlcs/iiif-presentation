@@ -59,6 +59,19 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child/second-child");
     }
+
+    [Fact]
+    public async Task Get_ChildHierarchical_Returns_Vary_Header()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/first-child");
+
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Vary.Should().HaveCount(2);
+    }
     
     [Fact]
     public async Task Get_Hierarchical_Redirects_WhenAuthAndShowExtrasHeaders()
@@ -372,5 +385,21 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.TotalPages.Should().Be(2);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+
+    [Fact]
+    public async Task Get_ChildFlat_Returns_Vary_Header()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending=notValid");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Vary.Should().HaveCount(2);
     }
 }
