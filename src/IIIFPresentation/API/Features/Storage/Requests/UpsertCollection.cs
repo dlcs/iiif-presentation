@@ -19,7 +19,7 @@ namespace API.Features.Storage.Requests;
 
 public class UpsertCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots, 
     string? eTag)
-    : IRequest<ModifyEntityResult<FlatCollection>>
+    : IRequest<ModifyEntityResult<PresentationCollection>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -37,13 +37,13 @@ public class UpsertCollectionHandler(
     IETagManager eTagManager,
     ILogger<CreateCollection> logger,
     IOptions<ApiSettings> options)
-    : IRequestHandler<UpsertCollection, ModifyEntityResult<FlatCollection>>
+    : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection>>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int DefaultCurrentPage = 1;
 
-    public async Task<ModifyEntityResult<FlatCollection>> Handle(UpsertCollection request, 
+    public async Task<ModifyEntityResult<PresentationCollection>> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
         var databaseCollection =
@@ -53,7 +53,7 @@ public class UpsertCollectionHandler(
         {
             if (request.ETag is not null)
             {
-                return ModifyEntityResult<FlatCollection>.Failure(
+                return ModifyEntityResult<PresentationCollection>.Failure(
                     "ETag should not be added when inserting a collection via PUT", WriteResult.PreConditionFailed);
             }
 
@@ -63,7 +63,7 @@ public class UpsertCollectionHandler(
                 request.Collection.Parent.GetLastPathElement(), cancellationToken);
             if (parentCollection == null)
             {
-                return ModifyEntityResult<FlatCollection>.Failure(
+                return ModifyEntityResult<PresentationCollection>.Failure(
                     "The parent collection could not be found", WriteResult.BadRequest);
             }
 
@@ -92,7 +92,7 @@ public class UpsertCollectionHandler(
 
             if (request.ETag != eTag)
             {
-                return ModifyEntityResult<FlatCollection>.Failure(
+                return ModifyEntityResult<PresentationCollection>.Failure(
                     "ETag does not match", WriteResult.PreConditionFailed);
             }
 
@@ -103,7 +103,7 @@ public class UpsertCollectionHandler(
 
                 if (parentCollection == null)
                 {
-                    return ModifyEntityResult<FlatCollection>.Failure(
+                    return ModifyEntityResult<PresentationCollection>.Failure(
                         $"The parent collection could not be found", WriteResult.BadRequest);
                 }
             }
@@ -147,7 +147,7 @@ public class UpsertCollectionHandler(
                 CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext);
         }
 
-        return ModifyEntityResult<FlatCollection>.Success(
+        return ModifyEntityResult<PresentationCollection>.Success(
             databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
                 await items.ToListAsync(cancellationToken: cancellationToken)));
     }

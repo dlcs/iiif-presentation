@@ -10,7 +10,7 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static async Task<ModifyEntityResult<FlatCollection>?> TrySaveCollection(
+    public static async Task<ModifyEntityResult<PresentationCollection>?> TrySaveCollection(
         this PresentationContext dbContext, 
         int customerId, 
         ILogger logger,
@@ -26,11 +26,11 @@ public static class PresentationContextX
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
-                return ModifyEntityResult<FlatCollection>.Failure(
+                return ModifyEntityResult<PresentationCollection>.Failure(
                     $"The collection could not be created due to a duplicate slug value", WriteResult.Conflict);
             }
-            
-            return ModifyEntityResult<FlatCollection>.Failure(
+
+            return ModifyEntityResult<PresentationCollection>.Failure(
                 $"The collection could not be created");
         }
 

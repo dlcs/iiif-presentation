@@ -17,7 +17,7 @@ using Repository.Helpers;
 namespace API.Features.Storage.Requests;
 
 public class CreateCollection(int customerId, UpsertFlatCollection collection, UrlRoots urlRoots)
-    : IRequest<ModifyEntityResult<FlatCollection>>
+    : IRequest<ModifyEntityResult<PresentationCollection>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -30,13 +30,13 @@ public class CreateCollectionHandler(
     PresentationContext dbContext,
     ILogger<CreateCollection> logger,
     IOptions<ApiSettings> options)
-    : IRequestHandler<CreateCollection, ModifyEntityResult<FlatCollection>>
+    : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection>>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
     
-    public async Task<ModifyEntityResult<FlatCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
+    public async Task<ModifyEntityResult<PresentationCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         // check parent exists
         var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
@@ -44,7 +44,7 @@ public class CreateCollectionHandler(
 
         if (parentCollection == null)
         {
-            return ModifyEntityResult<FlatCollection>.Failure(
+            return ModifyEntityResult<PresentationCollection>.Failure(
                 $"The parent collection could not be found", WriteResult.Conflict);
         }
 
@@ -80,7 +80,7 @@ public class CreateCollectionHandler(
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
         
-        return ModifyEntityResult<FlatCollection>.Success(
+        return ModifyEntityResult<PresentationCollection>.Success(
             collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }

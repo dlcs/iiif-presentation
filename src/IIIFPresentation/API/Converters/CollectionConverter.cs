@@ -30,7 +30,7 @@ public static class CollectionConverter
         return collection;
     }
 
-    public static FlatCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
+    public static PresentationCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
         UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
         List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
     {
@@ -97,8 +97,8 @@ public static class CollectionConverter
                 }
             ],
 
-            Created = dbAsset.Created,
-            Modified = dbAsset.Modified,
+            Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
+            Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
             CreatedBy = dbAsset.CreatedBy,
             ModifiedBy = dbAsset.ModifiedBy
         };
