@@ -53,17 +53,14 @@ WITH RECURSIVE parentsearch AS (
 )
 SELECT * FROM parentsearch ORDER BY generation_number DESC
 ";
-        var parentCollections = dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId).ToList();
-
-        var fullPath = string.Empty;
-
-        foreach (var parent in parentCollections)
-        {
-            if (!string.IsNullOrEmpty(parent.Parent))
-            {
-                fullPath += $"{parent.Slug}";
-            }
-        }
+        var parentCollections = dbContext.Collections
+            .FromSqlRaw(query)
+            .OrderBy(i => i.CustomerId)
+            .ToList();
+        
+        var fullPath = string.Join('/', parentCollections
+            .Where(parent => !string.IsNullOrEmpty(parent.Parent))
+            .Select(parent => parent.Slug));
         
         return fullPath;
     }
