@@ -1,4 +1,5 @@
-﻿using API.Auth;
+﻿using System.Data;
+using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
@@ -13,6 +14,7 @@ using Models.API.Collection.Upsert;
 using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
+using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
@@ -29,12 +31,14 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, U
 public class CreateCollectionHandler(
     PresentationContext dbContext,
     ILogger<CreateCollection> logger,
+    IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection>>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
+    private const int maxAttempts = 3;
     
     public async Task<ModifyEntityResult<PresentationCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
@@ -47,11 +51,24 @@ public class CreateCollectionHandler(
             return ModifyEntityResult<PresentationCollection>.Failure(
                 $"The parent collection could not be found", WriteResult.Conflict);
         }
+        
+        string id = string.Empty;
+
+        try
+        {
+            id = await dbContext.Collections.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+        }
+        catch (ConstraintException ex)
+        {
+            logger.LogError(ex, "An exception occured while generating a unique id");
+            return ModifyEntityResult<FlatCollection>.Failure(
+                "Could not generate a unique identifier.  Please try again", WriteResult.Error);
+        }
 
         var dateCreated = DateTime.UtcNow;
-        var collection = new Collection()
+        var collection = new Collection
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = id,
             Created = dateCreated,
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),

@@ -1,6 +1,7 @@
-﻿using API.Converters;
-using API.Features.Storage.Helpers;
-using Core.Helpers;
+﻿using System.Data;
+using API.Converters;
+using API.Infrastructure.IdGenerator;
+using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 
 namespace API.Helpers;
@@ -10,6 +11,8 @@ namespace API.Helpers;
 /// </summary>
 public static class CollectionHelperX
 {
+    private const int MaxAttempts = 3;
+    
     public static string GenerateHierarchicalCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
     
@@ -45,4 +48,34 @@ public static class CollectionHelperX
     
     public static string GenerateFullPath(this Collection collection, string itemSlug) => 
         $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{itemSlug}";
+    
+    public static async Task<string> GenerateUniqueIdAsync(this DbSet<Collection> collections, 
+        int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)
+    {
+        var isUnique = false;
+        var id = string.Empty;
+        var currentAttempt = 0;
+        var random = new Random();
+        var maxRandomValue = 25000;
+
+        while (!isUnique)
+        {
+            if (currentAttempt > MaxAttempts)
+            {
+                throw new ConstraintException("Max attempts to generate an identifier exceeded");
+            }
+            
+            id = idGenerator.Generate([
+                customerId,
+                DateTime.UtcNow.Ticks,
+                random.Next(0, maxRandomValue)
+            ]);
+            
+            isUnique = !await collections.AnyAsync(c => c.Id == id, cancellationToken);
+            
+            currentAttempt++;
+        }
+
+        return id;
+    }
 }

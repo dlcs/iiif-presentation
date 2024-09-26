@@ -1,16 +1,18 @@
 ﻿using System.Reflection;
+using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
 using MediatR;
 using Repository;
+using Sqids;
 
 namespace API.Infrastructure;
 
 public static class ServiceCollectionX
 {
     /// <summary>
-    ///     Add all dataaccess dependencies, including repositories and presentation context
+    /// Add all dataaccess dependencies, including repositories and presentation context
     /// </summary>
     public static IServiceCollection AddDataAccess(this IServiceCollection services, IConfiguration configuration)
     {
@@ -30,7 +32,7 @@ public static class ServiceCollectionX
             .AddLazyCache();
 
     /// <summary>
-    ///     Add MediatR services and pipeline behaviours to service collection.
+    /// Add MediatR services and pipeline behaviours to service collection.
     /// </summary>
     public static IServiceCollection ConfigureMediatR(this IServiceCollection services)
     {
@@ -38,5 +40,15 @@ public static class ServiceCollectionX
             .AddMediatR(config => config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()))
             .AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>))
             .AddScoped(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehaviour<,>));
+    }
+
+    public static IServiceCollection ConfigureIdGenerator(this IServiceCollection services)
+    {
+        return services.AddSingleton(new SqidsEncoder<long>(new()
+            {
+                Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789",
+                MinLength = 6,
+            }))
+            .AddSingleton<IIdGenerator, SqidsGenerator>();
     }
 }

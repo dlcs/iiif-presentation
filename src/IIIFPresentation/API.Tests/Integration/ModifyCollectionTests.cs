@@ -1,8 +1,12 @@
-﻿using System.Net;
+﻿using System.Data;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using API.Helpers;
+using API.Infrastructure.IdGenerator;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using FakeItEasy;
 using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -72,6 +76,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
@@ -216,6 +221,35 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+    
+    [Fact]
+    public async Task GenerateUniqueIdAsync_CreatesNewId()
+    {
+        // Arrange
+        var sqidsGenerator = A.Fake<IIdGenerator>();
+        A.CallTo(() => sqidsGenerator.Generate(A<List<long>>.Ignored)).Returns("generated");
+        
+
+        // Act
+        var id = await dbContext.Collections.GenerateUniqueIdAsync(1, sqidsGenerator);
+
+        // Assert
+        id.Should().Be("generated");
+    }
+    
+    [Fact]
+    public async Task GenerateUniqueIdAsync_ThrowsException_WhenGeneratingExistingId()
+    {
+        // Arrange
+        var sqidsGenerator = A.Fake<IIdGenerator>();
+        A.CallTo(() => sqidsGenerator.Generate(A<List<long>>.Ignored)).Returns("root");
+        
+        // Act
+        Func<Task> action = () => dbContext.Collections.GenerateUniqueIdAsync(1, sqidsGenerator);
+
+        // Assert
+        await action.Should().ThrowAsync<ConstraintException>();
     }
     
     [Fact]
