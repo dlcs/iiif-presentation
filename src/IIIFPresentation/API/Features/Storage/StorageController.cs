@@ -5,13 +5,14 @@ using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure;
+using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using IIIF.Presentation;
+using IIIF.Serialisation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using IIIF.Presentation;
-using IIIF.Serialisation;
 using Models.API.Collection.Upsert;
 
 namespace API.Features.Storage;
@@ -23,6 +24,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 {
     [HttpGet("{*slug}")]
     [ETagCaching()]
+    [VaryHeader]
     public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
         var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
@@ -40,6 +42,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
     [HttpGet("collections/{id}")]
     [ETagCaching]
+    [VaryHeader]
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1, 
         string? orderBy = null, string? orderByDescending = null)
     {
@@ -113,8 +116,8 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         return await HandleDelete(new DeleteCollection(customerId, id));
     }
-    
-    private IActionResult SeeOther(string location)
+
+    private StatusCodeResult SeeOther(string location)
     {
         Response.Headers.Location = location;
 
