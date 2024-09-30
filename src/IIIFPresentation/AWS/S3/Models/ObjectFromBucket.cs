@@ -1,6 +1,6 @@
 ﻿using Core.Helpers;
 
-namespace Presentation.AWS.S3.Models;
+namespace AWS.S3.Models;
 
 /// <summary>
 /// Represents an object that has been fetched from a bucket.

@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace Presentation.AWS.S3.Models;
+namespace AWS.S3.Models;
 
 /// <summary>
 /// Represents a bucket that may have an explicit region set

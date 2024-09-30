@@ -1,6 +1,6 @@
 ﻿using Core.Helpers;
 
-namespace Presentation.AWS.S3.Models;
+namespace AWS.S3.Models;
 
 /// <summary>
 /// Not S3-specific, but doesn't hide storage of objects in buckets

@@ -1,4 +1,4 @@
-﻿namespace Presentation.AWS.Settings;
+﻿namespace AWS.Settings;
 
 public class AWSSettings
 {

@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
@@ -30,7 +31,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     
     private readonly PresentationContext dbContext;
     
-    public LocalStackFixture LocalStackFixture { get; }
+    private readonly IAmazonS3 amazonS3;
 
     private const int Customer = 1;
 
@@ -39,6 +40,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
+        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         
         httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString)
             .WithLocalStack(storageFixture.LocalStackFixture)
@@ -47,8 +49,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
         
         storageFixture.DbFixture.CleanUp();
-
-        LocalStackFixture = new LocalStackFixture();
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task CreateCollection_FailsToCreateCollection_WhenIsStorageCollectionFalse()
+    public async Task CreateCollection_CreatesCollection_WhenIsStorageCollectionFalse()
     {
         // Arrange
         var collection = new UpsertFlatCollection()
@@ -108,7 +108,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "programmatic-child",
-            Parent = parent
+            Parent = parent,
+            Thumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
@@ -118,7 +121,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var fromDatabase = dbContext.Collections.First(c =>
+            c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        var fromS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/collections/{fromDatabase.Id}");
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -129,11 +137,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        fromS3.Should().NotBeNull();
     }
     
     [Fact]

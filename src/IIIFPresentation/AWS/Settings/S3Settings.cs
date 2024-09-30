@@ -1,4 +1,4 @@
-namespace Presentation.AWS.Settings;
+namespace AWS.Settings;
 
 /// <summary>
 /// Strongly typed S3 settings object 

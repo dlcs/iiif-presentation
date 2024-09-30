@@ -1,7 +1,7 @@
 ﻿using Amazon.S3.Model;
-using Presentation.AWS.S3.Models;
+using AWS.S3.Models;
 
-namespace Presentation.AWS.S3;
+namespace AWS.S3;
 
 public static class S3Extensions
 {

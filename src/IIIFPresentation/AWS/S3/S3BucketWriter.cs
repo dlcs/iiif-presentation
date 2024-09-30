@@ -3,10 +3,10 @@ using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
-using Presentation.AWS.S3.Models;
+using AWS.S3.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Presentation.AWS.S3;
+namespace AWS.S3;
 
 public class S3BucketWriter : IBucketWriter
 {

@@ -3,9 +3,9 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
+using AWS.Configuration;
+using AWS.S3;
 using MediatR;
-using Presentation.AWS.Configuration;
-using Presentation.AWS.S3;
 using Repository;
 using Sqids;
 

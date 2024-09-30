@@ -1,11 +1,11 @@
 ﻿using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
+using AWS.S3.Models;
 using Core.Exceptions;
-using Presentation.AWS.S3.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Presentation.AWS.S3;
+namespace AWS.S3;
 
 public class S3BucketReader : IBucketReader
 {

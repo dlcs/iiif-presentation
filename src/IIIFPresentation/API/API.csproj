@@ -36,7 +36,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Presentation.AWS\Presentation.AWS.csproj" />
+        <ProjectReference Include="..\AWS\AWS.csproj" />
         <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

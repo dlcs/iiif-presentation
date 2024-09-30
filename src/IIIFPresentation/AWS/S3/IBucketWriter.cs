@@ -1,6 +1,6 @@
-﻿using Presentation.AWS.S3.Models;
+﻿using AWS.S3.Models;
 
-namespace Presentation.AWS.S3;
+namespace AWS.S3;
 
 /// <summary>
 /// Interface wrapping write interactions with cloud blob storage.

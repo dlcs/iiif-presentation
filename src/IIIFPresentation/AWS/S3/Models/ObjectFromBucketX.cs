@@ -1,7 +1,7 @@
 ﻿using Core.Streams;
 using Newtonsoft.Json;
 
-namespace Presentation.AWS.S3.Models;
+namespace AWS.S3.Models;
 
 public static class ObjectFromBucketX
 {

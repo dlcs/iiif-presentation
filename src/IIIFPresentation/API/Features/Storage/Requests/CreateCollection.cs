@@ -6,6 +6,8 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using AWS.S3;
+using AWS.S3.Models;
 using Core;
 using Core.Helpers;
 using MediatR;
@@ -13,8 +15,6 @@ using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.Database.Collections;
-using Presentation.AWS.S3;
-using Presentation.AWS.S3.Models;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -102,9 +102,9 @@ public class CreateCollectionHandler(
         
         if (!request.Collection.Behavior.IsStorageCollection())
         {
-            
             await bucketWriter.WriteToBucket(
-                new ObjectInBucket(settings.AWS.S3.StorageBucket, $"{request.CustomerId}/collections/{collection.Id}"),
+                new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                    $"{request.CustomerId}/collections/{collection.Id}"),
                 request.RawRequestBody, "application/json", cancellationToken);
         }
         

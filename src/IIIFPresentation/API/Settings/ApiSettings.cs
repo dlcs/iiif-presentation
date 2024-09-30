@@ -1,4 +1,4 @@
-﻿using Presentation.AWS.Settings;
+﻿using AWS.Settings;
 
 namespace API.Settings;
 
