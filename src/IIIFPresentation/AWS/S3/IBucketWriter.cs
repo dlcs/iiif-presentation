@@ -8,42 +8,11 @@ namespace AWS.S3;
 public interface IBucketWriter
 {
     /// <summary>
-    /// Copy bucket object from source to destination
-    /// </summary>
-    Task CopyObject(ObjectInBucket source, ObjectInBucket destination);
-    
-    /// <summary>
-    /// Copy a large file between buckets using multi part upload.
-    /// This should always be used for files >5GiB
-    /// </summary>
-    /// <param name="source">Bucket where object is currently stored.</param>
-    /// <param name="destination">Target bucket where object is to be stored.</param>
-    /// <param name="verifySize">Function to verify objectSize prior to copying. Not copied if false returned.</param>
-    /// <param name="contentType">ContentType to set on uploaded object</param>
-    /// <param name="token">Cancellation token</param>
-    /// <returns>ResultStatus signifying success or failure alongside ContentSize</returns>
-    /// <remarks>See https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingLLNetMPUapi.html </remarks>
-    public Task<LargeObjectCopyResult> CopyLargeObject(ObjectInBucket source, ObjectInBucket destination,
-        Func<long, Task<bool>>? verifySize = null, string? contentType = null, 
-        CancellationToken token = default);
-
-    /// <summary>
     /// Write content from provided string to S3 
     /// </summary>
     /// <returns></returns>
     Task WriteToBucket(ObjectInBucket dest, string content, string contentType,
         CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Write content from provided stream to S3
-    /// </summary>
-    Task<bool> WriteToBucket(ObjectInBucket dest, Stream content, string? contentType = null);
-
-    /// <summary>
-    /// Write file to S3
-    /// </summary>
-    Task<bool> WriteFileToBucket(ObjectInBucket dest, string filePath, string? contentType = null,
-        CancellationToken token = default);
 
     /// <summary>
     /// Delete specified objects underlying storage.
