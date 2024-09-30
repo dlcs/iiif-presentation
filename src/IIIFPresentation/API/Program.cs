@@ -1,15 +1,10 @@
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
-using Core.Response;
-using IIIF.Presentation.V3;
 using Microsoft.AspNetCore.HttpOverrides;
-using Models.API.Collection;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Repository;
 using Serilog;
 
@@ -44,7 +39,7 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services.AddSingleton<IETagManager, ETagManager>();
 builder.Services.ConfigureMediatR();
-builder.Services.AddSingleton<ETagManager>();
+builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
