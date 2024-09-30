@@ -38,7 +38,6 @@ public class CreateCollectionHandler(
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
-    private const int maxAttempts = 3;
     
     public async Task<ModifyEntityResult<PresentationCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
@@ -52,7 +51,7 @@ public class CreateCollectionHandler(
                 $"The parent collection could not be found", WriteResult.Conflict);
         }
         
-        string id = string.Empty;
+        string id;
 
         try
         {
