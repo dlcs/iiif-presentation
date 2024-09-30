@@ -119,7 +119,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
         
-        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c =>
             c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());

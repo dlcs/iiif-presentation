@@ -3,7 +3,6 @@ using System.Data;
 using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using AWS.S3;
@@ -21,7 +20,7 @@ using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection(int customerId, UpsertFlatCollection collection, UrlRoots urlRoots)
+public class CreateCollection(int customerId, UpsertFlatCollection collection, string rawRequestBody, UrlRoots urlRoots)
     : IRequest<ModifyEntityResult<PresentationCollection>>
 {
     public int CustomerId { get; } = customerId;
