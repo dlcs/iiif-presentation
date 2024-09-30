@@ -1,4 +1,5 @@
-﻿using System.Data;
+using System.Text;
+using System.Data;
 using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
@@ -12,6 +13,8 @@ using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.Database.Collections;
+using Presentation.AWS.S3;
+using Presentation.AWS.S3.Models;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -24,6 +27,8 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, U
     public int CustomerId { get; } = customerId;
 
     public UpsertFlatCollection Collection { get; } = collection;
+    
+    public string RawRequestBody { get; } = rawRequestBody;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
@@ -31,6 +36,7 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, U
 public class CreateCollectionHandler(
     PresentationContext dbContext,
     ILogger<CreateCollection> logger,
+    IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection>>
@@ -81,7 +87,10 @@ public class CreateCollectionHandler(
             Tags = request.Collection.Tags,
             ItemsOrder = request.Collection.ItemsOrder
         };
-
+        
+        await using var transaction = 
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        
         dbContext.Collections.Add(collection);
 
         var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
@@ -91,6 +100,16 @@ public class CreateCollectionHandler(
             return saveErrors;
         }
         
+        if (!request.Collection.Behavior.IsStorageCollection())
+        {
+            
+            await bucketWriter.WriteToBucket(
+                new ObjectInBucket(settings.AWS.S3.StorageBucket, $"{request.CustomerId}/collections/{collection.Id}"),
+                request.RawRequestBody, "application/json", cancellationToken);
+        }
+        
+        await transaction.CommitAsync(cancellationToken);
+
         if (collection.Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);

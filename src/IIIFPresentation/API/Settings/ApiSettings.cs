@@ -1,4 +1,6 @@
-﻿namespace API.Settings;
+﻿using Presentation.AWS.Settings;
+
+namespace API.Settings;
 
 public class ApiSettings
 {
@@ -18,4 +20,6 @@ public class ApiSettings
     public int MaxPageSize { get; set; } = 1000;
     
     public string? PathBase { get; set; }
+    
+    public AWSSettings AWS { get; set; }
 }

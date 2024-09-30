@@ -4,6 +4,8 @@ using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
 using MediatR;
+using Presentation.AWS.Configuration;
+using Presentation.AWS.S3;
 using Repository;
 using Sqids;
 
@@ -50,5 +52,20 @@ public static class ServiceCollectionX
                 MinLength = 6,
             }))
             .AddSingleton<IIdGenerator, SqidsGenerator>();
+    }
+    
+    /// <summary>
+    /// Add required AWS services
+    /// </summary>
+    public static IServiceCollection AddAws(this IServiceCollection services,
+        IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
+    {
+        services
+            .AddSingleton<IBucketReader, S3BucketReader>()
+            .AddSingleton<IBucketWriter, S3BucketWriter>()
+            .SetupAWS(configuration, webHostEnvironment)
+            .WithAmazonS3();
+
+        return services;
     }
 }

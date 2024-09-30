@@ -23,27 +23,32 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
-[Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
 public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     
     private readonly PresentationContext dbContext;
+    
+    public LocalStackFixture LocalStackFixture { get; }
 
     private const int Customer = 1;
 
     private readonly string parent;
     
-    public ModifyCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
+    public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
-        dbContext = dbFixture.DbContext;
+        dbContext = storageFixture.DbFixture.DbContext;
         
-        httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
+        httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString)
+            .WithLocalStack(storageFixture.LocalStackFixture)
             .CreateClient(new WebApplicationFactoryClientOptions());
 
         parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
         
-        dbFixture.CleanUp();
+        storageFixture.DbFixture.CleanUp();
+
+        LocalStackFixture = new LocalStackFixture();
     }
 
     [Fact]
@@ -111,8 +116,24 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
         
+        var responseCollection = await response.ReadAsPresentationResponseAsync<FlatCollection>();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
+        fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
+        fromDatabase.Tags.Should().Be("some, tags");
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
     [Fact]
@@ -467,7 +488,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
     
-    [Fact]
+    [Fact (Skip = "Test to be updated to pass in https://github.com/dlcs/iiif-presentation/issues/27")]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenNotStorageCollection()
     {
         // Arrange

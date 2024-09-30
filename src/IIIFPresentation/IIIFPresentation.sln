@@ -20,6 +20,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Migrator", "Migrator\Migrat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Tests", "Core.Tests\Core.Tests.csproj", "{A7C2D6B2-B1E2-4788-8EC6-01896EC51243}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Presentation.AWS", "Presentation.AWS\Presentation.AWS.csproj", "{5F4846DC-9137-43F5-85C2-274C4B793220}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,10 @@ Global
 		{A7C2D6B2-B1E2-4788-8EC6-01896EC51243}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A7C2D6B2-B1E2-4788-8EC6-01896EC51243}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A7C2D6B2-B1E2-4788-8EC6-01896EC51243}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F4846DC-9137-43F5-85C2-274C4B793220}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F4846DC-9137-43F5-85C2-274C4B793220}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F4846DC-9137-43F5-85C2-274C4B793220}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F4846DC-9137-43F5-85C2-274C4B793220}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{CDB60D14-DA74-486F-AE46-F4D6F801DE21} = {23CF47D6-E80B-4B6A-828D-4635800CD326}
