@@ -60,7 +60,7 @@ public class CreateCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ModifyEntityResult<FlatCollection>.Failure(
+            return ModifyEntityResult<PresentationCollection>.Failure(
                 "Could not generate a unique identifier.  Please try again", WriteResult.Error);
         }
 
