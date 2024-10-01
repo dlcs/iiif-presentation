@@ -73,7 +73,7 @@ public class Collection
     public bool IsStorageCollection { get; set; }
 
     /// <summary>
-    /// Whether the collection is available at dlcs.io/iiif/
+    /// Whether the collection is available at Presentation.io/iiif/
     /// </summary>
     public bool IsPublic { get; set; }
     

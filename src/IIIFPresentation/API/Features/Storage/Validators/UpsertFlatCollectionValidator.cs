@@ -10,8 +10,5 @@ public class UpsertFlatCollectionValidator : AbstractValidator<UpsertFlatCollect
     {
         RuleFor(f => f.Parent).NotEmpty().WithMessage("Requires a 'parent' to be set");
         RuleFor(f => f.Slug).NotEmpty().WithMessage("Requires a 'slug' to be set");
-        
-        RuleFor(f => f.Behavior).Must(f => f.IsStorageCollection())
-            .WithMessage("'Behavior' must contain 'storage-collection' when updating");
     }
 }

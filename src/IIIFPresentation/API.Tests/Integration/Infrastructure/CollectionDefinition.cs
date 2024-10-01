@@ -9,4 +9,10 @@ public class CollectionDefinitions
     {
         public const string CollectionName = "Database Collection";
     }
+    
+    [CollectionDefinition(CollectionName)]
+    public class StorageCollection : ICollectionFixture<StorageFixture>
+    {
+        public const string CollectionName = "Storage Collection";
+    }
 }

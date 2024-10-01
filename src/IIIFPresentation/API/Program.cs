@@ -29,7 +29,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddOptions<ApiSettings>()
-    .BindConfiguration(nameof(ApiSettings));
+    .BindConfiguration(string.Empty);
 builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 
@@ -41,6 +41,7 @@ builder.Services.AddSingleton<IETagManager, ETagManager>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
+builder.Services.AddAws(builder.Configuration, builder.Environment);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;

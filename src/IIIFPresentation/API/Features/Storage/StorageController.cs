@@ -10,10 +10,14 @@ using API.Infrastructure.Helpers;
 using API.Settings;
 using IIIF.Presentation;
 using IIIF.Serialisation;
+using Core.Helpers;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using IIIF.Presentation;
+using IIIF.Serialisation;
 using Models.API.Collection.Upsert;
+using Newtonsoft.Json;
 
 namespace API.Features.Storage;
 
@@ -67,7 +71,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
     [HttpPost("collections")]
     [ETagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromBody] UpsertFlatCollection collection, 
+    public async Task<IActionResult> Post(int customerId, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
         if (!Request.ShowExtraProperties())
@@ -75,14 +79,18 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
 
+        var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+        
+        var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
+        
         var validation = await validator.ValidateAsync(collection);
-
+        
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
-
-        return await HandleUpsert(new CreateCollection(customerId, collection, GetUrlRoots()));
+        
+        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
     }
     
     [HttpPut("collections/{id}")]
