@@ -120,7 +120,7 @@ public class CreateCollectionHandler(
             {
                 logger.LogError(ex, "Error attempting to validate collection is IIIF");
                 return ModifyEntityResult<PresentationCollection>.Failure(
-                    "Error attempting to validate collection is IIIF", WriteResult.Error);
+                    "Error attempting to validate collection is IIIF", WriteResult.BadRequest);
             }
             catch (Exception ex)
             {
