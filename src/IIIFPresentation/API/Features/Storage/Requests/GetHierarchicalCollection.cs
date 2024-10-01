@@ -1,7 +1,11 @@
 ﻿using API.Features.Storage.Models;
 using API.Helpers;
+using AWS.S3;
+using AWS.S3.Models;
+using AWS.Settings;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Repository;
 
@@ -14,9 +18,12 @@ public class GetHierarchicalCollection(int customerId, string slug) : IRequest<C
     public string Slug { get; } = slug;
 }
 
-public class GetHierarchicalCollectionHandler(PresentationContext dbContext)
+public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBucketReader bucketReader, 
+    IOptions<AWSSettings> options)
     : IRequestHandler<GetHierarchicalCollection, CollectionWithItems>
 {
+    private readonly AWSSettings settings = options.Value;
+    
     public async Task<CollectionWithItems> Handle(GetHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
@@ -139,15 +146,23 @@ WHERE
 
         if (collection != null)
         {
-            items = await dbContext.Collections
-                .Where(s => s.CustomerId == request.CustomerId && s.Parent == collection.Id)
-                .ToListAsync(cancellationToken: cancellationToken);
-
-            foreach (var item in items)
+            if (!collection.IsStorageCollection)
             {
-                item.FullPath = collection.GenerateFullPath(item.Slug);
+                var collectionFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
+                    $"{request.CustomerId}/collections/{collection.Id}"), cancellationToken);
             }
-            
+            else
+            {
+                items = await dbContext.Collections
+                    .Where(s => s.CustomerId == request.CustomerId && s.Parent == collection.Id)
+                    .ToListAsync(cancellationToken: cancellationToken);
+
+                foreach (var item in items)
+                {
+                    item.FullPath = collection.GenerateFullPath(item.Slug);
+                }
+            }
+
             collection.FullPath = request.Slug;
         }
 
