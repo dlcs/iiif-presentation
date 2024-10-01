@@ -1,6 +1,7 @@
 ﻿using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
+using Amazon.S3.Model;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 
@@ -70,5 +71,23 @@ public class LocalStackFixture : IAsyncLifetime
         // Create basic buckets used by DLCS
         var amazonS3Client = AWSS3ClientFactory();
         await amazonS3Client.PutBucketAsync(StorageBucketName);
+        await amazonS3Client.PutObjectAsync(new PutObjectRequest()
+        {
+            BucketName = StorageBucketName,
+            Key = "1/collections/IiifCollection", 
+            ContentBody = $$"""
+                            {
+                            "type": "Collection",
+                            "behavior": [
+                                "public-iiif",
+                            ],
+                            "label": {
+                                "en": [
+                                    "first child - iiif"
+                                ]
+                            }
+                            }
+                            """
+        });
     }
 }

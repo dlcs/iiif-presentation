@@ -16,6 +16,8 @@ using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
+using Newtonsoft.Json;
+using NuGet.Protocol;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -105,10 +107,27 @@ public class CreateCollectionHandler(
         
         if (!request.Collection.Behavior.IsStorageCollection())
         {
-            await bucketWriter.WriteToBucket(
-                new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    $"{request.CustomerId}/collections/{collection.Id}"),
-                request.RawRequestBody, "application/json", cancellationToken);
+            try
+            {
+                var collectionToSave = GenerateCollectionFromRawRequest(request.RawRequestBody);
+
+                await bucketWriter.WriteToBucket(
+                    new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                        $"{request.CustomerId}/collections/{collection.Id}"),
+                    collectionToSave, "application/json", cancellationToken);
+            }
+            catch (JsonSerializationException ex)
+            {
+                logger.LogError(ex, "Error attempting to validate collection is IIIF");
+                return ModifyEntityResult<PresentationCollection>.Failure(
+                    "Error attempting to validate collection is IIIF", WriteResult.Error);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An unknown exception occured while creating a new collection");
+                return ModifyEntityResult<PresentationCollection>.Failure(
+                    "Unknown error occured while creating a collection", WriteResult.Error);
+            }
         }
         
         await transaction.CommitAsync(cancellationToken);
@@ -121,5 +140,11 @@ public class CreateCollectionHandler(
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
+    }
+
+    private static string GenerateCollectionFromRawRequest(string rawRequestBody)
+    {
+        var collection = rawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
+        return collection.ToJson();
     }
 }

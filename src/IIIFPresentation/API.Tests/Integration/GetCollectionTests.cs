@@ -13,17 +13,18 @@ using Test.Helpers.Integration;
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
-[Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
 
-    public GetCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
+    public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
-        httpClient = factory.WithConnectionString(dbFixture.ConnectionString)
+        httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString) 
+            .WithLocalStack(storageFixture.LocalStackFixture)
             .CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); ;
         
-        dbFixture.CleanUp();
+        storageFixture.DbFixture.CleanUp();
     }
     
     [Fact]
@@ -38,7 +39,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(2);
+        collection.Items.Count.Should().Be(3);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
     }
@@ -156,9 +157,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items!.Count.Should().Be(2);
+        collection.Items!.Count.Should().Be(3);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
     }
@@ -224,11 +225,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(100);
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(1);
-        collection.Items!.Count.Should().Be(2);
+        collection.Items!.Count.Should().Be(3);
     }
     
     [Fact]
@@ -244,10 +245,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(2);
+        collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
@@ -265,10 +266,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(2);
-        collection.View.TotalPages.Should().Be(2);
+        collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
@@ -286,11 +287,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(20);
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(1);
-        collection.Items!.Count.Should().Be(2);
+        collection.Items!.Count.Should().Be(3);
     }
     
     [Fact]
@@ -306,11 +307,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(100);
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(1);
-        collection.Items!.Count.Should().Be(2);
+        collection.Items!.Count.Should().Be(3);
     }
     
     [Theory]
@@ -330,10 +331,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(2);
+        collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
@@ -355,13 +356,13 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending={field}");
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(2);
+        collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/IiifCollection");
     }
     
     [Fact]
@@ -378,11 +379,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.TotalItems.Should().Be(2);
+        collection.TotalItems.Should().Be(3);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1");
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(2);
+        collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
@@ -393,7 +394,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending=notValid");
+                $"1/collections/{RootCollection.Id}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -401,5 +402,21 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Vary.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task Get_IiifCollection_ReturnsCollectionFromS3()
+    {
+        // Arrange and Act
+        var response = await httpClient.GetAsync("1/iiif-collection");
+        
+        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Vary.Should().HaveCount(2);
+        collection!.Items.Should().BeNull();
+        collection.Behavior![0].Should().Be("public-iiif");
+        collection.Type.Should().Be("Collection");
     }
 }

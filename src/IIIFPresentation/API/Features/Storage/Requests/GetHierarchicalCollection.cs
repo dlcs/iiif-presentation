@@ -143,13 +143,20 @@ WHERE
         }
 
         List<Collection>? items = null;
+        string? collectionFromS3 = null;
 
         if (collection != null)
         {
             if (!collection.IsStorageCollection)
             {
-                var collectionFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
+                var objectFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
                     $"{request.CustomerId}/collections/{collection.Id}"), cancellationToken);
+
+                if (objectFromS3.Stream != null)
+                {
+                    StreamReader reader = new StreamReader(objectFromS3.Stream);
+                    collectionFromS3 = reader.ReadToEnd();
+                }
             }
             else
             {
@@ -166,6 +173,6 @@ WHERE
             collection.FullPath = request.Slug;
         }
 
-        return new CollectionWithItems(collection, items, items?.Count ?? 0);
+        return new CollectionWithItems(collection, items, items?.Count ?? 0, collectionFromS3);
     }
 }
