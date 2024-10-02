@@ -135,7 +135,7 @@ public abstract class PresentationController : Controller
         };
     }
 
-    public string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
+    private string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
 
     /// <summary>
     ///     Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.
