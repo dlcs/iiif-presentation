@@ -47,34 +47,38 @@ public static class ControllerBaseX
     /// <param name="entityResult">Result to transform</param>
     /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
     /// <param name="errorTitle">
-    ///     The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
-    ///     e.g. errorTitle + ": Conflict"
+    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <typeparam name="T">Type of entity being upserted</typeparam>
+    /// <typeparam name="TEnum">An enum used for </typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
-    public static IActionResult ModifyResultToHttpResult<T>(this ControllerBase controller,
-    ModifyEntityResult<T> entityResult, 
+    public static IActionResult ModifyResultToHttpResult<T, TEnum>(this ControllerBase controller,
+    ModifyEntityResult<T, TEnum> entityResult, 
     string? instance,
     string? errorTitle)
-    where T : class =>
+    where T : class 
+    where TEnum : Enum =>
     entityResult.WriteResult switch
     {
         WriteResult.Updated => controller.Ok(entityResult.Entity),
         WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
         WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
-        WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
-        WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest, errorTitle),
+        WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
+            (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
+        WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, 
+            (int)HttpStatusCode.BadRequest, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
         WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
-            $"{errorTitle}: Conflict"),
+            $"{errorTitle}: Conflict", controller.GetErrorType(entityResult.ErrorType)),
         WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
             $"{errorTitle}: Validation failed"),
         WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
             $"{errorTitle}: Storage limit exceeded"),
         WriteResult.PreConditionFailed => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.PreconditionFailed, 
-            $"{errorTitle}: Pre-condition failed"),
-        _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle),
+            $"{errorTitle}: Pre-condition failed", controller.GetErrorType(entityResult.ErrorType)),
+        _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
     };
     
     /// <summary>
@@ -140,6 +144,10 @@ public static class ControllerBaseX
             StatusCode = error.Status
         };
     }
+
+    public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>
+        $"{controller.Request.GetDisplayUrl()}/errors/{type?.GetType().Name}/{type}";
+    
     
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.

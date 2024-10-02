@@ -14,6 +14,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Collection.Upsert;
+using Models.API.General;
 using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
@@ -22,7 +23,7 @@ using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 namespace API.Features.Storage.Requests;
 
 public class CreateCollection(int customerId, UpsertFlatCollection collection, string rawRequestBody, UrlRoots urlRoots)
-    : IRequest<ModifyEntityResult<PresentationCollection>>
+    : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -39,13 +40,13 @@ public class CreateCollectionHandler(
     IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
-    : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection>>
+    : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
     
-    public async Task<ModifyEntityResult<PresentationCollection>> Handle(CreateCollection request, CancellationToken cancellationToken)
+    public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         // check parent exists
         var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
@@ -53,8 +54,9 @@ public class CreateCollectionHandler(
 
         if (parentCollection == null)
         {
-            return ModifyEntityResult<PresentationCollection>.Failure(
-                $"The parent collection could not be found", WriteResult.Conflict);
+            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
+                WriteResult.Conflict);
         }
         
         string id;
@@ -66,8 +68,9 @@ public class CreateCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ModifyEntityResult<PresentationCollection>.Failure(
-                "Could not generate a unique identifier.  Please try again", WriteResult.Error);
+            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                "Could not generate a unique identifier.  Please try again",
+                ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
         }
 
         var dateCreated = DateTime.UtcNow;
@@ -115,7 +118,7 @@ public class CreateCollectionHandler(
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
         
-        return ModifyEntityResult<PresentationCollection>.Success(
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
