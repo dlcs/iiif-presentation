@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
@@ -8,10 +9,11 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core;
 using IIIF.Presentation.V3;
+using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
-using Models.API.Collection;
 using Models.API.General;
+using Newtonsoft.Json;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
@@ -50,7 +52,6 @@ public class PostHierarchicalCollectionHandler(
         var splitSlug = request.Slug.Split('/');
 
         var parentSlug = String.Join(String.Empty, splitSlug.Take(..^1));
-        
         var parentCollection =
             await dbContext.RetriveHierarchicalCollection(request.CustomerId, parentSlug, cancellationToken);
 
@@ -75,11 +76,32 @@ public class PostHierarchicalCollectionHandler(
                 ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
         }
 
+        Collection collectionFromBody;
+        try
+        {
+            collectionFromBody = request.RawRequestBody.FromJson<Collection>();
+        }
+        catch (JsonSerializationException ex)
+        {
+            logger.LogError(ex, "Error attempting to validate collection is IIIF");
+            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
+                "Error attempting to validate collection is IIIF", ModifyCollectionType.CannotValidateIIIF,
+                WriteResult.BadRequest);
+        }
+        
+        var dateCreated = DateTime.UtcNow;
         var collection = new DatabaseCollection.Collection
         {
             Id = id,
             Parent = parentCollection.Id,
             Slug = splitSlug.Last(),
+            Created = dateCreated,
+            Modified = dateCreated,
+            CreatedBy = Authorizer.GetUser(),
+            CustomerId = request.CustomerId,
+            IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
+            IsStorageCollection = false,
+            Label = collectionFromBody.Label
         };
         
         await using var transaction = 
