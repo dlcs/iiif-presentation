@@ -42,6 +42,20 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 ContentTypes.V3)
             : Content(storageRoot.StoredCollection, ContentTypes.V3);
     }
+    
+    [HttpPost("{*slug}")]
+    [ETagCaching]
+    public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
+    {
+        if (!Request.ShowExtraProperties())
+        {
+            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
+        }
+        
+        var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+        
+        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
+    }
 
     [HttpGet("collections/{id}")]
     [ETagCaching]

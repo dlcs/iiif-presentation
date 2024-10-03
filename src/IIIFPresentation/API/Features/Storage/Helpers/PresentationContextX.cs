@@ -11,11 +11,12 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>?> TrySaveCollection(
+    public static async Task<ModifyEntityResult<T>?> TrySaveCollection<T>(
         this PresentationContext dbContext, 
         int customerId, 
         ILogger logger,
         CancellationToken cancellationToken)
+        where T : class
     {
         try
         { 
@@ -27,13 +28,12 @@ public static class PresentationContextX
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    $"The collection could not be created due to a duplicate slug value",
-                    ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
+                return ModifyEntityResult<T>.Failure(
+                    $"The collection could not be created due to a duplicate slug value", WriteResult.Conflict);
             }
 
-            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-               $"The collection could not be created", ModifyCollectionType.UnknownDatabaseSaveError);
+            return ModifyEntityResult<T>.Failure(
+                $"The collection could not be created");
         }
 
         return null;

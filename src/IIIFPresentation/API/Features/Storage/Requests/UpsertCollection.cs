@@ -128,7 +128,7 @@ public class UpsertCollectionHandler(
         await using var transaction = 
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
+        var saveErrors = await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger, cancellationToken);
 
         if (saveErrors != null)
         {
