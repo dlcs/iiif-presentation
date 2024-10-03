@@ -98,7 +98,9 @@ public class CreateCollectionHandler(
         
         dbContext.Collections.Add(collection);
 
-        var saveErrors = await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger, cancellationToken);
+        var saveErrors =
+            await dbContext.TrySaveCollection<PresentationCollection, ModifyCollectionType>(request.CustomerId, logger,
+                cancellationToken);
 
         if (saveErrors != null)
         {

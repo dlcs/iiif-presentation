@@ -11,6 +11,7 @@ using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
+using Models.API.General;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
@@ -22,7 +23,7 @@ public class PostHierarchicalCollection(
     int customerId,
     string slug, 
     UrlRoots urlRoots,
-    string rawRequestBody) : IRequest<ModifyEntityResult<IIIF.Presentation.V3.Collection>>
+    string rawRequestBody) : IRequest<ModifyEntityResult<Collection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -39,11 +40,11 @@ public class PostHierarchicalCollectionHandler(
     IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
-    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<IIIF.Presentation.V3.Collection>>
+    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
 {
     private readonly ApiSettings settings = options.Value;
     
-    public async Task<ModifyEntityResult<Collection>> Handle(PostHierarchicalCollection request,
+    public async Task<ModifyEntityResult<Collection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         var splitSlug = request.Slug.Split('/');
@@ -55,8 +56,9 @@ public class PostHierarchicalCollectionHandler(
 
         if (parentCollection == null)
         {
-            return ModifyEntityResult<Collection>.Failure(
-                $"The parent collection could not be found", WriteResult.Conflict);
+            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
+                $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
+                WriteResult.Conflict);
         }
 
         string id;
@@ -68,8 +70,9 @@ public class PostHierarchicalCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ModifyEntityResult<Collection>.Failure(
-                "Could not generate a unique identifier.  Please try again", WriteResult.Error);
+            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
+                "Could not generate a unique identifier.  Please try again",
+                ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
         }
 
         var collection = new DatabaseCollection.Collection
@@ -79,13 +82,14 @@ public class PostHierarchicalCollectionHandler(
             Slug = splitSlug.Last(),
         };
         
-
         await using var transaction = 
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
         
         dbContext.Collections.Add(collection);
 
-        var saveErrors = await dbContext.TrySaveCollection<Collection>(request.CustomerId, logger, cancellationToken);
+        var saveErrors =
+            await dbContext.TrySaveCollection<Collection, ModifyCollectionType>(request.CustomerId, logger,
+                cancellationToken);
 
         if (saveErrors != null)
         {
@@ -104,7 +108,7 @@ public class PostHierarchicalCollectionHandler(
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
 
-        return ModifyEntityResult<IIIF.Presentation.V3.Collection>.Success(
+        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(
             collection.ToHierarchicalCollection(request.UrlRoots, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
