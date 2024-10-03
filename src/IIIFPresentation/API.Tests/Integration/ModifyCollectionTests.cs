@@ -171,6 +171,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict); 
         error!.Detail.Should().Be("The collection could not be created due to a duplicate slug value");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateSlugValue");
     }
     
     [Fact]
@@ -427,9 +428,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ETagNotAllowed");
     }
     
     [Fact]
@@ -605,11 +608,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
-        var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        responseCollection!.Detail.Should().Be("The parent collection could not be found");
+        error!.Detail.Should().Be("The parent collection could not be found");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
     
     [Fact]
@@ -633,9 +637,88 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ETagNotMatched");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenChangingParentToChild()
+    {
+        var parentCollection = new Collection()
+        {
+            Id = "UpdateTester-5",
+            Slug = "update-test-5",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = "root"
+        };
+        
+        var childCollection = new Collection()
+        {
+            Id = "UpdateTester-6",
+            Slug = "update-test-6",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Parent = parentCollection.Id
+        };
+        
+        var updatedCollection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = parentCollection.Slug,
+            Parent = childCollection.Id
+        };
+        
+        await dbContext.Collections.AddAsync(parentCollection);
+        await dbContext.Collections.AddAsync(childCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{parentCollection.Id}");
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"1/collections/{parentCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/PossibleCircularReference");
     }
     
     [Fact]

@@ -2,6 +2,7 @@
 using Core;
 using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
+using Models.API.General;
 using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
@@ -10,7 +11,7 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static async Task<ModifyEntityResult<PresentationCollection>?> TrySaveCollection(
+    public static async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>?> TrySaveCollection(
         this PresentationContext dbContext, 
         int customerId, 
         ILogger logger,
@@ -26,12 +27,13 @@ public static class PresentationContextX
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
-                return ModifyEntityResult<PresentationCollection>.Failure(
-                    $"The collection could not be created due to a duplicate slug value", WriteResult.Conflict);
+                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                    $"The collection could not be created due to a duplicate slug value",
+                    ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
             }
 
-            return ModifyEntityResult<PresentationCollection>.Failure(
-                $"The collection could not be created");
+            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+               $"The collection could not be created", ModifyCollectionType.UnknownDatabaseSaveError);
         }
 
         return null;

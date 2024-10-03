@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Core.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 
 namespace Repository.Helpers;
@@ -50,6 +51,7 @@ WITH RECURSIVE parentsearch AS (
     generation_number+1 AS generation_number
  FROM collections child
      JOIN parentsearch ps ON child.id=ps.parent
+     WHERE generation_number <= 1000
 )
 SELECT * FROM parentsearch ORDER BY generation_number DESC
 ";
@@ -57,6 +59,11 @@ SELECT * FROM parentsearch ORDER BY generation_number DESC
             .FromSqlRaw(query)
             .OrderBy(i => i.CustomerId)
             .ToList();
+
+        if (parentCollections.Count >= 1000)
+        {
+            throw new PresentationException("Parent to child relationship exceeds 1000 records");
+        }
         
         var fullPath = string.Join('/', parentCollections
             .Where(parent => !string.IsNullOrEmpty(parent.Parent))

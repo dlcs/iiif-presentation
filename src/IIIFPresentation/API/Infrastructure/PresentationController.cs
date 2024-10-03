@@ -40,27 +40,29 @@ public abstract class PresentationController : Controller
     }
 
     /// <summary>
-    ///     Handle an upsert request - this takes a IRequest which returns a ModifyEntityResult{T}.
-    ///     The request is sent and result is transformed to an http result.
+    /// Handle an upsert request - this takes a IRequest which returns a ModifyEntityResult{T}.
+    /// The request is sent and result is transformed to an http result.
     /// </summary>
     /// <param name="request">IRequest to modify data</param>
     /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
     /// <param name="errorTitle">
-    ///     The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
-    ///     e.g. errorTitle + ": Conflict"
+    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <typeparam name="T">Type of entity being upserted</typeparam>
+    /// <typeparam name="TEnum">An enum designating the error type</typeparam>
     /// <returns>
-    ///     ActionResult generated from ModifyEntityResult. This will be the model + 200/201 on success. Or an
-    ///     error and appropriate status code if failed.
+    /// ActionResult generated from ModifyEntityResult. This will be the model + 200/201 on success. Or an
+    /// error and appropriate status code if failed.
     /// </returns>
-    protected async Task<IActionResult> HandleUpsert<T>(
-        IRequest<ModifyEntityResult<T>> request,
-        string? instance = null,
-        string? errorTitle = "Operation failed",
-        CancellationToken cancellationToken = default)
-        where T : class
+    protected async Task<IActionResult> HandleUpsert<T, TEnum>(
+    IRequest<ModifyEntityResult<T, TEnum>> request,
+    string? instance = null,
+    string? errorTitle = "Operation failed",
+    CancellationToken cancellationToken = default)
+    where T : class
+    where TEnum : Enum
     {
         return await HandleRequest(async () =>
         {
@@ -134,7 +136,6 @@ public abstract class PresentationController : Controller
     }
 
     private string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
-
 
     /// <summary>
     ///     Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.
