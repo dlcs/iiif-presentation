@@ -119,14 +119,16 @@ public class CreateCollectionHandler(
             catch (JsonSerializationException ex)
             {
                 logger.LogError(ex, "Error attempting to validate collection is IIIF");
-                return ModifyEntityResult<PresentationCollection>.Failure(
-                    "Error attempting to validate collection is IIIF", WriteResult.BadRequest);
+                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                    "Error attempting to validate collection is IIIF", ModifyCollectionType.CannotValidateIIIF,
+                    WriteResult.BadRequest);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "An unknown exception occured while creating a new collection");
-                return ModifyEntityResult<PresentationCollection>.Failure(
-                    "Unknown error occured while creating a collection", WriteResult.Error);
+                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                    "Unknown error occured while creating a collection", ModifyCollectionType.Unknown,
+                    WriteResult.Error);
             }
         }
         
