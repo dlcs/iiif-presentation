@@ -14,7 +14,6 @@ using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.General;
-using Newtonsoft.Json;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
@@ -81,8 +80,8 @@ public class PostHierarchicalCollectionHandler(
             logger.LogError(ex, "Error attempting to validate collection is IIIF");
             return ErrorHelper.CannotValidateIIIF<Collection>();
         }
-        
-        var thumbnails = collectionFromBody.Thumbnail?.Select(CastAsClass<Image,ExternalResource>).ToList();        
+
+        var thumbnails = collectionFromBody.Thumbnail?.Select(x => x as Image).ToList();     
         
         var dateCreated = DateTime.UtcNow;
         var collection = new DatabaseCollection.Collection
@@ -97,7 +96,7 @@ public class PostHierarchicalCollectionHandler(
             IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
             IsStorageCollection = false,
             Label = collectionFromBody.Label,
-            Thumbnail = thumbnails?.GetThumbnailPath()
+            Thumbnail = thumbnails!?.GetThumbnailPath()
         };
         
         await using var transaction = 
@@ -127,25 +126,5 @@ public class PostHierarchicalCollectionHandler(
         }
 
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
-    }
-
-    private TNewClass CastAsClass<TNewClass, TExistingClass>(TExistingClass existingClass) where TNewClass : class
-    {
-
-        var newObject = Activator.CreateInstance<TNewClass>();
-        var newProps = typeof(TNewClass).GetProperties();
-
-        foreach (var prop in newProps)
-        {
-            if (!prop.CanWrite) continue;
-
-            var existingPropertyInfo = typeof(TExistingClass).GetProperty(prop.Name);
-            if (existingPropertyInfo == null || !existingPropertyInfo.CanRead) continue;
-            var value = existingPropertyInfo.GetValue(existingClass);
-
-            prop.SetValue(newObject, value, null);
-        }
-
-        return newObject;
     }
 }

@@ -932,7 +932,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         fromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
-        fromDatabase.Tags.Should().Be(null);
+        fromDatabase.Tags.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
@@ -995,7 +995,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         fromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        fromDatabase.Tags.Should().Be(null);
+        fromDatabase.Tags.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);

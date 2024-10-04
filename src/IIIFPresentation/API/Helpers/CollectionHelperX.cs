@@ -23,7 +23,7 @@ public static class CollectionHelperX
         $"{urlRoots.BaseUrl}/{collection.CustomerId}/collections/{collection.Parent}";
     
     public static string GenerateFlatCollectionViewId(this Collection collection, UrlRoots urlRoots, 
-        int currentPage, int pageSize, string orderQueryParam) =>
+        int currentPage, int pageSize, string? orderQueryParam) =>
         $"{collection.GenerateFlatCollectionId(urlRoots)}?page={currentPage}&pageSize={pageSize}{orderQueryParam}";
 
     public static Uri GenerateFlatCollectionViewNext(this Collection collection, UrlRoots urlRoots,

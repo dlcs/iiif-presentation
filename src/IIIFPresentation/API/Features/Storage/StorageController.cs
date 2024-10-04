@@ -96,14 +96,14 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
         
-        var validation = await validator.ValidateAsync(collection);
+        var validation = await validator.ValidateAsync(collection!);
         
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
     }
     
     [HttpPut("collections/{id}")]
