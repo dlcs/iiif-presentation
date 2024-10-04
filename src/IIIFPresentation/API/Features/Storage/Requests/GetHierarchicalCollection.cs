@@ -28,10 +28,8 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
     public async Task<CollectionWithItems> Handle(GetHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
-        var slug = request.Slug.Remove(request.Slug.LastIndexOf('/'));
-        
         var collection =
-            await dbContext.RetriveHierarchicalCollection(request.CustomerId, slug, cancellationToken);
+            await dbContext.RetriveHierarchicalCollection(request.CustomerId, request.Slug, cancellationToken);
 
         List<Collection>? items = null;
         string? collectionFromS3 = null;

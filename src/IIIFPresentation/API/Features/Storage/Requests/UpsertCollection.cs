@@ -64,12 +64,8 @@ public class UpsertCollectionHandler(
             
             var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
                 request.Collection.Parent.GetLastPathElement(), cancellationToken);
-            if (parentCollection == null)
-            {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
-                    WriteResult.BadRequest);
-            }
+            
+            if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
             {
@@ -129,7 +125,7 @@ public class UpsertCollectionHandler(
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var saveErrors =
-            await dbContext.TrySaveCollection<PresentationCollection, ModifyCollectionType>(request.CustomerId, logger,
+            await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
                 cancellationToken);
 
         if (saveErrors != null)

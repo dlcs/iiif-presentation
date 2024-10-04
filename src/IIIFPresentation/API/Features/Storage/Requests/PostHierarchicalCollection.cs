@@ -9,6 +9,7 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
@@ -54,13 +55,8 @@ public class PostHierarchicalCollectionHandler(
         var parentSlug = String.Join(String.Empty, splitSlug.Take(..^1));
         var parentCollection =
             await dbContext.RetriveHierarchicalCollection(request.CustomerId, parentSlug, cancellationToken);
-
-        if (parentCollection == null)
-        {
-            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
-                $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
-                WriteResult.Conflict);
-        }
+        
+        if (parentCollection == null) return ErrorHelper.NullParentResponse<Collection>();
 
         string id;
         
@@ -71,23 +67,22 @@ public class PostHierarchicalCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
-                "Could not generate a unique identifier.  Please try again",
-                ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
+            return ErrorHelper.CannotGenerateUniqueId<Collection>();
         }
 
         Collection collectionFromBody;
         try
         {
             collectionFromBody = request.RawRequestBody.FromJson<Collection>();
+            collectionFromBody.Id = $"{request.UrlRoots.BaseUrl}/{request.CustomerId}/{request.Slug}";
         }
-        catch (JsonSerializationException ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Error attempting to validate collection is IIIF");
-            return ModifyEntityResult<Collection, ModifyCollectionType>.Failure(
-                "Error attempting to validate collection is IIIF", ModifyCollectionType.CannotValidateIIIF,
-                WriteResult.BadRequest);
+            return ErrorHelper.CannotValidateIIIF<Collection>();
         }
+        
+        var thumbnails = collectionFromBody.Thumbnail?.Select(CastAsClass<Image,ExternalResource>).ToList();        
         
         var dateCreated = DateTime.UtcNow;
         var collection = new DatabaseCollection.Collection
@@ -101,7 +96,8 @@ public class PostHierarchicalCollectionHandler(
             CustomerId = request.CustomerId,
             IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
             IsStorageCollection = false,
-            Label = collectionFromBody.Label
+            Label = collectionFromBody.Label,
+            Thumbnail = thumbnails?.GetThumbnailPath()
         };
         
         await using var transaction = 
@@ -110,7 +106,7 @@ public class PostHierarchicalCollectionHandler(
         dbContext.Collections.Add(collection);
 
         var saveErrors =
-            await dbContext.TrySaveCollection<Collection, ModifyCollectionType>(request.CustomerId, logger,
+            await dbContext.TrySaveCollection<Collection>(request.CustomerId, logger,
                 cancellationToken);
 
         if (saveErrors != null)
@@ -120,8 +116,8 @@ public class PostHierarchicalCollectionHandler(
         
         await bucketWriter.WriteToBucket(
             new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                $"{request.CustomerId}/collections/{splitSlug.Last()}"),
-            request.RawRequestBody, "application/json", cancellationToken);
+                $"{request.CustomerId}/collections/{collection.Id}"),
+            collectionFromBody.AsJson(), "application/json", cancellationToken);
         
         await transaction.CommitAsync(cancellationToken);
 
@@ -130,8 +126,26 @@ public class PostHierarchicalCollectionHandler(
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
 
-        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(
-            collection.ToHierarchicalCollection(request.UrlRoots, []), // there can be no items attached to this, as it's just been created
-            WriteResult.Created);
+        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
+    }
+
+    private TNewClass CastAsClass<TNewClass, TExistingClass>(TExistingClass existingClass) where TNewClass : class
+    {
+
+        var newObject = Activator.CreateInstance<TNewClass>();
+        var newProps = typeof(TNewClass).GetProperties();
+
+        foreach (var prop in newProps)
+        {
+            if (!prop.CanWrite) continue;
+
+            var existingPropertyInfo = typeof(TExistingClass).GetProperty(prop.Name);
+            if (existingPropertyInfo == null || !existingPropertyInfo.CanRead) continue;
+            var value = existingPropertyInfo.GetValue(existingClass);
+
+            prop.SetValue(newObject, value, null);
+        }
+
+        return newObject;
     }
 }

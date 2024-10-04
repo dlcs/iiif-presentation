@@ -11,13 +11,12 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySaveCollection<T, TEnum>(
+    public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySaveCollection<T>(
         this PresentationContext dbContext, 
         int customerId, 
         ILogger logger,
         CancellationToken cancellationToken)
         where T : class
-        where TEnum : Enum
     {
         try
         { 

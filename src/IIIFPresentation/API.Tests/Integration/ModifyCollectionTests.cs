@@ -891,4 +891,114 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CollectionNotEmpty");
         errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
     }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesMinimalCollection_ViaHierarchicalCollection()
+    {
+        // Arrange
+        var slug = "iiif-collection-post";
+        
+        var collection = @"{
+   ""type"": ""Collection"",
+   ""behavior"": [
+       ""public-iiif""
+   ],
+   ""label"": {
+       ""en"": [
+           ""iiif hierarchical post""
+       ]
+   }
+}";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/{slug}", collection);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        var fromDatabase = dbContext.Collections.First(c =>
+            c.Slug == slug);
+        
+        var fromS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/collections/{fromDatabase.Id}");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        responseCollection!.Items.Should().BeNull();
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
+        fromDatabase.Slug.Should().Be(slug);
+        fromDatabase.Thumbnail.Should().BeNull();
+        fromDatabase.Tags.Should().Be(null);
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        fromS3.Should().NotBeNull();
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollectionWithThumbnailAndItems_ViaHierarchicalCollection()
+    {
+        // Arrange
+        var slug = "iiif-collection-post";
+        
+        var collection = @"{
+   ""type"": ""Collection"",
+   ""behavior"": [
+       ""public-iiif""
+   ],
+   ""label"": {
+       ""en"": [
+           ""iiif hierarchical post""
+       ]
+   },
+    ""thumbnail"": [
+        {
+          ""id"": ""https://example.org/img/thumb.jpg"",
+          ""type"": ""Image"",
+          ""format"": ""image/jpeg"",
+          ""width"": 300,
+          ""height"": 200
+        }
+    ],
+    ""items"": [
+        {
+        ""id"": ""https://some.id/iiif/collection"",
+        ""type"": ""Collection"",
+        }
+    ]
+}";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/{slug}", collection);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        var fromDatabase = dbContext.Collections.First(c =>
+            c.Slug == slug);
+        
+        var fromS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/collections/{fromDatabase.Id}");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        responseCollection!.Items!.Count.Should().Be(1);
+        responseCollection.Thumbnail.Should().NotBeNull();
+        fromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
+        fromDatabase.Slug.Should().Be(slug);
+        fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
+        fromDatabase.Tags.Should().Be(null);
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        fromS3.Should().NotBeNull();
+    }
 }
