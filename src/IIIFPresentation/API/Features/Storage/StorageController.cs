@@ -10,12 +10,9 @@ using API.Infrastructure.Helpers;
 using API.Settings;
 using IIIF.Presentation;
 using IIIF.Serialisation;
-using Core.Helpers;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using IIIF.Presentation;
-using IIIF.Serialisation;
 using Models.API.Collection.Upsert;
 using Newtonsoft.Json;
 
@@ -27,7 +24,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
     : PresentationController(options.Value, mediator)
 {
     [HttpGet("{*slug}")]
-    [ETagCaching()]
+    [ETagCaching]
     [VaryHeader]
     public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
@@ -40,8 +37,10 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             return SeeOther(storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots()));
         }
 
-        return Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
-            ContentTypes.V3);
+        return storageRoot.StoredCollection == null
+            ? Content(storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(), 
+                ContentTypes.V3)
+            : Content(storageRoot.StoredCollection, ContentTypes.V3);
     }
 
     [HttpGet("collections/{id}")]

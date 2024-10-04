@@ -9,4 +9,7 @@ public enum ModifyCollectionType
     ETagNotMatched = 5,
     PossibleCircularReference = 6,
     CannotGenerateUniqueId = 7,
+    CannotValidateIIIF = 8,
+    
+    Unknown = 1000
 }

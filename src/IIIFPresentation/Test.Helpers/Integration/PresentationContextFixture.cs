@@ -109,6 +109,26 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1,
             Parent = RootCollection.Id
         });
+        
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = "IiifCollection",
+            Slug = "iiif-collection",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", new List<string> {"first child - iiif"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = false,
+            IsPublic = true,
+            CustomerId = 1,
+            Parent = RootCollection.Id
+        });
 
         await DbContext.SaveChangesAsync();
     }
@@ -149,6 +169,6 @@ public class PresentationContextFixture : IAsyncLifetime
     public void CleanUp()
     {
         DbContext.Database.ExecuteSqlRawAsync(
-            "DELETE FROM collections WHERE id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic')");
+            "DELETE FROM collections WHERE id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection')");
     }
 }

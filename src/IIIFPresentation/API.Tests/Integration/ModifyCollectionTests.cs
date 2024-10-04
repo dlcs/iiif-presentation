@@ -107,9 +107,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsPublic
             },
             Label = new LanguageMap("en", ["test collection"]),
-            Slug = "programmatic-child",
+            Slug = "iiif-child",
             Parent = parent,
-            Thumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
         };
@@ -118,7 +117,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        
+
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var fromDatabase = dbContext.Collections.First(c =>
@@ -132,9 +131,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
-        fromDatabase.Slug.Should().Be("programmatic-child");
+        fromDatabase.Slug.Should().Be("iiif-child");
         fromDatabase.ItemsOrder.Should().Be(1);
-        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
@@ -143,6 +141,36 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         fromS3.Should().NotBeNull();
+    }
+    
+        [Fact]
+    public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
+    {
+        // Arrange
+        var collection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "iiif-child",
+            Parent = parent,
+            Tags = "some, tags",
+            Thumbnail = "some/thumbnail",
+            ItemsOrder = 1,
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be("Error attempting to validate collection is IIIF");
     }
     
     [Fact]

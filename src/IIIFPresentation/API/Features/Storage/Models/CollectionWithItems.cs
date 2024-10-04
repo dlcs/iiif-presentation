@@ -2,23 +2,23 @@
 
 namespace API.Features.Storage.Models;
 
-public class CollectionWithItems
+public class CollectionWithItems(
+    Collection? collection,
+    List<Collection>? items,
+    int totalItems,
+    string? storedCollection = null)
 {
-    public CollectionWithItems(Collection? collection, List<Collection>? items, int totalItems)
-    {
-        Collection = collection;
-        Items = items;
-        TotalItems = totalItems;
-    }
+    public Collection? Collection { get; init; } = collection;
+    public List<Collection>? Items { get; init; } = items;
+    public int TotalItems { get; init; } = totalItems;
+    public string? StoredCollection { get; init; } = storedCollection;
 
-    public Collection? Collection { get; init; }
-    public List<Collection>? Items { get; init; }
-    public int TotalItems { get; init; }
-
-    public void Deconstruct(out Collection? collection, out List<Collection>? items, out int totalItems)
+    public void Deconstruct(out Collection? collection, out List<Collection>? items, out int totalItems, 
+        out string? storedCollection)
     {
         collection = Collection;
         items = Items;
         totalItems = TotalItems;
+        storedCollection = StoredCollection;
     }
 }
