@@ -164,10 +164,7 @@ WHERE
                     .Where(s => s.CustomerId == request.CustomerId && s.Parent == collection.Id)
                     .ToListAsync(cancellationToken: cancellationToken);
 
-                foreach (var item in items)
-                {
-                    item.FullPath = collection.GenerateFullPath(item.Slug);
-                }
+                items.ForEach(item => item.FullPath = collection.GenerateFullPath(item.Slug));
             }
 
             collection.FullPath = request.Slug;
