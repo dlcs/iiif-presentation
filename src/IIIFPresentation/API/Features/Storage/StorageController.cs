@@ -110,7 +110,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
     }
     
     [Authorize]
