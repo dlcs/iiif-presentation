@@ -18,7 +18,7 @@ using Newtonsoft.Json;
 
 namespace API.Features.Storage;
 
-[Route("/{customerId}")]
+[Route("/{customerId:int}")]
 [ApiController]
 public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
