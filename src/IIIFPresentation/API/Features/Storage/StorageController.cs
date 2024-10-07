@@ -107,7 +107,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
     }
     
     [HttpPut("collections/{id}")]
