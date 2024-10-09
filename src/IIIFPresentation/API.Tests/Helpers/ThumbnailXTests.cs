@@ -95,7 +95,7 @@ public class ThumbnailXTests
     }
     
     [Fact]
-    public void GetThumbnailPath_RetrievesPathWhenMultipleButWidthCloseEnough()
+    public void GetThumbnailPath_RetrievesPathWhenMultipleButSingleValue()
     {
         // Arrange
         var collection = new Collection()
@@ -112,6 +112,38 @@ public class ThumbnailXTests
                 {
                     Id = "correct",
                     Width = 101
+                }
+            ]
+        };
+
+        var thumbnails = collection.Thumbnail.Select(x => x as Image).ToList();
+
+        // Act
+        var id = thumbnails!.GetThumbnailPath();
+
+        // Assert
+        id.Should().Be("correct");
+    }
+    
+    [Fact]
+    public void GetThumbnailPath_RetrievesClosestPathWhenMultiple()
+    {
+        // Arrange
+        var collection = new Collection()
+        {
+            Id = "test",
+            Thumbnail =
+            [
+                new Image
+                {
+                    Id = "incorrect",
+                    Width = 151
+                },
+
+                new Image
+                {
+                    Id = "correct",
+                    Width = 50
                 }
             ]
         };

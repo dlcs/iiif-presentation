@@ -51,8 +51,10 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
+
+        using var streamReader = new StreamReader(Request.Body);
         
-        var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+        var rawRequestBody = await streamReader.ReadToEndAsync();
         
         return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
     }
@@ -91,8 +93,10 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
+        
+        using var streamReader = new StreamReader(Request.Body);
 
-        var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+        var rawRequestBody = await streamReader.ReadToEndAsync();
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
         

@@ -51,36 +51,46 @@ public class PostHierarchicalCollectionHandler(
     {
         var splitSlug = request.Slug.Split('/');
 
-        var parentSlug = String.Join(String.Empty, splitSlug.Take(..^1));
+        var parentSlug = string.Join(string.Empty, splitSlug.Take(..^1));
         var parentCollection =
             await dbContext.RetriveHierarchicalCollection(request.CustomerId, parentSlug, cancellationToken);
-        
         if (parentCollection == null) return ErrorHelper.NullParentResponse<Collection>();
-
-        string id;
         
-        try
+        var id = await GenerateUniqueId(request, cancellationToken);
+        if (id == null) return ErrorHelper.CannotGenerateUniqueId<Collection>();
+        
+        var collectionFromBody = BuildIIIFCollection(request);
+        if (collectionFromBody == null) return ErrorHelper.CannotValidateIIIF<Collection>();
+
+        var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
+        dbContext.Collections.Add(collection);
+
+        var saveErrors =
+            await dbContext.TrySaveCollection<Collection>(request.CustomerId, logger,
+                cancellationToken);
+
+        if (saveErrors != null)
         {
-            id = await dbContext.Collections.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+            return saveErrors;
         }
-        catch (ConstraintException ex)
+        
+        await bucketWriter.WriteToBucket(
+            new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                $"{request.CustomerId}/collections/{collection.Id}"),
+            collectionFromBody.AsJson(), "application/json", cancellationToken);
+        
+
+        if (collection.Parent != null)
         {
-            logger.LogError(ex, "An exception occured while generating a unique id");
-            return ErrorHelper.CannotGenerateUniqueId<Collection>();
+            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
 
-        Collection collectionFromBody;
-        try
-        {
-            collectionFromBody = request.RawRequestBody.FromJson<Collection>();
-            collectionFromBody.Id = $"{request.UrlRoots.BaseUrl}/{request.CustomerId}/{request.Slug}";
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error attempting to validate collection is IIIF");
-            return ErrorHelper.CannotValidateIIIF<Collection>();
-        }
+        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
+    }
 
+    private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
+        DatabaseCollection.Collection parentCollection, string[] splitSlug)
+    {
         var thumbnails = collectionFromBody.Thumbnail?.Select(x => x as Image).ToList();     
         
         var dateCreated = DateTime.UtcNow;
@@ -98,33 +108,37 @@ public class PostHierarchicalCollectionHandler(
             Label = collectionFromBody.Label,
             Thumbnail = thumbnails!?.GetThumbnailPath()
         };
-        
-        await using var transaction = 
-            await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        
-        dbContext.Collections.Add(collection);
+        return collection;
+    }
 
-        var saveErrors =
-            await dbContext.TrySaveCollection<Collection>(request.CustomerId, logger,
-                cancellationToken);
-
-        if (saveErrors != null)
+    private Collection? BuildIIIFCollection(PostHierarchicalCollection request)
+    {
+        Collection? collection = null;
+        try
         {
-            return saveErrors;
+            collection = request.RawRequestBody.FromJson<Collection>();
+            collection.Id = request.GetCollectionId();
         }
-        
-        await bucketWriter.WriteToBucket(
-            new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                $"{request.CustomerId}/collections/{collection.Id}"),
-            collectionFromBody.AsJson(), "application/json", cancellationToken);
-        
-        await transaction.CommitAsync(cancellationToken);
-
-        if (collection.Parent != null)
+        catch (Exception ex)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            logger.LogError(ex, "Error attempting to validate collection is IIIF");
         }
 
-        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
+        return collection;
+    }
+
+    private async Task<string?> GenerateUniqueId(PostHierarchicalCollection request, CancellationToken cancellationToken)
+    {
+        string? id = null;
+        try
+        {
+            id = await dbContext.Collections.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+        }
+        catch (ConstraintException ex)
+        {
+            logger.LogError(ex, "An exception occured while generating a unique id");
+        }
+        
+        return id;
     }
 }
