@@ -1,4 +1,3 @@
-using System.Text;
 using System.Data;
 using API.Auth;
 using API.Converters;
@@ -54,12 +53,7 @@ public class CreateCollectionHandler(
         var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
             request.Collection.Parent.GetLastPathElement(), cancellationToken);
 
-        if (parentCollection == null)
-        {
-            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
-                WriteResult.Conflict);
-        }
+        if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
         
         string id;
 
@@ -70,9 +64,7 @@ public class CreateCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                "Could not generate a unique identifier.  Please try again",
-                ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
+            return ErrorHelper.CannotGenerateUniqueId<PresentationCollection>();
         }
 
         var dateCreated = DateTime.UtcNow;
@@ -98,7 +90,9 @@ public class CreateCollectionHandler(
         
         dbContext.Collections.Add(collection);
 
-        var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
+        var saveErrors =
+            await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
+                cancellationToken);
 
         if (saveErrors != null)
         {

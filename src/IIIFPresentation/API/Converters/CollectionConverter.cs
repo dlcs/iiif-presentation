@@ -16,13 +16,13 @@ public static class CollectionConverter
         {
             Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Label = dbAsset.Label,
-            Items = items != null
+            Items = items?.Count > 0
                 ? items.Select(x => new Collection()
                 {
                     Id = x.GenerateHierarchicalCollectionId(urlRoots),
                     Label = x.Label
                 }).ToList<ICollectionItem>()
-                : []
+                : null
         };
 
         collection.EnsurePresentation3Context();

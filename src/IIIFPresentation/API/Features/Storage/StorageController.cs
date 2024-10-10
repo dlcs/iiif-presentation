@@ -42,6 +42,22 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
                 ContentTypes.V3)
             : Content(storageRoot.StoredCollection, ContentTypes.V3);
     }
+    
+    [HttpPost("{*slug}")]
+    [ETagCaching]
+    public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
+    {
+        if (!Request.ShowExtraProperties())
+        {
+            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
+        }
+
+        using var streamReader = new StreamReader(Request.Body);
+        
+        var rawRequestBody = await streamReader.ReadToEndAsync();
+        
+        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
+    }
 
     [HttpGet("collections/{id}")]
     [ETagCaching]
@@ -77,19 +93,21 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
+        
+        using var streamReader = new StreamReader(Request.Body);
 
-        var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+        var rawRequestBody = await streamReader.ReadToEndAsync();
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
         
-        var validation = await validator.ValidateAsync(collection);
+        var validation = await validator.ValidateAsync(collection!);
         
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
     }
     
     [HttpPut("collections/{id}")]
