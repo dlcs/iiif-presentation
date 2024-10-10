@@ -2,5 +2,5 @@
 
 public class Manifest
 {
-    public string Id { get; set; }
+    public required string Id { get; set; }
 }
