@@ -28,7 +28,7 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, s
 {
     public int CustomerId { get; } = customerId;
 
-    public UpsertFlatCollection? Collection { get; } = collection;
+    public UpsertFlatCollection Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
 

@@ -102,8 +102,14 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         var rawRequestBody = await streamReader.ReadToEndAsync();
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
-        
-        var validation = await validator.ValidateAsync(collection!);
+
+        if (collection == null)
+        {
+            return this.PresentationProblem("could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
+                "Deserialization Error");
+        }
+
+        var validation = await validator.ValidateAsync(collection);
         
         if (!validation.IsValid)
         {
