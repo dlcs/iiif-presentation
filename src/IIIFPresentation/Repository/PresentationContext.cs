@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository.Converters;
-using Manifest = IIIF.Presentation.V2.Manifest;
 
 namespace Repository;
 
@@ -43,9 +42,7 @@ public class PresentationContext : DbContext
         
         modelBuilder.Entity<Hierarchy>(entity =>
         {
-            entity.ToTable(t =>
-                t.HasCheckConstraint("opposite_must_be_null", "collection_id is null or manifest_id is null"));
-            entity.HasIndex(e => new { e.Slug, e.Parent });
+            entity.HasIndex(e => new { e.Slug, e.Parent, e.CustomerId });
         });
     }
 }
