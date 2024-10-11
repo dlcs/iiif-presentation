@@ -1,0 +1,15 @@
+volumes:
+  pres_postgres_data: {}
+  pres_postgres_data_backups: {}
+
+services:
+  postgres:
+    image: postgres:14
+    hostname: postgres
+    ports:
+      - "5452:5432"
+    volumes:
+      - pres_postgres_data:/var/lib/postgresql/data
+      - pres_postgres_data_backups:/backups
+    env_file:
+      - .env
