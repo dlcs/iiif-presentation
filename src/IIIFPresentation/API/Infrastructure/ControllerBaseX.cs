@@ -102,11 +102,11 @@ public static class ControllerBaseX
         descending = false;
         if (orderBy.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderBy.ToLower()))
         {
-            orderByField = $"orderBy={orderBy}";
+            orderByField = orderBy;
         }
         else if (orderByDescending.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
         {
-            orderByField = $"orderByDescending={orderByDescending}";
+            orderByField = orderByDescending;
             descending = true;
         }
 

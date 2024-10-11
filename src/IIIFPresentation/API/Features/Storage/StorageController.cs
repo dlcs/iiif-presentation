@@ -71,14 +71,18 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
         var storageRoot =
-            await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderBy, descending));
+            await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderByField, descending));
 
         if (storageRoot.Collection == null) return this.PresentationNotFound();
 
         if (Request.ShowExtraProperties())
         {
+            var orderByParameter = orderByField != null
+                ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}" 
+                : null;
+   
             return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
-                storageRoot.TotalItems, storageRoot.Items, orderByField));
+                storageRoot.TotalItems, storageRoot.Items, orderByParameter));
         }
 
         return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()));
