@@ -337,14 +337,15 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
+        
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Theory]
-    [InlineData("id")]
-    [InlineData("slug")]
-    [InlineData("created")]
-    public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field)
+    [InlineData("id", "NonPublic")]
+    [InlineData("slug", "NonPublic")]
+    [InlineData("created", "IiifCollection")]
+    public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field, string expectedItemId)
     {
         // Arrange
         var requestMessage =
@@ -363,7 +364,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(3);
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/IiifCollection");
+        
+        collection.Items.OfType<Collection>().First().Id.Should().Be($"http://localhost/1/collections/{expectedItemId}");
     }
     
     [Fact]
