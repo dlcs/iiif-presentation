@@ -8,8 +8,7 @@ public static class HttpRequestX
 
     public static bool ShowExtraProperties(this HttpRequest request)
     {
-        return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value == AdditionalPropertiesHeader.Value &&
-               Authorizer.CheckAuthorized(request);
+        return request.HasShowExtraHeader() && Authorizer.CheckAuthorized(request);
     }
     
     public static bool HasShowExtraHeader(this HttpRequest request)

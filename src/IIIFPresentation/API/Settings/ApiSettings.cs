@@ -5,7 +5,7 @@ namespace API.Settings;
 public class ApiSettings
 {
     /// <summary>
-    ///     The base URI for image services and other public-facing resources
+    /// The base URI for image services and other public-facing resources
     /// </summary>
     public required Uri ResourceRoot { get; set; }
 
@@ -22,4 +22,6 @@ public class ApiSettings
     public string? PathBase { get; set; }
     
     public AWSSettings AWS { get; set; }
+
+    public DlcsSettings Dlcs { get; set; } = new();
 }
