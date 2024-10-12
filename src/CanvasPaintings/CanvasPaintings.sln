@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34316.72
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mapper", "Mapper\Mapper.csproj", "{0CC956B6-71A8-4F1E-9523-E635CCE5EAD6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mapper", "Mapper\Mapper.csproj", "{0CC956B6-71A8-4F1E-9523-E635CCE5EAD6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{2D31098F-B19B-4EE0-AE3F-106A73D61147}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Demo", "Demo\Demo.csproj", "{2D31098F-B19B-4EE0-AE3F-106A73D61147}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IIIF", "..\..\..\..\digirati-co-uk\iiif-net\src\IIIF\IIIF\IIIF.csproj", "{83E719F3-C797-43A4-B191-48D9536962E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{2D31098F-B19B-4EE0-AE3F-106A73D61147}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2D31098F-B19B-4EE0-AE3F-106A73D61147}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2D31098F-B19B-4EE0-AE3F-106A73D61147}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83E719F3-C797-43A4-B191-48D9536962E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83E719F3-C797-43A4-B191-48D9536962E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83E719F3-C797-43A4-B191-48D9536962E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83E719F3-C797-43A4-B191-48D9536962E1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

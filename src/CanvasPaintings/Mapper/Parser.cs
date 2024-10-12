@@ -17,7 +17,7 @@ namespace Mapper
             // We're only doing this because we're not simulating a Manifests table.
             // IRL this will be known and fixed.
             var manifestId = Identifiable.Generate(8);
-            int canvasOrder = -1;
+            int canvasOrder = 0;
 
             foreach(var canvas in manifest.Items ?? [])
             {
@@ -37,21 +37,31 @@ namespace Mapper
                             var body = painting.Body;
                             if (body is PaintingChoice choice)
                             {
-                                canvasOrder++;
+                                int constCanvasOrder = canvasOrder;
+                                bool first = true;
                                 int choiceOrder = 1; // (not -1; "a positive integer indicates that the asset is part of a Choice body.")
 
                                 foreach (var choiceItem in choice.Items ?? [])
                                 {
-                                    if (choiceItem is Image || choiceItem is Video || choiceItem is Audio)
+                                    var resource = choiceItem as ResourceBase;
+                                    if (resource is SpecificResource specificResource)
                                     {
-                                        var cp = GetEntity(choiceItem, manifestId, canvasId, canvas.Id!, canvasOrder, choiceOrder, target);
+                                        resource = specificResource.Source as ResourceBase;
+                                    }
+                                    if (resource is Image || resource is Video || resource is Sound)
+                                    {
+                                        var cp = GetEntity(resource, manifestId, canvasId, canvas.Id!, constCanvasOrder, choiceOrder, target, canvas);
                                         if (cp != null)
                                         {
                                             choiceOrder++;
+                                            if (first)
+                                            {
+                                                canvasOrder++;
+                                                first = false;
+                                            }
                                             target = null; // don't apply it to subsequent members of the choice
                                             canvasPaintings.Add(cp);
 
-                                            var resource = choiceItem as ResourceBase;
 
                                             // can't do this as PaintingChoice is not a Resourcebase - maybe it should be?
                                             // choiceCP.Label = resource?.Label ?? choice.Label ?? painting.Label ?? canvas.Label; 
@@ -70,14 +80,18 @@ namespace Mapper
                                     }
                                 }
                             }
-                            else if(body is Image || body is Video || body is Audio)
+                            else if(body is Image || body is Video || body is Sound)
                             {
-                                var cp = GetEntity(body, manifestId, canvasId, canvas.Id!, canvasOrder, null, target);
+                                var resource = body as ResourceBase;
+                                if (resource is SpecificResource specificResource)
+                                {
+                                    resource = specificResource.Source as ResourceBase;
+                                }
+                                var cp = GetEntity(resource, manifestId, canvasId, canvas.Id!, canvasOrder, null, target, canvas);
                                 if (cp != null)
                                 {
                                     canvasOrder++;
                                     canvasPaintings.Add(cp);
-                                    var resource = body as ResourceBase;
                                     cp.Label = resource?.Label ?? painting.Label ?? canvas.Label;
                                     if (canvas.Label != null && canvas.Label != cp.Label && cp.CanvasLabel == null)
                                     {
@@ -98,13 +112,14 @@ namespace Mapper
         }
 
         private DBCanvasPainting GetEntity(
-            IPaintable resource,
+            ResourceBase resource,
             string manifestId,
             string canvasId,
             string canvasOriginalId, 
             int canvasOrder,
             int? choiceOrder,
-            IStructuralLocation? target)
+            IStructuralLocation? target,
+            Canvas currentCanvas)
         {
             var cp = new DBCanvasPainting
             {
@@ -113,7 +128,7 @@ namespace Mapper
                 CanvasOriginalId = canvasOriginalId, // do we always set this?
                 CanvasOrder = canvasOrder,
                 ChoiceOrder = choiceOrder,
-                Target = TargetAsString(target)
+                Target = TargetAsString(target, currentCanvas)
             };
             if (resource is ISpatial spatial)
             {
@@ -124,12 +139,13 @@ namespace Mapper
             return cp;
         }
 
-        private string? GetManagedAssetId(IPaintable media)
+        private string? GetManagedAssetId(ResourceBase media)
         {
             // obviously this is not hardcoded IRL
             const string DlcServices = "https://dlc.services/";
+            const string DlcsIo = "https://dlcs.io/";
 
-            if (media is Image || media is Video || media is Audio)
+            if (media is Image || media is Video || media is Sound)
             {
                 // How can we tell it's one of ours?
                 // This logic may change in future, and we need to deal with rewritten assets.
@@ -139,23 +155,30 @@ namespace Mapper
                 var resource = media as ResourceBase;
                 if(resource?.Id != null)
                 {
-                    if(resource.Id.StartsWith(DlcServices))
+                    if(resource.Id.StartsWith(DlcServices) || resource.Id.StartsWith(DlcsIo))
                     {
                         // Is in an assetty path?
-                        var parts = resource.Id.Split('/');
-
+                        var parts = resource.Id.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 6 && (parts[2] == "iiif-img" || parts[2] == "iiif-av" || parts[2] == "file"))
+                        {
+                            return $"{parts[3]}/{parts[4]}/{parts[5]}";
+                        }
                     }
                 }
-
             }
             return null;
         }
 
-        private string? TargetAsString(IStructuralLocation? target)
+        private string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
         {
             if (target == null) return null;
             if(target is Canvas canvas)
             {
+                if(currentCanvas.Id == canvas.Id)
+                {
+                    // This indicates that we are targetting the whole canvas
+                    return null;
+                }
                 return canvas.Id;
             }
             if(target is SpecificResource specificResource)

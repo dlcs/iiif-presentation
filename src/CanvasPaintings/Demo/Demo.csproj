@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="iiif-net" Version="0.2.9" />
     <PackageReference Include="ToMarkdownTable" Version="0.2.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\digirati-co-uk\iiif-net\src\IIIF\IIIF\IIIF.csproj" />
     <ProjectReference Include="..\Mapper\Mapper.csproj" />
   </ItemGroup>
 

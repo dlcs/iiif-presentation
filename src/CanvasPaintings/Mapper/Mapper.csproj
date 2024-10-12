@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="iiif-net" Version="0.2.9" />
+    <ProjectReference Include="..\..\..\..\..\digirati-co-uk\iiif-net\src\IIIF\IIIF\IIIF.csproj" />
   </ItemGroup>
 
 </Project>

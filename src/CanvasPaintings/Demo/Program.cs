@@ -10,40 +10,73 @@ if (args.Length == 0)
     return;
 }
 
-string? manifestJson;
-var manifestAddr = args[0];
-if (manifestAddr.StartsWith("http"))
+if (args[0] == "cookbook")
 {
     var httpClient = new HttpClient();
-    Console.WriteLine("Fetching Manifest JSON from " + manifestAddr);
-    manifestJson = await httpClient.GetStringAsync(manifestAddr);
+    var theseusColl = await httpClient.GetStringAsync("https://theseus-viewer.netlify.app/cookbook-collection.json");
+    var coll = theseusColl.FromJson<Collection>();
+    var skip = new List<string>
+        {
+            "https://iiif.io/api/cookbook/recipe/0219-using-caption-file/manifest.json",
+            "https://iiif.io/api/cookbook/recipe/0040-image-rotation-service/manifest-service.json"
+        };
+    foreach (var item in coll.Items ?? [])
+    {
+        if(item is Manifest manifest)
+        {
+            if(skip.Contains(manifest.Id))
+            { 
+                continue; 
+            }
+            Console.WriteLine();
+            Console.WriteLine("COOKBOOK RECIPE: " + manifest.Label!["en"][0]);
+            Console.WriteLine(manifest.Id);
+            Console.WriteLine();
+            var s = await httpClient.GetStringAsync(manifest.Id);
+            ParseManifest(s);
+            Console.WriteLine();
+        }
+    }
+    return;
+}
+
+if (args[0].StartsWith("http"))
+{
+    var httpClient = new HttpClient();
+    Console.WriteLine("Fetching Manifest JSON from " + args[0]);
+    var s = await httpClient.GetStringAsync(args[0]);
+    ParseManifest(s);
 }
 else
 {
-    Console.WriteLine("Loading Manifest JSON from " + manifestAddr);
-    manifestJson = File.ReadAllText(manifestAddr);
+    Console.WriteLine("Loading Manifest JSON from " + args[0]);
+    var s = File.ReadAllText(args[0]);
+    ParseManifest(s);
 }
 
-var manifest = manifestJson.FromJson<Manifest>();
-var parser = new Parser();
-var entities = parser.ParseManifest(manifest);
-Console.WriteLine();
-Console.WriteLine("===== canvas_painting rows =====");
-Console.WriteLine(entities.ToMarkdownTable());
-Console.WriteLine();
-Console.WriteLine();
+static void ParseManifest(string manifestJson)
+{
+    var parser = new Parser();
+    var manifest = manifestJson.FromJson<Manifest>();
+    var entities = parser.ParseManifest(manifest);
+    Console.WriteLine();
+    Console.WriteLine("===== canvas_painting rows =====");
+    Console.WriteLine();
+    Console.WriteLine(entities.ToMarkdownTable());
+    Console.WriteLine();
+    Console.WriteLine();
 
-var paintedResources = parser.GetPaintedResources(entities);
-var json = JsonSerializer.Serialize(paintedResources, 
-    new JsonSerializerOptions(){
-        WriteIndented=true, 
-        PropertyNamingPolicy=JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-    });
-Console.WriteLine("===== paintedResources property in DLCS Manifest =======");
-Console.WriteLine(json);
-
-
-
-
+    var paintedResources = parser.GetPaintedResources(entities);
+    var json = JsonSerializer.Serialize(paintedResources,
+        new JsonSerializerOptions()
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+    Console.WriteLine("===== paintedResources property in DLCS Manifest =======");
+    Console.WriteLine(json);
+    Console.WriteLine();
+    Console.WriteLine();
+}
 
