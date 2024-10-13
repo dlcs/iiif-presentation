@@ -47,6 +47,14 @@ namespace Mapper.Entities
         public string? AssetId { get; set; }
 
         /// <summary>
+        /// If the painting annotation is not a platform-managed asset in this instance of the DLCS,
+        /// store the Asset ID here.
+        /// This may well be a parameterisation of an image service, but we'll just record it as an
+        /// asset. The information is available for interrogation in the JSON.
+        /// </summary>
+        public string? ExternalAssetId { get; set; }
+
+        /// <summary>
         /// As with manifest - URI of a 100px thumb. Could be derived from asset id though? 
         /// So may be null most of the time.
         /// </summary>

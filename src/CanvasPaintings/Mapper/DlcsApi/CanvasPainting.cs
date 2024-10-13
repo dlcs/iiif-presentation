@@ -6,7 +6,9 @@ namespace Mapper.DlcsApi
     {
         public required string Canvas { get; set; }
         public int CanvasOrder { get; set; }
-        public int ChoiceOrder { get; set; }
+        public int? ChoiceOrder { get; set; }
         public LanguageMap? Label { get; set; }
+        public string? ExternalAssetId { get; set; }
+        public LanguageMap? CanvasLabel { get; internal set; }
     }
 }

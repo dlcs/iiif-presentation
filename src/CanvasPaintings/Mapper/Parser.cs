@@ -26,6 +26,7 @@ namespace Mapper
                 // Otherwise, we identify the incoming Canvas from its `id`,
                 // which we match to either the canvas_id field OR the original_canvas_id field.
                 var canvasId = Identifiable.Generate(8);
+                bool canvasLabelHasBeenSet = false;
 
                 foreach(var annoPage in canvas.Items ?? [])
                 {
@@ -66,9 +67,10 @@ namespace Mapper
                                             // can't do this as PaintingChoice is not a Resourcebase - maybe it should be?
                                             // choiceCP.Label = resource?.Label ?? choice.Label ?? painting.Label ?? canvas.Label; 
                                             cp.Label = resource?.Label ?? painting.Label ?? canvas.Label;
-                                            if (canvas.Label != null && canvas.Label != cp.Label && cp.CanvasLabel == null)
+                                            if (!canvasLabelHasBeenSet && canvas.Label != null && canvas.Label != cp.Label)
                                             {
                                                 cp.CanvasLabel = canvas.Label;
+                                                canvasLabelHasBeenSet = true;
                                             }
                                         }
                                         else
@@ -80,12 +82,16 @@ namespace Mapper
                                     }
                                 }
                             }
-                            else if(body is Image || body is Video || body is Sound)
+                            else
                             {
                                 var resource = body as ResourceBase;
                                 if (resource is SpecificResource specificResource)
                                 {
                                     resource = specificResource.Source as ResourceBase;
+                                }
+                                if (resource == null)
+                                {
+                                    throw new NotImplementedException("Body type " + body + " Not yet supported as painting anno body.");
                                 }
                                 var cp = GetEntity(resource, manifestId, canvasId, canvas.Id!, canvasOrder, null, target, canvas);
                                 if (cp != null)
@@ -93,15 +99,12 @@ namespace Mapper
                                     canvasOrder++;
                                     canvasPaintings.Add(cp);
                                     cp.Label = resource?.Label ?? painting.Label ?? canvas.Label;
-                                    if (canvas.Label != null && canvas.Label != cp.Label && cp.CanvasLabel == null)
+                                    if (!canvasLabelHasBeenSet && canvas.Label != null && canvas.Label != cp.Label)
                                     {
                                         cp.CanvasLabel = canvas.Label;
+                                        canvasLabelHasBeenSet = true;
                                     }
                                 }
-                            }
-                            else
-                            {
-                                throw new NotImplementedException("Not yet support canvases as painting anno bodies");
                             }
                         }
                     }
@@ -135,25 +138,24 @@ namespace Mapper
                 cp.StaticWidth = spatial.Width;
                 cp.StaticHeight = spatial.Height;
             }
-            cp.AssetId = GetManagedAssetId(resource);
+            AssignAssetId(resource, cp);
             return cp;
         }
 
-        private string? GetManagedAssetId(ResourceBase media)
+        private void AssignAssetId(ResourceBase resource, DBCanvasPainting cp)
         {
             // obviously this is not hardcoded IRL
             const string DlcServices = "https://dlc.services/";
             const string DlcsIo = "https://dlcs.io/";
 
-            if (media is Image || media is Video || media is Sound)
+            if (resource is Image || resource is Video || resource is Sound)
             {
                 // How can we tell it's one of ours?
                 // This logic may change in future, and we need to deal with rewritten assets.
                 // We're going to assume that if the body path matches one of our derivative routes,
                 // then it's ours, without checking to see if there's a service. 
                 // We also need to extend this for born digital Wellcome pattern.
-                var resource = media as ResourceBase;
-                if(resource?.Id != null)
+                if(resource.Id != null)
                 {
                     if(resource.Id.StartsWith(DlcServices) || resource.Id.StartsWith(DlcsIo))
                     {
@@ -161,12 +163,13 @@ namespace Mapper
                         var parts = resource.Id.Split('/', StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length >= 6 && (parts[2] == "iiif-img" || parts[2] == "iiif-av" || parts[2] == "file"))
                         {
-                            return $"{parts[3]}/{parts[4]}/{parts[5]}";
+                            cp.AssetId = $"{parts[3]}/{parts[4]}/{parts[5]}";
+                            return;
                         }
                     }
                 }
+                cp.ExternalAssetId = resource.Id;
             }
-            return null;
         }
 
         private string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
@@ -190,7 +193,32 @@ namespace Mapper
 
         public List<PaintedResource> GetPaintedResources(List<DBCanvasPainting> entities)
         {
-            return [];
+            var paintedResources = new List<PaintedResource>();
+            foreach (var entity in entities)
+            {
+                var cp = new CanvasPainting
+                {
+                    Canvas = entity.CanvasId,
+                    CanvasOrder = entity.CanvasOrder,
+                    ChoiceOrder = entity.ChoiceOrder,
+                    Label = entity.Label,
+                    CanvasLabel = entity.CanvasLabel,
+                    ExternalAssetId = entity.ExternalAssetId
+                };
+                var pr = new PaintedResource { CanvasPainting = cp };
+                if (entity.AssetId != null)
+                {
+                    pr.Asset = new Asset
+                    {
+                        // Just an example of joining the AssetID to the asset table.
+                        Id = entity.AssetId,
+                        MediaType = "example/contentType",
+                        Origin = "s3://bucket/key"
+                    };
+                }
+                paintedResources.Add(pr);
+            }
+            return paintedResources;
         }
     }
 }
