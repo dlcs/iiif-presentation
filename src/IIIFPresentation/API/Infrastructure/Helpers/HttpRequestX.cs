@@ -15,7 +15,7 @@ public static class HttpRequestX
     
     public static bool HasShowExtraHeader(this HttpRequest request)
     {
-        return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value ==
+        return request.Headers.FirstOrDefault(h => string.Equals(h.Key, AdditionalPropertiesHeader.Key, StringComparison.OrdinalIgnoreCase)).Value ==
                AdditionalPropertiesHeader.Value;
     }
 }

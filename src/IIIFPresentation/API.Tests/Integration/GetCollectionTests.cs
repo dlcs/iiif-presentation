@@ -3,7 +3,6 @@
 using System.Net;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
-using FluentAssertions;
 using IIIF.Presentation.V3;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;

@@ -1,6 +1,5 @@
 ﻿using API.Converters;
 using API.Helpers;
-using FluentAssertions;
 using Models.Database.Collections;
 
 namespace API.Tests.Helpers;

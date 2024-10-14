@@ -8,7 +8,6 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
-using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
