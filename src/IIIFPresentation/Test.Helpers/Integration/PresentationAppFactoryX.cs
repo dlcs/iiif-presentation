@@ -1,20 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
-
-#nullable disable
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Test.Helpers.Integration;
 
 public static class PresentationAppFactoryX
 {
-    /// <summary>
-    /// Configure app factory to use connection string from DBFixture
-    /// </summary>
-    public static HttpClient ConfigureBasicIntegrationTestHttpClient<T>(
-        this PresentationAppFactory<T> factory,
-        PresentationContextFixture dbFixture,
-        string authenticationScheme) where T : class
-        => ConfigureBasicIntegrationTestHttpClient(factory, dbFixture, authenticationScheme, null);
-    
     /// <summary>
     /// Configure app factory to use connection string from DBFixture.
     /// Takes an additional delegate to do additional setup
@@ -22,13 +13,19 @@ public static class PresentationAppFactoryX
     public static HttpClient ConfigureBasicIntegrationTestHttpClient<T>(
         this PresentationAppFactory<T> factory,
         PresentationContextFixture dbFixture,
-        string authenticationScheme,
-        Func<PresentationAppFactory<T>, PresentationAppFactory<T>> additionalSetup) where T : class
+        Func<PresentationAppFactory<T>, PresentationAppFactory<T>>? additionalSetup = null) where T : class
     {
         additionalSetup ??= f => f;
         
         var configuredFactory = factory
-            .WithConnectionString(dbFixture.ConnectionString);
+            .WithConnectionString(dbFixture.ConnectionString)
+            .WithTestServices(services =>
+            {
+                string authenticationScheme = "Api-Test";
+                services.AddAuthentication(authenticationScheme)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        authenticationScheme, _ => { });
+            });
 
         var httpClient = additionalSetup(configuredFactory)
             .CreateClient(new WebApplicationFactoryClientOptions
