@@ -11,6 +11,7 @@ using API.Settings;
 using IIIF.Presentation;
 using IIIF.Serialisation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Models.API.Collection.Upsert;
@@ -43,15 +44,12 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             : Content(storageRoot.StoredCollection, ContentTypes.V3);
     }
     
+    [Authorize]
     [HttpPost("{*slug}")]
     [ETagCaching]
     public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
     {
-        if (!Request.ShowExtraProperties())
-        {
-            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-        }
-
+        // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         using var streamReader = new StreamReader(Request.Body);
         
         var rawRequestBody = await streamReader.ReadToEndAsync();

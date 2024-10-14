@@ -36,7 +36,7 @@ builder.Services.AddOptions<CacheSettings>()
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
 
-var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>();
+var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
 builder.Services.AddDelegatedAuthHandler(dlcs, opts =>

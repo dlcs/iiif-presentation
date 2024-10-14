@@ -2,7 +2,7 @@
 
 public class DlcsSettings
 {
-    public const string SettingsName = "Dlcs";
+    public const string SettingsName = "DLCS";
     
     /// <summary>
     /// URL root of DLCS API 

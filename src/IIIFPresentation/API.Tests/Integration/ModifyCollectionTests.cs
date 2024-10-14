@@ -40,10 +40,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        
-        httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString)
-            .WithLocalStack(storageFixture.LocalStackFixture)
-            .CreateClient(new WebApplicationFactoryClientOptions());
+
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
 
         parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
         
@@ -807,7 +806,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-        
 
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
             $"{Customer}/collections/{initialCollection.Id}");
