@@ -103,9 +103,6 @@ public class CreateCollectionHandler(
             collection.Thumbnail = request.Collection.PresentationThumbnail;
         }
         
-        await using var transaction = 
-            await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        
         dbContext.Collections.Add(collection);
 
         var saveErrors =
@@ -118,8 +115,6 @@ public class CreateCollectionHandler(
         }
         
         await UploadToS3IfRequiredAsync(request, collection.Id, convertedIIIFCollection!, cancellationToken);
-        
-        await transaction.CommitAsync(cancellationToken);
 
         if (collection.Parent != null)
         {
