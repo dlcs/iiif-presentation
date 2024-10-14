@@ -6,10 +6,8 @@ using Microsoft.Extensions.Options;
 namespace API.Auth;
 
 /// <summary>
-/// AuthenticationHandler that hands off calls to DLCS for carrying out authentication. Any auth header provided
-/// here will be proxied to DLCS API - a 200 response = auth successful.
+/// AuthenticationHandler that hands off calls to implementation of <see cref="IAuthenticator"/> for auth logic
 /// </summary>
-/// <remarks>This is temporary and will be replaced in the future by an implementation that has auth logic</remarks>
 public class DelegatedAuthHandler(
     IAuthenticator delegatedAuthenticator,
     IOptionsMonitor<DelegatedAuthenticationOptions> options,

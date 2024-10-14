@@ -8,8 +8,10 @@ using Microsoft.Extensions.Options;
 namespace API.Auth;
 
 /// <summary>
-/// Validate that provided request contains valid auth credentials by proxying to downstream DLCS instance
+/// Validate that provided request contains valid auth credentials by proxying to downstream DLCS instance.
+/// Any auth header provided here will be proxied to DLCS API - a 200 response = auth successful.
 /// </summary>
+/// <remarks>This is temporary and will be replaced in the future by an implementation that has auth logic</remarks>
 public class DelegatedAuthenticator(
     HttpClient httpClient,
     IOptionsMonitor<CacheSettings> cacheSettings,
@@ -52,7 +54,6 @@ public class DelegatedAuthenticator(
         var cacheKey = $"{customerId}:{authenticationHeaderValue.Scheme}";
         var authParameter = authenticationHeaderValue.Parameter!;
         
-        // TODO - do I need any locking here?
         var list = await appCache.GetAsync<ConcurrentBag<string>>(cacheKey);
         if (list != null && list.Contains(authParameter)) return true;
 
