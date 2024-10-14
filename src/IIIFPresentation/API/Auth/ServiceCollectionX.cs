@@ -11,7 +11,7 @@ internal static class ServiceCollectionX
     public static AuthenticationBuilder AddDelegatedAuthHandler(this IServiceCollection services,
         DlcsSettings dlcsSettings, Action<DelegatedAuthenticationOptions> configureOptions)
     {
-        services.AddHttpClient<DelegatedAuthenticator>(client =>
+        services.AddHttpClient<IAuthenticator, DelegatedAuthenticator>(client =>
         {
             client.BaseAddress = dlcsSettings.ApiUri;
         });

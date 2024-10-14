@@ -8,13 +8,13 @@ using Microsoft.Extensions.Options;
 namespace API.Auth;
 
 /// <summary>
-/// Validate that provided request contains valid auth credentials
+/// Validate that provided request contains valid auth credentials by proxying to downstream DLCS instance
 /// </summary>
 public class DelegatedAuthenticator(
     HttpClient httpClient,
     IOptionsMonitor<CacheSettings> cacheSettings,
     IAppCache appCache,
-    ILogger<DelegatedAuthenticator> logger)
+    ILogger<DelegatedAuthenticator> logger) : IAuthenticator
 {
     private const string AuthHeader = "Authorization";
     private const string CustomerIdRouteValue = "customerId";

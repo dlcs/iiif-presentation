@@ -11,7 +11,7 @@ namespace API.Auth;
 /// </summary>
 /// <remarks>This is temporary and will be replaced in the future by an implementation that has auth logic</remarks>
 public class DelegatedAuthHandler(
-    DelegatedAuthenticator delegatedAuthenticator,
+    IAuthenticator delegatedAuthenticator,
     IOptionsMonitor<DelegatedAuthenticationOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder)
