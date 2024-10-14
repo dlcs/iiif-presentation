@@ -14,6 +14,7 @@ using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Models.Infrastucture;
 using Repository;
 using Test.Helpers.Helpers;
@@ -75,15 +76,18 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Length.Should().BeGreaterThan(6);
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
         fromDatabase.Slug.Should().Be("programmatic-child");
-        fromDatabase.ItemsOrder.Should().Be(1);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
@@ -130,8 +134,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c =>
-            c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
         
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -139,10 +145,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif post");
         fromDatabase.Slug.Should().Be("iiif-child");
-        fromDatabase.ItemsOrder.Should().Be(1);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
@@ -400,9 +406,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester",
+            Slug = "update-test",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -438,14 +452,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
         fromDatabase.Slug.Should().Be("programmatic-child");
-        fromDatabase.ItemsOrder.Should().Be(1);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeTrue();
@@ -482,15 +499,18 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         fromDatabase.Id.Should().Be("createFromUpdate");
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
         fromDatabase.Slug.Should().Be("create-from-update");
-        fromDatabase.ItemsOrder.Should().Be(1);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeTrue();
@@ -552,9 +572,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester-2",
+            Slug = "update-test-2",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -586,11 +614,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Slug.Should().Be("programmatic-child-2");
         fromDatabase.Label.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
@@ -617,9 +648,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester-3",
+            Slug = "update-test-3",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -673,9 +712,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester-4",
+            Slug = "update-test-4",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -744,7 +791,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenChangingParentToChild()
     {
-        var parentCollection = new Collection()
+        var parentCollection = new Collection
         {
             Id = "UpdateTester-5",
             Slug = "update-test-5",
@@ -760,11 +807,19 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
         
-        var childCollection = new Collection()
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester-5",
+            Slug = "update-test-5",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
+        
+        var childCollection = new Collection
         {
             Id = "UpdateTester-6",
             Slug = "update-test-6",
@@ -780,9 +835,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = parentCollection.Id
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "UpdateTester-6",
+            Slug = "update-test-6",
+            Parent = parentCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         var updatedCollection = new UpsertFlatCollection()
         {
@@ -903,9 +966,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
-            Parent = "root"
+            CustomerId = 1
         };
+        
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "DeleteTester",
+            Slug = "delete-test",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1
+        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -1018,8 +1089,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
 
-        var fromDatabase = dbContext.Collections.First(c =>
-            c.Slug == slug);
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Slug == slug);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
         
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -1028,7 +1101,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection!.Items.Should().BeNull();
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         fromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
@@ -1080,8 +1153,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
 
-        var fromDatabase = dbContext.Collections.First(c =>
-            c.Slug == slug);
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Slug == slug);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == id);
         
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -1089,9 +1164,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        responseCollection!.Items!.Count.Should().Be(1);
+        responseCollection.Items!.Count.Should().Be(1);
         responseCollection.Thumbnail.Should().NotBeNull();
-        fromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         fromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");

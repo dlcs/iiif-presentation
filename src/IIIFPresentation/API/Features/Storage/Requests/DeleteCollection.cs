@@ -2,6 +2,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
+using Models.Database.General;
 using Repository;
 
 namespace API.Features.Storage.Requests;
@@ -31,20 +32,18 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
-        var collection = await dbContext.Collections.FirstOrDefaultAsync(
-            c => c.Id == request.CollectionId && c.CustomerId == request.CustomerId,
-            cancellationToken: cancellationToken);
-
-        if (collection is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
-
-        if (collection.Parent is null)
+        var hierarchy = await dbContext.Hierarchy.FirstOrDefaultAsync(
+            c => c.ResourceId == request.CollectionId && c.CustomerId == request.CustomerId &&
+                 c.Type == ResourceType.StorageCollection, cancellationToken);
+        
+        if (hierarchy?.Parent is null)
         {
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
-        var hasItems = await dbContext.Collections.AnyAsync(
-            c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
+        var hasItems = await dbContext.Hierarchy.AnyAsync(
+            c => c.CustomerId == request.CustomerId && c.Parent == hierarchy.ResourceId,
             cancellationToken: cancellationToken);
 
         if (hasItems)
@@ -53,7 +52,9 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CollectionNotEmpty, "Cannot delete a collection with child items");
         }
 
-        dbContext.Collections.Remove(collection);
+        await dbContext.Collections.Where(c => c.Id == hierarchy.ResourceId && c.CustomerId == request.CustomerId)
+            .ExecuteDeleteAsync(cancellationToken);
+        dbContext.Hierarchy.Remove(hierarchy);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);

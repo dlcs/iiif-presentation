@@ -2,6 +2,7 @@ using System.Data;
 using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -17,6 +18,7 @@ using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -71,17 +73,28 @@ public class CreateCollectionHandler(
         var collection = new Collection
         {
             Id = id,
+            Slug = request.Collection.Slug,
             Created = dateCreated,
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
             IsPublic = request.Collection.Behavior.IsPublic(),
             IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
-            Label = request.Collection.Label,
-            Parent = parentCollection.Id,
+            Label = request.Collection.Label
+        };
+
+        var hierarchy = new Hierarchy
+        {
+            ResourceId = id,
+            Type = request.Collection.Behavior.IsStorageCollection()
+                ? ResourceType.StorageCollection
+                : ResourceType.IIIFCollection,
             Slug = request.Collection.Slug,
-            Tags = request.Collection.Tags,
-            ItemsOrder = request.Collection.ItemsOrder
+            CustomerId = request.CustomerId,
+            Canonical = true,
+            ItemsOrder = request.Collection.ItemsOrder,
+            Parent = request.Collection.Parent,
+            Public = request.Collection.Behavior.IsPublic()
         };
         
         string? convertedIIIFCollection = null;
@@ -104,6 +117,7 @@ public class CreateCollectionHandler(
         }
         
         dbContext.Collections.Add(collection);
+        dbContext.Hierarchy.Add(hierarchy);
 
         var saveErrors =
             await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
@@ -116,13 +130,15 @@ public class CreateCollectionHandler(
         
         await UploadToS3IfRequiredAsync(request.Collection, collection, convertedIIIFCollection!, cancellationToken);
 
-        if (collection.Parent != null)
+        if (hierarchy.Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
         
+        var hierarchicalCollection = new HierarchicalCollection(collection, hierarchy);
+        
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            hierarchicalCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 

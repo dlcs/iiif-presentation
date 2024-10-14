@@ -1,6 +1,7 @@
 ﻿using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Testcontainers.PostgreSql;
@@ -50,7 +51,17 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1
         });
 
-        await DbContext.Collections.AddAsync(new Collection()
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = RootCollection.Id,
+            Slug = "",
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true,
+            Public = true
+        });
+
+        await DbContext.Collections.AddAsync(new Collection
         {
             Id = "FirstChildCollection",
             Slug = "first-child",
@@ -67,7 +78,17 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = true,
             CustomerId = 1,
-            Parent = RootCollection.Id
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "FirstChildCollection",
+            Slug = "first-child",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true,
+            Public = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -86,8 +107,18 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "SecondChildCollection",
+            Slug = "second-child",
+            Parent = "FirstChildCollection",
+            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Parent = "FirstChildCollection"
+            Canonical = true,
+            Public = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -106,8 +137,18 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "NonPublic",
+            Slug = "non-public",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Parent = RootCollection.Id
+            Canonical = true,
+            Public = false
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -126,8 +167,18 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = false,
             IsPublic = true,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            ResourceId = "IiifCollection",
+            Slug = "iiif-collection",
+            Parent = RootCollection.Id,
+            Type = ResourceType.IIIFCollection,
             CustomerId = 1,
-            Parent = RootCollection.Id
+            Canonical = true,
+            Public = true
         });
 
         await DbContext.SaveChangesAsync();

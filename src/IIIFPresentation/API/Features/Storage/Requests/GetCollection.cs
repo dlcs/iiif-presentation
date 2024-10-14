@@ -4,6 +4,7 @@ using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Repository.Collections;
 using Repository.Helpers;
@@ -21,8 +22,8 @@ public class GetCollection(
     public int CustomerId { get; } = customerId;
 
     public string Id { get; } = id;
-    public int Page { get; set; } = page;
-    public int PageSize { get; set; } = pageSize;
+    public int Page { get; } = page;
+    public int PageSize { get; } = pageSize;
     public string? OrderBy { get; } = orderBy;
     public bool Descending { get; } = descending;
 }
@@ -33,17 +34,20 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
         CancellationToken cancellationToken)
     {
         Collection? collection = await dbContext.RetrieveCollection(request.CustomerId, request.Id, cancellationToken);
-        
         List<Collection>? items = null;
+        Hierarchy? hierarchy = null;
         int total = 0;
 
         if (collection != null)
         {
-            total = await dbContext.Collections.CountAsync(
+            hierarchy = await dbContext.RetrieveHierarchyAsync(collection.CustomerId, collection.Id,
+                collection.IsStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
+                cancellationToken);
+            
+            total = await dbContext.Hierarchy.CountAsync(
                 c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
                 cancellationToken: cancellationToken);
-            items = await dbContext.Collections.AsNoTracking()
-                .Where(c => c.CustomerId == request.CustomerId && c.Parent == collection.Id)
+            items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, collection.Id)
                 .AsOrderedCollectionQuery(request.OrderBy, request.Descending)
                 .Skip((request.Page - 1) * request.PageSize)
                 .Take(request.PageSize)
@@ -51,15 +55,15 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
             
             foreach (var item in items)
             { 
-                item.FullPath = collection.GenerateFullPath(item.Slug);
+                item.FullPath = hierarchy.GenerateFullPath(item.Slug);
             }
 
-            if (collection.Parent != null)
+            if (hierarchy.Parent != null)
             {
                 collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
             }
         }
 
-        return new CollectionWithItems(collection, items, total);
+        return new CollectionWithItems(collection, hierarchy, items, total);
     }
 }

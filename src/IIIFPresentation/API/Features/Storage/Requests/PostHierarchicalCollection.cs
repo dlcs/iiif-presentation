@@ -14,6 +14,7 @@ using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.General;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
@@ -56,7 +57,8 @@ public class PostHierarchicalCollectionHandler(
 
         var parentSlug = string.Join(string.Empty, splitSlug.Take(..^1));
         var parentCollection =
-            await dbContext.RetriveHierarchicalCollection(request.CustomerId, parentSlug, cancellationToken);
+            await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
+        
         if (parentCollection == null) return ErrorHelper.NullParentResponse<Collection>();
         
         var id = await GenerateUniqueId(request, cancellationToken);
@@ -79,7 +81,7 @@ public class PostHierarchicalCollectionHandler(
                 collection.GetCollectionBucketKey()),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
-        if (collection.Parent != null)
+        if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
@@ -96,8 +98,6 @@ public class PostHierarchicalCollectionHandler(
         var collection = new DatabaseCollection.Collection
         {
             Id = id,
-            Parent = parentCollection.Id,
-            Slug = splitSlug.Last(),
             Created = dateCreated,
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
@@ -105,8 +105,22 @@ public class PostHierarchicalCollectionHandler(
             IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
             IsStorageCollection = false,
             Label = collectionFromBody.Label,
-            Thumbnail = thumbnails!?.GetThumbnailPath()
+            Thumbnail = thumbnails!?.GetThumbnailPath(),
+            Hierarchy = [
+                new Hierarchy
+                {
+                    CollectionId = id,
+                    Type = ResourceType.IIIFCollection,
+                    Slug = splitSlug.Last(),
+                    CustomerId = request.CustomerId,
+                    Canonical = true,
+                    ItemsOrder = 0, // items order required?
+                    Parent = parentCollection.Hierarchy.Single(h => h.Canonical).CollectionId,
+                    Public = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
+                }
+            ]
         };
+        
         return collection;
     }
 

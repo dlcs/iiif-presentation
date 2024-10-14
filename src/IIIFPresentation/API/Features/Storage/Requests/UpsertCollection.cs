@@ -1,6 +1,8 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
+using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -14,6 +16,7 @@ using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 
@@ -50,6 +53,8 @@ public class UpsertCollectionHandler(
     {
         var databaseCollection =
             await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == request.CollectionId, cancellationToken);
+        
+        Hierarchy hierarchy;
 
         if (databaseCollection == null)
         {
@@ -77,14 +82,25 @@ public class UpsertCollectionHandler(
                 IsPublic = request.Collection.Behavior.IsPublic(),
                 IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
                 Label = request.Collection.Label,
-                Parent = parentCollection.Id,
                 Slug = request.Collection.Slug,
                 Thumbnail = request.Collection.PresentationThumbnail,
                 Tags = request.Collection.Tags,
-                ItemsOrder = request.Collection.ItemsOrder
+            };
+            
+            hierarchy = new Hierarchy
+            {
+                ResourceId = request.CollectionId,
+                Type = ResourceType.IIIFCollection,
+                Slug = request.Collection.Slug,
+                CustomerId = request.CustomerId,
+                Canonical = true,
+                ItemsOrder = request.Collection.ItemsOrder,
+                Parent = parentCollection.Id,
+                Public = request.Collection.Behavior.IsPublic(),
             };
             
             await dbContext.AddAsync(databaseCollection, cancellationToken);
+            await dbContext.AddAsync(hierarchy, cancellationToken);
         }
         else
         {
@@ -96,7 +112,11 @@ public class UpsertCollectionHandler(
                     "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
             }
 
-            if (databaseCollection.Parent != request.Collection.Parent)
+            hierarchy = await dbContext.RetrieveHierarchyAsync(request.CustomerId, request.CollectionId,
+                databaseCollection.IsStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
+                cancellationToken);
+
+            if (hierarchy.Parent != request.Collection.Parent)
             {
                 var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken);
@@ -114,11 +134,14 @@ public class UpsertCollectionHandler(
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
             databaseCollection.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
             databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Parent = request.Collection.Parent;
             databaseCollection.Slug = request.Collection.Slug;
             databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
-            databaseCollection.ItemsOrder = request.Collection.ItemsOrder;
+
+            hierarchy.Parent = request.Collection.Parent;
+            hierarchy.ItemsOrder = request.Collection.ItemsOrder;
+            hierarchy.Public = request.Collection.Behavior.IsPublic();
+            hierarchy.Slug = request.Collection.Slug;
         }
 
         await using var transaction = 
@@ -132,21 +155,19 @@ public class UpsertCollectionHandler(
         {
             return saveErrors;
         }
-
-        var total = await dbContext.Collections.CountAsync(
+            
+        var total = await dbContext.Hierarchy.CountAsync(
             c => c.CustomerId == request.CustomerId && c.Parent == databaseCollection.Id,
             cancellationToken: cancellationToken);
-
-        var items = dbContext.Collections
-            .Where(s => s.CustomerId == request.CustomerId && s.Parent == databaseCollection.Id)
+        var items = dbContext.RetrieveHierarchicalItems(request.CustomerId, databaseCollection.Id)
             .Take(settings.PageSize);
 
         foreach (var item in items)
         { 
-            item.FullPath = $"{(databaseCollection.Parent != null ? $"{databaseCollection.Slug}/" : string.Empty)}{item.Slug}";
+            item.FullPath = hierarchy.GenerateFullPath(item.Slug);
         }
 
-        if (databaseCollection.Parent != null)
+        if (hierarchy.Parent != null)
         {
             try
             {
@@ -162,9 +183,11 @@ public class UpsertCollectionHandler(
         }
         
         await transaction.CommitAsync(cancellationToken);
+        
+        var hierarchicalCollection = new HierarchicalCollection(databaseCollection, hierarchy);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
+            hierarchicalCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
                 await items.ToListAsync(cancellationToken: cancellationToken)));
     }
 }

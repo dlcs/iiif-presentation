@@ -1,6 +1,7 @@
 ﻿using Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
+using Models.Database.General;
 
 namespace Repository.Helpers;
 
@@ -55,7 +56,7 @@ WITH RECURSIVE parentsearch AS (
 )
 SELECT * FROM parentsearch ORDER BY generation_number DESC
 ";
-        var parentCollections = dbContext.Collections
+        var parentCollections = dbContext.Hierarchy
             .FromSqlRaw(query)
             .OrderBy(i => i.CustomerId)
             .ToList();
@@ -64,16 +65,16 @@ SELECT * FROM parentsearch ORDER BY generation_number DESC
         {
             throw new PresentationException("Parent to child relationship exceeds 1000 records");
         }
-        
+
         var fullPath = string.Join('/', parentCollections
             .Where(parent => !string.IsNullOrEmpty(parent.Parent))
             .Select(parent => parent.Slug));
-        
+
         return fullPath;
     }
-    
-        public static async Task<Collection?> RetriveHierarchicalCollection(this PresentationContext dbContext, 
-            int customerId, string slug, CancellationToken cancellationToken)
+
+    public static async Task<Hierarchy?> RetrieveHierarchy(this PresentationContext dbContext,
+        int customerId, string slug, CancellationToken cancellationToken)
     {
         var query = $@"
 WITH RECURSIVE tree_path AS (
@@ -176,20 +177,20 @@ WHERE
   AND slug = slug_array[max_level]
   AND tree_path.customer_id = {customerId}";
 
-        Collection? collection;
+        Hierarchy? hierarchy;
 
         if (slug.Equals(string.Empty))
         {
-            collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+            hierarchy = await dbContext.Hierarchy.AsNoTracking().FirstOrDefaultAsync(
                 s => s.CustomerId == customerId && s.Parent == null,
                 cancellationToken);
         }
         else
         {
-            collection = await dbContext.Collections.FromSqlRaw(query).OrderBy(i => i.CustomerId)
+            hierarchy = await dbContext.Hierarchy.FromSqlRaw(query).OrderBy(i => i.CustomerId)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
-        return collection;
+        return hierarchy;
     }
 }
