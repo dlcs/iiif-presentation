@@ -135,22 +135,12 @@ public class CreateCollectionHandler(
     {
         var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
         var convertedIIIFCollection = collectionAsIIIF.AsJson();
-        var thumbnails = collectionAsIIIF.Thumbnail?.Where(CheckThumbnailIsImage).Select(c => (Image)c).ToList();
+        var thumbnails = collectionAsIIIF.Thumbnail?.Where(c => c is Image).Select(c => (Image)c).ToList();
         if (thumbnails != null)
         {
             collection.Thumbnail = thumbnails.GetThumbnailPath();
         }
         return convertedIIIFCollection;
-    }
-
-    private static bool CheckThumbnailIsImage(ExternalResource externalResource)
-    {
-        if (externalResource is Image)
-        {
-            return true;
-        }
-        
-        return false;
     }
 
     private async Task UploadToS3IfRequiredAsync(CreateCollection request,
