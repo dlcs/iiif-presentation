@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Helpers;
 using Models.Database.Collections;
+using Models.Database.General;
 
 namespace API.Tests.Helpers;
 
@@ -69,15 +70,14 @@ public class CollectionHelperXTests
     public void GenerateFlatCollectionParent_CreatesParentId()
     {
         // Arrange
-        var collection = new Collection()
+        var hierarchy = new Hierarchy()
         {
-            Id = "test",
             Slug = "slug",
             Parent = "parent"
         };
 
         // Act
-        var id = collection.GenerateFlatCollectionParent(urlRoots);
+        var id = hierarchy.GenerateFlatCollectionParent(urlRoots);
 
         // Assert
         id.Should().Be("http://base/0/collections/parent");

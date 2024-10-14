@@ -19,8 +19,6 @@ public class PresentationContext : DbContext
 
     public virtual DbSet<Collection> Collections { get; set; }
     
-    public virtual DbSet<Manifest> Manifests { get; set; }
-    
     public virtual DbSet<Hierarchy> Hierarchy { get; set; }
     
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -35,14 +33,20 @@ public class PresentationContext : DbContext
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => new {e.Id, e.CustomerId});
-            entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
+            //entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
             
             entity.Property(e => e.Label).HasColumnType("jsonb");
         });
         
         modelBuilder.Entity<Hierarchy>(entity =>
         {
-            entity.HasIndex(e => new { e.Slug, e.Parent, e.CustomerId });
+            // cannot have duplicate slugs with the same parent
+            entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
+            // only 1 canonical path is allowed per resource
+            entity
+                .HasIndex(e => new { e.ResourceId, e.CustomerId, e.Canonical, e.Type })
+                .IsUnique()
+                .HasFilter("canonical is true");
         });
     }
 }

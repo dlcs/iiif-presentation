@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
 using Models.API.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 
@@ -48,5 +49,25 @@ public static class PresentationContextX
             cancellationToken);
         
         return collection;
+    }
+    
+    public static async Task<Hierarchy> RetrieveHierarchyAsync(this PresentationContext dbContext,  int customerId, 
+        string resourceId, ResourceType resourceType, CancellationToken cancellationToken = default)
+    {
+        var hierarchy = await dbContext.Hierarchy.AsNoTracking().FirstAsync(
+            s => s.CustomerId == customerId && s.ResourceId == resourceId && s.Type == resourceType,
+            cancellationToken);
+        
+        return hierarchy;
+    }
+    
+    public static IQueryable<Collection> RetrieveHierarchicalItems(this PresentationContext dbContext, int customerId, string resourceId)
+    {
+        
+        var hierarchicalItems = dbContext.Hierarchy.AsNoTracking()
+            .Where(h => h.CustomerId == customerId && h.Parent == resourceId).Select(x => x.ResourceId);
+        return dbContext.Collections
+            .Where(s => s.CustomerId == customerId &&
+                        hierarchicalItems.Contains(s.Id));
     }
 }
