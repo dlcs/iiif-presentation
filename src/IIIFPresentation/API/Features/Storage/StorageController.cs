@@ -1,5 +1,6 @@
 using System.Net;
 using API.Attributes;
+using API.Auth;
 using API.Converters;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
@@ -21,7 +22,7 @@ namespace API.Features.Storage;
 
 [Route("/{customerId}")]
 [ApiController]
-public class StorageController(IOptions<ApiSettings> options, IMediator mediator)
+public class StorageController(IAuthenticator authenticator, IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
     [HttpGet("{*slug}")]
@@ -33,7 +34,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (storageRoot.Collection is not { IsPublic: true }) return this.PresentationNotFound();
 
-        if (Request.ShowExtraProperties())
+        if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
             return SeeOther(storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots()));
         }
@@ -56,7 +57,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         
         return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
     }
-
+    
     [HttpGet("collections/{id}")]
     [ETagCaching]
     [VaryHeader]
@@ -73,7 +74,7 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
 
         if (storageRoot.Collection == null) return this.PresentationNotFound();
 
-        if (Request.ShowExtraProperties())
+        if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
             var orderByParameter = orderByField != null
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}" 
@@ -86,12 +87,12 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()));
     }
 
+    [Authorize]
     [HttpPost("collections")]
     [ETagCaching]
-    public async Task<IActionResult> Post(int customerId, 
-        [FromServices] UpsertFlatCollectionValidator validator)
+    public async Task<IActionResult> Post(int customerId, [FromServices] UpsertFlatCollectionValidator validator)
     {
-        if (!Request.ShowExtraProperties())
+        if (!Request.HasShowExtraHeader())
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -112,12 +113,13 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
         return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
     }
     
+    [Authorize]
     [HttpPut("collections/{id}")]
     [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
-        if (!Request.ShowExtraProperties())
+        if (!Request.HasShowExtraHeader())
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
@@ -133,10 +135,11 @@ public class StorageController(IOptions<ApiSettings> options, IMediator mediator
             Request.Headers.IfMatch));
     }
     
+    [Authorize]
     [HttpDelete("collections/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.ShowExtraProperties())
+        if (!Request.HasShowExtraHeader())
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }

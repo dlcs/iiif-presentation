@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿using API.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Test.Helpers.Integration;
 
-namespace Test.Helpers.Integration;
+namespace API.Tests.Integration.Infrastructure;
 
 public static class PresentationAppFactoryX
 {
     /// <summary>
-    /// Configure app factory to use connection string from DBFixture.
+    /// Configure app factory to use connection string from DBFixture and configure test authenticator logic.
     /// Takes an additional delegate to do additional setup
     /// </summary>
     public static HttpClient ConfigureBasicIntegrationTestHttpClient<T>(
@@ -21,10 +22,7 @@ public static class PresentationAppFactoryX
             .WithConnectionString(dbFixture.ConnectionString)
             .WithTestServices(services =>
             {
-                string authenticationScheme = "Api-Test";
-                services.AddAuthentication(authenticationScheme)
-                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
-                        authenticationScheme, _ => { });
+                services.AddSingleton<IAuthenticator, TestAuthenticator>();
             });
 
         var httpClient = additionalSetup(configuredFactory)

@@ -4,7 +4,6 @@ using System.Net;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -20,9 +19,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
-        httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString) 
-            .WithLocalStack(storageFixture.LocalStackFixture)
-            .CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); ;
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         
         storageFixture.DbFixture.CleanUp();
     }
@@ -75,7 +73,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_Hierarchical_Redirects_WhenAuthAndShowExtrasHeaders()
+    public async Task Get_Hierarchical_ReturnsSeeOther_WhenAuthAndShowExtrasHeaders()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1");
@@ -89,7 +87,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_Redirects_WhenNoAuthAndCsHeader()
+    public async Task Get_RootFlat_ReturnsSeeOther_WhenNoAuthOrCsHeader()
     {
         // Act
         var response = await httpClient.GetAsync($"1/collections/{RootCollection.Id}");
@@ -100,7 +98,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_Redirects_WhenNoCsHeader()
+    public async Task Get_RootFlat_ReturnsSeeOther_WhenNoCsHeader()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
@@ -114,7 +112,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_Redirects_WhenShowExtraHeaderNotAll()
+    public async Task Get_RootFlat_ReturnsSeeOther_WhenShowExtraHeaderNotAll()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
@@ -129,7 +127,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_RootFlat_Redirects_WhenNoAuth()
+    public async Task Get_RootFlat_ReturnsSeeOther_WhenNoAuth()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
