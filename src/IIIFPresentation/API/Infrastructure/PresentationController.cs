@@ -15,7 +15,7 @@ public abstract class PresentationController : Controller
     protected readonly IMediator Mediator;
 
     /// <summary>
-    ///     API Settings available to derived controller classes
+    /// API Settings available to derived controller classes
     /// </summary>
     protected readonly ApiSettings Settings;
 
@@ -27,17 +27,9 @@ public abstract class PresentationController : Controller
     }
 
     /// <summary>
-    ///  Used by derived controllers to construct correct fully qualified URLs in returned objects.
+    /// Used by derived controllers to construct correct fully qualified URLs in returned objects.
     /// </summary>
-    /// <returns></returns>
-    protected UrlRoots GetUrlRoots()
-    {
-        return new UrlRoots
-        {
-            BaseUrl = Request.GetBaseUrl(),
-            ResourceRoot = Settings.ResourceRoot.ToString()
-        };
-    }
+    protected UrlRoots GetUrlRoots() => new() { BaseUrl = Request.GetBaseUrl(), };
 
     /// <summary>
     /// Handle an upsert request - this takes a IRequest which returns a ModifyEntityResult{T}.
@@ -73,15 +65,15 @@ public abstract class PresentationController : Controller
     }
 
     /// <summary>
-    ///     Handles a deletion
+    /// Handles a deletion
     /// </summary>
     /// <param name="request">The request/response to be sent through Mediatr</param>
     /// <param name="errorTitle">The title of the error</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="DeleteResult" /> is not understood</exception>
     /// <returns>
-    ///     ActionResult generated from DeleteResult. This will be 204 on success. Or an
-    ///     error and appropriate status code if failed.
+    /// ActionResult generated from DeleteResult. This will be 204 on success. Or an
+    /// error and appropriate status code if failed.
     /// </returns>
     /// <remarks>This will be replaced with overload that takes DeleteEntityResult in future</remarks>
     protected async Task<IActionResult> HandleDelete(
@@ -99,15 +91,15 @@ public abstract class PresentationController : Controller
     }
 
     /// <summary>
-    ///     Handles a deletion, turning DeleteResult to a http response
+    /// Handles a deletion, turning DeleteResult to a http response
     /// </summary>
     /// <param name="request">The request/response to be sent through Mediatr</param>
     /// <param name="errorTitle">The title of the error</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="DeleteResult" /> is not understood</exception>
     /// <returns>
-    ///     ActionResult generated from DeleteResult. This will be 204 on success. Or an
-    ///     error and appropriate status code if failed.
+    /// ActionResult generated from DeleteResult. This will be 204 on success. Or an
+    /// error and appropriate status code if failed.
     /// </returns>
     protected async Task<IActionResult> HandleDelete(
         IRequest<DeleteEntityResult> request,
@@ -138,20 +130,20 @@ public abstract class PresentationController : Controller
     private string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
 
     /// <summary>
-    ///     Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.
-    ///     The request is sent and result is transformed to an http result.
+    /// Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.
+    /// The request is sent and result is transformed to an http result.
     /// </summary>
     /// <param name="request">IRequest to fetch data</param>
     /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
     /// <param name="errorTitle">
-    ///     The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
-    ///     e.g. errorTitle + ": Conflict"
+    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <typeparam name="T">Type of entity being fetched</typeparam>
     /// <returns>
-    ///     ActionResult generated from FetchEntityResult. This will be the model + 200 on success. Or an
-    ///     error and appropriate status code if failed.
+    /// ActionResult generated from FetchEntityResult. This will be the model + 200 on success. Or an
+    /// error and appropriate status code if failed.
     /// </returns>
     protected async Task<IActionResult> HandleFetch<T>(
         IRequest<FetchEntityResult<T>> request,
@@ -169,7 +161,7 @@ public abstract class PresentationController : Controller
     }
 
     /// <summary>
-    ///     Make a request and handle exceptions
+    /// Make a request and handle exceptions
     /// </summary>
     protected async Task<IActionResult> HandleRequest(Func<Task<IActionResult>> handler,
         string? errorTitle = "Request failed")
