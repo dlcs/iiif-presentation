@@ -50,7 +50,7 @@ public class DelegatedAuthenticationOptions : AuthenticationSchemeOptions
     /// <summary>
     /// Get or set the Realm for use in auth challenges.
     /// </summary>
-    public string Realm { get; set; }
+    public string Realm { get; set; } = null!;
 }
 
 /// <summary>

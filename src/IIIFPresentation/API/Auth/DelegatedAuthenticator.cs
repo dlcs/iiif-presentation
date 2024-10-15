@@ -71,7 +71,7 @@ public class DelegatedAuthenticator(
         // Parse the CustomerId out of this.
         var delegatePath = $"/customers/{customerId}";
 
-        // make a request to DLCS and verify the result received - if it's 200 we're good
+        // Make a request to DLCS and verify the result received - if it's 200 we're good
         var request = new HttpRequestMessage(HttpMethod.Get, delegatePath);
         request.Headers.Authorization = authenticationHeaderValue;
         var response = await httpClient.SendAsync(request);

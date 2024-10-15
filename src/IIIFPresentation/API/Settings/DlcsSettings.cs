@@ -7,5 +7,5 @@ public class DlcsSettings
     /// <summary>
     /// URL root of DLCS API 
     /// </summary>
-    public Uri ApiUri { get; set; }
+    public required Uri ApiUri { get; set; }
 }

@@ -16,7 +16,7 @@ public class ApiSettings
     
     public string? PathBase { get; set; }
     
-    public AWSSettings AWS { get; set; }
+    public required AWSSettings AWS { get; set; }
 
-    public DlcsSettings Dlcs { get; set; } = new();
+    public required DlcsSettings DLCS { get; set; }
 }
