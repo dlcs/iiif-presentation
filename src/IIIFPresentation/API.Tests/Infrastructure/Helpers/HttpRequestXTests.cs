@@ -25,19 +25,10 @@ public class HttpRequestXTests
     [Theory]
     [InlineData("X-IIIF-CS-Show-Extras")]
     [InlineData("x-iiif-cs-show-extras")]
-    public void HttpRequestX_False_IfHeaderPresent_AndAllValue(string header)
+    public void HttpRequestX_True_IfHeaderPresent_AndAllValue(string header)
     {
         var httpRequest = new DefaultHttpContext().Request;
         httpRequest.Headers.Append(header, "All");
-
-        httpRequest.HasShowExtraHeader().Should().BeTrue();
-    }
-    
-    [Fact]
-    public void HttpRequestX_False_IfHeaderPresent_AndAllValue_Case()
-    {
-        var httpRequest = new DefaultHttpContext().Request;
-        httpRequest.Headers.Append("X-IIIF-CS-Show-Extras", "All");
 
         httpRequest.HasShowExtraHeader().Should().BeTrue();
     }
