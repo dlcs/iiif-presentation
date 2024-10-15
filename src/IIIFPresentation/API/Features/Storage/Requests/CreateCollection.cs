@@ -78,6 +78,7 @@ public class CreateCollectionHandler(
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
+            Tags = request.Collection.Tags,
             IsPublic = request.Collection.Behavior.IsPublic(),
             IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
             Label = request.Collection.Label

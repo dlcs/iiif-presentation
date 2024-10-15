@@ -807,17 +807,19 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new()
+                {
+                    ResourceId = "UpdateTester-5",
+                    Slug = "update-test-5",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    CustomerId = 1
+                }
+            ]
         };
-        
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            ResourceId = "UpdateTester-5",
-            Slug = "update-test-5",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1
-        });
         
         var childCollection = new Collection
         {
@@ -835,17 +837,23 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new()
+                {
+                    ResourceId = "UpdateTester-6",
+                    Slug = "update-test-6",
+                    Parent = parentCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    CustomerId = 1
+                }
+            ]
         };
         
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            ResourceId = "UpdateTester-6",
-            Slug = "update-test-6",
-            Parent = parentCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1
-        });
+        await dbContext.Collections.AddAsync(parentCollection);
+        await dbContext.Collections.AddAsync(childCollection);
+        await dbContext.SaveChangesAsync();
         
         var updatedCollection = new UpsertFlatCollection()
         {
@@ -858,10 +866,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = parentCollection.Slug,
             Parent = childCollection.Id
         };
-        
-        await dbContext.Collections.AddAsync(parentCollection);
-        await dbContext.Collections.AddAsync(childCollection);
-        await dbContext.SaveChangesAsync();
         
         var getRequestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
@@ -1116,7 +1120,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_CreatesCollectionWithThumbnailAndItems_ViaHierarchicalCollection()
     {
         // Arrange
-        var slug = "iiif-collection-post";
+        var slug = "iiif-collection-post-2";
         
         var collection = @"{
    ""type"": ""Collection"",

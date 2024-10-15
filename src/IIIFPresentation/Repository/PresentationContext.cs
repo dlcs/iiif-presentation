@@ -33,9 +33,26 @@ public class PresentationContext : DbContext
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => new {e.Id, e.CustomerId});
-            //entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
             
             entity.Property(e => e.Label).HasColumnType("jsonb");
+            
+            // TODO: is there issues on deletions for hierarchy with manifest/collections with the same key?
+            entity.HasMany(e => e.Hierarchy)
+                .WithOne(e => e.Collection)
+                .HasForeignKey(e => new { e.ResourceId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        modelBuilder.Entity<Manifest>(entity =>
+        {
+            entity.HasKey(e => new {e.Id, e.CustomerId});
+            
+            entity.HasMany(e => e.Hierarchy)
+                .WithOne(e => e.Manifest)
+                .HasForeignKey(e => new { e.ResourceId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         modelBuilder.Entity<Hierarchy>(entity =>
@@ -43,8 +60,7 @@ public class PresentationContext : DbContext
             // cannot have duplicate slugs with the same parent
             entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
             // only 1 canonical path is allowed per resource
-            entity
-                .HasIndex(e => new { e.ResourceId, e.CustomerId, e.Canonical, e.Type })
+            entity.HasIndex(e => new { e.ResourceId, e.CustomerId, e.Canonical, e.Type })
                 .IsUnique()
                 .HasFilter("canonical is true");
         });
