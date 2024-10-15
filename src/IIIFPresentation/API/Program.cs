@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using API.Auth;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
@@ -32,9 +33,16 @@ builder.Services.AddOptions<ApiSettings>()
     .BindConfiguration(string.Empty);
 builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
+var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
+builder.Services.Configure<DlcsSettings>(dlcsSettings);
 
-var cacheSettings = builder.Configuration.Get<CacheSettings>() ?? new CacheSettings();
+var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
+var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
+{
+    opts.Realm = "DLCS-API";
+});
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services.AddSingleton<IETagManager, ETagManager>();
@@ -67,9 +75,11 @@ if (app.Environment.IsDevelopment())
     IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 }
 
-app.UseHttpsRedirection();
-
-app.UseSerilogRequestLogging();
+app
+    .UseHttpsRedirection()
+    .UseAuthentication()
+    .UseAuthorization()
+    .UseSerilogRequestLogging();
 
 app.MapControllers();
 

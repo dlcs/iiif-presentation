@@ -8,7 +8,6 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
-using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
@@ -41,10 +40,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        
-        httpClient = factory.WithConnectionString(storageFixture.DbFixture.ConnectionString)
-            .WithLocalStack(storageFixture.LocalStackFixture)
-            .CreateClient(new WebApplicationFactoryClientOptions());
+
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
 
         parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
         
@@ -203,7 +201,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutAuth()
+    public async Task CreateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
         var collection = new UpsertFlatCollection()
@@ -224,11 +222,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var response = await httpClient.SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
     
     [Fact]
-    public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithIncorrectShowExtraHeader()
+    public async Task CreateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
         var collection = new UpsertFlatCollection()
@@ -249,7 +247,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             new MediaTypeHeaderValue("application/json"));
         
         // Act
-        var response = await httpClient.SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -309,6 +307,64 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         await action.Should().ThrowAsync<ConstraintException>();
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
+    {
+        // Arrange
+        var collection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "first-child",
+            Parent = parent
+        };
+        
+        var collectionName = nameof(UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth);
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{collectionName}", JsonSerializer.Serialize(collection));
+        
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
+    {
+        // Arrange
+        var collection = new UpsertFlatCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "first-child",
+            Parent = parent
+        };
+
+        var collectionName = nameof(UpdateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader);
+        
+        var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/collections/{collectionName}");
+        requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+            new MediaTypeHeaderValue("application/json"));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
     
     [Fact]
@@ -783,6 +839,38 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
+    public async Task DeleteCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
+    {
+        // Arrange
+        var collectionName = nameof(DeleteCollection_ReturnsUnauthorized_WhenCalledWithoutAuth);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{collectionName}");
+        
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+    
+    [Fact]
+    public async Task DeleteCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
+    {
+        // Arrange
+        var collectionName = nameof(DeleteCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader);
+        
+        var requestMessage = new HttpRequestMessage(HttpMethod.Delete, $"{Customer}/collections/{collectionName}");
+        requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+    
+    [Fact]
     public async Task DeleteCollection_DeletesCollection_WhenAllValuesProvided()
     {
         // Arrange
@@ -808,7 +896,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-        
 
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
             $"{Customer}/collections/{initialCollection.Id}");

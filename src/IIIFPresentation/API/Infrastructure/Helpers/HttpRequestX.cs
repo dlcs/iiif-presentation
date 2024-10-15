@@ -1,20 +1,14 @@
-﻿using API.Auth;
+﻿using API.Infrastructure.Http;
 
 namespace API.Infrastructure.Helpers;
 
 public static class HttpRequestX
 {
-    private static readonly KeyValuePair<string, string> AdditionalPropertiesHeader = new ("X-IIIF-CS-Show-Extras", "All");
+    private static readonly KeyValuePair<string, string> AdditionalPropertiesHeader = new (CustomHttpHeaders.ShowExtras, "All");
 
-    public static bool ShowExtraProperties(this HttpRequest request)
-    {
-        return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value == AdditionalPropertiesHeader.Value &&
-               Authorizer.CheckAuthorized(request);
-    }
-    
     public static bool HasShowExtraHeader(this HttpRequest request)
     {
-        return request.Headers.FirstOrDefault(x => x.Key == AdditionalPropertiesHeader.Key).Value ==
+        return request.Headers.FirstOrDefault(h => string.Equals(h.Key, AdditionalPropertiesHeader.Key, StringComparison.OrdinalIgnoreCase)).Value ==
                AdditionalPropertiesHeader.Value;
     }
 }

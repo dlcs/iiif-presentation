@@ -3,6 +3,7 @@ using API.Helpers;
 using AWS.S3;
 using AWS.S3.Models;
 using AWS.Settings;
+using Core.Streams;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -41,10 +42,10 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                 var objectFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
                     $"{request.CustomerId}/collections/{collection.Id}"), cancellationToken);
 
-                if (objectFromS3.Stream != null)
+                if (!objectFromS3.Stream.IsNull())
                 {
-                    StreamReader reader = new StreamReader(objectFromS3.Stream);
-                    collectionFromS3 = reader.ReadToEnd();
+                    using var reader = new StreamReader(objectFromS3.Stream);
+                    collectionFromS3 = await reader.ReadToEndAsync(cancellationToken);
                 }
             }
             else

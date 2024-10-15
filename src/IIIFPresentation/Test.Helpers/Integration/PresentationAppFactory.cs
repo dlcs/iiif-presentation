@@ -1,9 +1,11 @@
-﻿using Amazon.S3;
+﻿using Amazon.Runtime;
+using Amazon.S3;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 #nullable disable
 
@@ -42,6 +44,16 @@ public class PresentationAppFactory<TProgram> : WebApplicationFactory<TProgram> 
         configuration[key] = value;
         return this;
     }
+    
+    /// <summary>
+    /// Action to call in ConfigureTestServices
+    /// </summary>
+    /// <returns>Current instance</returns>
+    public PresentationAppFactory<TProgram> WithTestServices(Action<IServiceCollection> configureTestServices)
+    {
+        this.configureTestServices = configureTestServices;
+        return this;
+    }
 
     /// <summary>
     /// <see cref="IDisposable"/> implementation that will be disposed of alongside appfactory
@@ -65,15 +77,7 @@ public class PresentationAppFactory<TProgram> : WebApplicationFactory<TProgram> 
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var projectDir = Directory.GetCurrentDirectory();
-        var configPath = Path.Combine(projectDir, "appsettings.Testing.json");
-
         builder
-            .ConfigureAppConfiguration((context, conf) =>
-            {
-                conf.AddJsonFile(configPath);
-                conf.AddInMemoryCollection(configuration);
-            })
             .ConfigureTestServices(services =>
             {
                 if (configureTestServices != null)
@@ -91,6 +95,19 @@ public class PresentationAppFactory<TProgram> : WebApplicationFactory<TProgram> 
             {
                 options.ValidateScopes = true;
             });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var projectDir = Directory.GetCurrentDirectory();
+        var configPath = Path.Combine(projectDir, "appsettings.Testing.json");
+        
+        builder.ConfigureHostConfiguration(config =>
+        {
+            config.AddInMemoryCollection(configuration);
+            config.AddJsonFile(configPath);
+        });
+        return base.CreateHost(builder);
     }
 
     protected override void Dispose(bool disposing)

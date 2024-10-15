@@ -1,5 +1,4 @@
 ﻿using API.Infrastructure.IdGenerator;
-using FluentAssertions;
 using Sqids;
 
 namespace API.Tests.Infrastructure;

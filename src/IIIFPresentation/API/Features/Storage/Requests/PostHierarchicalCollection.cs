@@ -49,6 +49,9 @@ public class PostHierarchicalCollectionHandler(
     public async Task<ModifyEntityResult<Collection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
+        var collectionFromBody = BuildIIIFCollection(request);
+        if (collectionFromBody == null) return ErrorHelper.CannotValidateIIIF<Collection>();
+        
         var splitSlug = request.Slug.Split('/');
 
         var parentSlug = string.Join(string.Empty, splitSlug.Take(..^1));
@@ -58,9 +61,6 @@ public class PostHierarchicalCollectionHandler(
         
         var id = await GenerateUniqueId(request, cancellationToken);
         if (id == null) return ErrorHelper.CannotGenerateUniqueId<Collection>();
-        
-        var collectionFromBody = BuildIIIFCollection(request);
-        if (collectionFromBody == null) return ErrorHelper.CannotValidateIIIF<Collection>();
 
         var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
         dbContext.Collections.Add(collection);
@@ -79,7 +79,6 @@ public class PostHierarchicalCollectionHandler(
                 $"{request.CustomerId}/collections/{collection.Id}"),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
-
         if (collection.Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);

@@ -1,4 +1,6 @@
-﻿namespace API.Settings;
+﻿using Microsoft.Extensions.Caching.Memory;
+
+namespace API.Settings;
 
 /// <summary>
 /// Settings related to caching
@@ -51,6 +53,20 @@ public class CacheSettings
         TimeToLive.TryGetValue(CacheSource.Memory, out var settings)
             ? settings.GetTtl(duration)
             : fallback.GetTtl(duration);
+    
+    /// <summary>
+    /// Get <see cref="MemoryCacheEntryOptions"/> object with specified values.
+    /// </summary>
+    public MemoryCacheEntryOptions GetMemoryCacheOptions(
+        CacheDuration duration = CacheDuration.Default, long size = 1,
+        CacheItemPriority priority = CacheItemPriority.Normal)
+        => new()
+        {
+            Priority = priority,
+            Size = size,
+            AbsoluteExpirationRelativeToNow =
+                TimeSpan.FromSeconds(GetTtl(duration, CacheSource.Memory)),
+        };
 }
 
 public class CacheGroupSettings
