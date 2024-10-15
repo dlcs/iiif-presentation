@@ -82,6 +82,8 @@ public class Collection
     /// The customer identifier
     /// </summary>
     public int CustomerId { get; set; }
+    
+    public List<Hierarchy>? Hierarchy { get; set; }
 
     /// <summary>
     /// The full path to this object, based on parent collections

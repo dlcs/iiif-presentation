@@ -1,5 +1,5 @@
-﻿
-using Models.Database.Collections;
+﻿using Collection = Models.Database.Collections.Collection;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace Models.Database.General;
 
@@ -8,6 +8,10 @@ public class Hierarchy
     public int Id { get; set; }
 
     public string? ResourceId { get; set; }
+    
+    public virtual Collection? Collection { get; set; }
+    
+    public virtual Manifest? Manifest { get; set; }
     
     public ResourceType Type { get; set; }
     

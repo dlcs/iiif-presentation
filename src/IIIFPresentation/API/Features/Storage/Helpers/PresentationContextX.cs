@@ -35,7 +35,7 @@ public static class PresentationContextX
             }
 
             return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-                $"The collection could not be created", ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
+                $"The collection could not be created", ModifyCollectionType.Unknown);
         }
 
         return null;
@@ -44,7 +44,7 @@ public static class PresentationContextX
     public static async Task<Collection?> RetrieveCollection(this PresentationContext dbContext,  int customerId, 
         string collectionId, CancellationToken cancellationToken)
     {
-        var collection = await dbContext.Collections.AsNoTracking().FirstOrDefaultAsync(
+        var collection = await dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().FirstOrDefaultAsync(
             s => s.CustomerId == customerId && s.Id == collectionId,
             cancellationToken);
         
@@ -54,7 +54,7 @@ public static class PresentationContextX
     public static async Task<Hierarchy> RetrieveHierarchyAsync(this PresentationContext dbContext,  int customerId, 
         string resourceId, ResourceType resourceType, CancellationToken cancellationToken = default)
     {
-        var hierarchy = await dbContext.Hierarchy.AsNoTracking().FirstAsync(
+        var hierarchy = await dbContext.Hierarchy.FirstAsync(
             s => s.CustomerId == customerId && s.ResourceId == resourceId && s.Type == resourceType,
             cancellationToken);
         

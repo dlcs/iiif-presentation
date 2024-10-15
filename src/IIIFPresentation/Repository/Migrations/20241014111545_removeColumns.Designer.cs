@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20241014111545_removeColumns")]
+    partial class removeColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -87,22 +90,6 @@ namespace Repository.Migrations
                     b.ToTable("collections", (string)null);
                 });
 
-            modelBuilder.Entity("Models.Database.Collections.Manifest", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
-                        .HasColumnName("id");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("integer")
-                        .HasColumnName("customer_id");
-
-                    b.HasKey("Id", "CustomerId")
-                        .HasName("pk_manifest");
-
-                    b.ToTable("manifest", (string)null);
-                });
-
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
                 {
                     b.Property<int>("Id")
@@ -158,33 +145,6 @@ namespace Repository.Migrations
                         .HasFilter("canonical is true");
 
                     b.ToTable("hierarchy", (string)null);
-                });
-
-            modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
-                {
-                    b.HasOne("Models.Database.Collections.Collection", "Collection")
-                        .WithMany("Hierarchy")
-                        .HasForeignKey("ResourceId", "CustomerId")
-                        .HasConstraintName("fk_hierarchy_collections_resource_id_customer_id");
-
-                    b.HasOne("Models.Database.Collections.Manifest", "Manifest")
-                        .WithMany("Hierarchy")
-                        .HasForeignKey("ResourceId", "CustomerId")
-                        .HasConstraintName("fk_hierarchy_manifest_resource_id_customer_id");
-
-                    b.Navigation("Collection");
-
-                    b.Navigation("Manifest");
-                });
-
-            modelBuilder.Entity("Models.Database.Collections.Collection", b =>
-                {
-                    b.Navigation("Hierarchy");
-                });
-
-            modelBuilder.Entity("Models.Database.Collections.Manifest", b =>
-                {
-                    b.Navigation("Hierarchy");
                 });
 #pragma warning restore 612, 618
         }

@@ -36,6 +36,8 @@ public class DeleteCollectionHandler(
             c => c.ResourceId == request.CollectionId && c.CustomerId == request.CustomerId &&
                  c.Type == ResourceType.StorageCollection, cancellationToken);
         
+        if (hierarchy is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
+        
         if (hierarchy?.Parent is null)
         {
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,

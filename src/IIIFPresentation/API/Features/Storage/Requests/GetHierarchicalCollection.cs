@@ -34,7 +34,6 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
     {
         var hierarchy =
             await dbContext.RetrieveHierarchy(request.CustomerId, request.Slug, cancellationToken);
-        Collection? collection = null;
         List<Collection>? items = null;
         string? collectionFromS3 = null;
 
@@ -53,20 +52,18 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
             }
             else
             {
-                collection = await dbContext.RetrieveCollection(request.CustomerId, hierarchy.ResourceId, cancellationToken);
-
-                if (collection != null)
+                if (hierarchy.Collection != null)
                 {
-                    items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, collection.Id)
+                    items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, hierarchy.Collection.Id)
                         .ToListAsync(cancellationToken: cancellationToken);
 
                     items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Slug));
 
-                    collection.FullPath = request.Slug;
+                    hierarchy.Collection.FullPath = request.Slug;
                 }
             }
         }
 
-        return new CollectionWithItems(collection, hierarchy, items, items?.Count ?? 0, collectionFromS3);
+        return new CollectionWithItems(hierarchy?.Collection, hierarchy, items, items?.Count ?? 0, collectionFromS3);
     }
 }
