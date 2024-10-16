@@ -38,7 +38,7 @@ public class PostHierarchicalCollection(
 
 public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
-    ILogger<CreateCollection> logger,
+    ILogger<PostHierarchicalCollectionHandler> logger,
     IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
