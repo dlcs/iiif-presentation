@@ -8,25 +8,10 @@ public class Collection
 {
     public required string Id { get; set; }
 
-    // /// <summary>
-    // /// Path element
-    // /// </summary>
-    // public required string Slug { get; set; }
-
     /// <summary>
     /// Whether the id (URL) of the stored Collection is its fixed id, or is the path from parent slugs. Each will redirect to the other if requested on the "wrong" canonical URL.
     /// </summary>
     public bool UsePath { get; set; }
-
-    /// <summary>
-    /// id of parent collection (Storage Collection or IIIF Collection)
-    /// </summary>
-    // public string? Parent { get; set; }
-
-    /// <summary>
-    /// Order within parent collection (unused if parent is storage)
-    /// </summary>
-    //public int? ItemsOrder { get; set; }
 
     /// <summary>
     /// Derived from the stored IIIF collection JSON - a single value on the default language
