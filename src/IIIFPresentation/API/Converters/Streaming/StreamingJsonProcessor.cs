@@ -1,9 +1,8 @@
-﻿using System.Diagnostics;
-using System.Text.Json;
+﻿using System.Text.Json;
 
-namespace API.Converters;
+namespace API.Converters.Streaming;
 
-public class StreamingJsonProcessor
+public static class StreamingJsonProcessor
 {
     /// <summary>
     ///     Reads <paramref name="input" /> UTF-8 JSON stream, token by token, and writes it to the
@@ -13,10 +12,11 @@ public class StreamingJsonProcessor
     /// <param name="input">UTF-8 JSON source</param>
     /// <param name="output">Processed UTF-8 JSON target</param>
     /// <param name="inputLength">If known, helps to read the stream correctly</param>
+    /// <param name="implementation">Handles actual </param>
     /// <remarks>
     ///     In C#13 it can be made async, but currently ref structs don't work with async/await.
     /// </remarks>
-    public static void ProcessJson(Stream input, Stream output, long? inputLength)
+    public static void ProcessJson(Stream input, Stream output, long? inputLength, IProcessJson implementation)
     {
         // Initial buffer size - will auto expand if token/whitespace sequence is bigger than that
         const int bufferSize = 1024;
@@ -33,7 +33,7 @@ public class StreamingJsonProcessor
         var reader = new Utf8JsonReader(buffer, false, default);
 
         // Way to keep track of whatever data might be necessary during processing - can be expanded as needed
-        var currentState = new CustomState();
+        var currentState = implementation.GetInitialState();
 
         var totalRead = 0L;
         while (true)
@@ -54,64 +54,7 @@ public class StreamingJsonProcessor
             {
                 // A full JSON token was read - we can now write it to the output
                 // Any specific conversions, transformations or translations happen here
-                switch (reader.TokenType)
-                {
-                    case JsonTokenType.PropertyName:
-                        var propertyName = reader.GetString()!;
-                        writer.WritePropertyName(propertyName);
-
-                        // Save property name to custom state, as the next iteration we'll
-                        // only know that there is a value being read
-                        currentState.PropertyName = propertyName;
-                        break;
-
-                    case JsonTokenType.String:
-                        writer.WriteStringValue(ProcessPropertyStringValue(reader.GetString(), ref currentState));
-                        break;
-
-                    case JsonTokenType.Number:
-                        writer.WriteNumberValue(reader.GetDecimal());
-                        break;
-
-                    case JsonTokenType.True:
-                        writer.WriteBooleanValue(true);
-                        break;
-
-                    case JsonTokenType.False:
-                        writer.WriteBooleanValue(false);
-                        break;
-
-                    case JsonTokenType.Null:
-                        writer.WriteNullValue();
-                        break;
-
-                    case JsonTokenType.StartObject:
-                        writer.WriteStartObject();
-                        break;
-
-                    case JsonTokenType.EndObject:
-                        writer.WriteEndObject();
-                        break;
-
-                    case JsonTokenType.StartArray:
-                        writer.WriteStartArray();
-                        break;
-
-                    case JsonTokenType.EndArray:
-                        writer.WriteEndArray();
-                        break;
-
-                    case JsonTokenType.None:
-                        // Do nothing?
-                        break;
-
-                    case JsonTokenType.Comment:
-                        writer.WriteCommentValue(reader.GetComment());
-                        break;
-
-                    default:
-                        throw new UnreachableException("Unsupported token type.");
-                }
+                implementation.OnToken(ref reader, writer, ref currentState);
             }
     }
 
@@ -174,23 +117,5 @@ public class StreamingJsonProcessor
         reader = new(buffer, false, reader.CurrentState);
         return true;
     }
-
-    /// <summary>
-    ///     Performs any operations on JSON string token, using <see cref="CustomState" />
-    ///     provided to determine what, if anything, needs to be done.
-    /// </summary>
-    /// <param name="v">Value read as string JSON token</param>
-    /// <param name="customState">Any data set during current processing</param>
-    /// <returns></returns>
-    private static string? ProcessPropertyStringValue(string? v, ref CustomState customState)
-        => customState.PropertyName switch
-        {
-            "id" => v?.Replace("slf.digirati.io", "localhost"),
-            _ => v
-        };
-
-    private ref struct CustomState
-    {
-        public string? PropertyName { get; set; }
-    }
 }
+
