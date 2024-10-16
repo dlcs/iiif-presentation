@@ -53,7 +53,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
             {
                 if (hierarchy.Collection != null)
                 {
-                    items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, hierarchy.Collection.Id)
+                    items = await dbContext.RetrieveCollectionItems(request.CustomerId, hierarchy.Collection.Id)
                         .ToListAsync(cancellationToken: cancellationToken);
 
                     items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug));

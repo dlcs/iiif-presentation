@@ -47,7 +47,7 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
             total = await dbContext.Hierarchy.CountAsync(
                 c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
                 cancellationToken: cancellationToken);
-            items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, collection.Id)
+            items = await dbContext.RetrieveCollectionItems(request.CustomerId, collection.Id)
                 .AsOrderedCollectionQuery(request.OrderBy, request.Descending)
                 .Include(c => c.Hierarchy)
                 .Skip((request.Page - 1) * request.PageSize)
