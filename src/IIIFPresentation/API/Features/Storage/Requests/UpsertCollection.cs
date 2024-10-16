@@ -37,7 +37,7 @@ public class UpsertCollection(int customerId, string collectionId, UpsertFlatCol
 public class UpsertCollectionHandler(
     PresentationContext dbContext,
     IETagManager eTagManager,
-    ILogger<CreateCollection> logger,
+    ILogger<UpsertCollectionHandler> logger,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {

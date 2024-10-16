@@ -15,7 +15,7 @@ public class DeleteCollection (int customerId, string collectionId) : IRequest<R
 
 public class DeleteCollectionHandler(
     PresentationContext dbContext,
-    ILogger<CreateCollection> logger)
+    ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteCollectionType>>
 {
     private const string RootCollection = "root";

@@ -37,7 +37,7 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, s
 
 public class CreateCollectionHandler(
     PresentationContext dbContext,
-    ILogger<CreateCollection> logger,
+    ILogger<CreateCollectionHandler> logger,
     IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
     IOptions<ApiSettings> options)
