@@ -1,7 +1,6 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Features.Storage.Models;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
@@ -157,7 +156,7 @@ public class UpsertCollectionHandler(
         var total = await dbContext.Hierarchy.CountAsync(
             c => c.CustomerId == request.CustomerId && c.Parent == databaseCollection.Id,
             cancellationToken: cancellationToken);
-        var items = dbContext.RetrieveHierarchicalItems(request.CustomerId, databaseCollection.Id)
+        var items = dbContext.RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
             .Take(settings.PageSize);
 
         foreach (var item in items)

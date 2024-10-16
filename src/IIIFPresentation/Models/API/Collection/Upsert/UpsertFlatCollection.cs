@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using IIIF.Presentation.V3.Content;
-using IIIF.Presentation.V3.Strings;
+﻿using IIIF.Presentation.V3.Strings;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

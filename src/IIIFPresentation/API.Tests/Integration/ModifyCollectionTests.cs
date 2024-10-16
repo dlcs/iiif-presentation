@@ -1,4 +1,6 @@
-﻿using System.Data;
+﻿#nullable disable
+
+using System.Data;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -9,7 +11,6 @@ using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
@@ -17,7 +18,6 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastucture;
 using Repository;
-using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using JsonSerializer = System.Text.Json.JsonSerializer;

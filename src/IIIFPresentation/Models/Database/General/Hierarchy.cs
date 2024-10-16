@@ -6,9 +6,7 @@ namespace Models.Database.General;
 public class Hierarchy
 {
     public int Id { get; set; }
-
-   // public string? ResourceId { get; set; }
-   
+    
     public string? CollectionId { get; set; }
     
     public virtual Collection? Collection { get; set; }
@@ -17,16 +15,34 @@ public class Hierarchy
     
     public virtual Manifest? Manifest { get; set; }
     
+    /// <summary>
+    /// The type of the resource i.e.: storage collection, IIIF collection, manifest, etc
+    /// </summary>
     public ResourceType Type { get; set; }
     
+    /// <summary>
+    /// The slug used on public requests
+    /// </summary>
     public required string Slug { get; set; }
     
+    /// <summary>
+    /// The id of the parent record
+    /// </summary>
     public string? Parent { get; set; }
     
+    /// <summary>
+    /// Used to determine the order of the item when viewed in a collection
+    /// </summary>
     public int? ItemsOrder { get; set; }
     
+    /// <summary>
+    /// Whether the item is publicly available or not
+    /// </summary>
     public bool Public { get; set; }
     
+    /// <summary>
+    /// Whether this record is the canonical path for the collection or hierarchy
+    /// </summary>
     public bool Canonical { get; set; }
     
     /// <summary>

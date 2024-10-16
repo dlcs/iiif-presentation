@@ -60,7 +60,7 @@ public static class PresentationContextX
         return hierarchy;
     }
     
-    public static IQueryable<Collection> RetrieveHierarchicalItems(this PresentationContext dbContext, int customerId, string resourceId)
+    public static IQueryable<Collection> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, string resourceId)
     {
 
         return dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().Where(c =>
