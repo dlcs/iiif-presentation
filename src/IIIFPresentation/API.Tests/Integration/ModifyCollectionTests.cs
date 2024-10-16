@@ -181,7 +181,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error!.Detail.Should().Be("Error attempting to validate collection is IIIF");
+        error!.Detail.Should().Be("An error occurred while attempting to validate the collection as IIIF");
     }
     
     [Fact]

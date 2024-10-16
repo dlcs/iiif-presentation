@@ -94,7 +94,7 @@ public class CreateCollectionHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error attempting to validate collection is IIIF");
+                logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
                 return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
             }
         }
@@ -114,7 +114,7 @@ public class CreateCollectionHandler(
             return saveErrors;
         }
         
-        await UploadToS3IfRequiredAsync(request, collection.Id, convertedIIIFCollection!, cancellationToken);
+        await UploadToS3IfRequiredAsync(request.Collection, collection, convertedIIIFCollection!, cancellationToken);
 
         if (collection.Parent != null)
         {
@@ -130,7 +130,7 @@ public class CreateCollectionHandler(
     {
         var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
         var convertedIIIFCollection = collectionAsIIIF.AsJson();
-        var thumbnails = collectionAsIIIF.Thumbnail?.Where(c => c is Image).Select(c => (Image)c).ToList();
+        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
         if (thumbnails != null)
         {
             collection.Thumbnail = thumbnails.GetThumbnailPath();
@@ -138,14 +138,14 @@ public class CreateCollectionHandler(
         return convertedIIIFCollection;
     }
 
-    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
-        string id, string convertedIIIFCollection, CancellationToken cancellationToken)
+    private async Task UploadToS3IfRequiredAsync(UpsertFlatCollection request,
+        Collection collection, string convertedIIIFCollection, CancellationToken cancellationToken)
     {
-        if (!request.Collection.Behavior.IsStorageCollection())
+        if (!request.Behavior.IsStorageCollection())
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    $"{request.CustomerId}/collections/{id}"),
+                    collection.GetCollectionBucketKey()),
                 convertedIIIFCollection, "application/json", cancellationToken);
         }
     }

@@ -40,7 +40,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
             if (!collection.IsStorageCollection)
             {
                 var objectFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
-                    $"{request.CustomerId}/collections/{collection.Id}"), cancellationToken);
+                    collection.GetCollectionBucketKey()), cancellationToken);
 
                 if (!objectFromS3.Stream.IsNull())
                 {

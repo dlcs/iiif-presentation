@@ -105,7 +105,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
 
         if (collection == null)
         {
-            return this.PresentationProblem("could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
+            return this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
                 "Deserialization Error");
         }
 
