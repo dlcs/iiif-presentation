@@ -1,9 +1,21 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 
 namespace API.Converters;
 
 public class StreamingJsonProcessor
 {
+    /// <summary>
+    ///     Reads <paramref name="input" /> UTF-8 JSON stream, token by token, and writes it to the
+    ///     <paramref name="output" /> also as UTF-8 JSON, optionally performing changes
+    ///     on the fly
+    /// </summary>
+    /// <param name="input">UTF-8 JSON source</param>
+    /// <param name="output">Processed UTF-8 JSON target</param>
+    /// <param name="inputLength">If known, helps to read the stream correctly</param>
+    /// <remarks>
+    ///     In C#13 it can be made async, but currently ref structs don't work with async/await.
+    /// </remarks>
     public static void ProcessJson(Stream input, Stream output, long? inputLength)
     {
         // Initial buffer size - will auto expand if token/whitespace sequence is bigger than that
@@ -98,7 +110,7 @@ public class StreamingJsonProcessor
                         break;
 
                     default:
-                        throw new InvalidOperationException("Unsupported token type.");
+                        throw new UnreachableException("Unsupported token type.");
                 }
             }
     }
