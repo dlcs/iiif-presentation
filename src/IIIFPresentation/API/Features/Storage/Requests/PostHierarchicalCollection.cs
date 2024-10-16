@@ -90,7 +90,7 @@ public class PostHierarchicalCollectionHandler(
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
-        DatabaseCollection.Collection parentCollection, string[] splitSlug)
+        Hierarchy parentHierarchy, string[] splitSlug)
     {
         var thumbnails = collectionFromBody.Thumbnail?.Select(x => x as Image).ToList();     
         
@@ -114,8 +114,8 @@ public class PostHierarchicalCollectionHandler(
                     Slug = splitSlug.Last(),
                     CustomerId = request.CustomerId,
                     Canonical = true,
-                    ItemsOrder = 0, // items order required?
-                    Parent = parentCollection.Hierarchy.Single(h => h.Canonical).CollectionId,
+                    ItemsOrder = 0,
+                    Parent = parentHierarchy.CollectionId,
                     Public = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
                 }
             ]
