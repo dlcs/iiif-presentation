@@ -82,14 +82,13 @@ public class UpsertCollectionHandler(
                 IsPublic = request.Collection.Behavior.IsPublic(),
                 IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
                 Label = request.Collection.Label,
-                Slug = request.Collection.Slug,
                 Thumbnail = request.Collection.PresentationThumbnail,
                 Tags = request.Collection.Tags,
             };
             
             hierarchy = new Hierarchy
             {
-                ResourceId = request.CollectionId,
+                CollectionId = request.CollectionId,
                 Type = ResourceType.IIIFCollection,
                 Slug = request.Collection.Slug,
                 CustomerId = request.CustomerId,
@@ -134,7 +133,6 @@ public class UpsertCollectionHandler(
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
             databaseCollection.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
             databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Slug = request.Collection.Slug;
             databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
 
@@ -164,7 +162,7 @@ public class UpsertCollectionHandler(
 
         foreach (var item in items)
         { 
-            item.FullPath = hierarchy.GenerateFullPath(item.Slug);
+            item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
         }
 
         if (hierarchy.Parent != null)
@@ -183,11 +181,9 @@ public class UpsertCollectionHandler(
         }
         
         await transaction.CommitAsync(cancellationToken);
-        
-        var hierarchicalCollection = new HierarchicalCollection(databaseCollection, hierarchy);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            hierarchicalCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
+            databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
                 await items.ToListAsync(cancellationToken: cancellationToken)));
     }
 }

@@ -5,6 +5,7 @@ using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Models.Infrastucture;
+using Repository.Helpers;
 
 namespace API.Converters;
 
@@ -31,33 +32,34 @@ public static class CollectionConverter
         return collection;
     }
 
-    public static PresentationCollection ToFlatCollection(this HierarchicalCollection dbAsset,
+    public static PresentationCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
         UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
         List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
     {
         var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+        var hierarchy = dbAsset.Hierarchy!.Single(h => h.Canonical);
 
         return new()
         {
-            Id = dbAsset.Collection.GenerateFlatCollectionId(urlRoots),
+            Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = new List<string>
             {
                 "http://tbc.org/iiif-repository/1/context.json",
                 "http://iiif.io/api/presentation/3/context.json"
             },
-            Label = dbAsset.Collection.Label,
-            PublicId = dbAsset.Collection.GenerateHierarchicalCollectionId(urlRoots),
+            Label = dbAsset.Label,
+            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = new List<string>()
-                .AppendIf(dbAsset.Collection.IsPublic, Behavior.IsPublic)
-                .AppendIf(dbAsset.Collection.IsStorageCollection, Behavior.IsStorageCollection),
-            Slug = dbAsset.Collection.Slug,
-            Parent = dbAsset.Hierarchy.Parent != null
-                ? dbAsset.Hierarchy.GenerateFlatCollectionParent(urlRoots)
+                .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
+                .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
+            Slug = hierarchy.Slug,
+            Parent = hierarchy.Parent != null
+                ? hierarchy.GenerateFlatCollectionParent(urlRoots)
                 : null,
 
-            ItemsOrder = dbAsset.Hierarchy.ItemsOrder,
+            ItemsOrder = hierarchy.ItemsOrder,
             Items = items != null
                 ? items.Select(i => (ICollectionItem) new Collection()
                 {
@@ -66,42 +68,42 @@ public static class CollectionConverter
                 }).ToList()
                 : [],
 
-            PartOf = dbAsset.Hierarchy.Parent != null
+            PartOf = hierarchy.Parent != null
                 ?
                 [
                     new PartOf(nameof(PresentationType.Collection))
                     {
-                        Id = $"{urlRoots.BaseUrl}/{dbAsset.Collection.CustomerId}/{dbAsset.Hierarchy.Parent}",
-                        Label = dbAsset.Collection.Label
+                        Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{hierarchy.Parent}",
+                        Label = dbAsset.Label
                     }
                 ]
                 : null,
 
             TotalItems = totalItems,
 
-            View = GenerateView(dbAsset.Collection, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
+            View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
 
             SeeAlso =
             [
                 new(nameof(PresentationType.Collection))
                 {
-                    Id = dbAsset.Collection.GenerateHierarchicalCollectionId(urlRoots),
-                    Label = dbAsset.Collection.Label,
+                    Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+                    Label = dbAsset.Label,
                     Profile = "Public"
                 },
 
                 new(nameof(PresentationType.Collection))
                 {
-                    Id = $"{dbAsset.Collection.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
-                    Label = dbAsset.Collection.Label,
+                    Id = $"{dbAsset.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
+                    Label = dbAsset.Label,
                     Profile = "api-hierarchical"
                 }
             ],
 
-            Created = dbAsset.Collection.Created.Floor(DateTimeX.Precision.Second),
-            Modified = dbAsset.Collection.Modified.Floor(DateTimeX.Precision.Second),
-            CreatedBy = dbAsset.Collection.CreatedBy,
-            ModifiedBy = dbAsset.Collection.ModifiedBy
+            Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
+            Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
+            CreatedBy = dbAsset.CreatedBy,
+            ModifiedBy = dbAsset.ModifiedBy
         };
     }
 

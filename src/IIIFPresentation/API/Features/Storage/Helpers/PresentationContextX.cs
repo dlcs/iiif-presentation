@@ -1,7 +1,6 @@
 ﻿using API.Infrastructure.Requests;
 using Core;
 using Microsoft.EntityFrameworkCore;
-using Models.API.Collection;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -55,7 +54,7 @@ public static class PresentationContextX
         string resourceId, ResourceType resourceType, CancellationToken cancellationToken = default)
     {
         var hierarchy = await dbContext.Hierarchy.FirstAsync(
-            s => s.CustomerId == customerId && s.ResourceId == resourceId && s.Type == resourceType,
+            s => s.CustomerId == customerId && s.CollectionId == resourceId && s.Type == resourceType,
             cancellationToken);
         
         return hierarchy;
@@ -63,11 +62,8 @@ public static class PresentationContextX
     
     public static IQueryable<Collection> RetrieveHierarchicalItems(this PresentationContext dbContext, int customerId, string resourceId)
     {
-        
-        var hierarchicalItems = dbContext.Hierarchy.AsNoTracking()
-            .Where(h => h.CustomerId == customerId && h.Parent == resourceId).Select(x => x.ResourceId);
-        return dbContext.Collections
-            .Where(s => s.CustomerId == customerId &&
-                        hierarchicalItems.Contains(s.Id));
+
+        return dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().Where(c =>
+            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == resourceId);
     }
 }

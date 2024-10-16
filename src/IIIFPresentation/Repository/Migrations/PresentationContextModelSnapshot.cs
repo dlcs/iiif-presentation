@@ -64,11 +64,6 @@ namespace Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("modified_by");
 
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("slug");
-
                     b.Property<string>("Tags")
                         .HasColumnType("text")
                         .HasColumnName("tags");
@@ -98,9 +93,9 @@ namespace Repository.Migrations
                         .HasColumnName("customer_id");
 
                     b.HasKey("Id", "CustomerId")
-                        .HasName("pk_manifest");
+                        .HasName("pk_manifests");
 
-                    b.ToTable("manifest", (string)null);
+                    b.ToTable("manifests", (string)null);
                 });
 
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
@@ -116,6 +111,10 @@ namespace Repository.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("canonical");
 
+                    b.Property<string>("CollectionId")
+                        .HasColumnType("text")
+                        .HasColumnName("collection_id");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")
                         .HasColumnName("customer_id");
@@ -124,6 +123,10 @@ namespace Repository.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("items_order");
 
+                    b.Property<string>("ManifestId")
+                        .HasColumnType("text")
+                        .HasColumnName("manifest_id");
+
                     b.Property<string>("Parent")
                         .HasColumnType("text")
                         .HasColumnName("parent");
@@ -131,10 +134,6 @@ namespace Repository.Migrations
                     b.Property<bool>("Public")
                         .HasColumnType("boolean")
                         .HasColumnName("public");
-
-                    b.Property<string>("ResourceId")
-                        .HasColumnType("text")
-                        .HasColumnName("resource_id");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -148,29 +147,39 @@ namespace Repository.Migrations
                     b.HasKey("Id")
                         .HasName("pk_hierarchy");
 
+                    b.HasIndex("CollectionId", "CustomerId", "Canonical")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hierarchy_collection_id_customer_id_canonical")
+                        .HasFilter("canonical is true");
+
                     b.HasIndex("CustomerId", "Slug", "Parent")
                         .IsUnique()
                         .HasDatabaseName("ix_hierarchy_customer_id_slug_parent");
 
-                    b.HasIndex("ResourceId", "CustomerId", "Canonical", "Type")
+                    b.HasIndex("ManifestId", "CustomerId", "Canonical")
                         .IsUnique()
-                        .HasDatabaseName("ix_hierarchy_resource_id_customer_id_canonical_type")
+                        .HasDatabaseName("ix_hierarchy_manifest_id_customer_id_canonical")
                         .HasFilter("canonical is true");
 
-                    b.ToTable("hierarchy", (string)null);
+                    b.ToTable("hierarchy", null, t =>
+                        {
+                            t.HasCheckConstraint("stop_collection_and_manifest_in_same_record", "num_nonnulls(manifest_id, collection_id) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
                 {
                     b.HasOne("Models.Database.Collections.Collection", "Collection")
                         .WithMany("Hierarchy")
-                        .HasForeignKey("ResourceId", "CustomerId")
-                        .HasConstraintName("fk_hierarchy_collections_resource_id_customer_id");
+                        .HasForeignKey("CollectionId", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_hierarchy_collections_collection_id_customer_id");
 
                     b.HasOne("Models.Database.Collections.Manifest", "Manifest")
                         .WithMany("Hierarchy")
-                        .HasForeignKey("ResourceId", "CustomerId")
-                        .HasConstraintName("fk_hierarchy_manifest_resource_id_customer_id");
+                        .HasForeignKey("ManifestId", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_hierarchy_manifests_manifest_id_customer_id");
 
                     b.Navigation("Collection");
 

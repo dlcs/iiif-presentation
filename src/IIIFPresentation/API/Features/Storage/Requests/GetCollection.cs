@@ -49,13 +49,14 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
                 cancellationToken: cancellationToken);
             items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, collection.Id)
                 .AsOrderedCollectionQuery(request.OrderBy, request.Descending)
+                .Include(c => c.Hierarchy)
                 .Skip((request.Page - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken: cancellationToken);
             
             foreach (var item in items)
             { 
-                item.FullPath = hierarchy.GenerateFullPath(item.Slug);
+                item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
             }
 
             if (hierarchy.Parent != null)

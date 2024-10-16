@@ -17,6 +17,7 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastucture;
 using Repository;
+using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -45,7 +46,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
 
-        parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Slug == string.Empty).Id;
+        parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
         
         storageFixture.DbFixture.CleanUp();
     }
@@ -79,14 +80,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
-        fromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
@@ -137,7 +138,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
         
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -147,7 +148,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif post");
-        fromDatabase.Slug.Should().Be("iiif-child");
+        hierarchyFromDatabase.Slug.Should().Be("iiif-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
@@ -393,7 +394,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var initialCollection = new Collection()
         {
             Id = "UpdateTester",
-            Slug = "update-test",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -411,11 +411,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "UpdateTester",
+            CollectionId = "UpdateTester",
             Slug = "update-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1
+            CustomerId = 1,
+            Canonical = true
         });
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -440,7 +441,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent,
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
-            Tags = "some, tags, 2",
+            Tags = "some, tags, 2"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -455,13 +456,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
-        fromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -502,14 +503,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         fromDatabase.Id.Should().Be("createFromUpdate");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
-        fromDatabase.Slug.Should().Be("create-from-update");
+        hierarchyFromDatabase.Slug.Should().Be("create-from-update");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -559,7 +560,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var initialCollection = new Collection()
         {
             Id = "UpdateTester-2",
-            Slug = "update-test-2",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -577,11 +577,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "UpdateTester-2",
+            CollectionId = "UpdateTester-2",
             Slug = "update-test-2",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1
+            CustomerId = 1,
+            Canonical = true
         });
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -617,12 +618,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.ResourceId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Slug.Should().Be("programmatic-child-2");
+        hierarchyFromDatabase.Slug.Should().Be("programmatic-child-2");
         fromDatabase.Label.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
@@ -635,7 +636,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var initialCollection = new Collection()
         {
             Id = "UpdateTester-3",
-            Slug = "update-test-3",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -653,7 +653,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "UpdateTester-3",
+            CollectionId = "UpdateTester-3",
             Slug = "update-test-3",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
@@ -699,7 +699,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var initialCollection = new Collection()
         {
             Id = "UpdateTester-4",
-            Slug = "update-test-4",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -717,11 +716,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "UpdateTester-4",
+            CollectionId = "UpdateTester-4",
             Slug = "update-test-4",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1
+            CustomerId = 1,
+            Canonical = true
         });
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -794,7 +794,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var parentCollection = new Collection
         {
             Id = "UpdateTester-5",
-            Slug = "update-test-5",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -812,7 +811,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             [
                 new()
                 {
-                    ResourceId = "UpdateTester-5",
+                    Canonical = true,
+                    CollectionId = "UpdateTester-5",
                     Slug = "update-test-5",
                     Parent = RootCollection.Id,
                     Type = ResourceType.StorageCollection,
@@ -824,7 +824,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var childCollection = new Collection
         {
             Id = "UpdateTester-6",
-            Slug = "update-test-6",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -842,7 +841,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             [
                 new()
                 {
-                    ResourceId = "UpdateTester-6",
+                    Canonical = true,
+                    CollectionId = "UpdateTester-6",
                     Slug = "update-test-6",
                     Parent = parentCollection.Id,
                     Type = ResourceType.StorageCollection,
@@ -863,7 +863,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = parentCollection.Slug,
+            Slug = parentCollection.Hierarchy.Single(h => h.Canonical).Slug,
             Parent = childCollection.Id
         };
         
@@ -957,7 +957,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var initialCollection = new Collection()
         {
             Id = "DeleteTester",
-            Slug = "delete-test",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -975,11 +974,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "DeleteTester",
+            CollectionId = "DeleteTester",
             Slug = "delete-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1
+            CustomerId = 1,
+            Canonical = true
         });
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -992,10 +992,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
 
         var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == initialCollection.Id);
+        var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == initialCollection.Id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         fromDatabase.Should().BeNull();
+        fromDatabaseHierarchy.Should().BeNull();
     }
     
     [Fact]
@@ -1095,7 +1097,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Slug == slug);
+        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
         
         var fromS3 =
@@ -1107,7 +1109,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.Items.Should().BeNull();
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
-        fromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
         fromDatabase.Tags.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
@@ -1159,7 +1161,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Slug == slug);
+        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == id);
         
         var fromS3 =
@@ -1172,7 +1174,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.Thumbnail.Should().NotBeNull();
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
-        fromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
         fromDatabase.Tags.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
