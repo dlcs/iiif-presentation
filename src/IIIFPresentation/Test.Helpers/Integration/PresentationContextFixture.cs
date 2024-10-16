@@ -35,7 +35,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = RootCollection.Id,
-            Slug = "",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -53,7 +52,7 @@ public class PresentationContextFixture : IAsyncLifetime
 
         await DbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = RootCollection.Id,
+            CollectionId = RootCollection.Id,
             Slug = "",
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
@@ -64,7 +63,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection
         {
             Id = "FirstChildCollection",
-            Slug = "first-child",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -82,7 +80,7 @@ public class PresentationContextFixture : IAsyncLifetime
         
         await DbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "FirstChildCollection",
+            CollectionId = "FirstChildCollection",
             Slug = "first-child",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
@@ -94,7 +92,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "SecondChildCollection",
-            Slug = "second-child",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -112,7 +109,7 @@ public class PresentationContextFixture : IAsyncLifetime
         
         await DbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "SecondChildCollection",
+            CollectionId = "SecondChildCollection",
             Slug = "second-child",
             Parent = "FirstChildCollection",
             Type = ResourceType.StorageCollection,
@@ -124,7 +121,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "NonPublic",
-            Slug = "non-public",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -142,7 +138,7 @@ public class PresentationContextFixture : IAsyncLifetime
         
         await DbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "NonPublic",
+            CollectionId = "NonPublic",
             Slug = "non-public",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
@@ -154,7 +150,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "IiifCollection",
-            Slug = "iiif-collection",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -172,7 +167,7 @@ public class PresentationContextFixture : IAsyncLifetime
         
         await DbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            ResourceId = "IiifCollection",
+            CollectionId = "IiifCollection",
             Slug = "iiif-collection",
             Parent = RootCollection.Id,
             Type = ResourceType.IIIFCollection,

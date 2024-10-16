@@ -21,7 +21,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug",
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ]
         };
 
         // Act
@@ -38,7 +44,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug",
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ],
             FullPath = "top/test"
         };
 
@@ -56,7 +68,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ]
         };
 
         // Act
@@ -90,7 +108,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ]
         };
 
         // Act
@@ -107,7 +131,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ]
         };
 
         // Act
@@ -124,7 +154,13 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy =
+            [
+                new Hierarchy()
+                {
+                    Slug = "slug"
+                }
+            ]
         };
 
         // Act

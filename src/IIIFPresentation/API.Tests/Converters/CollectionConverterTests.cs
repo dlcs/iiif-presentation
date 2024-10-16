@@ -27,13 +27,18 @@ public class CollectionConverterTests
         {
             Id = "some-id",
             CustomerId = 1,
-            Slug = "root",
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
             },
             Created = DateTime.MinValue,
-            Modified = DateTime.MinValue
+            Modified = DateTime.MinValue,
+            Hierarchy = [
+                new Hierarchy()
+                {
+                    Slug = "root"
+                }
+            ]
         };
 
         // Act
@@ -72,28 +77,28 @@ public class CollectionConverterTests
         {
             Id = "some-id",
             CustomerId = 1,
-            Slug = "root",
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
             },
             Created = DateTime.MinValue,
-            Modified = DateTime.MinValue
+            Modified = DateTime.MinValue,
+            Hierarchy = [
+                new Hierarchy()
+                {
+                    CollectionId = "some-id",
+                    Slug = "root",
+                    CustomerId = 1,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+            
         };
-
-        var hierarchy = new Hierarchy()
-        {
-            CollectionId = "some-id",
-            Slug = "root",
-            CustomerId = 1,
-            Type = ResourceType.StorageCollection
-        };
-        
-        var storageRoot = new HierarchicalCollection(collection, hierarchy);
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 1, new List<Collection>(CreateTestItems()));
+            collection.ToFlatCollection(urlRoots, pageSize, 1, 1, [..CreateTestItems()]);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -154,7 +159,7 @@ public class CollectionConverterTests
         // Act
         var flatCollection =
             storageRoot.ToFlatCollection(urlRoots, 1, 2, 3,
-                new List<Collection>(CreateTestItems()), "orderBy=created");
+                [..CreateTestItems()], "orderBy=created");
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -186,46 +191,55 @@ public class CollectionConverterTests
             {
                 Id = "some-child",
                 CustomerId = 1,
-                Slug = "some-child",
                 Label = new LanguageMap
                 {
                     { "en", new List<string> { "repository root" } }
                 },
                 Created = DateTime.MinValue,
                 Modified = DateTime.MinValue,
-                FullPath = "top/some-child"
+                FullPath = "top/some-child",
+                Hierarchy = [
+                    new Hierarchy()
+                    {
+                        CollectionId = "some-child",
+                        Slug = "root",
+                        CustomerId = 1,
+                        Type = ResourceType.StorageCollection
+                    }
+                ]
             }
         };
         
         return items;
     }
     
-    private static HierarchicalCollection CreateTestHierarchicalCollection()
+    private static Collection CreateTestHierarchicalCollection()
     {
         var collection = new Collection
         {
             Id = "some-id",
             CustomerId = 1,
-            Slug = "root",
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            FullPath = "top/some-id"
-        };
-
-        var hierarchy = new Hierarchy()
-        {
-            CollectionId = "some-id",
-            Slug = "root",
-            Parent = "top",
-            CustomerId = 1,
-            Type = ResourceType.StorageCollection
+            FullPath = "top/some-id",
+            Hierarchy = [
+                new Hierarchy()
+                {
+                    CollectionId = "some-id",
+                    Slug = "root",
+                    Parent = "top",
+                    CustomerId = 1,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
         };
         
-        return new HierarchicalCollection(collection, hierarchy);
+        return collection;
     }
     
     private static Collection CreateTestCollection()
@@ -234,7 +248,6 @@ public class CollectionConverterTests
         {
             Id = "some-id",
             CustomerId = 1,
-            Slug = "root",
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }

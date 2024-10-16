@@ -21,6 +21,8 @@ public class PresentationContext : DbContext
     
     public virtual DbSet<Hierarchy> Hierarchy { get; set; }
     
+    public virtual DbSet<Manifest> Manifests { get; set; }
+    
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder
@@ -39,7 +41,7 @@ public class PresentationContext : DbContext
             // TODO: is there issues on deletions for hierarchy with manifest/collections with the same key?
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Collection)
-                .HasForeignKey(e => new { e.ResourceId, e.CustomerId })
+                .HasForeignKey(e => new { e.CollectionId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
         });
@@ -50,7 +52,7 @@ public class PresentationContext : DbContext
             
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Manifest)
-                .HasForeignKey(e => new { e.ResourceId, e.CustomerId })
+                .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
         });
@@ -60,7 +62,14 @@ public class PresentationContext : DbContext
             // cannot have duplicate slugs with the same parent
             entity.HasIndex(e => new { e.CustomerId, e.Slug, e.Parent }).IsUnique();
             // only 1 canonical path is allowed per resource
-            entity.HasIndex(e => new { e.ResourceId, e.CustomerId, e.Canonical, e.Type })
+            entity.HasIndex(e => new { e.ManifestId, e.CustomerId, e.Canonical })
+                .IsUnique()
+                .HasFilter("canonical is true");
+
+            entity.ToTable(h => h.HasCheckConstraint("stop_collection_and_manifest_in_same_record",
+                "num_nonnulls(manifest_id, collection_id) = 1"));
+            
+            entity.HasIndex(e => new { e.CollectionId, e.CustomerId, e.Canonical })
                 .IsUnique()
                 .HasFilter("canonical is true");
         });

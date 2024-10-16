@@ -73,7 +73,6 @@ public class CreateCollectionHandler(
         var collection = new Collection
         {
             Id = id,
-            Slug = request.Collection.Slug,
             Created = dateCreated,
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
@@ -86,7 +85,7 @@ public class CreateCollectionHandler(
 
         var hierarchy = new Hierarchy
         {
-            ResourceId = id,
+            CollectionId = id,
             Type = request.Collection.Behavior.IsStorageCollection()
                 ? ResourceType.StorageCollection
                 : ResourceType.IIIFCollection,
@@ -136,10 +135,8 @@ public class CreateCollectionHandler(
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
         
-        var hierarchicalCollection = new HierarchicalCollection(collection, hierarchy);
-        
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            hierarchicalCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 

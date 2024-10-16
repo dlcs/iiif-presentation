@@ -7,9 +7,13 @@ public class Hierarchy
 {
     public int Id { get; set; }
 
-    public string? ResourceId { get; set; }
+   // public string? ResourceId { get; set; }
+   
+    public string? CollectionId { get; set; }
     
     public virtual Collection? Collection { get; set; }
+    
+    public string? ManifestId { get; set; }
     
     public virtual Manifest? Manifest { get; set; }
     

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using API.Features.Storage.Helpers;
+﻿using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
 using AWS.S3;
@@ -37,7 +36,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
         List<Collection>? items = null;
         string? collectionFromS3 = null;
 
-        if (hierarchy?.ResourceId != null)
+        if (hierarchy?.CollectionId != null)
         {
             if (hierarchy.Type != ResourceType.StorageCollection)
             {
@@ -57,7 +56,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     items = await dbContext.RetrieveHierarchicalItems(request.CustomerId, hierarchy.Collection.Id)
                         .ToListAsync(cancellationToken: cancellationToken);
 
-                    items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Slug));
+                    items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug));
 
                     hierarchy.Collection.FullPath = request.Slug;
                 }

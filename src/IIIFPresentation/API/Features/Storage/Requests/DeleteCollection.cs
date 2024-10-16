@@ -32,20 +32,21 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
-        var hierarchy = await dbContext.Hierarchy.FirstOrDefaultAsync(
-            c => c.ResourceId == request.CollectionId && c.CustomerId == request.CustomerId &&
-                 c.Type == ResourceType.StorageCollection, cancellationToken);
+        var collection = await dbContext.Collections.Include(c => c.Hierarchy).FirstOrDefaultAsync(c =>
+            c.Id == request.CollectionId && c.CustomerId == request.CustomerId, cancellationToken);
         
-        if (hierarchy is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
+        if (collection is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
         
-        if (hierarchy?.Parent is null)
+        var hierarchy = collection.Hierarchy!.First(c => c.Canonical);
+        
+        if (hierarchy.Parent is null)
         {
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
         var hasItems = await dbContext.Hierarchy.AnyAsync(
-            c => c.CustomerId == request.CustomerId && c.Parent == hierarchy.ResourceId,
+            c => c.CustomerId == request.CustomerId && c.Parent == hierarchy.CollectionId,
             cancellationToken: cancellationToken);
 
         if (hasItems)
@@ -54,9 +55,8 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CollectionNotEmpty, "Cannot delete a collection with child items");
         }
 
-        await dbContext.Collections.Where(c => c.Id == hierarchy.ResourceId && c.CustomerId == request.CustomerId)
-            .ExecuteDeleteAsync(cancellationToken);
-        dbContext.Hierarchy.Remove(hierarchy);
+        dbContext.Collections.Remove(collection);
+        
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);

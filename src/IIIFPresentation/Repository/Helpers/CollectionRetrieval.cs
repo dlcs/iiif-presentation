@@ -13,7 +13,8 @@ public static class CollectionRetrieval
 WITH RECURSIVE parentsearch AS (
  select
     id,
-    resource_id,
+    collection_id,
+    manifest_id,
     parent,
     customer_id,
     items_order,
@@ -23,11 +24,12 @@ WITH RECURSIVE parentsearch AS (
     type,
     0 AS generation_number
  FROM hierarchy
- WHERE resource_id = '{collection.Id}'
+ WHERE collection_id = '{collection.Id}'
  UNION
  SELECT
     child.id,
-    child.resource_id,
+    child.collection_id,
+    child.manifest_id,
     child.parent,
     child.customer_id,
     child.items_order,
@@ -37,8 +39,8 @@ WITH RECURSIVE parentsearch AS (
     child.type,
     generation_number+1 AS generation_number
  FROM hierarchy child
-     JOIN parentsearch ps ON child.resource_id=ps.parent
- WHERE generation_number <= 1000 AND child.customer_id = 1
+     JOIN parentsearch ps ON child.collection_id=ps.parent
+ WHERE generation_number <= 1000 AND child.customer_id = {collection.CustomerId}
 )
 SELECT * FROM parentsearch ps
          ORDER BY generation_number DESC
@@ -67,7 +69,8 @@ SELECT * FROM parentsearch ps
 WITH RECURSIVE tree_path AS (
     SELECT
         id,
-        resource_id,
+        collection_id,
+        manifest_id,
         parent,
         slug,
         customer_id,
@@ -81,7 +84,8 @@ WITH RECURSIVE tree_path AS (
     FROM
         (SELECT
              id,
-             resource_id,
+             collection_id,
+             manifest_id,
              parent,
              slug,
              customer_id,
@@ -99,7 +103,8 @@ WITH RECURSIVE tree_path AS (
     UNION ALL
     SELECT
         t.id,
-        t.resource_id,
+        t.collection_id,
+        t.manifest_id,
         t.parent,
         t.slug,
         t.customer_id,
@@ -113,7 +118,7 @@ WITH RECURSIVE tree_path AS (
     FROM
         hierarchy t
             INNER JOIN
-        tree_path tp ON t.parent = tp.resource_id
+        tree_path tp ON t.parent = tp.collection_id
     WHERE
         tp.level < tp.max_level
         AND t.slug = tp.slug_array[tp.level + 1]
@@ -121,7 +126,8 @@ WITH RECURSIVE tree_path AS (
 )
 SELECT
     tree_path.id,
-    tree_path.resource_id,
+    tree_path.collection_id,
+    tree_path.manifest_id,
     tree_path.parent,
     tree_path.slug,
     tree_path.customer_id,
@@ -131,7 +137,6 @@ SELECT
     tree_path.type
 FROM
     tree_path
-LEFT JOIN collections c ON tree_path.resource_id = c.id AND tree_path.customer_id = c.customer_id
 WHERE
     level = max_level
   AND tree_path.slug = slug_array[max_level]
@@ -141,14 +146,18 @@ WHERE
 
         if (slug.Equals(string.Empty))
         {
-            hierarchy = await dbContext.Hierarchy.Include(h => h.Collection).AsNoTracking().FirstOrDefaultAsync(
-                s => s.CustomerId == customerId && s.Parent == null,
-                cancellationToken);
+            hierarchy = await dbContext.Hierarchy
+                .Include(h => h.Collection)
+                .Include(h => h.Manifest)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Parent == null, cancellationToken);
         }
         else
         {
             hierarchy = await dbContext.Hierarchy
-                .FromSqlRaw(query).Include(h => h.Collection).OrderBy(i => i.CustomerId)
+                .FromSqlRaw(query)
+                .Include(h => h.Collection)
+                .Include(h => h.Manifest).OrderBy(i => i.CustomerId)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 

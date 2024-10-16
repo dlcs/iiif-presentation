@@ -8,10 +8,10 @@ public class Collection
 {
     public required string Id { get; set; }
 
-    /// <summary>
-    /// Path element
-    /// </summary>
-    public required string Slug { get; set; }
+    // /// <summary>
+    // /// Path element
+    // /// </summary>
+    // public required string Slug { get; set; }
 
     /// <summary>
     /// Whether the id (URL) of the stored Collection is its fixed id, or is the path from parent slugs. Each will redirect to the other if requested on the "wrong" canonical URL.
