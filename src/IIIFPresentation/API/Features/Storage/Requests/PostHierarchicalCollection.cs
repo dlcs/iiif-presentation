@@ -76,7 +76,7 @@ public class PostHierarchicalCollectionHandler(
         
         await bucketWriter.WriteToBucket(
             new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                $"{request.CustomerId}/collections/{collection.Id}"),
+                collection.GetCollectionBucketKey()),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
         if (collection.Parent != null)
@@ -120,7 +120,7 @@ public class PostHierarchicalCollectionHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error attempting to validate collection is IIIF");
+            logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
         }
 
         return collection;
