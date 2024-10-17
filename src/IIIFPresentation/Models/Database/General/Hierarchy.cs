@@ -36,14 +36,9 @@ public class Hierarchy
     public int? ItemsOrder { get; set; }
     
     /// <summary>
-    /// Whether the item is publicly available or not
-    /// </summary>
-    public bool Public { get; set; }
-    
-    /// <summary>
     /// Whether this record is the canonical path for the collection or hierarchy
     /// </summary>
-    public bool Canonical { get; set; }
+    public bool Canonical { get; set; } = true;
     
     /// <summary>
     /// The customer identifier

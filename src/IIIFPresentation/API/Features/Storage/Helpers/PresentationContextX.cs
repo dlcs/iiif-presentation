@@ -39,31 +39,62 @@ public static class PresentationContextX
 
         return null;
     }
-    
-    public static async Task<Collection?> RetrieveCollection(this PresentationContext dbContext,  int customerId, 
-        string collectionId, CancellationToken cancellationToken)
+
+
+    /// <summary>
+    /// Retrieves a collection from the database, with the Hierarchy records included
+    /// </summary>
+    /// <param name="dbContext">The context to pull records from</param>
+    /// <param name="customerId">Customer the record is attached to</param>
+    /// <param name="collectionId">The collection to retrieve</param>
+    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="cancellationToken">A cancellation token</param>
+    /// <returns>The retrieved collection</returns>
+    public static async Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext,  int customerId, 
+        string collectionId, bool tracked = false,  CancellationToken cancellationToken = default)
     {
-        var collection = await dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().FirstOrDefaultAsync(
-            s => s.CustomerId == customerId && s.Id == collectionId,
-            cancellationToken);
+        var collection = tracked ? await dbContext.Collections.Include(c => c.Hierarchy)
+                .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Id == collectionId, cancellationToken) 
+            : await dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking()
+            .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Id == collectionId, cancellationToken);
         
         return collection;
     }
     
-    public static async Task<Hierarchy> RetrieveHierarchyAsync(this PresentationContext dbContext,  int customerId, 
-        string resourceId, ResourceType resourceType, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Retrieves child collections from the database of the parent record, while including the hierarchy records
+    /// </summary>
+    /// <param name="dbContext">The context to pull records from</param>
+    /// <param name="customerId">Customer the record is attached to</param>
+    /// <param name="collectionId">The collection to retrieve child items for</param>
+    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <returns>A query containing child collections</returns>
+    public static IQueryable<Collection> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, 
+        string collectionId, bool tracking = false)
     {
-        var hierarchy = await dbContext.Hierarchy.FirstAsync(
-            s => s.CustomerId == customerId && s.CollectionId == resourceId && s.Type == resourceType,
-            cancellationToken);
-        
-        return hierarchy;
+        return tracking ? dbContext.Collections.Include(c => c.Hierarchy).Where(c =>
+            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId) 
+            : dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().Where(c =>
+            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId);
     }
     
-    public static IQueryable<Collection> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, string resourceId)
+    public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext, Collection collection, 
+        int itemCount, int pageSize, CancellationToken cancellationToken = default)
     {
+        int total;
+        if (itemCount < pageSize)
+        {
+            // there can't be more as we've asked for PageSize and got less 
+            total = itemCount;
+        }
+        else
+        {
+            // if we get PageSize back then there may be more in db
+            total = await dbContext.Hierarchy.CountAsync(
+                c => c.CustomerId == collection.CustomerId && c.Parent == collection.Id,
+                cancellationToken: cancellationToken);
+        }
 
-        return dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().Where(c =>
-            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == resourceId);
+        return total;
     }
 }

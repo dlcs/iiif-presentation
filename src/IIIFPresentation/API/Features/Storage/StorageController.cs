@@ -72,7 +72,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         var storageRoot =
             await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderByField, descending));
 
-        if (storageRoot.Collection == null || storageRoot.Hierarchy == null) return this.PresentationNotFound();
+        if (storageRoot.Collection == null) return this.PresentationNotFound();
 
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
