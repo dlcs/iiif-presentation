@@ -1,9 +1,11 @@
-﻿using API.Helpers;
+﻿using API.Features.Storage.Models;
+using API.Helpers;
 using Core.Helpers;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Models.Infrastucture;
+using Repository.Helpers;
 
 namespace API.Converters;
 
@@ -37,6 +39,7 @@ public static class CollectionConverter
         var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+        var hierarchy = dbAsset.Hierarchy!.Single(h => h.Canonical);
 
         return new()
         {
@@ -51,12 +54,12 @@ public static class CollectionConverter
             Behavior = new List<string>()
                 .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
                 .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
-            Slug = dbAsset.Slug,
-            Parent = dbAsset.Parent != null
-                ? dbAsset.GenerateFlatCollectionParent(urlRoots)
+            Slug = hierarchy.Slug,
+            Parent = hierarchy.Parent != null
+                ? hierarchy.GenerateFlatCollectionParent(urlRoots)
                 : null,
 
-            ItemsOrder = dbAsset.ItemsOrder,
+            ItemsOrder = hierarchy.ItemsOrder,
             Items = items != null
                 ? items.Select(i => (ICollectionItem) new Collection()
                 {
@@ -65,12 +68,12 @@ public static class CollectionConverter
                 }).ToList()
                 : [],
 
-            PartOf = dbAsset.Parent != null
+            PartOf = hierarchy.Parent != null
                 ?
                 [
                     new PartOf(nameof(PresentationType.Collection))
                     {
-                        Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{dbAsset.Parent}",
+                        Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{hierarchy.Parent}",
                         Label = dbAsset.Label
                     }
                 ]

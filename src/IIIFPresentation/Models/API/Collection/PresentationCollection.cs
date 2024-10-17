@@ -13,10 +13,11 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection
 
     public string? PublicId { get; set; }
 
-    [JsonRequired] public string? Slug { get; set; }
-
+    [JsonRequired] 
+    public string? Slug { get; set; }
+    
     public string? Parent { get; set; }
-
+    
     public int? ItemsOrder { get; set; }
 
     public int TotalItems { get; set; }

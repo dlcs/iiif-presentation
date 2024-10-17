@@ -1,15 +1,19 @@
-﻿using Models.Database.Collections;
+﻿using Models.API.Collection;
+using Models.Database.Collections;
+using Models.Database.General;
 
 namespace API.Features.Storage.Models;
 
 public class CollectionWithItems(
     Collection? collection,
+    Hierarchy? hierarchy,
     List<Collection>? items,
     int totalItems,
     string? storedCollection = null)
 {
     public Collection? Collection { get; init; } = collection;
     public List<Collection>? Items { get; init; } = items;
+    public Hierarchy? Hierarchy { get; init; } = hierarchy;
     public int TotalItems { get; init; } = totalItems;
     public string? StoredCollection { get; init; } = storedCollection;
 
@@ -21,4 +25,6 @@ public class CollectionWithItems(
         totalItems = TotalItems;
         storedCollection = StoredCollection;
     }
+
+    public static CollectionWithItems Empty { get; private set; } = new(null, null, null, 0);
 }

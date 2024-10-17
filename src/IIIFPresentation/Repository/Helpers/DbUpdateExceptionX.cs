@@ -8,6 +8,6 @@ public static class DbUpdateExceptionX
     {
         return exception.InnerException != null &&
                exception.InnerException.Message.Contains(
-                   "duplicate key value violates unique constraint \"ix_collections_customer_id_slug_parent\"");
+                   "duplicate key value violates unique constraint \"ix_hierarchy_customer_id_slug_parent\"");
     }
 }

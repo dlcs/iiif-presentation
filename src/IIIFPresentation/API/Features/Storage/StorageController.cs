@@ -20,7 +20,7 @@ using Newtonsoft.Json;
 
 namespace API.Features.Storage;
 
-[Route("/{customerId}")]
+[Route("/{customerId:int}")]
 [ApiController]
 public class StorageController(IAuthenticator authenticator, IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
@@ -79,7 +79,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             var orderByParameter = orderByField != null
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}" 
                 : null;
-   
+
             return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
                 storageRoot.TotalItems, storageRoot.Items, orderByParameter));
         }

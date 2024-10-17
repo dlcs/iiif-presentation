@@ -9,10 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Database\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="iiif-net" Version="0.2.9" />
     </ItemGroup>
 
