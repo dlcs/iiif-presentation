@@ -25,4 +25,6 @@ public class CollectionWithItems(
         totalItems = TotalItems;
         storedCollection = StoredCollection;
     }
+
+    public static CollectionWithItems Empty { get; private set; } = new(null, null, null, 0);
 }

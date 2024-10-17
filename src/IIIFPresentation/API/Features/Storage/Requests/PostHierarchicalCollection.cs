@@ -115,8 +115,7 @@ public class PostHierarchicalCollectionHandler(
                     CustomerId = request.CustomerId,
                     Canonical = true,
                     ItemsOrder = 0,
-                    Parent = parentHierarchy.CollectionId,
-                    Public = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
+                    Parent = parentHierarchy.CollectionId
                 }
             ]
         };

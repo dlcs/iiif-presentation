@@ -20,7 +20,6 @@ WITH RECURSIVE parentsearch AS (
     items_order,
     slug,
     canonical,
-    public,
     type,
     0 AS generation_number
  FROM hierarchy
@@ -35,7 +34,6 @@ WITH RECURSIVE parentsearch AS (
     child.items_order,
     child.slug,
     child.canonical,
-    child.public,
     child.type,
     generation_number+1 AS generation_number
  FROM hierarchy child
@@ -76,7 +74,6 @@ WITH RECURSIVE tree_path AS (
         customer_id,
         items_order,
         canonical,
-        public,
         type,
     1 AS level,
         slug_array,
@@ -91,7 +88,6 @@ WITH RECURSIVE tree_path AS (
              customer_id,
              items_order,
              canonical,
-             public,
              type,
              string_to_array('/{slug}', '/') AS slug_array
          FROM
@@ -110,7 +106,6 @@ WITH RECURSIVE tree_path AS (
         t.customer_id,
         t.items_order,
         t.canonical,
-        t.public,
         t.type,
         tp.level + 1 AS level,
         tp.slug_array,
@@ -133,7 +128,6 @@ SELECT
     tree_path.customer_id,
     tree_path.items_order,
     tree_path.canonical,
-    tree_path.public,
     tree_path.type
 FROM
     tree_path

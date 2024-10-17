@@ -38,7 +38,6 @@ public class PresentationContext : DbContext
             
             entity.Property(e => e.Label).HasColumnType("jsonb");
             
-            // TODO: is there issues on deletions for hierarchy with manifest/collections with the same key?
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Collection)
                 .HasForeignKey(e => new { e.CollectionId, e.CustomerId })

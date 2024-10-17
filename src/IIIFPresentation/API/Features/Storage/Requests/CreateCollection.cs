@@ -51,10 +51,12 @@ public class CreateCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         // check parent exists
-        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), cancellationToken);
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+            request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         string id;
 
@@ -78,27 +80,26 @@ public class CreateCollectionHandler(
             CustomerId = request.CustomerId,
             Tags = request.Collection.Tags,
             IsPublic = request.Collection.Behavior.IsPublic(),
-            IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
+            IsStorageCollection = isStorageCollection,
             Label = request.Collection.Label
         };
 
         var hierarchy = new Hierarchy
         {
             CollectionId = id,
-            Type = request.Collection.Behavior.IsStorageCollection()
+            Type = isStorageCollection
                 ? ResourceType.StorageCollection
                 : ResourceType.IIIFCollection,
             Slug = request.Collection.Slug,
             CustomerId = request.CustomerId,
             Canonical = true,
             ItemsOrder = request.Collection.ItemsOrder,
-            Parent = request.Collection.Parent,
-            Public = request.Collection.Behavior.IsPublic()
+            Parent = request.Collection.Parent
         };
         
         string? convertedIIIFCollection = null;
 
-        if (!request.Collection.Behavior.IsStorageCollection())
+        if (!isStorageCollection)
         {
             try
             {
@@ -106,7 +107,7 @@ public class CreateCollectionHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error attempting to validate collection is IIIF");
+                logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
                 return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
             }
         }
@@ -129,8 +130,9 @@ public class CreateCollectionHandler(
         {
             return saveErrors;
         }
-        
-        await UploadToS3IfRequiredAsync(request, collection.Id, convertedIIIFCollection!, cancellationToken);
+
+        await UploadToS3IfRequiredAsync(request, collection.Id, convertedIIIFCollection!, isStorageCollection,
+            cancellationToken);
         
         await transaction.CommitAsync(cancellationToken);
 
@@ -148,15 +150,15 @@ public class CreateCollectionHandler(
     {
         var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
         var convertedIIIFCollection = collectionAsIIIF.AsJson();
-        var thumbnails = collectionAsIIIF.Thumbnail?.Select(c => c as Image).ToList(); 
-        collection.Thumbnail = thumbnails!?.GetThumbnailPath();
+        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
+        collection.Thumbnail = thumbnails?.GetThumbnailPath();
         return convertedIIIFCollection;
     }
 
     private async Task UploadToS3IfRequiredAsync(CreateCollection request,
-        string id, string convertedIIIFCollection, CancellationToken cancellationToken)
+        string id, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
     {
-        if (!request.Collection.Behavior.IsStorageCollection())
+        if (!isStorageCollection)
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,

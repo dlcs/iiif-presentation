@@ -56,8 +56,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Slug = "",
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true,
-            Public = true
+            Canonical = true
         });
 
         await DbContext.Collections.AddAsync(new Collection
@@ -85,8 +84,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true,
-            Public = true
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -114,8 +112,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Parent = "FirstChildCollection",
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true,
-            Public = true
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -143,8 +140,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true,
-            Public = false
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
@@ -172,8 +168,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Parent = RootCollection.Id,
             Type = ResourceType.IIIFCollection,
             CustomerId = 1,
-            Canonical = true,
-            Public = true
+            Canonical = true
         });
 
         await DbContext.SaveChangesAsync();
