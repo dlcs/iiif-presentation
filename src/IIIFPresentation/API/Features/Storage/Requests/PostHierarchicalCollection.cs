@@ -92,7 +92,7 @@ public class PostHierarchicalCollectionHandler(
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
         Hierarchy parentHierarchy, string[] splitSlug)
     {
-        var thumbnails = collectionFromBody.Thumbnail?.Select(x => x as Image).ToList();     
+        var thumbnails = collectionFromBody.Thumbnail?.OfType<Image>().ToList();    
         
         var dateCreated = DateTime.UtcNow;
         var collection = new DatabaseCollection.Collection
@@ -105,7 +105,7 @@ public class PostHierarchicalCollectionHandler(
             IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
             IsStorageCollection = false,
             Label = collectionFromBody.Label,
-            Thumbnail = thumbnails!?.GetThumbnailPath(),
+            Thumbnail = thumbnails?.GetThumbnailPath(),
             Hierarchy = [
                 new Hierarchy
                 {
