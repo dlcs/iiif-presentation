@@ -53,12 +53,11 @@ public static class PresentationContextX
     public static async Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext,  int customerId, 
         string collectionId, bool tracked = false,  CancellationToken cancellationToken = default)
     {
-        var collection = tracked ? await dbContext.Collections.Include(c => c.Hierarchy)
-                .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Id == collectionId, cancellationToken) 
-            : await dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking()
+        var collection = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
+
+        return await collection.Include(c => c.Hierarchy)
             .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Id == collectionId, cancellationToken);
-        
-        return collection;
+
     }
     
     /// <summary>
@@ -70,12 +69,11 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <returns>A query containing child collections</returns>
     public static IQueryable<Collection> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, 
-        string collectionId, bool tracking = false)
+        string collectionId, bool tracked = false)
     {
-        return tracking ? dbContext.Collections.Include(c => c.Hierarchy).Where(c =>
-            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId) 
-            : dbContext.Collections.Include(c => c.Hierarchy).AsNoTracking().Where(c =>
-            c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId);
+        var collection = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
+        return collection.Include(c => c.Hierarchy)
+            .Where(c => c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId);
     }
     
     public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext, Collection collection, 
