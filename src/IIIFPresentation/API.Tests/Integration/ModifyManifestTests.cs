@@ -164,4 +164,92 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+    
+    [Fact]
+    public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForCollection()
+    {
+        var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection);
+        var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection)}";
+        var duplicateCollection = new Collection
+        {
+            Id = collectionId,
+            UsePath = true,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = false,
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(duplicateCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForManifest()
+    {
+        var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest);
+        var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest)}";
+        var duplicateManifest = new Manifest
+        {
+            Id = collectionId,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+        
+        await dbContext.AddAsync(duplicateManifest);
+        await dbContext.SaveChangesAsync();
+        
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

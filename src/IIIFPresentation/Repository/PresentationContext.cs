@@ -54,6 +54,9 @@ public class PresentationContext : DbContext
                 .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(p => p.Created).HasDefaultValueSql("now()");
+            entity.Property(p => p.Modified).HasDefaultValueSql("now()");
         });
         
         modelBuilder.Entity<Hierarchy>(entity =>
