@@ -4,6 +4,7 @@ using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
@@ -24,7 +25,7 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
     options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 });
 
-builder.Services.AddScoped<UpsertFlatCollectionValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
