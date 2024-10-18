@@ -4,6 +4,6 @@ VALUES
 	('root', true, '{"en": ["(repository root)"]}', 'some/thumb', null, now(),  now(), 'Admin', 'Admin', null, true, true, 1);
 
 INSERT INTO public.hierarchy 
-	(id, collection_id, manifest_id, type, slug, parent, items_order, canonical, customer_id) 
+	(collection_id, manifest_id, type, slug, parent, items_order, canonical, customer_id) 
 VALUES 
-	(1, 'root', null, 0, '', null, null, true, 1);
+	('root', null, 0, '', null, null, true, 1);
