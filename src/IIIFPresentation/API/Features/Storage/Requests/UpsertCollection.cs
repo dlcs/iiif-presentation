@@ -79,7 +79,7 @@ public class UpsertCollectionHandler(
                 Label = request.Collection.Label,
                 Parent = parentCollection.Id,
                 Slug = request.Collection.Slug,
-                Thumbnail = request.Collection.Thumbnail,
+                Thumbnail = request.Collection.PresentationThumbnail,
                 Tags = request.Collection.Tags,
                 ItemsOrder = request.Collection.ItemsOrder
             };
@@ -116,7 +116,7 @@ public class UpsertCollectionHandler(
             databaseCollection.Label = request.Collection.Label;
             databaseCollection.Parent = request.Collection.Parent;
             databaseCollection.Slug = request.Collection.Slug;
-            databaseCollection.Thumbnail = request.Collection.Thumbnail;
+            databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
             databaseCollection.ItemsOrder = request.Collection.ItemsOrder;
         }

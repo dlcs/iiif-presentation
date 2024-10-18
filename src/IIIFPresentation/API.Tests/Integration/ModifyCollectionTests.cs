@@ -63,7 +63,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "programmatic-child",
             Parent = parent,
-            Thumbnail = "some/thumbnail",
+            PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
         };
@@ -98,20 +98,32 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_CreatesCollection_WhenIsStorageCollectionFalse()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
-        {
-            Behavior = new List<string>()
-            {
-                Behavior.IsPublic
-            },
-            Label = new LanguageMap("en", ["test collection"]),
-            Slug = "iiif-child",
-            Parent = parent,
-            Tags = "some, tags",
-            ItemsOrder = 1,
-        };
+        var collection = $@"{{
+   ""type"": ""Collection"",
+   ""behavior"": [
+       ""public-iiif""
+   ],
+   ""label"": {{
+       ""en"": [
+           ""iiif post""
+       ]
+   }},
+    ""slug"": ""iiif-child"",
+    ""parent"": ""{parent}"",
+    ""tags"": ""some, tags"",
+    ""itemsOrder"": 1,
+    ""thumbnail"": [
+        {{
+          ""id"": ""https://example.org/img/thumb.jpg"",
+          ""type"": ""Image"",
+          ""format"": ""image/jpeg"",
+          ""width"": 300,
+          ""height"": 200
+        }}
+    ]
+}}";
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", collection);
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -128,13 +140,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Parent.Should().Be(parent);
-        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
+        fromDatabase.Label!.Values.First()[0].Should().Be("iiif post");
         fromDatabase.Slug.Should().Be("iiif-child");
         fromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -155,7 +168,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "iiif-child",
             Parent = parent,
             Tags = "some, tags",
-            Thumbnail = "some/thumbnail",
+            PresentationThumbnail = "some/thumbnail",
             ItemsOrder = 1,
         };
 
@@ -168,7 +181,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error!.Detail.Should().Be("Error attempting to validate collection is IIIF");
+        error!.Detail.Should().Be("An error occurred while attempting to validate the collection as IIIF");
     }
     
     [Fact]
@@ -412,7 +425,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "programmatic-child",
             Parent = parent,
             ItemsOrder = 1,
-            Thumbnail = "some/location/2",
+            PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",
         };
 
@@ -457,7 +470,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "create-from-update",
             Parent = parent,
             ItemsOrder = 1,
-            Thumbnail = "some/location/2",
+            PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",
         };
 
@@ -502,7 +515,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "create-from-update-2",
             Parent = parent,
             ItemsOrder = 1,
-            Thumbnail = "some/location/2",
+            PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",
         };
 

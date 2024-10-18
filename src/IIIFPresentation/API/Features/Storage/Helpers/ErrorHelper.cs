@@ -25,7 +25,7 @@ public static class ErrorHelper
         where TCollection : class
     {
         return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
-            "Error attempting to validate collection is IIIF", ModifyCollectionType.CannotValidateIIIF,
-            WriteResult.BadRequest);
+            "An error occurred while attempting to validate the collection as IIIF",
+            ModifyCollectionType.CannotValidateIIIF, WriteResult.BadRequest);
     }
 }
