@@ -7,14 +7,14 @@ public static class HttpRequestX
     private const string SchemeDelimiter = "://";
 
     /// <summary>
-    ///     Generate a full display URL, deriving values from specified HttpRequest
+    /// Generate a full display URL, deriving values from specified HttpRequest
     /// </summary>
     /// <param name="request">HttpRequest to generate display URL for</param>
     /// <param name="path">Path to append to URL</param>
     /// <param name="includeQueryParams">If true, query params are included in path. Else they are omitted</param>
     /// <returns>Full URL, including scheme, host, pathBase, path and queryString</returns>
     /// <remarks>
-    ///     based on Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(this HttpRequest request)
+    /// based on Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(this HttpRequest request)
     /// </remarks>
     public static string GetDisplayUrl(this HttpRequest request, string? path = null, bool includeQueryParams = true)
     {
@@ -41,10 +41,21 @@ public static class HttpRequestX
     }
 
     /// <summary>
-    ///     Generate a display URL, deriving values from specified HttpRequest. Omitting path and query string
+    /// Generate a display URL, deriving values from specified HttpRequest. Omitting path and query string
     /// </summary>
     public static string GetBaseUrl(this HttpRequest request)
     {
         return request.GetDisplayUrl(null, false);
+    }
+
+    /// <summary>
+    /// Get <see cref="HttpRequest"/> body as string
+    /// </summary>
+    public static async Task<string> GetRawRequestBodyAsync(this HttpRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var streamReader = new StreamReader(request.Body);
+        var rawRequestBody = await streamReader.ReadToEndAsync(cancellationToken);
+        return rawRequestBody;
     }
 }

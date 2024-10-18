@@ -8,6 +8,7 @@ using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Requests;
 using API.Settings;
 using IIIF.Presentation;
 using IIIF.Serialisation;
@@ -51,10 +52,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
-        using var streamReader = new StreamReader(Request.Body);
-        
-        var rawRequestBody = await streamReader.ReadToEndAsync();
-        
+        var rawRequestBody = await Request.GetRawRequestBodyAsync();
         return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
     }
     
@@ -94,9 +92,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
         
-        using var streamReader = new StreamReader(Request.Body);
-
-        var rawRequestBody = await streamReader.ReadToEndAsync();
+        var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
 
