@@ -161,7 +161,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromS3.Should().NotBeNull();
     }
     
-        [Fact]
+    [Fact]
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
     {
         // Arrange

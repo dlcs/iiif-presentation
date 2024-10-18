@@ -157,4 +157,10 @@ public static class ControllerBaseX
     {
         return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
     }
+
+    /// <summary>
+    /// Create an <see cref="ObjectResult"/> that produced a 403 response
+    /// </summary>
+    public static ObjectResult Forbidden(this ControllerBase controller)
+        => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
 }
