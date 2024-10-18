@@ -35,8 +35,15 @@ public static class IIIFResponseX
 
         var serializer = JsonSerializer.Create(settings);
 
-        var result = new T();
-        serializer.Populate(jsonReader, result);
-        return result;
+        try
+        {
+            var result = new T();
+            serializer.Populate(jsonReader, result);
+            return result;
+        }
+        catch (JsonReaderException)
+        {
+            return default;
+        }
     }
 }
