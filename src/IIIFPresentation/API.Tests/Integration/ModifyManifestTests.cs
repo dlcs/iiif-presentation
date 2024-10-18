@@ -5,6 +5,7 @@ using API.Tests.Integration.Infrastructure;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -46,9 +47,9 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     public async Task CreateManifest_Forbidden_IfIncorrectShowExtraHeader()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests");
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests")
+            .WithJsonContent("{}");;
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-        requestMessage.Content = new StringContent("{}", Encoding.UTF8, "application/json");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -61,13 +62,39 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     public async Task CreateManifest_Forbidden_IfNoShowExtraHeader()
     {
         // Arrange
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests");
-        requestMessage.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests")
+            .WithJsonContent("{}");
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task CreateManifest_BadRequest_IfUnableToDeserialize()
+    {
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "foo");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_IfInvalid()
+    {
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "{\"id\":\"123");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

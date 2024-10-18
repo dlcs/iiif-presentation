@@ -32,6 +32,14 @@ public class IIIFResponseXTests
     }
     
     [Fact]
+    public async Task ToPresentation_Null_IfInvalidJson()
+    {
+        using var stream = new MemoryStream("not-json"u8.ToArray());
+        var actual = await stream.ToPresentation<PresentationCollection>();
+        actual.Should().BeNull();
+    }
+    
+    [Fact]
     public async Task ToPresentation_String_ReturnsDeserialized_StandardIIIFModel()
     {
         const string input = "{\"id\": \"test-sample\"}";
@@ -50,5 +58,12 @@ public class IIIFResponseXTests
         
         actual.Id.Should().Be("test-sample");
         actual.Slug.Should().Be("foo");
+    }
+
+    [Fact]
+    public async Task ToPresentation_String_Null_IfInvalidJson()
+    {
+        var actual = await "not-json".ToPresentation<PresentationCollection>();
+        actual.Should().BeNull();
     }
 }
