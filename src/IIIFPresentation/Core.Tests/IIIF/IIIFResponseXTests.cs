@@ -30,4 +30,25 @@ public class IIIFResponseXTests
         actual.Id.Should().Be("test-sample");
         actual.Slug.Should().Be("foo");
     }
+    
+    [Fact]
+    public async Task ToPresentation_String_ReturnsDeserialized_StandardIIIFModel()
+    {
+        const string input = "{\"id\": \"test-sample\"}";
+
+        var actual = await input.ToPresentation<Collection>();
+
+        actual.Id.Should().Be("test-sample");
+    }
+    
+    [Fact]
+    public async Task ToPresentation_String_ReturnsDeserialized_NonStandardIIIFModel()
+    {
+        const string input = "{\"id\": \"test-sample\", \"slug\": \"foo\"}";
+
+        var actual = await input.ToPresentation<PresentationCollection>();
+        
+        actual.Id.Should().Be("test-sample");
+        actual.Slug.Should().Be("foo");
+    }
 }

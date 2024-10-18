@@ -13,6 +13,22 @@ public static class IIIFResponseX
         where T : JsonLdBase, new()
     {
         using var streamReader = new StreamReader(contentStream);
+        return await DeserializeStream<T>(settings, streamReader);
+    }
+    
+    /// <summary>
+    /// Convert provided string to Presentation type inheriting from <see cref="JsonLdBase"/>
+    /// </summary>
+    public static async Task<T?> ToPresentation<T>(this string content, JsonSerializerSettings? settings = null)
+        where T : JsonLdBase, new()
+    {
+        using var streamReader = new StringReader(content);
+        return await DeserializeStream<T>(settings, streamReader);
+    }
+    
+    private static async Task<T?> DeserializeStream<T>(JsonSerializerSettings? settings, TextReader streamReader)
+        where T : JsonLdBase, new()
+    {
         await using var jsonReader = new JsonTextReader(streamReader);
 
         settings ??= new(IIIFSerialiserX.DeserializerSettings);
