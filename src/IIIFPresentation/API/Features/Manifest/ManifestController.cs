@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Attributes;
+using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
@@ -30,20 +31,21 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
-        var manifest = await rawRequestBody.ToPresentation<PresentationManifest>();
+        var presentationManifest = await rawRequestBody.ToPresentation<PresentationManifest>();
 
-        if (manifest == null)
+        if (presentationManifest == null)
         {
             return this.PresentationProblem("Could not deserialize manifest", null, (int)HttpStatusCode.BadRequest,
                 "Deserialization Error");
         }
 
-        var validation = await validator.ValidateAsync(manifest, cancellationToken);
+        var validation = await validator.ValidateAsync(presentationManifest, cancellationToken);
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
-        
-        throw new NotImplementedException();
+
+        return await HandleUpsert(new CreateManifest(customerId, presentationManifest),
+            cancellationToken: cancellationToken);
     }
 }

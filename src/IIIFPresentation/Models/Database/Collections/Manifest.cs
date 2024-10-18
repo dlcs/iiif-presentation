@@ -2,7 +2,7 @@
 
 namespace Models.Database.Collections;
 
-public class Manifest
+public class Manifest : IHierarchyResource
 {
     public required string Id { get; set; }
     
