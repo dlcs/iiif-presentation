@@ -17,6 +17,7 @@ using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -28,7 +29,7 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, s
 {
     public int CustomerId { get; } = customerId;
 
-    public UpsertFlatCollection Collection { get; } = collection;
+    public UpsertFlatCollection? Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
 
@@ -50,10 +51,12 @@ public class CreateCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         // check parent exists
-        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), cancellationToken);
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+            request.Collection!.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         string id;
 
@@ -75,18 +78,28 @@ public class CreateCollectionHandler(
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
-            IsPublic = request.Collection.Behavior.IsPublic(),
-            IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
-            Label = request.Collection.Label,
-            Parent = parentCollection.Id,
-            Slug = request.Collection.Slug,
             Tags = request.Collection.Tags,
-            ItemsOrder = request.Collection.ItemsOrder
+            IsPublic = request.Collection.Behavior.IsPublic(),
+            IsStorageCollection = isStorageCollection,
+            Label = request.Collection.Label
+        };
+
+        var hierarchy = new Hierarchy
+        {
+            CollectionId = id,
+            Type = isStorageCollection
+                ? ResourceType.StorageCollection
+                : ResourceType.IIIFCollection,
+            Slug = request.Collection.Slug,
+            CustomerId = request.CustomerId,
+            Canonical = true,
+            ItemsOrder = request.Collection.ItemsOrder,
+            Parent = request.Collection.Parent
         };
         
         string? convertedIIIFCollection = null;
 
-        if (!request.Collection.Behavior.IsStorageCollection())
+        if (!isStorageCollection)
         {
             try
             {
@@ -104,6 +117,7 @@ public class CreateCollectionHandler(
         }
         
         dbContext.Collections.Add(collection);
+        dbContext.Hierarchy.Add(hierarchy);
 
         var saveErrors =
             await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
@@ -113,10 +127,11 @@ public class CreateCollectionHandler(
         {
             return saveErrors;
         }
-        
-        await UploadToS3IfRequiredAsync(request.Collection, collection, convertedIIIFCollection!, cancellationToken);
 
-        if (collection.Parent != null)
+        await UploadToS3IfRequiredAsync(request, collection, convertedIIIFCollection!, isStorageCollection,
+            cancellationToken);
+
+        if (hierarchy.Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
@@ -138,10 +153,10 @@ public class CreateCollectionHandler(
         return convertedIIIFCollection;
     }
 
-    private async Task UploadToS3IfRequiredAsync(UpsertFlatCollection request,
-        Collection collection, string convertedIIIFCollection, CancellationToken cancellationToken)
+    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
+        Collection collection, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
     {
-        if (!request.Behavior.IsStorageCollection())
+        if (!isStorageCollection)
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,

@@ -79,7 +79,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             var orderByParameter = orderByField != null
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}" 
                 : null;
-   
+
             return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
                 storageRoot.TotalItems, storageRoot.Items, orderByParameter));
         }
@@ -116,7 +116,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
     }
     
     [Authorize]
