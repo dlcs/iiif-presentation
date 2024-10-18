@@ -1,11 +1,14 @@
 ﻿using System.Net;
-using System.Text;
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
-using Microsoft.Net.Http.Headers;
-using Newtonsoft.Json;
+using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
+using Models.API.Manifest;
+using Models.Database.General;
+using Models.Database.Collections;
 using Repository;
 using Test.Helpers;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -96,5 +99,69 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_IfParentNotFound()
+    {
+        var manifest = new PresentationManifest
+        {
+            Parent = "not-found",
+            Slug = "balrog"
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection()
+    {
+        var collectionId = nameof(CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection);
+        var initialCollection = new Collection
+        {
+            Id = collectionId,
+            UsePath = true,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = false,
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "update-test",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var manifest = new PresentationManifest
+        {
+            Parent = collectionId,
+            Slug = "balrog"
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

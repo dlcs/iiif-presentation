@@ -10,6 +10,6 @@ public enum ModifyCollectionType
     PossibleCircularReference = 6,
     CannotGenerateUniqueId = 7,
     CannotValidateIIIF = 8,
-    
+    ParentMustBeStorageCollection = 9,
     Unknown = 1000
 }

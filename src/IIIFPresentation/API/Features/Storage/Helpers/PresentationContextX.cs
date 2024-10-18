@@ -40,7 +40,6 @@ public static class PresentationContextX
         return null;
     }
 
-
     /// <summary>
     /// Retrieves a collection from the database, with the Hierarchy records included
     /// </summary>
@@ -50,16 +49,30 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static async Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext,  int customerId, 
-        string collectionId, bool tracked = false,  CancellationToken cancellationToken = default)
+    public static Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext, int customerId,
+        string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
+        => dbContext.Collections.Retrieve(customerId, collectionId, tracked, cancellationToken);
+
+    /// <summary>
+    /// Retrieves a <see cref="IHierarchyResource"/> from database, with Hierarchy records included
+    /// </summary>
+    /// <param name="entities">The context to pull records from</param>
+    /// <param name="customerId">Customer the record is attached to</param>
+    /// <param name="resourceId">The collection/manifest Id to retrieve</param>
+    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="cancellationToken">Current cancellation token</param>
+    /// <returns>The retrieved <see cref="IHierarchyResource"/></returns>
+    public static async Task<T?> Retrieve<T>(this DbSet<T> entities,
+        int customerId, string resourceId, bool tracked = false, CancellationToken cancellationToken = default)
+        where T : class, IHierarchyResource
     {
-        var collection = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
+        var resources = tracked ? entities : entities.AsNoTracking();
 
-        return await collection.Include(c => c.Hierarchy)
-            .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Id == collectionId, cancellationToken);
-
+        return await resources
+            .Include(e => e.Hierarchy)
+            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == resourceId, cancellationToken);
     }
-    
+
     /// <summary>
     /// Retrieves child collections from the database of the parent record, while including the hierarchy records
     /// </summary>
