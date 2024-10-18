@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Serialization;
 using Core.Exceptions;
+using Core.IIIF;
 using IIIF;
 using IIIF.Serialisation;
 using Newtonsoft.Json;
@@ -25,19 +26,12 @@ public static class HttpResponseMessageX
 
         if (!response.IsJsonResponse()) return default;
 
-        var contentStream = await response.Content.ReadAsStreamAsync();
-
-        using var streamReader = new StreamReader(contentStream);
-        await using var jsonReader = new JsonTextReader(streamReader);
-
         settings ??= new(IIIFSerialiserX.DeserializerSettings);
         if (SerializationContext.HasValue)
             settings.Context = SerializationContext.Value;
 
-        var serializer = JsonSerializer.Create(settings);
-
-        var result = new T();
-        serializer.Populate(jsonReader, result);
+        var contentStream = await response.Content.ReadAsStreamAsync();
+        var result = await contentStream.ToPresentation<T>(settings);
         return result;
     }
 
