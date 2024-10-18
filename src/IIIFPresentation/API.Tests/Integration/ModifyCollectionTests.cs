@@ -1337,8 +1337,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
@@ -1401,8 +1401,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 

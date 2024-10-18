@@ -32,7 +32,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var response = await httpClient.GetAsync("1");
         
         // Act
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -48,7 +48,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/first-child");
 
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -65,7 +65,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/first-child");
 
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -464,7 +464,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange and Act
         var response = await httpClient.GetAsync("1/iiif-collection");
         
-        var collection = await response.ReadAsIIIFJsonAsync<Collection>();
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
