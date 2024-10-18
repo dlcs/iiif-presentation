@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Models.API.Collection.Upsert;
 
-public class UpsertFlatCollection : IPresentation
+public class UpsertFlatCollection
 {
     public List<string> Behavior { get; set; } = [];
 

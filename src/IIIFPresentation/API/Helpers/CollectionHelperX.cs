@@ -52,6 +52,12 @@ public static class CollectionHelperX
     
     public static string GetCollectionBucketKey(this Collection collection) =>
             $"{collection.CustomerId}/collections/{collection.Id}";
+    
+    public static string GetManifestBucketKey(this Manifest manifest) =>
+        $"{manifest.CustomerId}/manifests/{manifest.Id}";
+    
+    public static string GenerateFlatManifestId(this Manifest manifest, UrlRoots urlRoots) =>
+        $"{urlRoots.BaseUrl}/{manifest.CustomerId}/manifests/{manifest.Id}";
 
     public static async Task<string> GenerateUniqueIdAsync<T>(this DbSet<T> entities,
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)
