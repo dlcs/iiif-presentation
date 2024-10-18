@@ -1,11 +1,18 @@
 ﻿using System.Data;
 using API.Auth;
+using API.Converters;
 using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
+using API.Settings;
+using AWS.S3;
+using AWS.S3.Models;
+using Core;
+using IIIF.Serialisation;
 using MediatR;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
@@ -15,18 +22,31 @@ using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Manifest.Requests;
 
-public class CreateManifest(int customerId, PresentationManifest presentationManifest) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+/// <summary>
+/// Create a new Manifest in DB and upload provided JSON to S3
+/// </summary>
+public class CreateManifest(
+    int customerId,
+    PresentationManifest presentationManifest,
+    string rawRequestBody,
+    UrlRoots urlRoots) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
+    public string RawRequestBody { get; } = rawRequestBody;
+    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class CreateManifestHandler(
     PresentationContext dbContext,
-    ILogger<CreateManifestHandler> logger,
-    IIdGenerator idGenerator) : IRequestHandler<CreateManifest,
+    IIdGenerator idGenerator,
+    IBucketWriter bucketWriter,
+    IOptions<ApiSettings> options,
+    ILogger<CreateManifestHandler> logger) : IRequestHandler<CreateManifest,
     ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
+    private readonly ApiSettings settings = options.Value;
+    
     public async Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(CreateManifest request,
         CancellationToken cancellationToken)
     {
@@ -39,9 +59,11 @@ public class CreateManifestHandler(
         var (error, dbManifest) = await UpdateDatabase(request, parentCollection!, cancellationToken);
         if (error != null) return error; 
 
-        // Store in S3
-
-        throw new NotImplementedException();
+        await SaveToS3(dbManifest!, request, cancellationToken);
+        
+        // TODO - set publicId on PresentationManifest?
+        return ModifyEntityResult<PresentationManifest, ModifyCollectionType>.Success(
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
     }
 
     private static ModifyEntityResult<PresentationManifest, ModifyCollectionType>? ValidateParent(Collection? parentCollection)
@@ -99,5 +121,15 @@ public class CreateManifestHandler(
                 request.CustomerId);
             return null;
         }
-    } 
+    }
+    
+    private async Task SaveToS3(DbManifest dbManifest, CreateManifest request, CancellationToken cancellationToken)
+    {
+        logger.LogDebug("Uploading manifest {Customer}:{ManifestId} file to S3", dbManifest.CustomerId, dbManifest.Id);
+        var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
+        iiifManifest.Id = dbManifest.GenerateFlatManifestId(request.UrlRoots);
+        var iiifJson = iiifManifest.AsJson();
+        var item = new ObjectInBucket(settings.AWS.S3.StorageBucket, dbManifest.GetManifestBucketKey());
+        await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
+    }
 }

@@ -45,7 +45,7 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(new CreateManifest(customerId, presentationManifest),
+        return await HandleUpsert(new CreateManifest(customerId, presentationManifest, rawRequestBody, GetUrlRoots()),
             cancellationToken: cancellationToken);
     }
 }
