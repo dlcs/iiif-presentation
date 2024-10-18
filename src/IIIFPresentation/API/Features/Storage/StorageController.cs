@@ -97,10 +97,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromServices] UpsertFlatCollectionValidator validator)
     {
-        if (!Request.HasShowExtraHeader())
-        {
-            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-        }
+        if (!Request.HasShowExtraHeader()) return this.Forbidden();
         
         using var streamReader = new StreamReader(Request.Body);
 
@@ -130,10 +127,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
         [FromServices] UpsertFlatCollectionValidator validator)
     {
-        if (!Request.HasShowExtraHeader())
-        {
-            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-        }
+        if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
         var validation = await validator.ValidateAsync(collection);
 
@@ -150,10 +144,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     [HttpDelete("collections/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.HasShowExtraHeader())
-        {
-            return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-        }
+        if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
         return await HandleDelete(new DeleteCollection(customerId, id));
     }
