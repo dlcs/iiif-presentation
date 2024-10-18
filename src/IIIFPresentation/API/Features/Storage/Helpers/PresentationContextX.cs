@@ -11,8 +11,17 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySaveCollection<T>(
+    public static Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySaveCollection<T>(
+        this PresentationContext dbContext,
+        int customerId,
+        ILogger logger,
+        CancellationToken cancellationToken)
+        where T : class
+        => dbContext.TrySave<T>("collection", customerId, logger, cancellationToken);
+    
+    public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySave<T>(
         this PresentationContext dbContext, 
+        string resourceType,
         int customerId, 
         ILogger logger,
         CancellationToken cancellationToken)
@@ -24,17 +33,17 @@ public static class PresentationContextX
         }
         catch (DbUpdateException ex)
         {
-            logger.LogError(ex,"Error creating collection for customer {Customer} in the database", customerId);
+            logger.LogError(ex, "DB Error saving {ResourceType} for customer {Customer}", resourceType, customerId);
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
                 return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-                    $"The collection could not be created due to a duplicate slug value",
+                    $"The {resourceType} could not be created due to a duplicate slug value",
                     ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
             }
 
             return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-                $"The collection could not be created", ModifyCollectionType.Unknown);
+                $"The {resourceType} could not be created", ModifyCollectionType.Unknown);
         }
 
         return null;

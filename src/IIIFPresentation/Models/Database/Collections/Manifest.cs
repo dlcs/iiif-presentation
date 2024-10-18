@@ -6,7 +6,30 @@ public class Manifest : IHierarchyResource
 {
     public required string Id { get; set; }
     
+    /// <summary>
+    /// The customer identifier
+    /// </summary>
     public required int CustomerId { get; set; }
+    
+    /// <summary>
+    /// Created date/time
+    /// </summary>
+    public DateTime Created { get; set; }
+
+    /// <summary>
+    /// Last modified date/time
+    /// </summary>
+    public DateTime Modified { get; set; }
+
+    /// <summary>
+    /// Who last committed a change to this Collection
+    /// </summary>
+    public string? CreatedBy { get; set; }
+
+    /// <summary>
+    /// Who last committed a change to this Collection
+    /// </summary>
+    public string? ModifiedBy { get; set; }
     
     public List<Hierarchy>? Hierarchy { get; set; }
 }

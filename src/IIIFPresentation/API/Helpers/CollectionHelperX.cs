@@ -52,9 +52,10 @@ public static class CollectionHelperX
     
     public static string GetCollectionBucketKey(this Collection collection) =>
             $"{collection.CustomerId}/collections/{collection.Id}";
-    
-    public static async Task<string> GenerateUniqueIdAsync(this DbSet<Collection> collections, 
+
+    public static async Task<string> GenerateUniqueIdAsync<T>(this DbSet<T> entities,
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)
+        where T : class, IHierarchyResource
     {
         var isUnique = false;
         var id = string.Empty;
@@ -68,15 +69,15 @@ public static class CollectionHelperX
             {
                 throw new ConstraintException("Max attempts to generate an identifier exceeded");
             }
-            
+
             id = idGenerator.Generate([
                 customerId,
                 DateTime.UtcNow.Ticks,
                 random.Next(0, maxRandomValue)
             ]);
-            
-            isUnique = !await collections.AnyAsync(c => c.Id == id, cancellationToken);
-            
+
+            isUnique = !await entities.AnyAsync(e => e.Id == id, cancellationToken);
+
             currentAttempt++;
         }
 
