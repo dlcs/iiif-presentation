@@ -1,5 +1,5 @@
 ﻿using API.Converters.Streaming;
-﻿using API.Features.Storage.Helpers;
+using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
 using AWS.S3;
@@ -50,6 +50,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     using var reader = new StreamReader(memoryStream);
                     StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
                         objectFromS3.Headers.ContentLength, new S3StoredJsonProcessor(request.Slug));
+                    memoryStream.Seek(0, SeekOrigin.Begin);
                     collectionFromS3 = await reader.ReadToEndAsync(cancellationToken);
                 }
             }

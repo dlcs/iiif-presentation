@@ -20,10 +20,11 @@ public static class StreamingJsonProcessor
     {
         // Initial buffer size - will auto expand if token/whitespace sequence is bigger than that
         const int bufferSize = 1024;
-        var buffer = new byte[bufferSize];
+        var initialSize = inputLength.HasValue ? Math.Min(inputLength.Value, bufferSize) : bufferSize;
+        var buffer = new byte[initialSize];
 
         // First read - might be the only, might be nothing (if so, short circuit return)
-        var bytesRead = input.Read(buffer, 0, bufferSize);
+        var bytesRead = input.Read(buffer, 0, buffer.Length);
         if (bytesRead == 0) return;
 
         // Note using - without it the data will be lost due to lack of dispose call
