@@ -31,52 +31,6 @@ public class S3BucketWriter : IBucketWriter
         PutObjectResponse? response = await WriteToBucketInternal(putRequest, cancellationToken);
     }
 
-    public async Task<bool> WriteToBucket(ObjectInBucket dest, Stream content, string? contentType = null)
-    {
-        var putRequest = new PutObjectRequest
-        {
-            BucketName = dest.Bucket,
-            Key = dest.Key,
-            InputStream = content,
-        };
-
-        if (!string.IsNullOrEmpty(contentType)) putRequest.ContentType = contentType;
-
-        var response = await WriteToBucketInternal(putRequest);
-        return response != null;
-    }
-
-    public async Task<bool> WriteFileToBucket(ObjectInBucket dest, string filePath, string? contentType = null,
-        CancellationToken token = default)
-    {
-        try
-        {
-            // Transfer utility uses multi-part upload internally if the file is large enough to warrant it (>16MB)
-            var uploadRequest = new TransferUtilityUploadRequest
-            {
-                BucketName = dest.Bucket,
-                Key = dest.Key,
-                FilePath = filePath,
-            };
-
-            if (!string.IsNullOrEmpty(contentType)) uploadRequest.ContentType = contentType;
-                
-            using var transferUtil = new TransferUtility(s3Client);
-            await transferUtil.UploadAsync(uploadRequest, token);
-            return true;
-        }
-        catch (AmazonS3Exception e)
-        {
-            logger.LogWarning(e, "S3 Error encountered writing file to bucket. Key: '{S3Key}'", dest);
-        }
-        catch (Exception e)
-        {
-            logger.LogWarning(e, "Unknown error encountered writing file to bucket. Key: '{S3Key}'", dest);
-        }
-
-        return false;
-    }
-
     public async Task DeleteFromBucket(params ObjectInBucket[] toDelete)
     {
         try
