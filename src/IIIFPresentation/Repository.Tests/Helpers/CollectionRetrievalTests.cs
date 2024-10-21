@@ -12,7 +12,7 @@ public class CollectionRetrievalTests
 {
     private readonly PresentationContext dbContext;
     private const int CustomerId = 9988;
-    private static bool initialised = false;
+    private static bool initialised;
 
     public CollectionRetrievalTests(PresentationContextFixture dbFixture)
     {

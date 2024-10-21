@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Helpers;
+using Core.Helpers;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -155,6 +156,118 @@ public class CollectionHelperXTests
         
         // Act
         var actual = collection.GetResourceBucketKey();
+        
+        // Assert
+        actual.Should().Be(expected);
+    }
+
+    [Fact]
+    public void GenerateFullPath_Throws_IfHierarchyNull()
+    {
+        var parentCollection = new Collection { CustomerId = 99, Id = "javelin" };
+        var collection = new Collection { CustomerId = 99, Id = "sut" };
+        
+        Action action = () => collection.GenerateFullPath(parentCollection);
+        action.Should().Throw<ArgumentException>();
+    }
+    
+    [Fact]
+    public void GenerateFullPath_Throws_IfHierarchyEmpty()
+    {
+        var parentCollection = new Collection { CustomerId = 99, Id = "javelin" };
+        var collection = new Collection { CustomerId = 99, Id = "sut", Hierarchy = [] };
+        
+        Action action = () => collection.GenerateFullPath(parentCollection);
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public void GenerateFullPath_Correct_ParentFullPathNull(string? path)
+    {
+        // Arrange
+        var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = path};
+        var collection = new Collection
+        {
+            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
+        };
+        const string expected = "slug";
+        
+        // Act
+        var actual = collection.GenerateFullPath(parentCollection);
+        
+        // Assert
+        actual.Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GenerateFullPath_Correct_ParentFullPathHasValue()
+    {
+        // Arrange
+        var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = "have/hold/javelin" };
+        var collection = new Collection
+        {
+            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
+        };
+        const string expected = "have/hold/javelin/slug";
+        
+        // Act
+        var actual = collection.GenerateFullPath(parentCollection);
+        
+        // Assert
+        actual.Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GenerateFullPath_String_Throws_IfHierarchyNull()
+    {
+        var collection = new Collection { CustomerId = 99, Id = "sut" };
+        
+        Action action = () => collection.GenerateFullPath("foo");
+        action.Should().Throw<ArgumentException>();
+    }
+    
+    [Fact]
+    public void GenerateFullPath_String_Throws_IfHierarchyEmpty()
+    {
+        var collection = new Collection { CustomerId = 99, Id = "sut", Hierarchy = [] };
+        
+        Action action = () => collection.GenerateFullPath("foo");
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public void GenerateFullPath_String_Correct_ParentFullPathNullOrEmpty(string? path)
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
+        };
+        const string expected = "slug";
+        
+        // Act
+        var actual = collection.GenerateFullPath(path);
+        
+        // Assert
+        actual.Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GenerateFullPath_String_Correct_ParentFullPathHasValue()
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
+        };
+        const string expected = "have/hold/javelin/slug";
+        
+        // Act
+        var actual = collection.GenerateFullPath("have/hold/javelin");
         
         // Assert
         actual.Should().Be(expected);

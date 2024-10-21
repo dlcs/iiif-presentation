@@ -61,7 +61,8 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     items = await dbContext.RetrieveCollectionItems(request.CustomerId, hierarchy.Collection.Id)
                         .ToListAsync(cancellationToken: cancellationToken);
 
-                    items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug));
+                    // The incoming slug will be the base, use that to generate child item path
+                    items.ForEach(item => item.FullPath = item.GenerateFullPath(request.Slug));
 
                     hierarchy.Collection.FullPath = request.Slug;
                 }

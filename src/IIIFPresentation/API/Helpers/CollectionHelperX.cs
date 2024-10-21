@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using API.Converters;
 using API.Infrastructure.IdGenerator;
+using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -46,12 +47,23 @@ public static class CollectionHelperX
         int lastPage, int pageSize, string orderQueryParam) =>
         new(
             $"{collection.GenerateFlatCollectionId(urlRoots)}?page={lastPage}&pageSize={pageSize}{orderQueryParam}");
+
+    /// <summary>
+    /// Get the FullPath of an item, using Canonical slug of attached Hierarcy collection and parent FullPath, if set 
+    /// </summary>
+    public static string GenerateFullPath(this Collection collection, Collection parent)
+        => GenerateFullPath(collection, parent.FullPath);
     
-    public static string GenerateFullPath(this Hierarchy hierarchy, string itemSlug) => 
-        $"{(hierarchy.Parent != null ? $"{hierarchy.Slug}/" : string.Empty)}{itemSlug}";
-    
-    /*public static string GetCollectionBucketKey(this Collection collection) =>
-            $"{collection.CustomerId}/collections/{collection.Id}";*/
+    /// <summary>
+    /// Get the FullPath of an item, using Canonical slug of attached Hierarcy collection and provided parent 
+    /// </summary>
+    public static string GenerateFullPath(this Collection collection, string? parentPath)
+    {
+        var hierarchy = collection.Hierarchy
+            .ThrowIfNullOrEmpty(nameof(collection.Hierarchy))
+            .Single(h => h.Canonical);
+        return $"{(!string.IsNullOrEmpty(parentPath) ? $"{parentPath}/" : string.Empty)}{hierarchy.Slug}";
+    }
     
     /// <summary>
     /// Get key where this resource will be stored in S3

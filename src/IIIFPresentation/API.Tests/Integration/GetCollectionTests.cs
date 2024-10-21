@@ -65,8 +65,6 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Act
         var response = await httpClient.GetAsync("1/first-child");
 
-        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
-
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Vary.Should().HaveCount(2);
@@ -300,9 +298,43 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(3);
+        collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_CorrectPublicId()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+        
+        // Assert
+        collection.PublicId.Should().Be("http://localhost/1");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+    
+    [Fact]
+    public async Task Get_ChildFlat_CorrectPublicId()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/FirstChildCollection");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+        
+        // Assert
+        collection.PublicId.Should().Be("http://localhost/1/first-child");
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
     }
     
     [Fact]
@@ -386,7 +418,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(3);
+        collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
@@ -437,7 +469,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View!.PageSize.Should().Be(1);
         collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1");
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(3);
+        collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }

@@ -107,7 +107,6 @@ public static class CollectionConverter
 
     private static View GenerateView(Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize,
         int currentPage, int totalPages, string? orderQueryParam = null)
-
     {
         var view = new View()
         {
