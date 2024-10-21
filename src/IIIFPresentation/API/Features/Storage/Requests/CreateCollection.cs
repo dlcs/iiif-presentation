@@ -165,7 +165,7 @@ public class CreateCollectionHandler(
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    collection.GetCollectionBucketKey()),
+                    collection.GetResourceBucketKey()),
                 convertedIIIFCollection, "application/json", cancellationToken);
         }
     }

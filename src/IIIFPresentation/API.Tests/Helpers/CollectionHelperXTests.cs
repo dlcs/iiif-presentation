@@ -12,8 +12,6 @@ public class CollectionHelperXTests
         BaseUrl = "http://base"
     };
 
-    private const int pageSize = 100;
-
     [Fact]
     public void GenerateHierarchicalCollectionId_CreatesIdWhenNoFullPath()
     {
@@ -132,6 +130,34 @@ public class CollectionHelperXTests
 
         // Assert
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");
+    }
+
+    [Fact]
+    public void GetResourceBucketKey_Collection_Correct()
+    {
+        // Arrange
+        var collection = new Collection { CustomerId = 99, Id = "parting-ways" };
+        const string expected = "99/collections/parting-ways";
+        
+        // Act
+        var actual = collection.GetResourceBucketKey();
+        
+        // Assert
+        actual.Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GetResourceBucketKey_Manifest_Correct()
+    {
+        // Arrange
+        var collection = new Manifest { CustomerId = 99, Id = "parting-ways" };
+        const string expected = "99/manifests/parting-ways";
+        
+        // Act
+        var actual = collection.GetResourceBucketKey();
+        
+        // Assert
+        actual.Should().Be(expected);
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];

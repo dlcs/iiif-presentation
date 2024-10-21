@@ -50,11 +50,18 @@ public static class CollectionHelperX
     public static string GenerateFullPath(this Hierarchy hierarchy, string itemSlug) => 
         $"{(hierarchy.Parent != null ? $"{hierarchy.Slug}/" : string.Empty)}{itemSlug}";
     
-    public static string GetCollectionBucketKey(this Collection collection) =>
-            $"{collection.CustomerId}/collections/{collection.Id}";
+    /*public static string GetCollectionBucketKey(this Collection collection) =>
+            $"{collection.CustomerId}/collections/{collection.Id}";*/
     
-    public static string GetManifestBucketKey(this Manifest manifest) =>
-        $"{manifest.CustomerId}/manifests/{manifest.Id}";
+    /// <summary>
+    /// Get key where this resource will be stored in S3
+    /// </summary>
+    public static string GetResourceBucketKey<T>(this T hierarchyResource)
+        where T : IHierarchyResource
+    {
+        var slug = hierarchyResource is Manifest ? "manifests" : "collections";
+        return $"{hierarchyResource.CustomerId}/{slug}/{hierarchyResource.Id}";
+    }
     
     public static string GenerateFlatManifestId(this Manifest manifest, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{manifest.CustomerId}/manifests/{manifest.Id}";

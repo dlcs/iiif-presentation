@@ -78,7 +78,7 @@ public class PostHierarchicalCollectionHandler(
         
         await bucketWriter.WriteToBucket(
             new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                collection.GetCollectionBucketKey()),
+                collection.GetResourceBucketKey()),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
         if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)

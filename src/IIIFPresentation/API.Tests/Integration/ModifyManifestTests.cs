@@ -274,12 +274,14 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseCollection.Id.Should().NotBeNull();
-        responseCollection.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
-        responseCollection.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
-        responseCollection.CreatedBy.Should().Be("Admin");
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be(RootCollection.Id);
     }
     
     [Fact]
@@ -338,5 +340,39 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 $"{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
+        (s3Manifest.Context as string).Should()
+            .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_WritesToS3_IgnoringId()
+    {
+        var slug = nameof(CreateManifest_WritesToS3_IgnoringId);
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug,
+            Id = "https://presentation.example/i-will-be-overwritten"
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+        
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(id);
+        (s3Manifest.Context as string).Should()
+            .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
 }

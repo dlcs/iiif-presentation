@@ -4,20 +4,17 @@ using API.Converters;
 using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
+using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
-using API.Settings;
-using AWS.S3;
-using AWS.S3.Models;
 using Core;
 using IIIF.Serialisation;
 using MediatR;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
+using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Manifest.Requests;
@@ -40,13 +37,10 @@ public class CreateManifest(
 public class CreateManifestHandler(
     PresentationContext dbContext,
     IIdGenerator idGenerator,
-    IBucketWriter bucketWriter,
-    IOptions<ApiSettings> options,
+    IIIFS3Service iiifS3,
     ILogger<CreateManifestHandler> logger) : IRequestHandler<CreateManifest,
     ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
-    private readonly ApiSettings settings = options.Value;
-    
     public async Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(CreateManifest request,
         CancellationToken cancellationToken)
     {
@@ -125,11 +119,8 @@ public class CreateManifestHandler(
     
     private async Task SaveToS3(DbManifest dbManifest, CreateManifest request, CancellationToken cancellationToken)
     {
-        logger.LogDebug("Uploading manifest {Customer}:{ManifestId} file to S3", dbManifest.CustomerId, dbManifest.Id);
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        iiifManifest.Id = dbManifest.GenerateFlatManifestId(request.UrlRoots);
-        var iiifJson = iiifManifest.AsJson();
-        var item = new ObjectInBucket(settings.AWS.S3.StorageBucket, dbManifest.GetManifestBucketKey());
-        await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
+        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, dbManifest.GenerateFlatManifestId(request.UrlRoots),
+            cancellationToken);
     }
 }
