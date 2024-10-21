@@ -14,6 +14,7 @@ using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.General;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
@@ -56,7 +57,8 @@ public class PostHierarchicalCollectionHandler(
 
         var parentSlug = string.Join(string.Empty, splitSlug.Take(..^1));
         var parentCollection =
-            await dbContext.RetriveHierarchicalCollection(request.CustomerId, parentSlug, cancellationToken);
+            await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
+        
         if (parentCollection == null) return ErrorHelper.NullParentResponse<Collection>();
         
         var id = await GenerateUniqueId(request, cancellationToken);
@@ -76,10 +78,10 @@ public class PostHierarchicalCollectionHandler(
         
         await bucketWriter.WriteToBucket(
             new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                $"{request.CustomerId}/collections/{collection.Id}"),
+                collection.GetCollectionBucketKey()),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
-        if (collection.Parent != null)
+        if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
@@ -88,16 +90,14 @@ public class PostHierarchicalCollectionHandler(
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
-        DatabaseCollection.Collection parentCollection, string[] splitSlug)
+        Hierarchy parentHierarchy, string[] splitSlug)
     {
-        var thumbnails = collectionFromBody.Thumbnail?.Select(x => x as Image).ToList();     
+        var thumbnails = collectionFromBody.Thumbnail?.OfType<Image>().ToList();    
         
         var dateCreated = DateTime.UtcNow;
         var collection = new DatabaseCollection.Collection
         {
             Id = id,
-            Parent = parentCollection.Id,
-            Slug = splitSlug.Last(),
             Created = dateCreated,
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
@@ -105,8 +105,21 @@ public class PostHierarchicalCollectionHandler(
             IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
             IsStorageCollection = false,
             Label = collectionFromBody.Label,
-            Thumbnail = thumbnails!?.GetThumbnailPath()
+            Thumbnail = thumbnails?.GetThumbnailPath(),
+            Hierarchy = [
+                new Hierarchy
+                {
+                    CollectionId = id,
+                    Type = ResourceType.IIIFCollection,
+                    Slug = splitSlug.Last(),
+                    CustomerId = request.CustomerId,
+                    Canonical = true,
+                    ItemsOrder = 0,
+                    Parent = parentHierarchy.CollectionId
+                }
+            ]
         };
+        
         return collection;
     }
 
@@ -120,7 +133,7 @@ public class PostHierarchicalCollectionHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error attempting to validate collection is IIIF");
+            logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
         }
 
         return collection;

@@ -20,7 +20,7 @@ using Newtonsoft.Json;
 
 namespace API.Features.Storage;
 
-[Route("/{customerId}")]
+[Route("/{customerId:int}")]
 [ApiController]
 public class StorageController(IAuthenticator authenticator, IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
@@ -79,7 +79,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             var orderByParameter = orderByField != null
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}" 
                 : null;
-   
+
             return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
                 storageRoot.TotalItems, storageRoot.Items, orderByParameter));
         }
@@ -102,8 +102,14 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         var rawRequestBody = await streamReader.ReadToEndAsync();
         
         var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
-        
-        var validation = await validator.ValidateAsync(collection!);
+
+        if (collection == null)
+        {
+            return this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
+                "Deserialization Error");
+        }
+
+        var validation = await validator.ValidateAsync(collection);
         
         if (!validation.IsValid)
         {

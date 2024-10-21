@@ -3,6 +3,7 @@ using API.Converters;
 using API.Infrastructure.IdGenerator;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
+using Models.Database.General;
 
 namespace API.Helpers;
 
@@ -19,8 +20,8 @@ public static class CollectionHelperX
     public static string GenerateFlatCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}/collections/{collection.Id}";
     
-    public static string GenerateFlatCollectionParent(this Collection collection, UrlRoots urlRoots) =>
-        $"{urlRoots.BaseUrl}/{collection.CustomerId}/collections/{collection.Parent}";
+    public static string GenerateFlatCollectionParent(this Hierarchy hierarchy, UrlRoots urlRoots) =>
+        $"{urlRoots.BaseUrl}/{hierarchy.CustomerId}/collections/{hierarchy.Parent}";
     
     public static string GenerateFlatCollectionViewId(this Collection collection, UrlRoots urlRoots, 
         int currentPage, int pageSize, string? orderQueryParam) =>
@@ -46,8 +47,11 @@ public static class CollectionHelperX
         new(
             $"{collection.GenerateFlatCollectionId(urlRoots)}?page={lastPage}&pageSize={pageSize}{orderQueryParam}");
     
-    public static string GenerateFullPath(this Collection collection, string itemSlug) => 
-        $"{(collection.Parent != null ? $"{collection.Slug}/" : string.Empty)}{itemSlug}";
+    public static string GenerateFullPath(this Hierarchy hierarchy, string itemSlug) => 
+        $"{(hierarchy.Parent != null ? $"{hierarchy.Slug}/" : string.Empty)}{itemSlug}";
+    
+    public static string GetCollectionBucketKey(this Collection collection) =>
+            $"{collection.CustomerId}/collections/{collection.Id}";
     
     public static async Task<string> GenerateUniqueIdAsync(this DbSet<Collection> collections, 
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)

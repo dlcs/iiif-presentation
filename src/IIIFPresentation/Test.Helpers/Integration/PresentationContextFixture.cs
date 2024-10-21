@@ -1,6 +1,7 @@
 ﻿using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Testcontainers.PostgreSql;
@@ -34,7 +35,6 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = RootCollection.Id,
-            Slug = "",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -50,10 +50,18 @@ public class PresentationContextFixture : IAsyncLifetime
             CustomerId = 1
         });
 
-        await DbContext.Collections.AddAsync(new Collection()
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = RootCollection.Id,
+            Slug = "",
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true
+        });
+
+        await DbContext.Collections.AddAsync(new Collection
         {
             Id = "FirstChildCollection",
-            Slug = "first-child",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -67,13 +75,21 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = true,
             CustomerId = 1,
-            Parent = RootCollection.Id
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = "FirstChildCollection",
+            Slug = "first-child",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "SecondChildCollection",
-            Slug = "second-child",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -86,14 +102,22 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = "SecondChildCollection",
+            Slug = "second-child",
+            Parent = "FirstChildCollection",
+            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Parent = "FirstChildCollection"
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "NonPublic",
-            Slug = "non-public",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -106,14 +130,22 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = "NonPublic",
+            Slug = "non-public",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Parent = RootCollection.Id
+            Canonical = true
         });
         
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "IiifCollection",
-            Slug = "iiif-collection",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -126,8 +158,17 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = false,
             IsPublic = true,
+            CustomerId = 1
+        });
+        
+        await DbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = "IiifCollection",
+            Slug = "iiif-collection",
+            Parent = RootCollection.Id,
+            Type = ResourceType.IIIFCollection,
             CustomerId = 1,
-            Parent = RootCollection.Id
+            Canonical = true
         });
 
         await DbContext.SaveChangesAsync();

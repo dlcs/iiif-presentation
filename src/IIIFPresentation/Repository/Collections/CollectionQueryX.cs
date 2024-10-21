@@ -1,5 +1,9 @@
 ﻿using Core.Helpers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using Models.Database.Collections;
+using Models.Database.General;
+using Repository.Helpers;
 
 namespace Repository.Collections;
 
@@ -24,8 +28,8 @@ public static class CollectionQueryX
         {
             "id" => descending ? collectionQuery.OrderByDescending(c => c.Id) : collectionQuery.OrderBy(c => c.Id),
             "slug" => descending
-                ? collectionQuery.OrderByDescending(c => c.Slug)
-                : collectionQuery.OrderBy(c => c.Slug),
+                ? collectionQuery.OrderByDescending(c => c.Hierarchy!.Single(h => h.Canonical).Slug)
+                : collectionQuery.OrderBy(c => c.Hierarchy!.Single(h => h.Canonical).Slug),
             "created" => descending
                 ? collectionQuery.OrderByDescending(c => c.Created)
                 : collectionQuery.OrderBy(c => c.Created),

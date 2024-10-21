@@ -9,14 +9,15 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core;
 using Core.Helpers;
+using IIIF.Presentation.V3.Content;
+using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
-using Newtonsoft.Json;
-using NuGet.Protocol;
+using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
@@ -28,7 +29,7 @@ public class CreateCollection(int customerId, UpsertFlatCollection collection, s
 {
     public int CustomerId { get; } = customerId;
 
-    public UpsertFlatCollection Collection { get; } = collection;
+    public UpsertFlatCollection? Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
 
@@ -50,10 +51,12 @@ public class CreateCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         // check parent exists
-        var parentCollection = await dbContext.RetrieveCollection(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), cancellationToken);
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+            request.Collection!.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         string id;
 
@@ -75,20 +78,46 @@ public class CreateCollectionHandler(
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
-            IsPublic = request.Collection.Behavior.IsPublic(),
-            IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
-            Label = request.Collection.Label,
-            Parent = parentCollection.Id,
-            Slug = request.Collection.Slug,
-            Thumbnail = request.Collection.Thumbnail,
             Tags = request.Collection.Tags,
-            ItemsOrder = request.Collection.ItemsOrder
+            IsPublic = request.Collection.Behavior.IsPublic(),
+            IsStorageCollection = isStorageCollection,
+            Label = request.Collection.Label
+        };
+
+        var hierarchy = new Hierarchy
+        {
+            CollectionId = id,
+            Type = isStorageCollection
+                ? ResourceType.StorageCollection
+                : ResourceType.IIIFCollection,
+            Slug = request.Collection.Slug,
+            CustomerId = request.CustomerId,
+            Canonical = true,
+            ItemsOrder = request.Collection.ItemsOrder,
+            Parent = request.Collection.Parent
         };
         
-        await using var transaction = 
-            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        string? convertedIIIFCollection = null;
+
+        if (!isStorageCollection)
+        {
+            try
+            {
+                convertedIIIFCollection = ConvertToIIIFCollection(request, collection);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
+                return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
+            }
+        }
+        else
+        {
+            collection.Thumbnail = request.Collection.PresentationThumbnail;
+        }
         
         dbContext.Collections.Add(collection);
+        dbContext.Hierarchy.Add(hierarchy);
 
         var saveErrors =
             await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
@@ -98,37 +127,11 @@ public class CreateCollectionHandler(
         {
             return saveErrors;
         }
-        
-        if (!request.Collection.Behavior.IsStorageCollection())
-        {
-            try
-            {
-                var collectionToSave = GenerateCollectionFromRawRequest(request.RawRequestBody);
 
-                await bucketWriter.WriteToBucket(
-                    new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                        $"{request.CustomerId}/collections/{collection.Id}"),
-                    collectionToSave, "application/json", cancellationToken);
-            }
-            catch (JsonSerializationException ex)
-            {
-                logger.LogError(ex, "Error attempting to validate collection is IIIF");
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "Error attempting to validate collection is IIIF", ModifyCollectionType.CannotValidateIIIF,
-                    WriteResult.BadRequest);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "An unknown exception occured while creating a new collection");
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "Unknown error occured while creating a collection", ModifyCollectionType.Unknown,
-                    WriteResult.Error);
-            }
-        }
-        
-        await transaction.CommitAsync(cancellationToken);
+        await UploadToS3IfRequiredAsync(request, collection, convertedIIIFCollection!, isStorageCollection,
+            cancellationToken);
 
-        if (collection.Parent != null)
+        if (hierarchy.Parent != null)
         {
             collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
@@ -138,9 +141,27 @@ public class CreateCollectionHandler(
             WriteResult.Created);
     }
 
-    private static string GenerateCollectionFromRawRequest(string rawRequestBody)
+    private static string ConvertToIIIFCollection(CreateCollection request, Collection collection)
     {
-        var collection = rawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
-        return collection.ToJson();
+        var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
+        var convertedIIIFCollection = collectionAsIIIF.AsJson();
+        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
+        if (thumbnails != null)
+        {
+            collection.Thumbnail = thumbnails.GetThumbnailPath();
+        }
+        return convertedIIIFCollection;
+    }
+
+    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
+        Collection collection, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
+    {
+        if (!isStorageCollection)
+        {
+            await bucketWriter.WriteToBucket(
+                new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                    collection.GetCollectionBucketKey()),
+                convertedIIIFCollection, "application/json", cancellationToken);
+        }
     }
 }

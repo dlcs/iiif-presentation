@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Helpers;
 using Models.Database.Collections;
+using Models.Database.General;
 
 namespace API.Tests.Helpers;
 
@@ -17,10 +18,10 @@ public class CollectionHelperXTests
     public void GenerateHierarchicalCollectionId_CreatesIdWhenNoFullPath()
     {
         // Arrange
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = "test",
-            Slug = "slug",
+            Hierarchy = GetDefaultHierarchyList()
         };
 
         // Act
@@ -34,10 +35,10 @@ public class CollectionHelperXTests
     public void GenerateHierarchicalCollectionId_CreatesIdWhenFullPath()
     {
         // Arrange
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = "test",
-            Slug = "slug",
+            Hierarchy = GetDefaultHierarchyList(),
             FullPath = "top/test"
         };
 
@@ -52,10 +53,10 @@ public class CollectionHelperXTests
     public void GenerateFlatCollectionId_CreatesId()
     {
         // Arrange
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy = GetDefaultHierarchyList()
         };
 
         // Act
@@ -69,15 +70,14 @@ public class CollectionHelperXTests
     public void GenerateFlatCollectionParent_CreatesParentId()
     {
         // Arrange
-        var collection = new Collection()
+        var hierarchy = new Hierarchy
         {
-            Id = "test",
             Slug = "slug",
             Parent = "parent"
         };
 
         // Act
-        var id = collection.GenerateFlatCollectionParent(urlRoots);
+        var id = hierarchy.GenerateFlatCollectionParent(urlRoots);
 
         // Assert
         id.Should().Be("http://base/0/collections/parent");
@@ -87,10 +87,10 @@ public class CollectionHelperXTests
     public void GenerateFlatCollectionViewId_CreatesViewId()
     {
         // Arrange
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy = GetDefaultHierarchyList()
         };
 
         // Act
@@ -104,10 +104,10 @@ public class CollectionHelperXTests
     public void GenerateFlatCollectionViewNext_CreatesViewNext()
     {
         // Arrange
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy = GetDefaultHierarchyList()
         };
 
         // Act
@@ -124,7 +124,7 @@ public class CollectionHelperXTests
         var collection = new Collection()
         {
             Id = "test",
-            Slug = "slug"
+            Hierarchy = GetDefaultHierarchyList()
         };
 
         // Act
@@ -133,4 +133,6 @@ public class CollectionHelperXTests
         // Assert
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");
     }
+    
+    private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }
