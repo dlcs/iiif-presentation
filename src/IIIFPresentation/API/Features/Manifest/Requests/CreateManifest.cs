@@ -91,8 +91,8 @@ public class CreateManifestHandler(
                 {
                     Slug = request.PresentationManifest.Slug!,
                     Canonical = true,
-                    Type = ResourceType.Manifest,
-                    Parent = parentCollection!.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Parent = parentCollection.Id,
                 }
             ]
         };

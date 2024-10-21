@@ -22,13 +22,13 @@ public class IIIFS3Service(IBucketWriter bucketWriter, ILogger<IIIFS3Service> lo
         CancellationToken cancellationToken)
     {
         logger.LogDebug("Uploading resource {Customer}:{ResourceId} file to S3", dbResource.CustomerId, dbResource.Id);
-        EnsureIIIF(iiifResource, flatId);
+        EnsureIIIFValid(iiifResource, flatId);
         var iiifJson = iiifResource.AsJson();
         var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
     }
 
-    private static void EnsureIIIF(ResourceBase iiifResource, string flatId)
+    private static void EnsureIIIFValid(ResourceBase iiifResource, string flatId)
     {
         // NOTE(DG): this isn't doing much just now, could serve as extension point for type-specific config prior to
         // writing data to S3

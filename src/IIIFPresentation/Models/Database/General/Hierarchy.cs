@@ -50,5 +50,5 @@ public enum ResourceType
 {
     StorageCollection = 0, 
     IIIFCollection = 1, 
-    Manifest = 2
+    IIIFManifest = 2
 }
