@@ -88,7 +88,7 @@ public class UpsertCollectionHandler(
             hierarchy = new Hierarchy
             {
                 CollectionId = request.CollectionId,
-                Type = ResourceType.IIIFCollection,
+                Type = ResourceType.StorageCollection,
                 Slug = request.Collection.Slug,
                 CustomerId = request.CustomerId,
                 Canonical = true,
