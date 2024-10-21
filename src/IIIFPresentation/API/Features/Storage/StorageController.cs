@@ -14,6 +14,7 @@ using IIIF.Serialisation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Models.API.Collection.Upsert;
 using Newtonsoft.Json;
@@ -36,7 +37,9 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
 
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
-            return SeeOther(storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots()));
+            var relativeUrl = storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots());
+            relativeUrl = QueryHelpers.AddQueryString(relativeUrl, Request.Query);
+            return SeeOther(relativeUrl);
         }
 
         return storageRoot.StoredCollection == null

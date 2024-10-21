@@ -87,6 +87,20 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
+    public async Task Get_Hierarchical_ReturnsSeeOther_WithQueryParameters_WhenAuthAndShowExtrasHeadersAndQuery()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1?page=2&pageSize=2");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=2&pageSize=2");
+    }
+    
+    [Fact]
     public async Task Get_RootFlat_ReturnsSeeOther_WhenNoAuthOrCsHeader()
     {
         // Act
