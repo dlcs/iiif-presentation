@@ -79,7 +79,7 @@ public class LocalStackFixture : IAsyncLifetime
                             {
                             "type": "Collection",
                             "behavior": [
-                                "public-iiif",
+                                "public-iiif"
                             ],
                             "label": {
                                 "en": [
