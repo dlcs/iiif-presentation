@@ -7,7 +7,16 @@ namespace Repository.Helpers;
 
 public static class CollectionRetrieval
 {
-    public static string RetrieveFullPathForCollection(Collection collection, PresentationContext dbContext)
+    /// <summary>
+    /// For given collection, return the full hierarchical path for it, delimited by `/`
+    /// This will consist of the slug of searched for given collection and all it's parents.
+    /// </summary>
+    /// <param name="collection">Collection to retrieve full path for</param>
+    /// <param name="dbContext">Current db context</param>
+    /// <returns>Delimited path</returns>
+    /// <exception cref="PresentationException">Thrown if a circular dependency is expected</exception>
+    /// <remarks>Note that both 'root' level items and not-found items will return empty string</remarks>
+    public static async Task<string> RetrieveFullPathForCollection(Collection collection, PresentationContext dbContext, CancellationToken cancellationToken = default)
     {
         var query = $@"
 WITH RECURSIVE parentsearch AS (
@@ -43,10 +52,9 @@ WITH RECURSIVE parentsearch AS (
 SELECT * FROM parentsearch ps
          ORDER BY generation_number DESC
 ";
-        var parentCollections = dbContext.Hierarchy
+        var parentCollections = await dbContext.Hierarchy
             .FromSqlRaw(query)
-            .OrderBy(i => i.CustomerId)
-            .ToList();
+            .ToListAsync(cancellationToken);
 
         if (parentCollections.Count >= 1000)
         {

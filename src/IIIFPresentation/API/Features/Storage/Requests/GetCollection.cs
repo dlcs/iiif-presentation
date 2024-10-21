@@ -47,15 +47,15 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
 
         var total = await dbContext.GetTotalItemCountForCollection(collection, items.Count, request.PageSize,
             cancellationToken);
-            
+        
         foreach (var item in items)
-        { 
+        {
             item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
         }
-
+        
         if (hierarchy.Parent != null)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath = await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
 
         return new CollectionWithItems(collection, hierarchy, items, total);

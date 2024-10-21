@@ -138,7 +138,7 @@ public class CreateCollectionHandler(
 
         if (hierarchy.Parent != null)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath = await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
