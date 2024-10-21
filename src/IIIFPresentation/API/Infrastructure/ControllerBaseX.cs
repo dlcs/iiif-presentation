@@ -5,6 +5,8 @@ using API.Infrastructure.Requests;
 using Core;
 using Core.Helpers;
 using FluentValidation.Results;
+using IIIF;
+using IIIF.Serialisation;
 using Microsoft.AspNetCore.Mvc;
 using Models.API.General;
 
@@ -64,7 +66,7 @@ public static class ControllerBaseX
     entityResult.WriteResult switch
     {
         WriteResult.Updated => controller.Ok(entityResult.Entity),
-        WriteResult.Created => controller.Created(controller.Request.GetDisplayUrl(), entityResult.Entity),
+        WriteResult.Created => controller.PresentationCreated(controller.Request.GetDisplayUrl(), entityResult.Entity),
         WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
         WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
             (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
@@ -120,7 +122,7 @@ public static class ControllerBaseX
     /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
     /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
     /// <param name="title">The value for <see cref="Error.Title" />.</param>
-    /// <param name="type">The value for <see cref="Error.Type" />.</param>
+    /// <param name="type">The value for <see cref="Type" />.</param>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
     public static ObjectResult PresentationProblem(
         this ControllerBase controller,
@@ -163,4 +165,24 @@ public static class ControllerBaseX
     /// </summary>
     public static ObjectResult Forbidden(this ControllerBase controller)
         => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
+    
+    /// <summary>
+    /// Create a 201 result with standard serialized value or custom serialized IIIF object if value is
+    /// <see cref="JsonLdBase"/> 
+    /// </summary>
+    public static ActionResult PresentationCreated(this ControllerBase controller, string? uri, object? value)
+    {
+        if (value is JsonLdBase jsonLdBase)
+        {
+            controller.Response.Headers.Location = uri;
+            return new ContentResult
+            {
+                Content = jsonLdBase.AsJson(),
+                ContentType = IIIF.Presentation.ContentTypes.V3,
+                StatusCode = 201,
+            };
+        }
+        
+        return new CreatedResult(uri, value);
+    }
 }
