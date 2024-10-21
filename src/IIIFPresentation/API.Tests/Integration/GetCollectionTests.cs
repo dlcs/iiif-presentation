@@ -153,6 +153,46 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location!.Should().Be("http://localhost/1");
     }
+
+    [Fact]
+    public async Task Get_RootFlat_ReturnsNotFound_WhenNoAuthOrCsHeaderAndNotPublic()
+    {
+        // Act
+        var response = await httpClient.GetAsync($"2/collections/{RootCollection.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Headers.Location.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Get_RootFlat_ReturnsNotFound_WhenNoCsHeaderAndNotPublic()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"2/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Headers.Location.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Get_RootFlat_ReturnsNotFound_WhenNoAuthAndNotPublic()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"2/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Headers.Location.Should().BeNull();
+    }
     
     [Fact]
     public async Task Get_RootFlat_ReturnsEntryPointFlat_WhenAuthAndHeader()

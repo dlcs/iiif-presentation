@@ -87,7 +87,9 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
                 storageRoot.TotalItems, storageRoot.Items, orderByParameter));
         }
 
-        return SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()));
+        return storageRoot.Collection.IsPublic
+            ? SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()))
+            : this.PresentationNotFound();
     }
 
     [Authorize]
