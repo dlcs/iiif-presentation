@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using Models.Database.General;
+﻿using Models.Database.General;
 
 namespace Models.Database.Collections;
 

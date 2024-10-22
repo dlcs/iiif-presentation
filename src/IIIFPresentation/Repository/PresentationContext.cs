@@ -75,7 +75,6 @@ public class PresentationContext : DbContext
                 .IsUnique()
                 .HasFilter("canonical is true");
 
-            entity.Ignore(p => p.Resource);
             entity.Ignore(p => p.ResourceId);
             entity.Ignore(p => p.FullPath);
         });

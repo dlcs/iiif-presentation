@@ -44,10 +44,6 @@ public class PresentationContextXTests
 
         result.Where(r => r.Collection != null).Should().HaveCount(3);
         result.Where(r => r.Manifest != null).Should().HaveCount(1);
-        result.Should().AllSatisfy(h =>
-        {
-            h.Resource.Should().NotBeNull();
-            h.ResourceId.Should().NotBeNullOrEmpty();
-        });
+        result.Should().AllSatisfy(h => h.ResourceId.Should().NotBeNullOrEmpty());
     }
 }

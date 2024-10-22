@@ -47,11 +47,6 @@ public class Hierarchy
     public int CustomerId { get; set; }
 
     /// <summary>
-    /// Related Collection or Manifest
-    /// </summary>
-    public IHierarchyResource Resource => (Collection == null ? Manifest : Collection)!;
-
-    /// <summary>
     /// Id of related Collection or Manifest
     /// </summary>
     public string? ResourceId => CollectionId ?? ManifestId;
