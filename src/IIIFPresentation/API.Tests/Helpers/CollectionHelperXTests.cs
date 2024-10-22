@@ -315,5 +315,22 @@ public class CollectionHelperXTests
         actual.Should().Be(expected);
     }
     
+    [Fact]
+    public void GenerateFlatManifestId_Correct()
+    {
+        // Arrange
+        var manifest = new Manifest
+        {
+            Id = "test",
+            CustomerId = 123
+        };
+
+        // Act
+        var id = manifest.GenerateFlatManifestId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/123/manifests/test");
+    }
+    
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }

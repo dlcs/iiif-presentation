@@ -1,7 +1,6 @@
 ﻿using System.Data;
 using API.Converters;
 using API.Infrastructure.IdGenerator;
-using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -87,6 +86,9 @@ public static class CollectionHelperX
         return $"{hierarchyResource.CustomerId}/{slug}/{hierarchyResource.Id}";
     }
     
+    /// <summary>
+    /// Get Id for specified manifest
+    /// </summary>
     public static string GenerateFlatManifestId(this Manifest manifest, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
     

@@ -1,5 +1,6 @@
 ﻿using API.Helpers;
 using Core.Helpers;
+using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
@@ -64,8 +65,8 @@ public static class CollectionConverter
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = new List<string>
             {
-                "http://tbc.org/iiif-repository/1/context.json",
-                "http://iiif.io/api/presentation/3/context.json"
+                PresentationJsonLdContext.Context,
+                IIIF.Presentation.Context.Presentation3Context
             },
             Label = dbAsset.Label,
             PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
@@ -143,8 +144,8 @@ public static class CollectionConverter
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = new List<string>
             {
-                "http://tbc.org/iiif-repository/1/context.json",
-                "http://iiif.io/api/presentation/3/context.json"
+                PresentationJsonLdContext.Context,
+                IIIF.Presentation.Context.Presentation3Context
             },
             Label = dbAsset.Label,
             PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
