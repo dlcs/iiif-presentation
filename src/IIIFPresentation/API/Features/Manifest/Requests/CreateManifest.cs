@@ -55,7 +55,6 @@ public class CreateManifestHandler(
 
         await SaveToS3(dbManifest!, request, cancellationToken);
         
-        // TODO - set publicId on PresentationManifest?
         return ModifyEntityResult<PresentationManifest, ModifyCollectionType>.Success(
             request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
     }
@@ -64,7 +63,6 @@ public class CreateManifestHandler(
     {
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationManifest>();
 
-        // NOTE (DG) - this is a temporary restriction
         return parentCollection.IsStorageCollection
             ? null
             : ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>();
@@ -76,7 +74,6 @@ public class CreateManifestHandler(
         var id = await GenerateUniqueId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
-        // Store in DB, validating slug
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {

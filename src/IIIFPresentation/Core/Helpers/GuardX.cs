@@ -78,21 +78,4 @@ public static class GuardX
 
         return val;
     }
-    
-    /// <summary>
-    /// Throw <see cref="ArgumentNullException"/> if provided list is null or empty.
-    /// </summary>
-    /// <param name="val">Value to check.</param>
-    /// <param name="argName">Argument name for exception.</param>
-    /// <returns>Provided value if not null.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if val is null or empty.</exception>
-    public static IList<T> ThrowIfNullOrEmpty<T>(this IList<T>? val, string argName = "argument")
-    {
-        if (val == null || val.Count == 0)
-        {
-            throw new ArgumentNullException(argName);
-        }
-
-        return val;
-    }
 }
