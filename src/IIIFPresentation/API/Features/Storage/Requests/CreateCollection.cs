@@ -56,6 +56,11 @@ public class CreateCollectionHandler(
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
+        // If full URI was used, verify it indeed is pointing to the resolved parent collection
+        if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+            && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+            return ErrorHelper.NullParentResponse<PresentationCollection>();
+        
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         string id;

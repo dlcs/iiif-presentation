@@ -70,6 +70,10 @@ public class UpsertCollectionHandler(
                 request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+            // If full URI was used, verify it indeed is pointing to the resolved parent collection
+            if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+                && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+                return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
             {
@@ -123,6 +127,11 @@ public class UpsertCollectionHandler(
                         $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
                         WriteResult.BadRequest);
                 }
+
+                // If full URI was used, verify it indeed is pointing to the resolved parent collection
+                if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+                    && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+                    return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 parentId = parentCollection.Id;
             }

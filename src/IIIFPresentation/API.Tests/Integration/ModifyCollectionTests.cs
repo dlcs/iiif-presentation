@@ -114,7 +114,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new("en", ["test collection"]),
             Slug = "programmatic-child",
-            Parent = $"https://example.com/this/should/not/matter/{parent}",
+            Parent = $"http://localhost/1/collections/{parent}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1
@@ -148,6 +148,39 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+    }
+
+    [Fact]
+    public async Task CreateCollection_FailsToCreateCollection_WhenParentIsHierarchicalUri()
+    {
+        // Arrange
+        var collection = new UpsertFlatCollection
+        {
+            Behavior = new()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new("en", ["test collection"]),
+            Slug = "programmatic-child",
+            Parent = $"http://localhost/1/{parent}", //note how this is HIERARCHICAL uri
+            PresentationThumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.Detail.Should().Be("The parent collection could not be found");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
 
     [Fact]
@@ -579,7 +612,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new("en", ["test collection - updated"]),
             Slug = "programmatic-child",
-            Parent = $"https://example.com/this/should/not/matter/{parent}",
+            Parent = $"http://localhost/1/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2"
@@ -897,6 +930,74 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be("The parent collection could not be found");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenParentIsHierarchicalUri()
+    {
+        // Arrange
+        var initialCollection = new Collection
+        {
+            Id = "UpdateTester-7",
+            UsePath = true,
+            Label = new()
+            {
+                {"en", new() {"update testing"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1
+        };
+
+        await dbContext.Hierarchy.AddAsync(new()
+        {
+            CollectionId = "UpdateTester-7",
+            Slug = "update-test-4",
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true
+        });
+
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+
+        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+
+        var updatedCollection = new UpsertFlatCollection
+        {
+            Behavior = new()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new("en", ["test collection - updated"]),
+            Slug = "programmatic-child-3",
+            Parent = $"http://localhost/1/{RootCollection.Id}" // note hierarchical form
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+        updateRequestMessage.Headers.IfMatch.Add(new(getResponse.Headers.ETag!.Tag));
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
