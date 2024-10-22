@@ -80,6 +80,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_BadRequest_IfUnableToDeserialize()
     {
+        // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "foo");
         
@@ -93,6 +94,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_BadRequest_IfInvalid()
     {
+        // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "{\"id\":\"123");
         
@@ -106,6 +108,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_BadRequest_IfParentNotFound()
     {
+        // Arrange
         var manifest = new PresentationManifest
         {
             Parent = "not-found",
@@ -125,6 +128,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection()
     {
+        // Arrange
         var collectionId = nameof(CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection);
         var initialCollection = new Collection
         {
@@ -170,6 +174,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForCollection()
     {
+        // Arrange
         var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection);
         var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection)}";
         var duplicateCollection = new Collection
@@ -215,6 +220,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForManifest()
     {
+        // Arrange
         var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest);
         var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest)}";
         var duplicateManifest = new Manifest
@@ -258,6 +264,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_ReturnsManifest()
     {
+        // Arrange
         var slug = nameof(CreateManifest_ReturnsManifest);
         var manifest = new PresentationManifest
         {
@@ -287,6 +294,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_CreatedDBRecord()
     {
+        // Arrange
         var slug = nameof(CreateManifest_CreatedDBRecord);
         var manifest = new PresentationManifest
         {
@@ -316,6 +324,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_WritesToS3()
     {
+        // Arrange
         var slug = nameof(CreateManifest_WritesToS3);
         var manifest = new PresentationManifest
         {
@@ -347,6 +356,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task CreateManifest_WritesToS3_IgnoringId()
     {
+        // Arrange
         var slug = nameof(CreateManifest_WritesToS3_IgnoringId);
         var manifest = new PresentationManifest
         {
