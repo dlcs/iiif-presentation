@@ -143,7 +143,7 @@ public class CreateCollectionHandler(
         }
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, Enumerable.Empty<Hierarchy>()), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 

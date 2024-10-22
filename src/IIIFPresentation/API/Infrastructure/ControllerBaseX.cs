@@ -174,13 +174,20 @@ public static class ControllerBaseX
     {
         if (value is JsonLdBase jsonLdBase)
         {
-            controller.Response.Headers.Location = uri;
-            return new ContentResult
+            try
             {
-                Content = jsonLdBase.AsJson(),
-                ContentType = IIIF.Presentation.ContentTypes.V3,
-                StatusCode = 201,
-            };
+                controller.Response.Headers.Location = uri;
+                return new ContentResult
+                {
+                    Content = jsonLdBase.AsJson(),
+                    ContentType = IIIF.Presentation.ContentTypes.V3,
+                    StatusCode = 201,
+                };
+            }
+            catch (Exception ex)
+            {
+                var asdas = ex.Message;
+            }
         }
         
         return new CreatedResult(uri, value);

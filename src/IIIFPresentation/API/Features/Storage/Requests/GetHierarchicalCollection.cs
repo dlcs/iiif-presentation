@@ -34,7 +34,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
     {
         var hierarchy =
             await dbContext.RetrieveHierarchy(request.CustomerId, request.Slug, cancellationToken);
-        List<Collection>? items = null;
+        List<Hierarchy>? items = null;
         string? collectionFromS3 = null;
 
         if (hierarchy?.CollectionId != null)
@@ -69,6 +69,6 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
             }
         }
 
-        return new CollectionWithItems(hierarchy?.Collection, hierarchy, items, items?.Count ?? 0, collectionFromS3);
+        return new CollectionWithItems(hierarchy?.Collection, items, items?.Count ?? 0, collectionFromS3);
     }
 }

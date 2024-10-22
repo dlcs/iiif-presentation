@@ -1,4 +1,5 @@
-﻿using Models.Database.General;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using Models.Database.General;
 
 namespace Models.Database.Collections;
 
@@ -22,12 +23,12 @@ public class Manifest : IHierarchyResource
     public DateTime Modified { get; set; }
 
     /// <summary>
-    /// Who last committed a change to this Collection
+    /// Who created this Manifest
     /// </summary>
     public string? CreatedBy { get; set; }
 
     /// <summary>
-    /// Who last committed a change to this Collection
+    /// Who last committed a change to this Manifest
     /// </summary>
     public string? ModifiedBy { get; set; }
     

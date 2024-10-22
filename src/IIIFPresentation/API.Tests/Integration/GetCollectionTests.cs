@@ -15,7 +15,7 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    private const int TotalDatabaseChildItems = 3;
+    private const int TotalDatabaseChildItems = 4;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -353,7 +353,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.View!.PageSize.Should().Be(1);
         collection.View.Page.Should().Be(2);
-        collection.View.TotalPages.Should().Be(3);
+        collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
@@ -425,9 +425,9 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Theory]
-    [InlineData("id", "NonPublic")]
-    [InlineData("slug", "NonPublic")]
-    [InlineData("created", "IiifCollection")]
+    [InlineData("id", "manifests/FirstChildManifest")]
+    [InlineData("slug", "collections/NonPublic")]
+    [InlineData("created", "manifests/FirstChildManifest")]
     public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field, string expectedItemId)
     {
         // Arrange
@@ -445,10 +445,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View!.PageSize.Should().Be(1);
         collection.View.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending={field}");
         collection.View.Page.Should().Be(1);
-        collection.View.TotalPages.Should().Be(3);
+        collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         
-        collection.Items.OfType<Collection>().First().Id.Should().Be($"http://localhost/1/collections/{expectedItemId}");
+        collection.Items.OfType<ResourceBase>().First().Id.Should().Be($"http://localhost/1/{expectedItemId}");
     }
     
     [Fact]

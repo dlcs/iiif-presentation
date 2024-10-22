@@ -8,6 +8,13 @@ namespace Models.Database.Collections;
 public interface IHierarchyResource
 {
     string Id { get; }
+    
+    /// <summary>
+    /// The customer identifier
+    /// </summary>
     int CustomerId { get; }
+    
     List<Hierarchy>? Hierarchy { get; }
+    
+    public DateTime Created { get; set; }
 }

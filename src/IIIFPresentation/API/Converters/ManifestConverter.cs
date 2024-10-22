@@ -1,5 +1,6 @@
 ﻿using API.Helpers;
 using Core.Helpers;
+using IIIF.Presentation;
 using Models.API.Manifest;
 
 namespace API.Converters;
@@ -14,6 +15,7 @@ public static class ManifestConverter
         iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
+        iiifManifest.EnsurePresentation3Context();
         
         return iiifManifest;
     }

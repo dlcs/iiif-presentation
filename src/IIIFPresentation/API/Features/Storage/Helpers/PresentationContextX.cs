@@ -81,21 +81,29 @@ public static class PresentationContextX
             .Include(e => e.Hierarchy)
             .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == resourceId, cancellationToken);
     }
-
+    
     /// <summary>
-    /// Retrieves child collections from the database of the parent record, while including the hierarchy records
+    /// Retrieves child hierarchy items for the parent record - entities are not tracked
     /// </summary>
     /// <param name="dbContext">The context to pull records from</param>
     /// <param name="customerId">Customer the record is attached to</param>
-    /// <param name="collectionId">The collection to retrieve child items for</param>
-    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="resourceId">The collection to retrieve child items for</param>
+    /// <param name="publicOnly">Whether to return public only resources</param>
     /// <returns>A query containing child collections</returns>
-    public static IQueryable<Collection> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, 
-        string collectionId, bool tracked = false)
+    public static IQueryable<Hierarchy> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, 
+        string resourceId, bool publicOnly = false)
     {
-        var collection = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
-        return collection.Include(c => c.Hierarchy)
-            .Where(c => c.CustomerId == customerId && c.Hierarchy!.Single(h => h.Canonical).Parent == collectionId);
+        var hierarchy = dbContext.Hierarchy.AsNoTracking()
+            .Include(h => h.Collection)
+            .Include(h => h.Manifest)
+            .Where(c => c.CustomerId == customerId && c.Canonical && c.Parent == resourceId);
+
+        if (publicOnly)
+        {
+            hierarchy = hierarchy.Where(c => c.Collection == null || c.Collection.IsPublic);
+        }
+
+        return hierarchy;
     }
     
     public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext, Collection collection, 

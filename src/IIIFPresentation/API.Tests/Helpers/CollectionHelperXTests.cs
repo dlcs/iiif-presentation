@@ -49,6 +49,39 @@ public class CollectionHelperXTests
     }
     
     [Fact]
+    public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()
+    {
+        // Arrange
+        var hierarchy = new Hierarchy
+        {
+            Slug = "test"
+        };
+
+        // Act
+        var id = hierarchy.GenerateHierarchicalId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/0");
+    }
+    
+    [Fact]
+    public void GenerateHierarchicalId_CreatesIdWhenFullPath()
+    {
+        // Arrange
+        var hierarchy = new Hierarchy
+        {
+            FullPath = "top/test",
+            Slug = "test"
+        };
+
+        // Act
+        var id = hierarchy.GenerateHierarchicalId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/0/top/test");
+    }
+    
+    [Fact]
     public void GenerateFlatCollectionId_CreatesId()
     {
         // Arrange
@@ -65,21 +98,80 @@ public class CollectionHelperXTests
         id.Should().Be("http://base/0/collections/test");
     }
     
+    [Theory]
+    [InlineData(ResourceType.StorageCollection)]
+    [InlineData(ResourceType.IIIFCollection)]
+    public void GenerateFlatId_Correct_Collection(ResourceType resourceType)
+    {
+        // Arrange
+        var hierarchy = new Hierarchy
+        {
+            CollectionId = "test",
+            Slug = "slug",
+            Type = resourceType
+        };
+
+        // Act
+        var id = hierarchy.GenerateFlatId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/0/collections/test");
+    }
+    
     [Fact]
-    public void GenerateFlatCollectionParent_CreatesParentId()
+    public void GenerateFlatId_Correct_Manifest()
+    {
+        // Arrange
+        var hierarchy = new Hierarchy
+        {
+            ManifestId = "test",
+            Slug = "slug",
+            Type = ResourceType.IIIFManifest
+        };
+
+        // Act
+        var id = hierarchy.GenerateFlatId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/0/manifests/test");
+    }
+    
+    [Theory]
+    [InlineData(ResourceType.StorageCollection)]
+    [InlineData(ResourceType.IIIFCollection)]
+    public void GenerateFlatParentId_Correct_Collection(ResourceType resourceType)
     {
         // Arrange
         var hierarchy = new Hierarchy
         {
             Slug = "slug",
-            Parent = "parent"
+            Parent = "parent",
+            Type = resourceType
         };
 
         // Act
-        var id = hierarchy.GenerateFlatCollectionParent(urlRoots);
+        var id = hierarchy.GenerateFlatParentId(urlRoots);
 
         // Assert
         id.Should().Be("http://base/0/collections/parent");
+    }
+    
+    [Fact]
+    public void GenerateFlatParentId_Correct_Manifest()
+    {
+        // Arrange
+        var hierarchy = new Hierarchy
+        {
+            Slug = "slug",
+            Parent = "parent",
+            Type = ResourceType.IIIFManifest
+        };
+
+        // Act
+        var id = hierarchy.GenerateFlatParentId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/0/manifests/parent");
     }
     
     [Fact]
@@ -161,41 +253,18 @@ public class CollectionHelperXTests
         actual.Should().Be(expected);
     }
 
-    [Fact]
-    public void GenerateFullPath_Throws_IfHierarchyNull()
-    {
-        var parentCollection = new Collection { CustomerId = 99, Id = "javelin" };
-        var collection = new Collection { CustomerId = 99, Id = "sut" };
-        
-        Action action = () => collection.GenerateFullPath(parentCollection);
-        action.Should().Throw<ArgumentException>();
-    }
-    
-    [Fact]
-    public void GenerateFullPath_Throws_IfHierarchyEmpty()
-    {
-        var parentCollection = new Collection { CustomerId = 99, Id = "javelin" };
-        var collection = new Collection { CustomerId = 99, Id = "sut", Hierarchy = [] };
-        
-        Action action = () => collection.GenerateFullPath(parentCollection);
-        action.Should().Throw<ArgumentException>();
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public void GenerateFullPath_Correct_ParentFullPathNull(string? path)
+    public void GenerateFullPath_Correct_ParentFullPathNullOrEmpty(string? path)
     {
         // Arrange
         var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = path};
-        var collection = new Collection
-        {
-            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
-        };
+        var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "slug";
         
         // Act
-        var actual = collection.GenerateFullPath(parentCollection);
+        var actual = hierarchy.GenerateFullPath(parentCollection);
         
         // Assert
         actual.Should().Be(expected);
@@ -206,51 +275,27 @@ public class CollectionHelperXTests
     {
         // Arrange
         var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = "have/hold/javelin" };
-        var collection = new Collection
-        {
-            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
-        };
+        var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "have/hold/javelin/slug";
         
         // Act
-        var actual = collection.GenerateFullPath(parentCollection);
+        var actual = hierarchy.GenerateFullPath(parentCollection);
         
         // Assert
         actual.Should().Be(expected);
     }
     
-    [Fact]
-    public void GenerateFullPath_String_Throws_IfHierarchyNull()
-    {
-        var collection = new Collection { CustomerId = 99, Id = "sut" };
-        
-        Action action = () => collection.GenerateFullPath("foo");
-        action.Should().Throw<ArgumentException>();
-    }
-    
-    [Fact]
-    public void GenerateFullPath_String_Throws_IfHierarchyEmpty()
-    {
-        var collection = new Collection { CustomerId = 99, Id = "sut", Hierarchy = [] };
-        
-        Action action = () => collection.GenerateFullPath("foo");
-        action.Should().Throw<ArgumentException>();
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData(null)]
     public void GenerateFullPath_String_Correct_ParentFullPathNullOrEmpty(string? path)
     {
         // Arrange
-        var collection = new Collection
-        {
-            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
-        };
+        var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "slug";
         
         // Act
-        var actual = collection.GenerateFullPath(path);
+        var actual = hierarchy.GenerateFullPath(path);
         
         // Assert
         actual.Should().Be(expected);
@@ -260,14 +305,11 @@ public class CollectionHelperXTests
     public void GenerateFullPath_String_Correct_ParentFullPathHasValue()
     {
         // Arrange
-        var collection = new Collection
-        {
-            CustomerId = 99, Id = "sut", Hierarchy = [new Hierarchy { Slug = "slug" }]
-        };
+        var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "have/hold/javelin/slug";
         
         // Act
-        var actual = collection.GenerateFullPath("have/hold/javelin");
+        var actual = hierarchy.GenerateFullPath("have/hold/javelin");
         
         // Assert
         actual.Should().Be(expected);

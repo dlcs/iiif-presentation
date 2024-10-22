@@ -55,6 +55,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvided()
     {
+        var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
         // Arrange
         var collection = new UpsertFlatCollection()
         {
@@ -64,7 +65,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent,
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
@@ -89,7 +90,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
@@ -1005,6 +1006,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect);
         var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
@@ -1013,7 +1015,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent
         };
 
@@ -1131,9 +1133,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders()
     {
         // Arrange
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
-
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders);
+        var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
+        
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
         var updatedCollection = new UpsertFlatCollection()
@@ -1144,7 +1146,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent
         };
 

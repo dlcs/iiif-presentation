@@ -74,6 +74,10 @@ public class PresentationContext : DbContext
             entity.HasIndex(e => new { e.CollectionId, e.CustomerId, e.Canonical })
                 .IsUnique()
                 .HasFilter("canonical is true");
+
+            entity.Ignore(p => p.Resource);
+            entity.Ignore(p => p.ResourceId);
+            entity.Ignore(p => p.FullPath);
         });
     }
 }
