@@ -9,8 +9,10 @@ using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Serialisation;
+using IIIF.Serialisation.Deserialisation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +27,8 @@ namespace API.Features.Storage;
 public class StorageController(IAuthenticator authenticator, IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
+    private JsonSerializerSettings jsonSettings;
+    
     [HttpGet("{*slug}")]
     [ETagCaching]
     [VaryHeader]
@@ -100,11 +104,8 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         using var streamReader = new StreamReader(Request.Body);
 
         var rawRequestBody = await streamReader.ReadToEndAsync();
-        
-        var collection = JsonConvert.DeserializeObject<PresentationCollection>(rawRequestBody, new JsonSerializerSettings()
-        {
-            NullValueHandling = NullValueHandling.Ignore
-        });
+
+        var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
 
         if (collection == null) return PresentationUnableToSerialize();
 
@@ -132,10 +133,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         using var streamReader = new StreamReader(Request.Body);
         var rawRequestBody = await streamReader.ReadToEndAsync();
         
-        var collection = JsonConvert.DeserializeObject<PresentationCollection>(rawRequestBody, new JsonSerializerSettings()
-        {
-            NullValueHandling = NullValueHandling.Ignore
-        });
+        var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
 
         if (collection == null) return PresentationUnableToSerialize();
 

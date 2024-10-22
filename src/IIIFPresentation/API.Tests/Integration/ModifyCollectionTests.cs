@@ -15,7 +15,6 @@ using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
-using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -64,7 +63,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvided()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -174,7 +173,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -233,7 +232,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -258,7 +257,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -286,7 +285,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutShowExtras()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -342,7 +341,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -370,7 +369,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -438,7 +437,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -506,7 +505,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            CollectionId = "UpdateTester-IIIF",
+            CollectionId = initialCollection.Id,
             Slug = "iiif-update-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
@@ -607,7 +606,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Arrange
         var initialCollection = new Collection()
         {
-            Id = "UpdateTester",
+            Id = "IIIF-UpdateTester-2",
             UsePath = true,
             Label = new LanguageMap
             {
@@ -625,7 +624,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            CollectionId = "UpdateTester",
+            CollectionId = initialCollection.Id,
             Slug = "update-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
@@ -676,7 +675,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_CreatesCollection_WhenUnknownCollectionIdProvided()
     {
         // Arrange
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -724,7 +723,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToCreateCollection_WhenUnknownCollectionWithETag()
     {
         // Arrange
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -794,7 +793,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior =
             [
@@ -869,7 +868,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpsertFlatCollection
+        var updatedCollection = new PresentationCollection
         {
             Behavior = new List<string>()
             {
@@ -933,7 +932,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -962,7 +961,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -1092,7 +1091,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
         
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {

@@ -134,5 +134,7 @@ public class CollectionHelperXTests
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");
     }
     
+    
+    
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }

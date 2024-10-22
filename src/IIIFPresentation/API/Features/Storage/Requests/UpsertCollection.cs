@@ -196,11 +196,8 @@ public class UpsertCollectionHandler(
         }
         
         await transaction.CommitAsync(cancellationToken);
-
-        var test = request.Collection.EnrichFlatCollection(databaseCollection, request.UrlRoots, settings.PageSize,
-            DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));
-
-        var enrichedPresentationCollection = request.Collection.EnrichFlatCollection(databaseCollection, request.UrlRoots, settings.PageSize,
+        
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection, request.UrlRoots, settings.PageSize,
             DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);

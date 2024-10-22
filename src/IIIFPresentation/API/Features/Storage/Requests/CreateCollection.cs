@@ -126,7 +126,7 @@ public class CreateCollectionHandler(
         }
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            request.Collection.EnrichFlatCollection(collection, request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            request.Collection.EnrichPresentationCollection(collection, request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 }

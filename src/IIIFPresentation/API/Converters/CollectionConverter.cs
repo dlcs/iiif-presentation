@@ -2,7 +2,9 @@
 using Core.Helpers;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
+using Models.Database.General;
 using Models.Infrastucture;
 
 namespace API.Converters;
@@ -34,7 +36,7 @@ public static class CollectionConverter
         UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
         List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
     {
-        var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
+        var totalPages = GenerateTotalPages(pageSize, totalItems);
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
         var hierarchy = dbAsset.Hierarchy!.Single(h => h.Canonical);
@@ -42,144 +44,154 @@ public static class CollectionConverter
         return new()
         {
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
-            Context = new List<string>
-            {
-                "http://tbc.org/iiif-repository/1/context.json",
-                "http://iiif.io/api/presentation/3/context.json"
-            },
+            Context = GenerateContext(),
             Label = dbAsset.Label,
             PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
-            Behavior = new List<string>()
-                .AppendIf(dbAsset.IsPublic, Behavior.IsPublic)
-                .AppendIf(dbAsset.IsStorageCollection, Behavior.IsStorageCollection),
+            Behavior = GenerateBehavior(dbAsset),
             Slug = hierarchy.Slug,
-            Parent = hierarchy.Parent != null
-                ? hierarchy.GenerateFlatCollectionParent(urlRoots)
-                : null,
-
+            Parent = GeneratePresentationCollectionParent(urlRoots, hierarchy),
             ItemsOrder = hierarchy.ItemsOrder,
-            Items = items != null
-                ? items.Select(i => (ICollectionItem) new Collection()
-                {
-                    Id = i.GenerateFlatCollectionId(urlRoots),
-                    Label = i.Label
-                }).ToList()
-                : [],
-
-            PartOf = hierarchy.Parent != null
-                ?
-                [
-                    new PartOf(nameof(PresentationType.Collection))
-                    {
-                        Id = $"{urlRoots.BaseUrl}/{dbAsset.CustomerId}/{hierarchy.Parent}",
-                        Label = dbAsset.Label
-                    }
-                ]
-                : null,
-
+            Items = GenerateItems(urlRoots, items),
+            PartOf = GeneratePartOf(hierarchy, dbAsset, urlRoots),
             TotalItems = totalItems,
-
             View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
-
-            SeeAlso =
-            [
-                new(nameof(PresentationType.Collection))
-                {
-                    Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
-                    Label = dbAsset.Label,
-                    Profile = "Public"
-                },
-
-                new(nameof(PresentationType.Collection))
-                {
-                    Id = $"{dbAsset.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
-                    Label = dbAsset.Label,
-                    Profile = "api-hierarchical"
-                }
-            ],
-
+            SeeAlso = GenerateSeeAlso(dbAsset, urlRoots),
             Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
             Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
             CreatedBy = dbAsset.CreatedBy,
             ModifiedBy = dbAsset.ModifiedBy
         };
     }
-    
-    public static PresentationCollection EnrichFlatCollection(this PresentationCollection presentationCollection, 
-        Models.Database.Collections.Collection collection, UrlRoots urlRoots, int pageSize, int currentPage, 
-        int totalItems, List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
+
+    /// <summary>
+    /// Generate the total pages element of a presentation collection
+    /// </summary>
+    /// <param name="pageSize">The size of the page</param>
+    /// <param name="totalItems">The total number of items</param>
+    /// <returns>total pages</returns>
+    public static int GenerateTotalPages(int pageSize, int totalItems)
     {
-        var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
-
-        var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
-        var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
-
-        presentationCollection.Id = collection.GenerateFlatCollectionId(urlRoots);
-        presentationCollection.PublicId = collection.GenerateHierarchicalCollectionId(urlRoots);
-        presentationCollection.Context = new List<string>
-        {
-            "http://tbc.org/iiif-repository/1/context.json",
-            "http://iiif.io/api/presentation/3/context.json"
-        };
-        presentationCollection.Behavior = new List<string>()
-            .AppendIf(collection.IsPublic, Behavior.IsPublic)
-            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
-        presentationCollection.Slug = hierarchy.Slug;
-        presentationCollection.Parent = hierarchy.Parent != null
+        return (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
+    }
+    
+    /// <summary>
+    /// Generates a parent id for a collection in the presentation collection form
+    /// </summary>
+    /// <param name="urlRoots">The URL</param>
+    /// <param name="hierarchy">The hierarchy to get the parent from</param>
+    /// <returns>An id of the parent, in the presentation collection form</returns>
+    public static string? GeneratePresentationCollectionParent(UrlRoots urlRoots, Hierarchy hierarchy)
+    {
+        return hierarchy.Parent != null
             ? hierarchy.GenerateFlatCollectionParent(urlRoots)
             : null;
-        presentationCollection.ItemsOrder = hierarchy.ItemsOrder;
-        presentationCollection.Items = items != null
-            ? items.Select(i => (ICollectionItem)new Collection()
+    }
+
+    /// <summary>
+    /// Generates a context for a collection
+    /// </summary>
+    /// <returns>A list of strings</returns>
+    public static List<string> GenerateContext()
+    {
+        return
+        [
+            "http://tbc.org/iiif-repository/1/context.json",
+            "http://iiif.io/api/presentation/3/context.json"
+        ];
+    }
+
+    /// <summary>
+    /// Generates a list of behaviors for a collection
+    /// </summary>
+    /// <param name="collection">The dtabase collection to use</param>
+    /// <returns>A list of behaviors</returns>
+    public static List<string> GenerateBehavior(Models.Database.Collections.Collection collection)
+    {
+        return new List<string>()
+            .AppendIf(collection.IsPublic, Behavior.IsPublic)
+            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
+    }
+
+    /// <summary>
+    /// Generates the PartOf field for a collection
+    /// </summary>
+    /// <param name="hierarchy">The hierarchy to use to generate</param>
+    /// <param name="collection">The collection required</param>
+    /// <param name="urlRoots">The URL</param>
+    /// <returns>A list of ResourceBase</returns>
+    public static List<ResourceBase>? GeneratePartOf(Hierarchy hierarchy, Models.Database.Collections.Collection collection, UrlRoots urlRoots)
+    {
+        return hierarchy.Parent != null
+            ? new List<ResourceBase>
             {
-                Id = i.GenerateFlatCollectionId(urlRoots),
-                Label = i.Label
-            }).ToList()
-            : [];
-        presentationCollection.PartOf = hierarchy.Parent != null
-            ?
-            [
                 new PartOf(nameof(PresentationType.Collection))
                 {
                     Id = $"{urlRoots.BaseUrl}/{collection.CustomerId}/{hierarchy.Parent}",
-                    Label = presentationCollection.Label
+                    Label = collection.Label
                 }
-            ]
+            }
             : null;
-        presentationCollection.TotalItems = totalItems;
-        presentationCollection.View = GenerateView(collection, urlRoots, pageSize, currentPage, totalPages,
-            orderQueryParamConverted);
-        presentationCollection.SeeAlso =
-        [
+    }
+
+    /// <summary>
+    /// Generates the SeeAlso part of a collection
+    /// </summary>
+    /// <param name="collection">The collection to use in generation</param>
+    /// <param name="urlRoots">The URL</param>
+    /// <returns>A list of external resources</returns>
+    public static List<ExternalResource>? GenerateSeeAlso(Models.Database.Collections.Collection collection, UrlRoots urlRoots)
+    {
+        return [
             new(nameof(PresentationType.Collection))
             {
                 Id = collection.GenerateHierarchicalCollectionId(urlRoots),
-                Label = presentationCollection.Label,
+                Label = collection.Label,
                 Profile = "Public"
             },
 
             new(nameof(PresentationType.Collection))
             {
                 Id = $"{collection.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
-                Label = presentationCollection.Label,
+                Label = collection.Label,
                 Profile = "api-hierarchical"
             }
         ];
-        presentationCollection.Created = collection.Created.Floor(DateTimeX.Precision.Second);
-        presentationCollection.Modified = collection.Modified.Floor(DateTimeX.Precision.Second);
-        presentationCollection.CreatedBy = collection.CreatedBy;
-        presentationCollection.ModifiedBy = collection.ModifiedBy;
-        
-        return presentationCollection;
     }
 
-    private static View GenerateView(Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize,
+    /// <summary>
+    /// Generates items in a collection into the correct format
+    /// </summary>
+    /// <param name="urlRoots">The URL to use</param>
+    /// <param name="items">The items to convert</param>
+    /// <returns>A list of ICollectionItems</returns>
+    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, List<Models.Database.Collections.Collection>? items)
+    {
+        return items != null
+            ? items.Select(i => (ICollectionItem) new Collection()
+            {
+                Id = i.GenerateFlatCollectionId(urlRoots),
+                Label = i.Label
+            }).ToList()
+            : [];
+    }
+
+    /// <summary>
+    /// Generates the view component of a presentation collection
+    /// </summary>
+    /// <param name="collection">The database collection to use in the convewrsion</param>
+    /// <param name="urlRoots">The URL</param>
+    /// <param name="pageSize">Sets the page size</param>
+    /// <param name="currentPage">The current page that the view is being generated for</param>
+    /// <param name="totalPages">How many pages to generate the View for</param>
+    /// <param name="orderQueryParam">What the View is being ordered by</param>
+    /// <returns>A View</returns>
+    public static View GenerateView(Models.Database.Collections.Collection collection, UrlRoots urlRoots, int pageSize,
         int currentPage, int totalPages, string? orderQueryParam = null)
 
     {
         var view = new View()
         {
-            Id = dbAsset.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParam),
+            Id = collection.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParam),
             Type = PresentationType.PartialCollectionView,
             Page = currentPage,
             PageSize = pageSize,
@@ -188,15 +200,15 @@ public static class CollectionConverter
 
         if (currentPage > 1)
         {
-            view.First = dbAsset.GenerateFlatCollectionViewFirst(urlRoots, pageSize, orderQueryParam);
+            view.First = collection.GenerateFlatCollectionViewFirst(urlRoots, pageSize, orderQueryParam);
             view.Previous =
-                dbAsset.GenerateFlatCollectionViewPrevious(urlRoots, currentPage, pageSize, orderQueryParam);
+                collection.GenerateFlatCollectionViewPrevious(urlRoots, currentPage, pageSize, orderQueryParam);
         }
 
         if (totalPages > currentPage)
         {
-            view.Next = dbAsset.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParam);
-            view.Last = dbAsset.GenerateFlatCollectionViewLast(urlRoots, totalPages, pageSize, orderQueryParam);
+            view.Next = collection.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParam);
+            view.Last = collection.GenerateFlatCollectionViewLast(urlRoots, totalPages, pageSize, orderQueryParam);
         }
 
         return view;

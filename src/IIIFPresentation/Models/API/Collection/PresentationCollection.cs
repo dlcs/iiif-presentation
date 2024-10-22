@@ -1,19 +1,15 @@
-﻿using Newtonsoft.Json;
+﻿using IIIF.Presentation.V2;
+using IIIF.Presentation.V3.Content;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using ExternalResource = IIIF.Presentation.V3.Content.ExternalResource;
 
 namespace Models.API.Collection;
 
 public class PresentationCollection : IIIF.Presentation.V3.Collection
 {
-    [JsonProperty("@context")]
-     public new List<string>? Context
-     {
-         get => base.Context as List<string>;
-         set => base.Context = value;
-     }
-
     public string? PublicId { get; set; }
-
-    [JsonRequired] 
+    
     public string? Slug { get; set; }
     
     public string? Parent { get; set; }
@@ -35,4 +31,21 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection
     public string? Tags { get; set; }
     
     public string? PresentationThumbnail { get; set; }
+
+    public new object? Thumbnail
+    {
+        get => base.Thumbnail;
+        set
+        {
+            switch (value)
+            {
+                case JArray thumbnail:
+                    base.Thumbnail = thumbnail.ToObject<List<ExternalResource>>();
+                    break;
+                case string presentationThumbnail:
+                    PresentationThumbnail = presentationThumbnail;
+                    break;
+            }
+        }
+    }
 }
