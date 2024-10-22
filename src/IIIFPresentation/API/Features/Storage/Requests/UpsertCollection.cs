@@ -5,6 +5,8 @@ using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using AWS.S3;
+using AWS.S3.Models;
 using Core;
 using Core.Exceptions;
 using Core.Helpers;
@@ -12,7 +14,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -21,25 +22,28 @@ using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpsertCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots, 
-    string? eTag)
+public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, UrlRoots urlRoots, 
+    string? eTag, string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
     public string CollectionId { get; set; } = collectionId;
 
-    public UpsertFlatCollection Collection { get; } = collection;
+    public PresentationCollection Collection { get; } = collection;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string? ETag { get; set; } = eTag;
+    
+    public string RawRequestBody { get; set; } = rawRequestBody;
 }
 
 public class UpsertCollectionHandler(
     PresentationContext dbContext,
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
+    IBucketWriter bucketWriter,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -52,6 +56,8 @@ public class UpsertCollectionHandler(
     {
         var databaseCollection =
             await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
+
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         Hierarchy hierarchy;
 
@@ -79,16 +85,17 @@ public class UpsertCollectionHandler(
                 CreatedBy = Authorizer.GetUser(),
                 CustomerId = request.CustomerId,
                 IsPublic = request.Collection.Behavior.IsPublic(),
-                IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
+                IsStorageCollection = isStorageCollection,
                 Label = request.Collection.Label,
-                Thumbnail = request.Collection.PresentationThumbnail,
                 Tags = request.Collection.Tags,
             };
             
             hierarchy = new Hierarchy
             {
                 CollectionId = request.CollectionId,
-                Type = ResourceType.IIIFCollection,
+                Type = isStorageCollection
+                    ? ResourceType.StorageCollection
+                    : ResourceType.IIIFCollection,
                 Slug = request.Collection.Slug,
                 CustomerId = request.CustomerId,
                 Canonical = true,
@@ -108,6 +115,11 @@ public class UpsertCollectionHandler(
                 return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
                     "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
             }
+            
+            if (isStorageCollection && !databaseCollection.IsStorageCollection)
+            {
+                return ErrorHelper.CannotChangeToStorageCollection<PresentationCollection>();
+            }
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
@@ -116,26 +128,26 @@ public class UpsertCollectionHandler(
                 var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
-                if (parentCollection == null)
-                {
-                    return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                        $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
-                        WriteResult.BadRequest);
-                }
+                if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
             }
 
             databaseCollection.Modified = DateTime.UtcNow;
             databaseCollection.ModifiedBy = Authorizer.GetUser();
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
-            databaseCollection.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
+            databaseCollection.IsStorageCollection = isStorageCollection;
             databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
 
             hierarchy.Parent = request.Collection.Parent;
             hierarchy.ItemsOrder = request.Collection.ItemsOrder;
             hierarchy.Slug = request.Collection.Slug;
+            hierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
         }
+
+        var convertedIIIF = request.RawRequestBody.ConvertToIIIFAndSetThumbnail(databaseCollection,
+            request.Collection.PresentationThumbnail, logger);
+
+        if (convertedIIIF.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
 
         await using var transaction = 
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -147,6 +159,14 @@ public class UpsertCollectionHandler(
         if (saveErrors != null)
         {
             return saveErrors;
+        }
+
+        if (!isStorageCollection)
+        {
+            await bucketWriter.WriteToBucket(
+                new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                    databaseCollection.GetCollectionBucketKey()),
+                convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
         }
         
         var items = dbContext
@@ -177,8 +197,12 @@ public class UpsertCollectionHandler(
         
         await transaction.CommitAsync(cancellationToken);
 
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
-                await items.ToListAsync(cancellationToken: cancellationToken)));
+        var test = request.Collection.EnrichFlatCollection(databaseCollection, request.UrlRoots, settings.PageSize,
+            DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));
+
+        var enrichedPresentationCollection = request.Collection.EnrichFlatCollection(databaseCollection, request.UrlRoots, settings.PageSize,
+            DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));
+
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
     }
 }

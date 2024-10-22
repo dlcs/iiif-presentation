@@ -9,12 +9,9 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core;
 using Core.Helpers;
-using IIIF.Presentation.V3.Content;
-using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -24,12 +21,12 @@ using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection(int customerId, UpsertFlatCollection collection, string rawRequestBody, UrlRoots urlRoots)
+public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody, UrlRoots urlRoots)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
-    public UpsertFlatCollection? Collection { get; } = collection;
+    public PresentationCollection? Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
 
@@ -96,25 +93,12 @@ public class CreateCollectionHandler(
             ItemsOrder = request.Collection.ItemsOrder,
             Parent = request.Collection.Parent
         };
-        
-        string? convertedIIIFCollection = null;
 
-        if (!isStorageCollection)
-        {
-            try
-            {
-                convertedIIIFCollection = ConvertToIIIFCollection(request, collection);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
-                return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
-            }
-        }
-        else
-        {
-            collection.Thumbnail = request.Collection.PresentationThumbnail;
-        }
+        var convertedIIIF =
+            request.RawRequestBody.ConvertToIIIFAndSetThumbnail(collection, request.Collection.PresentationThumbnail,
+                logger);
+
+        if (convertedIIIF.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         
         dbContext.Collections.Add(collection);
         dbContext.Hierarchy.Add(hierarchy);
@@ -127,9 +111,14 @@ public class CreateCollectionHandler(
         {
             return saveErrors;
         }
-
-        await UploadToS3IfRequiredAsync(request, collection, convertedIIIFCollection!, isStorageCollection,
-            cancellationToken);
+        
+        if (!isStorageCollection)
+        {
+            await bucketWriter.WriteToBucket(
+                new ObjectInBucket(settings.AWS.S3.StorageBucket,
+                    collection.GetCollectionBucketKey()),
+                convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
+        }
 
         if (hierarchy.Parent != null)
         {
@@ -137,31 +126,7 @@ public class CreateCollectionHandler(
         }
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            request.Collection.EnrichFlatCollection(collection, request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
-    }
-
-    private static string ConvertToIIIFCollection(CreateCollection request, Collection collection)
-    {
-        var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
-        var convertedIIIFCollection = collectionAsIIIF.AsJson();
-        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
-        if (thumbnails != null)
-        {
-            collection.Thumbnail = thumbnails.GetThumbnailPath();
-        }
-        return convertedIIIFCollection;
-    }
-
-    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
-        Collection collection, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
-    {
-        if (!isStorageCollection)
-        {
-            await bucketWriter.WriteToBucket(
-                new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    collection.GetCollectionBucketKey()),
-                convertedIIIFCollection, "application/json", cancellationToken);
-        }
     }
 }

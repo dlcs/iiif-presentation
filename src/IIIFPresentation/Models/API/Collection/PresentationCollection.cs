@@ -5,11 +5,11 @@ namespace Models.API.Collection;
 public class PresentationCollection : IIIF.Presentation.V3.Collection
 {
     [JsonProperty("@context")]
-    public new List<string>? Context
-    {
-        get => base.Context as List<string>;
-        set => base.Context = value;
-    }
+     public new List<string>? Context
+     {
+         get => base.Context as List<string>;
+         set => base.Context = value;
+     }
 
     public string? PublicId { get; set; }
 
@@ -33,4 +33,6 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection
     public string? ModifiedBy { get; set; }
 
     public string? Tags { get; set; }
+    
+    public string? PresentationThumbnail { get; set; }
 }

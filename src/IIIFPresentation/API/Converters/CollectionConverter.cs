@@ -1,11 +1,9 @@
-﻿using API.Features.Storage.Models;
-using API.Helpers;
+﻿using API.Helpers;
 using Core.Helpers;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Models.Infrastucture;
-using Repository.Helpers;
 
 namespace API.Converters;
 
@@ -105,6 +103,74 @@ public static class CollectionConverter
             CreatedBy = dbAsset.CreatedBy,
             ModifiedBy = dbAsset.ModifiedBy
         };
+    }
+    
+    public static PresentationCollection EnrichFlatCollection(this PresentationCollection presentationCollection, 
+        Models.Database.Collections.Collection collection, UrlRoots urlRoots, int pageSize, int currentPage, 
+        int totalItems, List<Models.Database.Collections.Collection>? items, string? orderQueryParam = null)
+    {
+        var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
+
+        var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+        var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
+
+        presentationCollection.Id = collection.GenerateFlatCollectionId(urlRoots);
+        presentationCollection.PublicId = collection.GenerateHierarchicalCollectionId(urlRoots);
+        presentationCollection.Context = new List<string>
+        {
+            "http://tbc.org/iiif-repository/1/context.json",
+            "http://iiif.io/api/presentation/3/context.json"
+        };
+        presentationCollection.Behavior = new List<string>()
+            .AppendIf(collection.IsPublic, Behavior.IsPublic)
+            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
+        presentationCollection.Slug = hierarchy.Slug;
+        presentationCollection.Parent = hierarchy.Parent != null
+            ? hierarchy.GenerateFlatCollectionParent(urlRoots)
+            : null;
+        presentationCollection.ItemsOrder = hierarchy.ItemsOrder;
+        presentationCollection.Items = items != null
+            ? items.Select(i => (ICollectionItem)new Collection()
+            {
+                Id = i.GenerateFlatCollectionId(urlRoots),
+                Label = i.Label
+            }).ToList()
+            : [];
+        presentationCollection.PartOf = hierarchy.Parent != null
+            ?
+            [
+                new PartOf(nameof(PresentationType.Collection))
+                {
+                    Id = $"{urlRoots.BaseUrl}/{collection.CustomerId}/{hierarchy.Parent}",
+                    Label = presentationCollection.Label
+                }
+            ]
+            : null;
+        presentationCollection.TotalItems = totalItems;
+        presentationCollection.View = GenerateView(collection, urlRoots, pageSize, currentPage, totalPages,
+            orderQueryParamConverted);
+        presentationCollection.SeeAlso =
+        [
+            new(nameof(PresentationType.Collection))
+            {
+                Id = collection.GenerateHierarchicalCollectionId(urlRoots),
+                Label = presentationCollection.Label,
+                Profile = "Public"
+            },
+
+            new(nameof(PresentationType.Collection))
+            {
+                Id = $"{collection.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
+                Label = presentationCollection.Label,
+                Profile = "api-hierarchical"
+            }
+        ];
+        presentationCollection.Created = collection.Created.Floor(DateTimeX.Precision.Second);
+        presentationCollection.Modified = collection.Modified.Floor(DateTimeX.Precision.Second);
+        presentationCollection.CreatedBy = collection.CreatedBy;
+        presentationCollection.ModifiedBy = collection.ModifiedBy;
+        
+        return presentationCollection;
     }
 
     private static View GenerateView(Models.Database.Collections.Collection dbAsset, UrlRoots urlRoots, int pageSize,

@@ -5,6 +5,8 @@ using API.Infrastructure.Requests;
 using Core;
 using Core.Helpers;
 using FluentValidation.Results;
+using IIIF;
+using IIIF.Serialisation;
 using Microsoft.AspNetCore.Mvc;
 using Models.API.General;
 
@@ -143,6 +145,18 @@ public static class ControllerBaseX
         {
             StatusCode = error.Status
         };
+    }
+
+    public static ObjectResult PresentationOk(object? entity)
+    {
+        if (entity is JsonLdBase jsonLd)
+        {
+            var test = jsonLd.AsJson();
+            
+            return new OkObjectResult(test);
+        }
+        
+        return new OkObjectResult(entity);
     }
 
     public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>

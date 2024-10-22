@@ -15,7 +15,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.API.Collection.Upsert;
+using Models.API.Collection;
 using Newtonsoft.Json;
 
 namespace API.Features.Storage;
@@ -90,7 +90,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     [Authorize]
     [HttpPost("collections")]
     [ETagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromServices] UpsertFlatCollectionValidator validator)
+    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationCollectionValidator validator)
     {
         if (!Request.HasShowExtraHeader())
         {
@@ -101,13 +101,12 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
 
         var rawRequestBody = await streamReader.ReadToEndAsync();
         
-        var collection = JsonConvert.DeserializeObject<UpsertFlatCollection>(rawRequestBody);
-
-        if (collection == null)
+        var collection = JsonConvert.DeserializeObject<PresentationCollection>(rawRequestBody, new JsonSerializerSettings()
         {
-            return this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
-                "Deserialization Error");
-        }
+            NullValueHandling = NullValueHandling.Ignore
+        });
+
+        if (collection == null) return PresentationUnableToSerialize();
 
         var validation = await validator.ValidateAsync(collection);
         
@@ -116,19 +115,29 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection!, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
     }
     
     [Authorize]
     [HttpPut("collections/{id}")]
     [ETagCaching]
-    public async Task<IActionResult> Put(int customerId, string id, [FromBody] UpsertFlatCollection collection, 
-        [FromServices] UpsertFlatCollectionValidator validator)
+    public async Task<IActionResult> Put(int customerId, string id, 
+        [FromServices] PresentationCollectionValidator validator)
     {
         if (!Request.HasShowExtraHeader())
         {
             return this.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
         }
+        
+        using var streamReader = new StreamReader(Request.Body);
+        var rawRequestBody = await streamReader.ReadToEndAsync();
+        
+        var collection = JsonConvert.DeserializeObject<PresentationCollection>(rawRequestBody, new JsonSerializerSettings()
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        });
+
+        if (collection == null) return PresentationUnableToSerialize();
 
         var validation = await validator.ValidateAsync(collection);
 
@@ -138,7 +147,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         }
 
         return await HandleUpsert(new UpsertCollection(customerId, id, collection, GetUrlRoots(),
-            Request.Headers.IfMatch));
+            Request.Headers.IfMatch, rawRequestBody));
     }
     
     [Authorize]
@@ -159,4 +168,14 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
 
         return StatusCode((int)HttpStatusCode.SeeOther);
     } 
+    
+    /// <summary> 
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+    /// </summary>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    private ObjectResult PresentationUnableToSerialize()
+    {
+        return this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
+            "Deserialization Error");
+    }
 }
