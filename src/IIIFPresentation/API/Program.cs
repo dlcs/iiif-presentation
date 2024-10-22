@@ -68,12 +68,13 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 }
 
 app
