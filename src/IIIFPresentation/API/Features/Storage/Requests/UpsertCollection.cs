@@ -111,6 +111,7 @@ public class UpsertCollectionHandler(
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
+            var parentId = hierarchy.Parent;
             if (hierarchy.Parent != request.Collection.Parent)
             {
                 var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
@@ -122,6 +123,8 @@ public class UpsertCollectionHandler(
                         $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
                         WriteResult.BadRequest);
                 }
+
+                parentId = parentCollection.Id;
             }
 
             databaseCollection.Modified = DateTime.UtcNow;
@@ -132,7 +135,7 @@ public class UpsertCollectionHandler(
             databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
 
-            hierarchy.Parent = request.Collection.Parent;
+            hierarchy.Parent = parentId;
             hierarchy.ItemsOrder = request.Collection.ItemsOrder;
             hierarchy.Slug = request.Collection.Slug;
         }

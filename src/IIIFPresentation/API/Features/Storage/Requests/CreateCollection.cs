@@ -94,7 +94,7 @@ public class CreateCollectionHandler(
             CustomerId = request.CustomerId,
             Canonical = true,
             ItemsOrder = request.Collection.ItemsOrder,
-            Parent = request.Collection.Parent
+            Parent = parentCollection.Id
         };
         
         string? convertedIIIFCollection = null;
