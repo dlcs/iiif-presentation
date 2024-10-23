@@ -55,6 +55,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvided()
     {
+        var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
         // Arrange
         var collection = new UpsertFlatCollection()
         {
@@ -64,7 +65,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent,
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
@@ -89,7 +90,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Be("some, tags");
@@ -245,7 +246,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         fromS3.Should().NotBeNull();
     }
-
+    
     [Fact]
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
     {
@@ -497,10 +498,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             CustomerId = 1
         };
 
+        var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvided);
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
             CollectionId = "UpdateTester",
-            Slug = "update-test",
+            Slug = slug,
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
@@ -525,7 +527,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent,
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
@@ -550,7 +552,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -603,6 +605,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
+        var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvidedAndParentIsFullUri);
         var updatedCollection = new UpsertFlatCollection
         {
             Behavior = new()
@@ -611,7 +614,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = $"http://localhost/1/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
@@ -636,7 +639,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -956,10 +959,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             CustomerId = 1
         };
 
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenParentIsHierarchicalUri);
         await dbContext.Hierarchy.AddAsync(new()
         {
             CollectionId = "UpdateTester-7",
-            Slug = "update-test-4",
+            Slug = slug,
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
@@ -1005,6 +1009,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect);
         var updatedCollection = new UpsertFlatCollection()
         {
             Behavior = new List<string>()
@@ -1013,7 +1018,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent
         };
 
@@ -1131,9 +1136,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders()
     {
         // Arrange
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
-
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders);
+        var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
+        
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
         var updatedCollection = new UpsertFlatCollection()
@@ -1144,7 +1149,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent
         };
 
@@ -1337,8 +1342,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
@@ -1401,8 +1406,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        var responseCollection = await response.ReadAsIIIFJsonAsync<IIIF.Presentation.V3.Collection>();
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 

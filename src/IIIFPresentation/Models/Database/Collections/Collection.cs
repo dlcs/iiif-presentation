@@ -4,7 +4,7 @@ using Models.Database.General;
 
 namespace Models.Database.Collections;
 
-public class Collection
+public class Collection : IHierarchyResource
 {
     public required string Id { get; set; }
 
@@ -39,7 +39,7 @@ public class Collection
     public DateTime Modified { get; set; }
 
     /// <summary>
-    /// Who last committed a change to this Collection
+    /// Who created this Collection
     /// </summary>
     public string? CreatedBy { get; set; }
 

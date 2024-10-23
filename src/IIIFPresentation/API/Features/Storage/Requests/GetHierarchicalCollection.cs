@@ -34,7 +34,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
     {
         var hierarchy =
             await dbContext.RetrieveHierarchy(request.CustomerId, request.Slug, cancellationToken);
-        List<Collection>? items = null;
+        List<Hierarchy>? items = null;
         string? collectionFromS3 = null;
 
         if (hierarchy?.CollectionId != null)
@@ -42,7 +42,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
             if (hierarchy.Type != ResourceType.StorageCollection)
             {
                 var objectFromS3 = await bucketReader.GetObjectFromBucket(new ObjectInBucket(settings.S3.StorageBucket,
-                    hierarchy.Collection!.GetCollectionBucketKey()), cancellationToken);
+                    hierarchy.Collection!.GetResourceBucketKey()), cancellationToken);
 
                 if (!objectFromS3.Stream.IsNull())
                 {
@@ -61,13 +61,14 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     items = await dbContext.RetrieveCollectionItems(request.CustomerId, hierarchy.Collection.Id)
                         .ToListAsync(cancellationToken: cancellationToken);
 
-                    items.ForEach(item => item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug));
+                    // The incoming slug will be the base, use that to generate child item path
+                    items.ForEach(item => item.FullPath = item.GenerateFullPath(request.Slug));
 
                     hierarchy.Collection.FullPath = request.Slug;
                 }
             }
         }
 
-        return new CollectionWithItems(hierarchy?.Collection, hierarchy, items, items?.Count ?? 0, collectionFromS3);
+        return new CollectionWithItems(hierarchy?.Collection, items, items?.Count ?? 0, collectionFromS3);
     }
 }

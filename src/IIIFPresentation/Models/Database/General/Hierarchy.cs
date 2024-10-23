@@ -1,4 +1,5 @@
-﻿using Collection = Models.Database.Collections.Collection;
+﻿using Models.Database.Collections;
+using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
 
 namespace Models.Database.General;
@@ -44,11 +45,22 @@ public class Hierarchy
     /// The customer identifier
     /// </summary>
     public int CustomerId { get; set; }
+
+    /// <summary>
+    /// Id of related Collection or Manifest
+    /// </summary>
+    public string? ResourceId => CollectionId ?? ManifestId;
+    
+    /// <summary>
+    /// The full path to this object, based on parent collections.
+    /// e.g. parent/child or parent/child/grandchild
+    /// </summary>
+    public string? FullPath { get; set; }
 }
 
 public enum ResourceType
 {
     StorageCollection = 0, 
     IIIFCollection = 1, 
-    Manifest = 2
+    IIIFManifest = 2
 }

@@ -167,27 +167,29 @@ public class UpsertCollectionHandler(
         
         var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
 
-        foreach (var item in items)
-        { 
-            item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
-        }
-
         if (hierarchy.Parent != null)
         {
             try
             {
                 databaseCollection.FullPath =
-                    CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext);
+                    await CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext,
+                        cancellationToken);
             }
             catch (PresentationException)
             {
                 return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
                     "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
-                     ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
+                    ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
             }
         }
         
         await transaction.CommitAsync(cancellationToken);
+        
+        foreach (var item in items)
+        {
+            // We know the fullPath of parent collection so we can use that as the base for child items 
+            item.FullPath = item.GenerateFullPath(databaseCollection);
+        }
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,

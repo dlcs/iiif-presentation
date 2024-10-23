@@ -32,13 +32,23 @@ public class PresentationContextFixture : IAsyncLifetime
 
     private async Task SeedCustomer()
     {
+        /* This will create
+         * - root/
+         *   - FirstChildCollection/
+         *     - SecondChildCollection/
+         *   - NonPublic/
+         *   - IiifCollection/
+         *   - FirstChildManifest/
+         */
+        
+        // Root collection
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = RootCollection.Id,
             UsePath = true,
             Label = new LanguageMap
             {
-                {"en", new List<string> {"repository root"}}
+                { "en", ["repository root"] }
             },
             Thumbnail = "some/location",
             Created = DateTime.UtcNow,
@@ -47,25 +57,26 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 1
-        });
-
-        await DbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = RootCollection.Id,
-            Slug = "",
-            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "",
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
         });
 
+        // Child Storage collection
         await DbContext.Collections.AddAsync(new Collection
         {
             Id = "FirstChildCollection",
             UsePath = true,
             Label = new LanguageMap
             {
-                {"en", new List<string> {"first child"}}
+                {"en", ["first child"] }
             },
             Thumbnail = "some/location",
             Created = DateTime.UtcNow,
@@ -75,25 +86,26 @@ public class PresentationContextFixture : IAsyncLifetime
             IsStorageCollection = true,
             IsPublic = true,
             CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "first-child",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
         });
-        
-        await DbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "FirstChildCollection",
-            Slug = "first-child",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1,
-            Canonical = true
-        });
-        
+
+        // Grandchild storage collection
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "SecondChildCollection",
             UsePath = true,
             Label = new LanguageMap
             {
-                {"en", new List<string> {"first child"}}
+                { "en", ["first child"] }
             },
             Thumbnail = "some/location",
             Created = DateTime.UtcNow,
@@ -102,26 +114,27 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 1
-        });
-        
-        await DbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "SecondChildCollection",
-            Slug = "second-child",
-            Parent = "FirstChildCollection",
-            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "second-child",
+                    Parent = "FirstChildCollection",
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
         });
-        
+
+        // Non-public child storage collection
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "NonPublic",
             UsePath = true,
             Label = new LanguageMap
             {
-                {"en", new List<string> {"first child - private"}}
+                {"en", ["first child - private"] }
             },
             Thumbnail = "some/location",
             Created = DateTime.UtcNow,
@@ -130,26 +143,27 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1
-        });
-        
-        await DbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "NonPublic",
-            Slug = "non-public",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
             CustomerId = 1,
-            Canonical = true
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "non-public",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
         });
-        
+
+        // Child IIIF Collection
         await DbContext.Collections.AddAsync(new Collection()
         {
             Id = "IiifCollection",
             UsePath = true,
             Label = new LanguageMap
             {
-                {"en", new List<string> {"first child - iiif"}}
+                {"en", ["first child - iiif"] }
             },
             Thumbnail = "some/location",
             Created = DateTime.UtcNow,
@@ -158,19 +172,39 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = false,
             IsPublic = true,
-            CustomerId = 1
-        });
-        
-        await DbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "IiifCollection",
-            Slug = "iiif-collection",
-            Parent = RootCollection.Id,
-            Type = ResourceType.IIIFCollection,
             CustomerId = 1,
-            Canonical = true
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "iiif-collection",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFCollection,
+                    Canonical = true
+                }
+            ]
         });
 
+        // Child manifest
+        await DbContext.Manifests.AddAsync(new Manifest
+        {
+            Id = "FirstChildManifest",
+            CustomerId = 1,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "iiif-manifest",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ]
+        });
+        
         await DbContext.SaveChangesAsync();
     }
     
@@ -209,7 +243,9 @@ public class PresentationContextFixture : IAsyncLifetime
 
     public void CleanUp()
     {
-        DbContext.Database.ExecuteSqlRawAsync(
-            "DELETE FROM collections WHERE id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection')");
+        DbContext.Database.ExecuteSqlRaw(
+            "DELETE FROM collections WHERE customer_id != 1 AND id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection')");
+        DbContext.Database.ExecuteSqlRaw(
+            "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest')");
     }
 }

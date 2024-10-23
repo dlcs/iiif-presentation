@@ -138,11 +138,12 @@ public class CreateCollectionHandler(
 
         if (hierarchy.Parent != null)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath =
+                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, Enumerable.Empty<Hierarchy>()), // there can be no items attached to this, as it's just been created
             WriteResult.Created);
     }
 
@@ -165,7 +166,7 @@ public class CreateCollectionHandler(
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    collection.GetCollectionBucketKey()),
+                    collection.GetResourceBucketKey()),
                 convertedIIIFCollection, "application/json", cancellationToken);
         }
     }

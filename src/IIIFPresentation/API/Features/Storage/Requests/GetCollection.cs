@@ -40,24 +40,23 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
         var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
         
         var items = await dbContext.RetrieveCollectionItems(request.CustomerId, collection.Id)
-            .AsOrderedCollectionQuery(request.OrderBy, request.Descending)
+            .AsOrderedCollectionItemsQuery(request.OrderBy, request.Descending)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken: cancellationToken);
 
         var total = await dbContext.GetTotalItemCountForCollection(collection, items.Count, request.PageSize,
             cancellationToken);
-            
-        foreach (var item in items)
-        { 
-            item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
-        }
-
+         
         if (hierarchy.Parent != null)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath =
+                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
-
-        return new CollectionWithItems(collection, hierarchy, items, total);
+        
+        // We know the fullPath of parent collection so we can use that as the base for child items
+        items.ForEach(item => item.FullPath = item.GenerateFullPath(collection));
+        
+        return new CollectionWithItems(collection, items, total);
     }
 }

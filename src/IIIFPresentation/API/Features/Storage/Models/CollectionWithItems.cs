@@ -1,30 +1,18 @@
-﻿using Models.API.Collection;
-using Models.Database.Collections;
+﻿using Models.Database.Collections;
 using Models.Database.General;
 
 namespace API.Features.Storage.Models;
 
 public class CollectionWithItems(
     Collection? collection,
-    Hierarchy? hierarchy,
-    List<Collection>? items,
+    List<Hierarchy>? items,
     int totalItems,
     string? storedCollection = null)
 {
     public Collection? Collection { get; init; } = collection;
-    public List<Collection>? Items { get; init; } = items;
-    public Hierarchy? Hierarchy { get; init; } = hierarchy;
+    public List<Hierarchy>? Items { get; init; } = items;
     public int TotalItems { get; init; } = totalItems;
     public string? StoredCollection { get; init; } = storedCollection;
 
-    public void Deconstruct(out Collection? collection, out List<Collection>? items, out int totalItems, 
-        out string? storedCollection)
-    {
-        collection = Collection;
-        items = Items;
-        totalItems = TotalItems;
-        storedCollection = StoredCollection;
-    }
-
-    public static CollectionWithItems Empty { get; private set; } = new(null, null, null, 0);
+    public static CollectionWithItems Empty { get; private set; } = new(null, null, 0);
 }

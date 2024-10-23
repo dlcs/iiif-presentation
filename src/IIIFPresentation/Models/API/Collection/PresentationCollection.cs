@@ -2,15 +2,8 @@
 
 namespace Models.API.Collection;
 
-public class PresentationCollection : IIIF.Presentation.V3.Collection
+public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresentation
 {
-    [JsonProperty("@context")]
-    public new List<string>? Context
-    {
-        get => base.Context as List<string>;
-        set => base.Context = value;
-    }
-
     public string? PublicId { get; set; }
 
     [JsonRequired] 

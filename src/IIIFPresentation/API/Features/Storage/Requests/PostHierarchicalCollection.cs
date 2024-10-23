@@ -78,12 +78,12 @@ public class PostHierarchicalCollectionHandler(
         
         await bucketWriter.WriteToBucket(
             new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                collection.GetCollectionBucketKey()),
+                collection.GetResourceBucketKey()),
             collectionFromBody.AsJson(), "application/json", cancellationToken);
         
         if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
         {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath = await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
         }
 
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
