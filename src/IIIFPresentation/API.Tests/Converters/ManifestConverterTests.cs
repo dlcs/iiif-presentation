@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using Models.API.Manifest;
+using Models.Database.General;
 using DBManifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Converters;
@@ -16,7 +17,8 @@ public class ManifestConverterTests
             CustomerId = 123,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
-            Id = "id"
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
         };
 
         var expectedContexts = new List<string>
@@ -42,7 +44,8 @@ public class ManifestConverterTests
             CustomerId = 123,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
-            Id = "id"
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
         };
         
         // Act
@@ -64,7 +67,8 @@ public class ManifestConverterTests
             Modified = DateTime.UtcNow.AddDays(1),
             CreatedBy = "creator",
             ModifiedBy = "modifier",
-            Id = "id"
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
         };
         
         // Act
@@ -76,5 +80,63 @@ public class ManifestConverterTests
         
         result.CreatedBy.Should().Be("creator");
         result.ModifiedBy.Should().Be("modifier");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsParentAndSlug_FromSingleHierarchyByDefault()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest
+        {
+            Parent = "parent-will-be-overriden",
+            Slug = "slug-will-be-overriden",
+        };
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow.AddDays(1),
+            CreatedBy = "creator",
+            ModifiedBy = "modifier",
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "hierarchy-slug", Parent = "hierarchy-parent" }],
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+
+        // Assert
+        result.Slug.Should().Be("hierarchy-slug");
+        result.Parent.Should().Be("hierarchy-parent");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsParentAndSlug_FromHierarchyUsingFactory()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest
+        {
+            Parent = "parent-will-be-overriden",
+            Slug = "slug-will-be-overriden",
+        };
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow.AddDays(1),
+            CreatedBy = "creator",
+            ModifiedBy = "modifier",
+            Id = "id",
+            Hierarchy = [
+                new Hierarchy { Slug = "hierarchy-slug", Parent = "hierarchy-parent" },
+                new Hierarchy { Slug = "other-slug", Parent = "other-parent" },],
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots(), manifest => manifest.Hierarchy.Last());
+
+        // Assert
+        result.Slug.Should().Be("other-slug");
+        result.Parent.Should().Be("other-parent");
     } 
 }
