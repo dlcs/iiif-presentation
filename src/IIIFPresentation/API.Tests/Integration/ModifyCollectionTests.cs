@@ -505,12 +505,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            CollectionId = initialCollection.Id,
             Slug = "iiif-update-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1,
-            Canonical = true
+            CustomerId = 1
         });
         
         await dbContext.Collections.AddAsync(initialCollection);
@@ -624,12 +622,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            CollectionId = initialCollection.Id,
             Slug = "update-test",
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
-            CustomerId = 1,
-            Canonical = true
+            CustomerId = 1
         });
         
         await dbContext.Collections.AddAsync(initialCollection);

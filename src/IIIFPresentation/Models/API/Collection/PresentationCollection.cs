@@ -1,7 +1,4 @@
-﻿using IIIF.Presentation.V2;
-using IIIF.Presentation.V3.Content;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using ExternalResource = IIIF.Presentation.V3.Content.ExternalResource;
 
 namespace Models.API.Collection;

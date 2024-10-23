@@ -160,6 +160,23 @@ public class UpsertCollectionHandler(
         {
             return saveErrors;
         }
+        
+        if (hierarchy.Parent != null)
+        {
+            try
+            {
+                databaseCollection.FullPath =
+                    CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext);
+            }
+            catch (PresentationException)
+            {
+                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                    "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
+                    ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
+            }
+        }
+        
+        await transaction.CommitAsync(cancellationToken);
 
         if (!isStorageCollection)
         {
@@ -179,23 +196,6 @@ public class UpsertCollectionHandler(
         { 
             item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
         }
-
-        if (hierarchy.Parent != null)
-        {
-            try
-            {
-                databaseCollection.FullPath =
-                    CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext);
-            }
-            catch (PresentationException)
-            {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
-                     ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
-            }
-        }
-        
-        await transaction.CommitAsync(cancellationToken);
         
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection, request.UrlRoots, settings.PageSize,
             DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));

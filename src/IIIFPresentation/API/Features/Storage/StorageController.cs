@@ -12,7 +12,6 @@ using API.Settings;
 using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Serialisation;
-using IIIF.Serialisation.Deserialisation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
