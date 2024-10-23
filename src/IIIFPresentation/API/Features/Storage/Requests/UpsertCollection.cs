@@ -1,12 +1,12 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
 using API.Helpers;
+using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using AWS.S3;
-using AWS.S3.Models;
 using Core;
 using Core.Exceptions;
 using Core.Helpers;
@@ -43,7 +43,7 @@ public class UpsertCollectionHandler(
     PresentationContext dbContext,
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
-    IBucketWriter bucketWriter,
+    IIIFS3Service iiifS3,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -54,10 +54,15 @@ public class UpsertCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
+        var isStorageCollection = request.Collection.Behavior!.IsStorageCollection();
+        TryConvertIIIF<IIIF.Presentation.V3.Collection>? iiifCollection = null;
+        if (!isStorageCollection)
+        {
+            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
+            if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
+        }
         var databaseCollection =
             await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
-
-        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         Hierarchy hierarchy;
 
@@ -91,7 +96,7 @@ public class UpsertCollectionHandler(
                 IsPublic = request.Collection.Behavior.IsPublic(),
                 IsStorageCollection = isStorageCollection,
                 Label = request.Collection.Label,
-                Thumbnail = request.Collection.PresentationThumbnail,
+                Thumbnail = request.Collection.GetThumbnail(),
                 Tags = request.Collection.Tags,
             };
             
@@ -149,7 +154,7 @@ public class UpsertCollectionHandler(
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
             databaseCollection.IsStorageCollection = isStorageCollection;
             databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
+            databaseCollection.Thumbnail = request.Collection.GetThumbnail();
             databaseCollection.Tags = request.Collection.Tags;
 
             hierarchy.Parent = parentId;
@@ -157,11 +162,6 @@ public class UpsertCollectionHandler(
             hierarchy.Slug = request.Collection.Slug;
             hierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
         }
-
-        var convertedIIIF = request.RawRequestBody.ConvertToIIIFAndSetThumbnail(databaseCollection,
-            request.Collection.PresentationThumbnail, logger);
-
-        if (convertedIIIF.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
 
         await using var transaction = 
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -174,12 +174,6 @@ public class UpsertCollectionHandler(
         {
             return saveErrors;
         }
-        
-        var items = dbContext
-            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
-            .Take(settings.PageSize);
-        
-        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
 
         if (hierarchy.Parent != null)
         {
@@ -199,23 +193,35 @@ public class UpsertCollectionHandler(
         
         await transaction.CommitAsync(cancellationToken);
         
+        var items = dbContext
+            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
+            .Take(settings.PageSize);
+        
+        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
+        
         foreach (var item in items)
         {
             // We know the fullPath of parent collection so we can use that as the base for child items 
             item.FullPath = item.GenerateFullPath(databaseCollection);
         }
 
-        if (!isStorageCollection)
-        {
-            await bucketWriter.WriteToBucket(
-                new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    databaseCollection.GetResourceBucketKey()),
-                convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
-        }
-        
-        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection, request.UrlRoots, settings.PageSize,
-            DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken));
+        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
+            isStorageCollection, cancellationToken);
+
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
+            request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
+            await items.ToListAsync(cancellationToken: cancellationToken));
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
+    }
+    
+    private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
+        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+    {
+        if (!isStorageCollection)
+        {
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+                cancellationToken);
+        }
     }
 }

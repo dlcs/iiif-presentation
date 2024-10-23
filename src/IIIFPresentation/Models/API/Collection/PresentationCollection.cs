@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using IIIF.Presentation.V3.Content;
+using Newtonsoft.Json.Linq;
 using ExternalResource = IIIF.Presentation.V3.Content.ExternalResource;
 
 namespace Models.API.Collection;
@@ -37,7 +38,8 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
             switch (value)
             {
                 case JArray thumbnail:
-                    base.Thumbnail = thumbnail.ToObject<List<ExternalResource>>();
+                    var thumbnails = thumbnail.ToObject<List<Image>>();
+                    base.Thumbnail = thumbnails?.Cast<ExternalResource>().ToList();
                     break;
                 case string presentationThumbnail:
                     PresentationThumbnail = presentationThumbnail;

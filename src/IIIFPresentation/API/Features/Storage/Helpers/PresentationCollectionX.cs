@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Helpers;
 using Core.Helpers;
+using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Database.General;
 using Collection = Models.Database.Collections.Collection;
@@ -50,5 +51,23 @@ public static class PresentationCollectionX
         presentationCollection.ModifiedBy = collection.ModifiedBy;
         
         return presentationCollection;
+    }
+    
+    /// <summary>
+    /// Sets the thumbnail for a presentation collection
+    /// </summary>
+    /// <param name="collection">The collection to set a thumbnail for</param>
+    /// <returns>
+    /// A response showing whether there were errors in the conversion, and a string of the converted collection
+    /// </returns>
+    public static string? GetThumbnail(this PresentationCollection collection)
+    {
+        if (collection.Thumbnail is List<ExternalResource> thumbnailsAsCollection)
+        {
+            var thumbnails = thumbnailsAsCollection.OfType<Image>().ToList();
+            return thumbnails.GetThumbnailPath();
+        }
+
+        return collection.PresentationThumbnail;
     }
 }
