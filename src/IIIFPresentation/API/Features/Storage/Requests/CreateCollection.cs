@@ -9,6 +9,8 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core;
 using Core.Helpers;
+using IIIF.Presentation.V3.Content;
+using IIIF.Serialisation;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -117,7 +119,7 @@ public class CreateCollectionHandler(
             return saveErrors;
         }
 
-        await UploadToS3IfRequiredAsync(request, collection, convertedIIIFCollection!, isStorageCollection,
+        await UploadToS3IfRequiredAsync(collection, convertedIIIF.ConvertedCollection, isStorageCollection,
             cancellationToken);
 
         if (hierarchy.Parent != null)
@@ -131,19 +133,7 @@ public class CreateCollectionHandler(
             WriteResult.Created);
     }
 
-    private static string ConvertToIIIFCollection(CreateCollection request, Collection collection)
-    {
-        var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
-        var convertedIIIFCollection = collectionAsIIIF.AsJson();
-        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
-        if (thumbnails != null)
-        {
-            collection.Thumbnail = thumbnails.GetThumbnailPath();
-        }
-        return convertedIIIFCollection;
-    }
-
-    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
+    private async Task UploadToS3IfRequiredAsync(
         Collection collection, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
     {
         if (!isStorageCollection)

@@ -209,7 +209,7 @@ public class UpsertCollectionHandler(
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    databaseCollection.GetCollectionBucketKey()),
+                    databaseCollection.GetResourceBucketKey()),
                 convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
         }
         

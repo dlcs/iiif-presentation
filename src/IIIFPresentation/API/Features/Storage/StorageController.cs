@@ -102,17 +102,17 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
-        var (collection, error) = await TryDeserializePresentationCollection(rawRequestBody);
-        if (error)  return PresentationUnableToSerialize();
+        var deserializedCollection = await TryDeserializePresentationCollection(rawRequestBody);
+        if (deserializedCollection.Error)  return PresentationUnableToSerialize();
 
-        var validation = await validator.ValidateAsync(collection);
+        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedCollection);
         
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
         
-        return await HandleUpsert(new CreateCollection(customerId, collection, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId, deserializedCollection.ConvertedCollection, rawRequestBody, GetUrlRoots()));
     }
     
     [Authorize]
@@ -125,34 +125,38 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
-        var (collection, error) = await TryDeserializePresentationCollection(rawRequestBody);
-        if (error)  return PresentationUnableToSerialize();
+        var deserializedCollection = await TryDeserializePresentationCollection(rawRequestBody);
+        if (deserializedCollection.Error)  return PresentationUnableToSerialize();
 
-        var validation = await validator.ValidateAsync(collection);
+        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedCollection);
 
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(new UpsertCollection(customerId, id, collection, GetUrlRoots(),
+        return await HandleUpsert(new UpsertCollection(customerId, id, deserializedCollection.ConvertedCollection, GetUrlRoots(),
             Request.Headers.IfMatch, rawRequestBody));
     }
 
-    private async Task<(PresentationCollection collection, bool error)> TryDeserializePresentationCollection(string rawRequestBody)
+    private async Task<DeserializedCollection> TryDeserializePresentationCollection(string rawRequestBody)
     {
         PresentationCollection? collection;
         try
         {
             collection = await rawRequestBody.ToPresentation<PresentationCollection>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return (new PresentationCollection(), true);
+            return new DeserializedCollection(true, new PresentationCollection());
         }
 
-        return collection == null ? (new PresentationCollection(), true) : (collection, false);
+        return collection == null
+            ? new DeserializedCollection(true, new PresentationCollection())
+            : new DeserializedCollection(false, collection);
     }
+    
+    private record DeserializedCollection(bool Error, PresentationCollection ConvertedCollection);
 
     [Authorize]
     [HttpDelete("collections/{id}")]

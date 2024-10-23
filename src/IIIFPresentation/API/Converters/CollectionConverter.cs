@@ -106,11 +106,9 @@ public static class CollectionConverter
             Slug = hierarchy.Slug,
             Parent = GeneratePresentationCollectionParent(urlRoots, hierarchy),
             ItemsOrder = hierarchy.ItemsOrder,
-            Items = items.Select(i => GenerateCollectionItem(i, urlRoots, true)).ToList(),
+            Items = GenerateItems(urlRoots, items),
             PartOf = GeneratePartOf(hierarchy, dbAsset, urlRoots),
-
             TotalItems = totalItems,
-
             View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
             SeeAlso = GenerateSeeAlso(dbAsset, urlRoots),
             Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
@@ -119,7 +117,7 @@ public static class CollectionConverter
             ModifiedBy = dbAsset.ModifiedBy
         };
     }
-    
+
     private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, UrlRoots urlRoots, bool flatId)
     {
         var id = flatId ? hierarchy.GenerateFlatId(urlRoots) : hierarchy.GenerateHierarchicalId(urlRoots);
@@ -246,6 +244,17 @@ public static class CollectionConverter
                 Label = i.Label
             }).ToList()
             : [];
+    }
+    
+    /// <summary>
+    /// Generates items in a hierarchy into the correct format
+    /// </summary>
+    /// <param name="urlRoots">The URL to use</param>
+    /// <param name="items">The items to convert</param>
+    /// <returns>A list of ICollectionItems</returns>
+    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, IEnumerable<Hierarchy> items)
+    {
+        return items.Select(i => GenerateCollectionItem(i, urlRoots, true)).ToList();
     }
 
     /// <summary>

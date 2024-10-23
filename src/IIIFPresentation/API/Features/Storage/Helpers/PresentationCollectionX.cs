@@ -2,6 +2,7 @@
 using API.Helpers;
 using Core.Helpers;
 using Models.API.Collection;
+using Models.Database.General;
 using Collection = Models.Database.Collections.Collection;
 
 namespace API.Features.Storage.Helpers;
@@ -22,7 +23,7 @@ public static class PresentationCollectionX
     /// <returns>An enriched presentation collection</returns>
     public static PresentationCollection EnrichPresentationCollection(this PresentationCollection presentationCollection, 
     Collection collection, UrlRoots urlRoots, int pageSize, int currentPage, 
-    int totalItems, List<Collection>? items, string? orderQueryParam = null)
+    int totalItems, List<Hierarchy>? items, string? orderQueryParam = null)
     {
         var totalPages = CollectionConverter.GenerateTotalPages(pageSize, totalItems);
 
