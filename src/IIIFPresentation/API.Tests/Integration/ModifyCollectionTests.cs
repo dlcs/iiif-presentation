@@ -40,8 +40,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
     private readonly string parent;
     
-    JsonSerializerOptions serializerOptions;
-    
     public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
@@ -51,10 +49,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
 
         parent = dbContext.Collections.First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
-        serializerOptions = new JsonSerializerOptions()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
         
         storageFixture.DbFixture.CleanUp();
     }
@@ -169,7 +163,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromS3.Should().NotBeNull();
     }
     
-        [Fact]
+    [Fact]
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
     {
         // Arrange
@@ -200,6 +194,50 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
+    public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidJson()
+    {
+        // Arrange
+        var collection =
+"""
+{
+   "behavior": [
+     "public-iiif"
+   ],
+   "type": "Collection",
+   "label": {
+     "en": [
+       "test collection - created"
+     ]
+   },
+   "slug": "iiif-child",
+   "parent": "root",
+  "thumbnail": [
+     {
+       "id": "https://iiif.io/api/image/3.0/example/reference/someRef",
+       "type": "Image",
+       "format": "image/jpeg",
+       "height": 100,
+       "width": 100,
+     }
+   ],
+   "homepage": "invalidHomepage"
+   "itemsOrder": 1
+}
+""";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", collection);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be("Could not deserialize collection");
+    }
+    
+    [Fact]
     public async Task CreateCollection_FailsToCreateCollection_WhenDuplicateSlug()
     {
         // Arrange
@@ -215,7 +253,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent
         };
         
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -244,7 +282,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = parent
         };
         
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", JsonSerializer.Serialize(collection));
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", collection.AsJson());
         
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -271,7 +309,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
         
         // Act
@@ -298,7 +336,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
         
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
         
         // Act
@@ -356,7 +394,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var collectionName = nameof(UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth);
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{collectionName}", JsonSerializer.Serialize(collection));
+            $"{Customer}/collections/{collectionName}", collection.AsJson());
         
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -385,7 +423,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/collections/{collectionName}");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
         
         // Act
@@ -453,7 +491,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
@@ -481,7 +519,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
     
-        [Fact]
+    [Fact]
     public async Task UpdateCollection_UpdatesIiifCollection_WhenAllValuesProvided()
     {
         // Arrange
@@ -500,16 +538,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "iiif-update-test",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    CustomerId = 1
+                }
+            ]
         };
-        
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            Slug = "iiif-update-test",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1
-        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -598,8 +637,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Hierarchy![0].Slug.Should().Be("iiif-programmatic-child");
     }
     
-        [Fact]
-    public async Task UpdateCollection_FailsToUpdateCollection_WhenAllMovingIIIFCollectionToStorage()
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenMovingIIIFCollectionToStorage()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -617,16 +656,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Tags = "some, tags",
             IsStorageCollection = false,
             IsPublic = false,
-            CustomerId = 1
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "update-test",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    CustomerId = 1
+                }
+            ]
         };
-        
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            Slug = "update-test",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1
-        });
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
@@ -653,7 +693,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection, serializerOptions));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
@@ -687,7 +727,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/createFromUpdate", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/createFromUpdate", updatedCollection.AsJson());
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
@@ -735,7 +775,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/createFromUpdate2", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/createFromUpdate2", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"someTag\""));
         
         // Act
@@ -941,7 +981,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
@@ -970,7 +1010,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            "1/collections/FirstChildCollection", JsonSerializer.Serialize(updatedCollection));
+            "1/collections/FirstChildCollection", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
         
         // Act
@@ -1102,7 +1142,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var updateRequestMessage = new HttpRequestMessage(HttpMethod.Put, "1/collections/FirstChildCollection");
         updateRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer");
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
-        updateRequestMessage.Content = new StringContent(JsonSerializer.Serialize(updatedCollection), Encoding.UTF8,
+        updateRequestMessage.Content = new StringContent(updatedCollection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
         
         // Act
@@ -1110,6 +1150,91 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+    
+        [Fact]
+    public async Task UpdateCollection_FailsToUpdateIiifCollection_WhenInvalidJson()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-IIIF-3",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "iiif-update-test-3",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    CustomerId = 1
+                }
+            ]
+        };
+                
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+
+        var updatedCollection = 
+"""
+{
+  "behavior": [
+    "public-iiif"
+  ],
+  "type": "Collection",
+  "label": {
+    "en": [
+      "test collection - updated"
+    ]
+  },
+  "slug": "iiif-programmatic-child-3",
+  "parent": "root",
+  "tags": "some, tags, 2",
+ "thumbnail": [
+    {
+      "id": "https://iiif.io/api/image/3.0/example/reference/someRef",
+      "type": "Image",
+      "format": "image/jpeg",
+      "height": 100,
+      "width": 100,
+    }
+  ],
+  "homepage": "invalidHomepage",
+  "itemsOrder": 1
+}
+""";
+        
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.Detail.Should().Be("Could not deserialize collection");
     }
     
     [Fact]

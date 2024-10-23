@@ -103,10 +103,8 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         using var streamReader = new StreamReader(Request.Body);
 
         var rawRequestBody = await streamReader.ReadToEndAsync();
-
-        var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
-
-        if (collection == null) return PresentationUnableToSerialize();
+        var (collection, error) = await TryDeserializePresentationCollection(rawRequestBody);
+        if (error)  return PresentationUnableToSerialize();
 
         var validation = await validator.ValidateAsync(collection);
         
@@ -132,9 +130,8 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         using var streamReader = new StreamReader(Request.Body);
         var rawRequestBody = await streamReader.ReadToEndAsync();
         
-        var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
-
-        if (collection == null) return PresentationUnableToSerialize();
+        var (collection, error) = await TryDeserializePresentationCollection(rawRequestBody);
+        if (error) return PresentationUnableToSerialize();
 
         var validation = await validator.ValidateAsync(collection);
 
@@ -146,7 +143,22 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
         return await HandleUpsert(new UpsertCollection(customerId, id, collection, GetUrlRoots(),
             Request.Headers.IfMatch, rawRequestBody));
     }
-    
+
+    private async Task<(PresentationCollection collection, bool error)> TryDeserializePresentationCollection(string rawRequestBody)
+    {
+        PresentationCollection? collection;
+        try
+        {
+            collection = await rawRequestBody.ToPresentation<PresentationCollection>();
+        }
+        catch (Exception ex)
+        {
+            return (new PresentationCollection(), true);
+        }
+
+        return collection == null ? (new PresentationCollection(), true) : (collection, false);
+    }
+
     [Authorize]
     [HttpDelete("collections/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
