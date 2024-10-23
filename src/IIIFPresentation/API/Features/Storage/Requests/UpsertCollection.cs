@@ -76,6 +76,10 @@ public class UpsertCollectionHandler(
                 request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+            // If full URI was used, verify it indeed is pointing to the resolved parent collection
+            if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+                && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+                return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
             {
@@ -87,6 +91,7 @@ public class UpsertCollectionHandler(
                 IsPublic = request.Collection.Behavior.IsPublic(),
                 IsStorageCollection = isStorageCollection,
                 Label = request.Collection.Label,
+                Thumbnail = request.Collection.PresentationThumbnail,
                 Tags = request.Collection.Tags,
             };
             
@@ -123,12 +128,20 @@ public class UpsertCollectionHandler(
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
+            var parentId = hierarchy.Parent;
             if (hierarchy.Parent != request.Collection.Parent)
             {
                 var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
                 if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+
+                // If full URI was used, verify it indeed is pointing to the resolved parent collection
+                if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+                    && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+                    return ErrorHelper.NullParentResponse<PresentationCollection>();
+
+                parentId = parentCollection.Id;
             }
 
             databaseCollection.Modified = DateTime.UtcNow;
@@ -136,9 +149,10 @@ public class UpsertCollectionHandler(
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
             databaseCollection.IsStorageCollection = isStorageCollection;
             databaseCollection.Label = request.Collection.Label;
+            databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
             databaseCollection.Tags = request.Collection.Tags;
 
-            hierarchy.Parent = request.Collection.Parent;
+            hierarchy.Parent = parentId;
             hierarchy.ItemsOrder = request.Collection.ItemsOrder;
             hierarchy.Slug = request.Collection.Slug;
             hierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
@@ -161,12 +175,19 @@ public class UpsertCollectionHandler(
             return saveErrors;
         }
         
+        var items = dbContext
+            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
+            .Take(settings.PageSize);
+        
+        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
+
         if (hierarchy.Parent != null)
         {
             try
             {
                 databaseCollection.FullPath =
-                    CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext);
+                    await CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext,
+                        cancellationToken);
             }
             catch (PresentationException)
             {
@@ -177,6 +198,12 @@ public class UpsertCollectionHandler(
         }
         
         await transaction.CommitAsync(cancellationToken);
+        
+        foreach (var item in items)
+        {
+            // We know the fullPath of parent collection so we can use that as the base for child items 
+            item.FullPath = item.GenerateFullPath(databaseCollection);
+        }
 
         if (!isStorageCollection)
         {
@@ -184,17 +211,6 @@ public class UpsertCollectionHandler(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
                     databaseCollection.GetCollectionBucketKey()),
                 convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
-        }
-        
-        var items = dbContext
-            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
-            .Take(settings.PageSize);
-        
-        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
-
-        foreach (var item in items)
-        { 
-            item.FullPath = hierarchy.GenerateFullPath(item.Hierarchy!.Single(h => h.Canonical).Slug);
         }
         
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection, request.UrlRoots, settings.PageSize,

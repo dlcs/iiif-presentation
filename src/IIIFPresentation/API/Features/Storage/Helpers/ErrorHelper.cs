@@ -10,7 +10,7 @@ public static class ErrorHelper
         where TCollection : class
     {
         return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
-            $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound, WriteResult.BadRequest);
+            "The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound, WriteResult.BadRequest);
     }
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotGenerateUniqueId<TCollection>() 

@@ -1,9 +1,5 @@
 ﻿using Core.Helpers;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.Internal;
-using Models.Database.Collections;
 using Models.Database.General;
-using Repository.Helpers;
 
 namespace Repository.Collections;
 
@@ -12,28 +8,33 @@ public static class CollectionQueryX
     /// <summary>
     /// Optionally adds ordering statements to the collection IQueryable
     /// </summary>
-    /// <param name="collectionQuery"></param>
-    /// <param name="orderBy"></param>
-    /// <param name="descending"></param>
-    /// <returns></returns>
-    public static IQueryable<Collection> AsOrderedCollectionQuery(
-        this IQueryable<Collection> collectionQuery, 
+    public static IQueryable<Hierarchy> AsOrderedCollectionItemsQuery(
+        this IQueryable<Hierarchy> hierarchyQuery, 
         string? orderBy,
         bool descending = false)
     {
-        if (!orderBy.HasText()) return descending ? collectionQuery.OrderByDescending(c => c.Created)
-            : collectionQuery.OrderBy(c => c.Created);
+        if (!orderBy.HasText())
+        {
+            return OrderByCreated();
+        }
         var field = orderBy.ToLowerInvariant();
         return field switch
         {
-            "id" => descending ? collectionQuery.OrderByDescending(c => c.Id) : collectionQuery.OrderBy(c => c.Id),
+            "id" => descending 
+                ? hierarchyQuery.OrderByDescending(h => h.Id) 
+                : hierarchyQuery.OrderBy(c => c.Id),
             "slug" => descending
-                ? collectionQuery.OrderByDescending(c => c.Hierarchy!.Single(h => h.Canonical).Slug)
-                : collectionQuery.OrderBy(c => c.Hierarchy!.Single(h => h.Canonical).Slug),
-            "created" => descending
-                ? collectionQuery.OrderByDescending(c => c.Created)
-                : collectionQuery.OrderBy(c => c.Created),
-            _ => collectionQuery
+                ? hierarchyQuery.OrderByDescending(h => h.Slug)
+                : hierarchyQuery.OrderBy(h => h.Slug),
+            "created" => OrderByCreated(),
+            _ => hierarchyQuery
         };
+
+        IOrderedQueryable<Hierarchy> OrderByCreated()
+        {
+            return descending
+                ? hierarchyQuery.OrderByDescending(h => h.Manifest == null ? h.Collection.Created : h.Manifest.Created)
+                : hierarchyQuery.OrderBy(h => h.Manifest == null ? h.Collection.Created : h.Manifest.Created);
+        }
     }
 }

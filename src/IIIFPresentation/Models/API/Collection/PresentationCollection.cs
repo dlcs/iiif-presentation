@@ -3,7 +3,7 @@ using ExternalResource = IIIF.Presentation.V3.Content.ExternalResource;
 
 namespace Models.API.Collection;
 
-public class PresentationCollection : IIIF.Presentation.V3.Collection
+public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresentation
 {
     public string? PublicId { get; set; }
     

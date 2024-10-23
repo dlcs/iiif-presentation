@@ -53,6 +53,11 @@ public class CreateCollectionHandler(
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
+        // If full URI was used, verify it indeed is pointing to the resolved parent collection
+        if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
+            && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+            return ErrorHelper.NullParentResponse<PresentationCollection>();
+        
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         
         string id;
@@ -91,7 +96,7 @@ public class CreateCollectionHandler(
             CustomerId = request.CustomerId,
             Canonical = true,
             ItemsOrder = request.Collection.ItemsOrder,
-            Parent = request.Collection.Parent
+            Parent = parentCollection.Id
         };
 
         var convertedIIIF =
@@ -111,22 +116,42 @@ public class CreateCollectionHandler(
         {
             return saveErrors;
         }
+
+        await UploadToS3IfRequiredAsync(request, collection, convertedIIIFCollection!, isStorageCollection,
+            cancellationToken);
+
+        if (hierarchy.Parent != null)
+        {
+            collection.FullPath =
+                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
+        }
         
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
+            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, Enumerable.Empty<Hierarchy>()), // there can be no items attached to this, as it's just been created
+            WriteResult.Created);
+    }
+
+    private static string ConvertToIIIFCollection(CreateCollection request, Collection collection)
+    {
+        var collectionAsIIIF = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Collection>();
+        var convertedIIIFCollection = collectionAsIIIF.AsJson();
+        var thumbnails = collectionAsIIIF.Thumbnail?.OfType<Image>().ToList();
+        if (thumbnails != null)
+        {
+            collection.Thumbnail = thumbnails.GetThumbnailPath();
+        }
+        return convertedIIIFCollection;
+    }
+
+    private async Task UploadToS3IfRequiredAsync(CreateCollection request,
+        Collection collection, string convertedIIIFCollection, bool isStorageCollection, CancellationToken cancellationToken = default)
+    {
         if (!isStorageCollection)
         {
             await bucketWriter.WriteToBucket(
                 new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                    collection.GetCollectionBucketKey()),
-                convertedIIIF.ConvertedCollection, "application/json", cancellationToken);
+                    collection.GetResourceBucketKey()),
+                convertedIIIFCollection, "application/json", cancellationToken);
         }
-
-        if (hierarchy.Parent != null)
-        {
-            collection.FullPath = CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
-        }
-        
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            request.Collection.EnrichPresentationCollection(collection, request.UrlRoots, settings.PageSize, CurrentPage, 0, []), // there can be no items attached to this, as it's just been created
-            WriteResult.Created);
     }
 }

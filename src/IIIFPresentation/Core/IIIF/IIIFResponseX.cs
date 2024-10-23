@@ -1,4 +1,4 @@
-﻿using IIIF;
+using IIIF;
 using IIIF.Serialisation;
 using Newtonsoft.Json;
 

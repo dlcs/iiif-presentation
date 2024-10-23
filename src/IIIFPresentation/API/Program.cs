@@ -4,6 +4,7 @@ using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
@@ -24,7 +25,7 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
     options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 });
 
-builder.Services.AddScoped<PresentationCollectionValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -67,12 +68,13 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 }
 
 app

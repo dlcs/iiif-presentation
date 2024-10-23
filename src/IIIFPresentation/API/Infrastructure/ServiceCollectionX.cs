@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
@@ -63,6 +64,7 @@ public static class ServiceCollectionX
         services
             .AddSingleton<IBucketReader, S3BucketReader>()
             .AddSingleton<IBucketWriter, S3BucketWriter>()
+            .AddSingleton<IIIFS3Service>()
             .SetupAWS(configuration, webHostEnvironment)
             .WithAmazonS3();
 
