@@ -39,7 +39,7 @@ public class Collection : IHierarchyResource
     public DateTime Modified { get; set; }
 
     /// <summary>
-    /// Who last created this Collection
+    /// Who created this Collection
     /// </summary>
     public string? CreatedBy { get; set; }
 
