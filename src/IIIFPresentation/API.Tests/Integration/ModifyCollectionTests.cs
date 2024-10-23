@@ -498,10 +498,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             CustomerId = 1
         };
 
+        var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvided);
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
             CollectionId = "UpdateTester",
-            Slug = "update-test",
+            Slug = slug,
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
@@ -526,7 +527,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = parent,
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
@@ -551,7 +552,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -604,6 +605,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
+        var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvidedAndParentIsFullUri);
         var updatedCollection = new UpsertFlatCollection
         {
             Behavior = new()
@@ -612,7 +614,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             },
             Label = new("en", ["test collection - updated"]),
-            Slug = "programmatic-child",
+            Slug = slug,
             Parent = $"http://localhost/1/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
@@ -637,7 +639,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated");
-        hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
@@ -957,10 +959,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             CustomerId = 1
         };
 
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenParentIsHierarchicalUri);
         await dbContext.Hierarchy.AddAsync(new()
         {
             CollectionId = "UpdateTester-7",
-            Slug = "update-test-4",
+            Slug = slug,
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1,
