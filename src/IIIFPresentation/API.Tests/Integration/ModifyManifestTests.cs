@@ -317,8 +317,11 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         var fromDatabase = dbContext.Manifests
             .Include(c => c.Hierarchy)
             .Single(c => c.Id == id);
+        var hierarchy = fromDatabase.Hierarchy.Single();
 
         fromDatabase.Should().NotBeNull();
+        hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
+        hierarchy.Canonical.Should().BeTrue();
     }
     
     [Fact]
