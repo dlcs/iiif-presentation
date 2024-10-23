@@ -122,7 +122,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
     [Fact]
@@ -144,7 +144,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
             [
                 new Hierarchy
                 {
-                    Slug = "update-test",
+                    Slug = "update-manifest-test",
                     Parent = RootCollection.Id,
                     Type = ResourceType.StorageCollection,
                     Canonical = true

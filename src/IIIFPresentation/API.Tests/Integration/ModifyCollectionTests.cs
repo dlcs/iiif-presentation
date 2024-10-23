@@ -180,7 +180,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
@@ -1235,7 +1235,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
