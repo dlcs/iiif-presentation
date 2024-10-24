@@ -3,20 +3,20 @@ using IIIF;
 
 namespace API.Features.Storage.Models;
 
-public class TryConvertIIIF<T> where T : JsonLdBase
+public class TryConvertIIIFResult<T> where T : JsonLdBase
 {
-    public static TryConvertIIIF<T> Success(T iiif)
+    public static TryConvertIIIFResult<T> Success(T iiif)
     {
-        return new TryConvertIIIF<T>()
+        return new TryConvertIIIFResult<T>()
         {
             Error = false,
             ConvertedIIIF = iiif
         };
     }
     
-    public static TryConvertIIIF<T> Failure()
+    public static TryConvertIIIFResult<T> Failure()
     {
-        return new TryConvertIIIF<T>()
+        return new TryConvertIIIFResult<T>()
         {
             Error = true
         };

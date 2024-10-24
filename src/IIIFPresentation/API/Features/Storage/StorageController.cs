@@ -140,19 +140,19 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
             Request.Headers.IfMatch, rawRequestBody));
     }
 
-    private async Task<TryConvertIIIF<PresentationCollection>> TryDeserializePresentationCollection(string rawRequestBody)
+    private async Task<TryConvertIIIFResult<PresentationCollection>> TryDeserializePresentationCollection(string rawRequestBody)
     {
         try
         {
             var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
             
             return collection == null
-                ? TryConvertIIIF<PresentationCollection>.Failure()
-                : TryConvertIIIF<PresentationCollection>.Success(collection);
+                ? TryConvertIIIFResult<PresentationCollection>.Failure()
+                : TryConvertIIIFResult<PresentationCollection>.Success(collection);
         }
         catch (Exception)
         {
-            return TryConvertIIIF<PresentationCollection>.Failure();
+            return TryConvertIIIFResult<PresentationCollection>.Failure();
         }
     }
     

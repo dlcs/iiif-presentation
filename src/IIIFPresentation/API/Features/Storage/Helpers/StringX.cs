@@ -15,17 +15,17 @@ public static class StringX
     /// <returns>
     /// A response showing whether there were errors in the conversion, and a string of the converted collection
     /// </returns>
-    public static TryConvertIIIF<IIIF.Presentation.V3.Collection> ConvertCollectionToIIIF(this string requestBody, ILogger logger)
+    public static TryConvertIIIFResult<IIIF.Presentation.V3.Collection> ConvertCollectionToIIIF(this string requestBody, ILogger logger)
     {
         try
         {
             var collection = requestBody.FromJson<IIIF.Presentation.V3.Collection>();
-            return TryConvertIIIF<IIIF.Presentation.V3.Collection>.Success(collection);
+            return TryConvertIIIFResult<IIIF.Presentation.V3.Collection>.Success(collection);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
-            return TryConvertIIIF<IIIF.Presentation.V3.Collection>.Failure();
+            return TryConvertIIIFResult<IIIF.Presentation.V3.Collection>.Failure();
         }
     }
 }

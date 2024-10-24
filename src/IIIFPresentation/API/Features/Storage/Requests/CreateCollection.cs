@@ -48,7 +48,7 @@ public class CreateCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
-        TryConvertIIIF<IIIF.Presentation.V3.Collection>? iiifCollection = null;
+        TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
         if (!isStorageCollection)
         {
             iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
