@@ -37,6 +37,14 @@ public static class ErrorHelper
             ModifyCollectionType.CannotChangeCollectionType, WriteResult.BadRequest);
     }
 
+    public static ModifyEntityResult<T, ModifyCollectionType> EtagNotRequired<T>()
+        where T : class
+    {
+        return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
+            WriteResult.PreConditionFailed);
+    }
+
     private static string CollectionType(bool isStorageCollection)
     {
         return isStorageCollection ? "Storage" : "IIIF";

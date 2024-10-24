@@ -35,6 +35,24 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
             (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest, rawRequestBody, GetUrlRoots()),
             validator,
             cancellationToken: cancellationToken);
+
+    /// <summary>
+    /// Create or upsert Manifest with specific id.
+    /// If id exists valid E-Tag must be provided 
+    /// </summary>
+    [Authorize]
+    [HttpPut("manifests/{id}")]
+    [ETagCaching]
+    public async Task<IActionResult> UpsertManifest(
+        [FromRoute] int customerId,
+        [FromRoute] string id,
+        [FromServices] PresentationManifestValidator validator,
+        CancellationToken cancellationToken)
+        => await ManifestUpsert(
+            (presentationManifest, rawRequestBody) =>
+                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody, GetUrlRoots()),
+            validator,
+            cancellationToken: cancellationToken);
     
     private async Task<IActionResult> ManifestUpsert<T, TEnum>(
         Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,

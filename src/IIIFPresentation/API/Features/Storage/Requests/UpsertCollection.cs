@@ -69,12 +69,7 @@ public class UpsertCollectionHandler(
 
         if (databaseCollection == null)
         {
-            if (request.ETag is not null)
-            {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "ETag should not be added when inserting a collection via PUT", ModifyCollectionType.ETagNotAllowed,
-                    WriteResult.PreConditionFailed);
-            }
+            if (!string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNotRequired<PresentationCollection>();
 
             var createdDate = DateTime.UtcNow;
             
