@@ -6,6 +6,7 @@ using API.Helpers;
 using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
+using API.Infrastructure.Validation;
 using API.Settings;
 using Core;
 using Core.Exceptions;
@@ -82,8 +83,7 @@ public class UpsertCollectionHandler(
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
             // If full URI was used, verify it indeed is pointing to the resolved parent collection
-            if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
-                && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+            if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots))
                 return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
@@ -145,8 +145,7 @@ public class UpsertCollectionHandler(
                 if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 // If full URI was used, verify it indeed is pointing to the resolved parent collection
-                if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
-                    && !parentCollection.GenerateFlatCollectionId(request.UrlRoots).Equals(request.Collection.Parent))
+                if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots)) 
                     return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 parentId = parentCollection.Id;

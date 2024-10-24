@@ -5,6 +5,7 @@ using Core.Helpers;
 using Core.Response;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.Database.Collections;
@@ -264,6 +265,60 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
+    public async Task CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri);
+        var manifest = new PresentationManifest
+        {
+            Parent = "http://different.host/root",
+            Slug = slug
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be("The parent collection could not be found");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+    }
+    
+    [Fact]
     public async Task CreateManifest_ReturnsManifest()
     {
         // Arrange
@@ -290,7 +345,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be(RootCollection.Id);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
     
     [Fact]

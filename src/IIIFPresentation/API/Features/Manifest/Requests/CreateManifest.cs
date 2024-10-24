@@ -7,6 +7,7 @@ using API.Helpers;
 using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
+using API.Infrastructure.Validation;
 using Core;
 using IIIF.Serialisation;
 using MediatR;
@@ -47,7 +48,7 @@ public class CreateManifestHandler(
         var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
             request.PresentationManifest.GetParentSlug(), cancellationToken: cancellationToken);
 
-        var parentErrors = ValidateParent(parentCollection);
+        var parentErrors = ValidateParent(parentCollection, request.PresentationManifest, request.UrlRoots);
         if (parentErrors != null) return parentErrors;
 
         var (error, dbManifest) = await UpdateDatabase(request, parentCollection!, cancellationToken);
@@ -59,13 +60,14 @@ public class CreateManifestHandler(
             request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
     }
 
-    private static ModifyEntityResult<PresentationManifest, ModifyCollectionType>? ValidateParent(Collection? parentCollection)
+    private static ModifyEntityResult<PresentationManifest, ModifyCollectionType>? ValidateParent(
+        Collection? parentCollection, PresentationManifest manifest, UrlRoots urlRoots)
     {
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationManifest>();
+        if (!parentCollection.IsStorageCollection) return ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>();
+        if (manifest.IsUriParentInvalid(parentCollection, urlRoots)) return ErrorHelper.NullParentResponse<PresentationManifest>();
 
-        return parentCollection.IsStorageCollection
-            ? null
-            : ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>();
+        return null;
     }
     
     private async Task<(ModifyEntityResult<PresentationManifest, ModifyCollectionType>?, DbManifest?)> UpdateDatabase(

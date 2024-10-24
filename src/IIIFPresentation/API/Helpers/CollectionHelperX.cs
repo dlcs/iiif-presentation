@@ -43,10 +43,10 @@ public static class CollectionHelperX
         $"{urlRoots.BaseUrl}/{hierarchy.CustomerId}/{hierarchy.Type.GetSlug()}/{hierarchy.ResourceId}";
     
     /// <summary>
-    /// Get flat id for hierarchy parent 
+    /// Get flat id for parent of <see cref="Hierarchy"/> 
     /// </summary>
     public static string GenerateFlatParentId(this Hierarchy hierarchy, UrlRoots urlRoots) =>
-        $"{urlRoots.BaseUrl}/{hierarchy.CustomerId}/{hierarchy.Type.GetSlug()}/{hierarchy.Parent}";
+        $"{urlRoots.BaseUrl}/{hierarchy.CustomerId}/{CollectionsSlug}/{hierarchy.Parent}";
     
     public static string GenerateFlatCollectionViewId(this Collection collection, UrlRoots urlRoots, 
         int currentPage, int pageSize, string? orderQueryParam) =>
