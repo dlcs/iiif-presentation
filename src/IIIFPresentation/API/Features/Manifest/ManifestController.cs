@@ -7,6 +7,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core.IIIF;
+using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,13 +21,29 @@ namespace API.Features.Manifest;
 public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
+    /// <summary>
+    /// Create a new Manifest on Flat URL
+    /// </summary>
     [Authorize]
     [HttpPost("manifests")]
     [ETagCaching]
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
         [FromServices] PresentationManifestValidator validator,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) 
+        => await ManifestUpsert(
+            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest, rawRequestBody, GetUrlRoots()),
+            validator,
+            cancellationToken: cancellationToken);
+    
+    private async Task<IActionResult> ManifestUpsert<T, TEnum>(
+        Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
+        PresentationManifestValidator validator,
+        string? instance = null,
+        string? errorTitle = "Operation failed",
+        CancellationToken cancellationToken = default)
+        where T : class
+        where TEnum : Enum
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
@@ -45,7 +62,7 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(new CreateManifest(customerId, presentationManifest, rawRequestBody, GetUrlRoots()),
-            cancellationToken: cancellationToken);
+        return await HandleUpsert(requestFactory(presentationManifest, rawRequestBody), instance, errorTitle,
+            cancellationToken);
     }
 }
