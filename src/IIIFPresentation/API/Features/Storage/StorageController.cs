@@ -2,6 +2,7 @@ using System.Net;
 using API.Attributes;
 using API.Auth;
 using API.Converters;
+using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
@@ -11,7 +12,6 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Serialisation;
 using MediatR;
@@ -99,61 +99,50 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromServices] PresentationCollectionValidator validator)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-        
-        var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        
-        var deserializedCollection = await TryDeserializePresentationCollection(rawRequestBody);
-        if (deserializedCollection.Error)  return PresentationUnableToSerialize();
+        var deserializeValidationResult = await DeserializeAndValidate(validator);
+        if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
 
-        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedIIIF);
-        
-        if (!validation.IsValid)
-        {
-            return this.ValidationFailed(validation);
-        }
-        
-        return await HandleUpsert(new CreateCollection(customerId, deserializedCollection.ConvertedIIIF, rawRequestBody, GetUrlRoots()));
+        return await HandleUpsert(new CreateCollection(customerId,
+            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody,
+            GetUrlRoots()));
     }
-    
+
     [Authorize]
     [HttpPut("collections/{id}")]
     [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id, 
         [FromServices] PresentationCollectionValidator validator)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
+        var deserializeValidationResult = await DeserializeAndValidate(validator);
+        if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
+
+        return await HandleUpsert(new UpsertCollection(customerId, id,
+            deserializeValidationResult.ConvertedIIIF, GetUrlRoots(), Request.Headers.IfMatch,
+            deserializeValidationResult.RawRequestBody));
+    }
+    
+    
+    private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(PresentationCollectionValidator validator)
+    {
+        if (!Request.HasShowExtraHeader()) return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
         
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
-        var deserializedCollection = await TryDeserializePresentationCollection(rawRequestBody);
-        if (deserializedCollection.Error)  return PresentationUnableToSerialize();
-
-        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedIIIF);
+        var deserializedCollection = await rawRequestBody.TryDeserializePresentationCollection();
+        if (deserializedCollection.Error)
+        {
+            return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());
+        }
+        
+        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedIIIF!);
 
         if (!validation.IsValid)
         {
-            return this.ValidationFailed(validation);
+            return DeserializeValidationResult<PresentationCollection>.Failure(this.ValidationFailed(validation));
         }
 
-        return await HandleUpsert(new UpsertCollection(customerId, id, deserializedCollection.ConvertedIIIF, GetUrlRoots(),
-            Request.Headers.IfMatch, rawRequestBody));
-    }
-
-    private async Task<TryConvertIIIFResult<PresentationCollection>> TryDeserializePresentationCollection(string rawRequestBody)
-    {
-        try
-        {
-            var collection = await rawRequestBody.ToPresentation<PresentationCollection>();
-            
-            return collection == null
-                ? TryConvertIIIFResult<PresentationCollection>.Failure()
-                : TryConvertIIIFResult<PresentationCollection>.Success(collection);
-        }
-        catch (Exception)
-        {
-            return TryConvertIIIFResult<PresentationCollection>.Failure();
-        }
+        return DeserializeValidationResult<PresentationCollection>.Success(deserializedCollection.ConvertedIIIF,
+            rawRequestBody);
     }
     
 

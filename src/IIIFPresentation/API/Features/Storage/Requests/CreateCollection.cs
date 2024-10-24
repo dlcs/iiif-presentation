@@ -51,7 +51,7 @@ public class CreateCollectionHandler(
         TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
         if (!isStorageCollection)
         {
-            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
+            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF<IIIF.Presentation.V3.Collection>(logger);
             if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         

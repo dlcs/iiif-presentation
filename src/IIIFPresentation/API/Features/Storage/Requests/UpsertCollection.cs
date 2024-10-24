@@ -58,7 +58,7 @@ public class UpsertCollectionHandler(
         TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
         if (!isStorageCollection)
         {
-            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
+            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF<IIIF.Presentation.V3.Collection>(logger);
             if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         var databaseCollection =
@@ -126,9 +126,12 @@ public class UpsertCollectionHandler(
                     "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
             }
             
-            if (isStorageCollection && !databaseCollection.IsStorageCollection)
+            if (isStorageCollection != databaseCollection.IsStorageCollection)
             {
-                return ErrorHelper.CannotChangeToStorageCollection<PresentationCollection>();
+                logger.LogError(
+                    "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
+                    request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
+                return ErrorHelper.CannotChangeToStorageCollection<PresentationCollection>(isStorageCollection);
             }
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);

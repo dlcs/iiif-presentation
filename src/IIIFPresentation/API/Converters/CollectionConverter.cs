@@ -117,13 +117,15 @@ public static class CollectionConverter
     /// <summary>
     /// Generates a list of behaviors for a collection
     /// </summary>
-    /// <param name="collection">The dtabase collection to use</param>
+    /// <param name="collection">The database collection to use</param>
     /// <returns>A list of behaviors</returns>
-    public static List<string> GenerateBehavior(Models.Database.Collections.Collection collection)
+    public static List<string>? GenerateBehavior(Models.Database.Collections.Collection collection)
     {
-        return new List<string>()
+        var behaviours = new List<string>()
             .AppendIf(collection.IsPublic, Behavior.IsPublic)
             .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
+        
+        return behaviours.Any() ? behaviours : null; 
     }
 
     /// <summary>
@@ -140,7 +142,7 @@ public static class CollectionConverter
             {
                 new PartOf(nameof(PresentationType.Collection))
                 {
-                    Id = $"{urlRoots.BaseUrl}/{collection.CustomerId}/{hierarchy.Parent}",
+                    Id = collection.GenerateHierarchicalCollectionParent(hierarchy, urlRoots),
                     Label = collection.Label
                 }
             }
@@ -170,23 +172,6 @@ public static class CollectionConverter
                 Profile = "api-hierarchical"
             }
         ];
-    }
-
-    /// <summary>
-    /// Generates items in a collection into the correct format
-    /// </summary>
-    /// <param name="urlRoots">The URL to use</param>
-    /// <param name="items">The items to convert</param>
-    /// <returns>A list of ICollectionItems</returns>
-    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, List<Models.Database.Collections.Collection>? items)
-    {
-        return items != null
-            ? items.Select(i => (ICollectionItem) new Collection()
-            {
-                Id = i.GenerateFlatCollectionId(urlRoots),
-                Label = i.Label
-            }).ToList()
-            : [];
     }
     
     /// <summary>

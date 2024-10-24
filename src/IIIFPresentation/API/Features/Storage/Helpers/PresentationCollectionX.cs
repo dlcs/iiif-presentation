@@ -31,16 +31,16 @@ public static class PresentationCollectionX
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
         var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
         
-        presentationCollection.Id ??= collection.GenerateFlatCollectionId(urlRoots);
-        presentationCollection.PublicId ??= collection.GenerateHierarchicalCollectionId(urlRoots);
         presentationCollection.Context ??= CollectionConverter.GenerateContext();
         presentationCollection.Behavior ??= CollectionConverter.GenerateBehavior(collection);
         presentationCollection.Slug ??= hierarchy.Slug;
-        presentationCollection.Parent ??= CollectionConverter.GeneratePresentationCollectionParent(urlRoots, hierarchy);
         presentationCollection.ItemsOrder ??= hierarchy.ItemsOrder;
         presentationCollection.Items ??= CollectionConverter.GenerateItems(urlRoots, items);
         presentationCollection.TotalItems = totalItems;
 
+        presentationCollection.Id = collection.GenerateFlatCollectionId(urlRoots);
+        presentationCollection.PublicId = collection.GenerateHierarchicalCollectionId(urlRoots);
+        presentationCollection.Parent = CollectionConverter.GeneratePresentationCollectionParent(urlRoots, hierarchy);
         presentationCollection.PartOf = CollectionConverter.GeneratePartOf(hierarchy, collection, urlRoots);
         presentationCollection.View = CollectionConverter.GenerateView(collection, urlRoots, pageSize, currentPage,
             totalPages, orderQueryParamConverted);

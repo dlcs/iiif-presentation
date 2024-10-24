@@ -712,7 +712,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
             Tags = "some, tags",
-            IsStorageCollection = true,
+            IsStorageCollection = false,
             IsPublic = false,
             CustomerId = 1,
             Hierarchy = [
@@ -720,8 +720,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 {
                     Slug = "iiif-update-test",
                     Parent = RootCollection.Id,
-                    Type = ResourceType.StorageCollection,
-                    CustomerId = 1
+                    Type = ResourceType.StorageCollection
                 }
             ]
         };
@@ -838,8 +837,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 {
                     Slug = "update-test",
                     Parent = RootCollection.Id,
-                    Type = ResourceType.StorageCollection,
-                    CustomerId = 1
+                    Type = ResourceType.StorageCollection
                 }
             ]
         };
@@ -879,7 +877,78 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        responseCollection.Detail.Should().Be("Cannot move a IIIF collection to a storage collection");
+        responseCollection.Detail.Should().Be("Cannot convert a Storage collection to a IIIF collection");
+        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotMoveToStorageCollection");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF()
+    {
+        var id = nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
+        var slug =  nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
+        
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = id,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child",
+            Parent = RootCollection.Id,
+            ItemsOrder = 1,
+            PresentationThumbnail = "some/location/2",
+            Tags = "some, tags, 2"
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        responseCollection.Detail.Should().Be("Cannot convert a IIIF collection to a Storage collection");
         responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotMoveToStorageCollection");
     }
     
@@ -1425,8 +1494,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 {
                     Slug = "iiif-update-test-3",
                     Parent = RootCollection.Id,
-                    Type = ResourceType.StorageCollection,
-                    CustomerId = 1
+                    Type = ResourceType.StorageCollection
                 }
             ]
         };
