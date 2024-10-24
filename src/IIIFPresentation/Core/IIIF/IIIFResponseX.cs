@@ -38,7 +38,7 @@ public static class IIIFResponseX
         await using var jsonReader = new JsonTextReader(streamReader);
 
         settings ??= new(IIIFSerialiserX.DeserializerSettings);
-        
+
         var serializer = JsonSerializer.Create(settings);
 
         try
@@ -47,7 +47,7 @@ public static class IIIFResponseX
             serializer.Populate(jsonReader, result);
             return result;
         }
-        catch (JsonReaderException)
+        catch (JsonException)
         {
             return default;
         }
