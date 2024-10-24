@@ -1,6 +1,4 @@
 ﻿using API.Converters;
-using API.Features.Storage.Models;
-using FluentAssertions;
 using IIIF.Presentation.V3.Strings;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -43,7 +41,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, new List<Collection>(CreateTestItems()));
+            storageRoot.ToHierarchicalCollection(urlRoots, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1");
         hierarchicalCollection.Label!.Count.Should().Be(1);
@@ -60,7 +58,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, new List<Collection>(CreateTestItems()));
+            storageRoot.ToHierarchicalCollection(urlRoots, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/top/some-id");
         hierarchicalCollection.Label!.Count.Should().Be(1);
@@ -98,7 +96,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            collection.ToFlatCollection(urlRoots, pageSize, 1, 1, [..CreateTestItems()]);
+            collection.ToFlatCollection(urlRoots, pageSize, 1, 1, CreateTestItems());
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -127,7 +125,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 0, new List<Collection>(CreateTestItems()));
+            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 0, CreateTestItems());
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -158,8 +156,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, 1, 2, 3,
-                [..CreateTestItems()], "orderBy=created");
+            storageRoot.ToFlatCollection(urlRoots, 1, 2, 3, CreateTestItems(), "orderBy=created");
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -183,30 +180,16 @@ public class CollectionConverterTests
         flatCollection.TotalItems.Should().Be(3);
     }
 
-    private static List<Collection> CreateTestItems()
+    private static List<Hierarchy> CreateTestItems()
     {
-        var items = new List<Collection>()
+        var items = new List<Hierarchy>
         {
             new()
             {
-                Id = "some-child",
+                CollectionId = "some-child",
                 CustomerId = 1,
-                Label = new LanguageMap
-                {
-                    { "en", new List<string> { "repository root" } }
-                },
-                Created = DateTime.MinValue,
-                Modified = DateTime.MinValue,
-                FullPath = "top/some-child",
-                Hierarchy = [
-                    new Hierarchy()
-                    {
-                        CollectionId = "some-child",
-                        Slug = "root",
-                        CustomerId = 1,
-                        Type = ResourceType.StorageCollection
-                    }
-                ]
+                Slug = "root",
+                Type = ResourceType.StorageCollection
             }
         };
         

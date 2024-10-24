@@ -1,6 +1,5 @@
 ﻿using API.Converters;
 using API.Helpers;
-using Core.Helpers;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -28,6 +27,30 @@ public class CollectionHelperXTests
 
         // Assert
         id.Should().Be("http://base/0");
+    }
+    
+    [Theory]
+    [InlineData("test/slug", "/test")]
+    [InlineData("test/test/slug", "/test/test")]
+    [InlineData("slug", "")]
+    public void GenerateHierarchicalCollectionParent_Correct_ParentId(string fullPath, string outputUrl)
+    {
+        
+        
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "someId",
+            FullPath = fullPath,
+        };
+        
+        var hierarchy = GetDefaultHierarchyList();
+
+        // Act
+        var parentId = collection.GenerateHierarchicalCollectionParent(hierarchy.First(), urlRoots);
+
+        // Assert
+        parentId.Should().Be($"http://base/0{outputUrl}");
     }
     
     [Fact]

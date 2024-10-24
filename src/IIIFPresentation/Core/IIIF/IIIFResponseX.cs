@@ -9,6 +9,9 @@ public static class IIIFResponseX
     /// <summary>
     /// Convert provided stream to Presentation type inheriting from <see cref="JsonLdBase"/>
     /// </summary>
+    /// <remarks>
+    /// There is a slight difference between the IIIF ToJson method, in that ToPresentation is case-insensitive
+    /// </remarks>
     public static async Task<T?> ToPresentation<T>(this Stream contentStream, JsonSerializerSettings? settings = null)
         where T : JsonLdBase, new()
     {
@@ -19,6 +22,9 @@ public static class IIIFResponseX
     /// <summary>
     /// Convert provided string to Presentation type inheriting from <see cref="JsonLdBase"/>
     /// </summary>
+    /// <remarks>
+    /// There is a slight difference between the IIIF ToJson method, in that ToPresentation is case-insensitive
+    /// </remarks>
     public static async Task<T?> ToPresentation<T>(this string content, JsonSerializerSettings? settings = null)
         where T : JsonLdBase, new()
     {

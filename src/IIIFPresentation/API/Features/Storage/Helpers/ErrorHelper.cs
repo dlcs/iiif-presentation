@@ -10,7 +10,7 @@ public static class ErrorHelper
         where TCollection : class
     {
         return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
-            "The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound, WriteResult.Conflict);
+            "The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound, WriteResult.BadRequest);
     }
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotGenerateUniqueId<TCollection>() 
@@ -27,5 +27,18 @@ public static class ErrorHelper
         return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
             "An error occurred while attempting to validate the collection as IIIF",
             ModifyCollectionType.CannotValidateIIIF, WriteResult.BadRequest);
+    }
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotChangeCollectionType<TCollection>
+        (bool storageCollection) where TCollection : class
+    {
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            $"Cannot convert a {CollectionType(storageCollection)} collection to a {CollectionType(!storageCollection)} collection",
+            ModifyCollectionType.CannotChangeCollectionType, WriteResult.BadRequest);
+    }
+
+    private static string CollectionType(bool isStorageCollection)
+    {
+        return isStorageCollection ? "Storage" : "IIIF";
     }
 }

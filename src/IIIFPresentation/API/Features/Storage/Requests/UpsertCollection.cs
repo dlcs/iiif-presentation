@@ -1,7 +1,9 @@
 ﻿using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
 using API.Helpers;
+using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -12,7 +14,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -21,25 +22,28 @@ using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpsertCollection(int customerId, string collectionId, UpsertFlatCollection collection, UrlRoots urlRoots, 
-    string? eTag)
+public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, UrlRoots urlRoots, 
+    string? eTag, string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
     public string CollectionId { get; set; } = collectionId;
 
-    public UpsertFlatCollection Collection { get; } = collection;
+    public PresentationCollection Collection { get; } = collection;
 
     public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string? ETag { get; set; } = eTag;
+    
+    public string RawRequestBody { get; set; } = rawRequestBody;
 }
 
 public class UpsertCollectionHandler(
     PresentationContext dbContext,
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
+    IIIFS3Service iiifS3,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -50,6 +54,13 @@ public class UpsertCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
+        var isStorageCollection = request.Collection.Behavior!.IsStorageCollection();
+        TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
+        if (!isStorageCollection)
+        {
+            iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF<IIIF.Presentation.V3.Collection>(logger);
+            if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
+        }
         var databaseCollection =
             await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
         
@@ -83,16 +94,18 @@ public class UpsertCollectionHandler(
                 CreatedBy = Authorizer.GetUser(),
                 CustomerId = request.CustomerId,
                 IsPublic = request.Collection.Behavior.IsPublic(),
-                IsStorageCollection = request.Collection.Behavior.IsStorageCollection(),
+                IsStorageCollection = isStorageCollection,
                 Label = request.Collection.Label,
-                Thumbnail = request.Collection.PresentationThumbnail,
+                Thumbnail = request.Collection.GetThumbnail(),
                 Tags = request.Collection.Tags,
             };
             
             hierarchy = new Hierarchy
             {
                 CollectionId = request.CollectionId,
-                Type = ResourceType.StorageCollection,
+                Type = isStorageCollection
+                    ? ResourceType.StorageCollection
+                    : ResourceType.IIIFCollection,
                 Slug = request.Collection.Slug,
                 CustomerId = request.CustomerId,
                 Canonical = true,
@@ -112,6 +125,14 @@ public class UpsertCollectionHandler(
                 return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
                     "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
             }
+            
+            if (isStorageCollection != databaseCollection.IsStorageCollection)
+            {
+                logger.LogError(
+                    "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
+                    request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
+                return ErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
+            }
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
@@ -121,12 +142,7 @@ public class UpsertCollectionHandler(
                 var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
-                if (parentCollection == null)
-                {
-                    return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                        $"The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound,
-                        WriteResult.BadRequest);
-                }
+                if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 // If full URI was used, verify it indeed is pointing to the resolved parent collection
                 if (Uri.IsWellFormedUriString(request.Collection.Parent, UriKind.Absolute)
@@ -139,14 +155,15 @@ public class UpsertCollectionHandler(
             databaseCollection.Modified = DateTime.UtcNow;
             databaseCollection.ModifiedBy = Authorizer.GetUser();
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
-            databaseCollection.IsStorageCollection = request.Collection.Behavior.IsStorageCollection();
+            databaseCollection.IsStorageCollection = isStorageCollection;
             databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Thumbnail = request.Collection.PresentationThumbnail;
+            databaseCollection.Thumbnail = request.Collection.GetThumbnail();
             databaseCollection.Tags = request.Collection.Tags;
 
             hierarchy.Parent = parentId;
             hierarchy.ItemsOrder = request.Collection.ItemsOrder;
             hierarchy.Slug = request.Collection.Slug;
+            hierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
         }
 
         await using var transaction = 
@@ -160,12 +177,6 @@ public class UpsertCollectionHandler(
         {
             return saveErrors;
         }
-        
-        var items = dbContext
-            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
-            .Take(settings.PageSize);
-        
-        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
 
         if (hierarchy.Parent != null)
         {
@@ -185,14 +196,35 @@ public class UpsertCollectionHandler(
         
         await transaction.CommitAsync(cancellationToken);
         
+        var items = dbContext
+            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
+            .Take(settings.PageSize);
+        
+        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
+        
         foreach (var item in items)
         {
             // We know the fullPath of parent collection so we can use that as the base for child items 
             item.FullPath = item.GenerateFullPath(databaseCollection);
         }
 
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            databaseCollection.ToFlatCollection(request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
-                await items.ToListAsync(cancellationToken: cancellationToken)));
+        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
+            isStorageCollection, cancellationToken);
+
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
+            request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
+            await items.ToListAsync(cancellationToken: cancellationToken));
+
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
+    }
+    
+    private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
+        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+    {
+        if (!isStorageCollection)
+        {
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+                cancellationToken);
+        }
     }
 }

@@ -1,11 +1,11 @@
 ﻿using FluentValidation;
-using Models.API.Collection.Upsert;
+using Models.API.Collection;
 
 namespace API.Features.Storage.Validators;
 
-public class UpsertFlatCollectionValidator : AbstractValidator<UpsertFlatCollection>
+public class PresentationCollectionValidator : AbstractValidator<PresentationCollection>
 {
-    public UpsertFlatCollectionValidator()
+    public PresentationCollectionValidator()
     {
         RuleFor(f => f.Parent).NotEmpty().WithMessage("Requires a 'parent' to be set");
         RuleFor(f => f.Slug).NotEmpty().WithMessage("Requires a 'slug' to be set");

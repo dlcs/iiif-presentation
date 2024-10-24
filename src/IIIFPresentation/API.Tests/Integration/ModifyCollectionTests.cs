@@ -11,8 +11,9 @@ using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
+using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
-using Models.API.Collection.Upsert;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -57,7 +58,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -106,7 +107,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvidedAndParentIsFullUri()
     {
         // Arrange
-        var collection = new UpsertFlatCollection
+        var collection = new PresentationCollection
         {
             Behavior = new()
             {
@@ -155,7 +156,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenParentIsHierarchicalUri()
     {
         // Arrange
-        var collection = new UpsertFlatCollection
+        var collection = new PresentationCollection
         {
             Behavior = new()
             {
@@ -171,7 +172,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -179,7 +180,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
@@ -210,7 +211,22 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
           ""width"": 300,
           ""height"": 200
         }}
+    ],
+""homepage"": [
+  {{
+    ""id"": ""https://www.getty.edu/art/collection/object/103RQQ"",
+    ""type"": ""Text"",
+    ""label"": {{
+      ""en"": [
+        ""Home page at the Getty Museum Collection""
+      ]
+    }},
+    ""format"": ""text/html"",
+    ""language"": [
+      ""en""
     ]
+  }}
+]
 }}";
 
         var requestMessage =
@@ -244,6 +260,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.Homepage.Should().NotBeNull();
         fromS3.Should().NotBeNull();
     }
     
@@ -251,7 +268,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -277,7 +294,52 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("An error occurred while attempting to validate the collection as IIIF");
     }
+    
+    [Fact]
+    public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidJson()
+    {
+        // Arrange
+        var collection =
+"""
+{
+   "behavior": [
+     "public-iiif"
+   ],
+   "type": "Collection",
+   "label": {
+     "en": [
+       "test collection - created"
+     ]
+   },
+   "slug": "iiif-child",
+   "parent": "root",
+  "thumbnail": [
+     {
+       "id": "https://iiif.io/api/image/3.0/example/reference/someRef",
+       "type": "Image",
+       "format": "image/jpeg",
+       "height": 100,
+       "width": 100,
+     }
+   ],
+   "homepage": "invalidHomepage"
+   "itemsOrder": 1
+}
+""";
 
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", 
+            collection);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be("Could not deserialize collection");
+    }
+    
     [Fact]
     public async Task CreateCollection_FailsToCreateCollection_WhenDuplicateSlug()
     {
@@ -295,7 +357,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -312,7 +374,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -325,7 +387,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -338,7 +400,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -352,7 +414,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
 
         // Act
@@ -366,7 +428,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task CreateCollection_FailsToCreateCollection_WhenCalledWithoutShowExtras()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -379,7 +441,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/collections");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
 
         // Act
@@ -395,8 +457,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Arrange
         var sqidsGenerator = A.Fake<IIdGenerator>();
         A.CallTo(() => sqidsGenerator.Generate(A<List<long>>.Ignored)).Returns("generated");
-
-
+        
         // Act
         var id = await dbContext.Collections.GenerateUniqueIdAsync(1, sqidsGenerator);
 
@@ -422,7 +483,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -437,7 +498,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var collectionName = nameof(UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth);
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{collectionName}", JsonSerializer.Serialize(collection));
+            $"{Customer}/collections/{collectionName}", collection.AsJson());
 
         // Act
         var response = await httpClient.SendAsync(requestMessage);
@@ -450,7 +511,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
     {
         // Arrange
-        var collection = new UpsertFlatCollection()
+        var collection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -466,7 +527,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/collections/{collectionName}");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(collection), Encoding.UTF8,
+        requestMessage.Content = new StringContent(collection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
 
         // Act
@@ -518,8 +579,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 $"{Customer}/collections/{initialCollection.Id}");
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
-
-        var updatedCollection = new UpsertFlatCollection()
+        
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -535,7 +596,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
@@ -606,7 +667,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
         var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvidedAndParentIsFullUri);
-        var updatedCollection = new UpsertFlatCollection
+        var updatedCollection = new PresentationCollection
         {
             Behavior = new()
             {
@@ -649,12 +710,270 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
     }
+    
+    [Fact]
+    public async Task UpdateCollection_UpdatesIiifCollection_WhenAllValuesProvided()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-IIIF",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = false,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "iiif-update-test",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+
+        var updatedCollection = 
+"""
+{
+  "behavior": [
+    "public-iiif"
+  ],
+  "type": "Collection",
+  "label": {
+    "en": [
+      "test collection - updated"
+    ]
+  },
+  "slug": "iiif-programmatic-child",
+  "parent": "root",
+  "tags": "some, tags, 2",
+ "thumbnail": [
+    {
+      "id": "https://iiif.io/api/image/3.0/example/reference/someRef",
+      "type": "Image",
+      "format": "image/jpeg",
+      "height": 100,
+      "width": 100,
+    }
+  ],
+  "homepage": [
+  {
+    "id": "https://www.getty.edu/art/collection/object/103RQQ",
+    "type": "Text",
+    "label": {
+      "en": [
+        "Home page at the Getty Museum Collection"
+      ]
+    },
+    "format": "text/html",
+    "language": [
+      "en"
+    ]
+  }
+],
+"metadata": [
+  {
+    "label": {
+      "en": [
+        "Artist"
+      ]
+    },
+    "value": {
+      "en": [
+        "Winslow Homer (1836–1910)"
+      ]
+    }
+  }
+],
+  "itemsOrder": 1
+}
+""";
+        
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        var collection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        var fromDatabase = dbContext.Collections.Include(c => c.Hierarchy).First(c => c.Id == initialCollection.Id);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection.Metadata.Should().NotBeNull();
+        collection.Homepage.Should().NotBeNull();
+        collection.Thumbnail.Should().NotBeNull();
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated"); 
+        fromDatabase.Thumbnail.Should().Be("https://iiif.io/api/image/3.0/example/reference/someRef");
+        fromDatabase.Hierarchy![0].Slug.Should().Be("iiif-programmatic-child");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenMovingIIIFCollectionToStorage()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "IIIF-UpdateTester-2",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = false,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "update-test",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child",
+            Parent = RootCollection.Id,
+            ItemsOrder = 1,
+            PresentationThumbnail = "some/location/2",
+            Tags = "some, tags, 2"
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        responseCollection.Detail.Should().Be("Cannot convert a Storage collection to a IIIF collection");
+        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotChangeCollectionType");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF()
+    {
+        var id = nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
+        var slug =  nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
+        
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = id,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection
+                }
+            ]
+        };
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        
+        var updatedCollection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = "programmatic-child",
+            Parent = RootCollection.Id,
+            ItemsOrder = 1,
+            PresentationThumbnail = "some/location/2",
+            Tags = "some, tags, 2"
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        responseCollection.Detail.Should().Be("Cannot convert a IIIF collection to a Storage collection");
+        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotChangeCollectionType");
+    }
+    
 
     [Fact]
     public async Task UpdateCollection_CreatesCollection_WhenUnknownCollectionIdProvided()
     {
         // Arrange
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -670,8 +989,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/createFromUpdate", JsonSerializer.Serialize(updatedCollection));
-
+            $"{Customer}/collections/createFromUpdate", updatedCollection.AsJson());
+        
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
 
@@ -702,7 +1021,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToCreateCollection_WhenUnknownCollectionWithETag()
     {
         // Arrange
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -718,7 +1037,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/createFromUpdate2", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/createFromUpdate2", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"someTag\""));
 
         // Act
@@ -772,13 +1091,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
-            Behavior = new List<string>()
-            {
+            Behavior =
+            [
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
-            },
+            ],
             Slug = "programmatic-child-2",
             Parent = parent
         };
@@ -806,8 +1125,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeTrue();
     }
 
-    [Fact(Skip = "Test to be updated to pass in https://github.com/dlcs/iiif-presentation/issues/27")]
-    public async Task UpdateCollection_FailsToUpdateCollection_WhenNotStorageCollection()
+    [Fact]
+    public async Task UpdateCollection_UpdatesCollection_WhenConvertingToStorageCollection()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -847,7 +1166,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection
         {
             Behavior = new List<string>()
             {
@@ -911,7 +1230,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -924,7 +1243,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
@@ -980,7 +1299,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
-        var updatedCollection = new UpsertFlatCollection
+        var updatedCollection = new PresentationCollection
         {
             Behavior = new()
             {
@@ -1001,7 +1320,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
@@ -1010,7 +1329,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect()
     {
         var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenETagIncorrect);
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -1023,7 +1342,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            "1/collections/FirstChildCollection", JsonSerializer.Serialize(updatedCollection));
+            "1/collections/FirstChildCollection", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
 
         // Act
@@ -1102,13 +1421,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(childCollection);
         await dbContext.SaveChangesAsync();
 
-        var updatedCollection = new UpsertFlatCollection()
+        var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
-            {
+            Behavior =
+            [
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
-            },
+            ],
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = parentCollection.Hierarchy.Single(h => h.Canonical).Slug,
             Parent = childCollection.Id
@@ -1120,7 +1439,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"1/collections/{parentCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
@@ -1140,8 +1459,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
         
         var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
-
-        var updatedCollection = new UpsertFlatCollection()
+        
+        var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
             {
@@ -1156,7 +1475,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var updateRequestMessage = new HttpRequestMessage(HttpMethod.Put, "1/collections/FirstChildCollection");
         updateRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer");
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
-        updateRequestMessage.Content = new StringContent(JsonSerializer.Serialize(updatedCollection), Encoding.UTF8,
+        updateRequestMessage.Content = new StringContent(updatedCollection.AsJson(), Encoding.UTF8,
             new MediaTypeHeaderValue("application/json"));
 
         // Act
@@ -1165,7 +1484,91 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+    
+    [Fact]
+    public async Task UpdateCollection_FailsToUpdateIiifCollection_WhenInvalidJson()
+    {
+        // Arrange
+        var initialCollection = new Collection()
+        {
+            Id = "UpdateTester-IIIF-3",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "update testing" } }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "iiif-update-test-3",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection
+                }
+            ]
+        };
+                
+        
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var getRequestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{Customer}/collections/{initialCollection.Id}");
+        
+        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
 
+        var updatedCollection = 
+"""
+{
+  "behavior": [
+    "public-iiif"
+  ],
+  "type": "Collection",
+  "label": {
+    "en": [
+      "test collection - updated"
+    ]
+  },
+  "slug": "iiif-programmatic-child-3",
+  "parent": "root",
+  "tags": "some, tags, 2",
+ "thumbnail": [
+    {
+      "id": "https://iiif.io/api/image/3.0/example/reference/someRef",
+      "type": "Image",
+      "format": "image/jpeg",
+      "height": 100,
+      "width": 100,
+    }
+  ],
+  "homepage": "invalidHomepage",
+  "itemsOrder": 1
+}
+""";
+        
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
+        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.Detail.Should().Be("Could not deserialize collection");
+    }
+    
     [Fact]
     public async Task DeleteCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
@@ -1398,7 +1801,22 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         ""id"": ""https://some.id/iiif/collection"",
         ""type"": ""Collection"",
         }
+    ],
+""homepage"": [
+  {
+    ""id"": ""https://www.getty.edu/art/collection/object/103RQQ"",
+    ""type"": ""Text"",
+    ""label"": {
+      ""en"": [
+        ""Home page at the Getty Museum Collection""
+      ]
+    },
+    ""format"": ""text/html"",
+    ""language"": [
+      ""en""
     ]
+  }
+]
 }";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
@@ -1422,6 +1840,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Items!.Count.Should().Be(1);
         responseCollection.Thumbnail.Should().NotBeNull();
+        responseCollection.Homepage.Should().NotBeNull();
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);

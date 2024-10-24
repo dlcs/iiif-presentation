@@ -11,5 +11,6 @@ public enum ModifyCollectionType
     CannotGenerateUniqueId = 7,
     CannotValidateIIIF = 8,
     ParentMustBeStorageCollection = 9,
+    CannotChangeCollectionType = 10,
     Unknown = 1000
 }
