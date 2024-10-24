@@ -131,7 +131,7 @@ public class UpsertCollectionHandler(
                 logger.LogError(
                     "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
                     request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
-                return ErrorHelper.CannotChangeToStorageCollection<PresentationCollection>(isStorageCollection);
+                return ErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
             }
 
             hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);

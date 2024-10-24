@@ -127,8 +127,11 @@ public class CreateCollectionHandler(
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
         
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection, 
+            request.UrlRoots, settings.PageSize, CurrentPage, 0, []); // there can be no items attached to this, as it's just been created
+        
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
-            collection.ToFlatCollection(request.UrlRoots, settings.PageSize, CurrentPage, 0, Enumerable.Empty<Hierarchy>()), // there can be no items attached to this, as it's just been created
+            enrichedPresentationCollection,
             WriteResult.Created);
     }
 

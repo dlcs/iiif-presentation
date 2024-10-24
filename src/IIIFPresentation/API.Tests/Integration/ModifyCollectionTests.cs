@@ -211,7 +211,22 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
           ""width"": 300,
           ""height"": 200
         }}
+    ],
+""homepage"": [
+  {{
+    ""id"": ""https://www.getty.edu/art/collection/object/103RQQ"",
+    ""type"": ""Text"",
+    ""label"": {{
+      ""en"": [
+        ""Home page at the Getty Museum Collection""
+      ]
+    }},
+    ""format"": ""text/html"",
+    ""language"": [
+      ""en""
     ]
+  }}
+]
 }}";
 
         var requestMessage =
@@ -245,6 +260,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.Homepage.Should().NotBeNull();
         fromS3.Should().NotBeNull();
     }
     
@@ -878,7 +894,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         responseCollection.Detail.Should().Be("Cannot convert a Storage collection to a IIIF collection");
-        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotMoveToStorageCollection");
+        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotChangeCollectionType");
     }
     
     [Fact]
@@ -949,7 +965,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         responseCollection.Detail.Should().Be("Cannot convert a IIIF collection to a Storage collection");
-        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotMoveToStorageCollection");
+        responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotChangeCollectionType");
     }
     
 
@@ -1785,7 +1801,22 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         ""id"": ""https://some.id/iiif/collection"",
         ""type"": ""Collection"",
         }
+    ],
+""homepage"": [
+  {
+    ""id"": ""https://www.getty.edu/art/collection/object/103RQQ"",
+    ""type"": ""Text"",
+    ""label"": {
+      ""en"": [
+        ""Home page at the Getty Museum Collection""
+      ]
+    },
+    ""format"": ""text/html"",
+    ""language"": [
+      ""en""
     ]
+  }
+]
 }";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
@@ -1809,6 +1840,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Items!.Count.Should().Be(1);
         responseCollection.Thumbnail.Should().NotBeNull();
+        responseCollection.Homepage.Should().NotBeNull();
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);

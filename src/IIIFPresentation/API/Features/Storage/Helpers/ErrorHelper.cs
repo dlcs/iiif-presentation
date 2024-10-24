@@ -29,12 +29,12 @@ public static class ErrorHelper
             ModifyCollectionType.CannotValidateIIIF, WriteResult.BadRequest);
     }
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotChangeToStorageCollection<TCollection>
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotChangeCollectionType<TCollection>
         (bool storageCollection) where TCollection : class
     {
         return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
             $"Cannot convert a {CollectionType(storageCollection)} collection to a {CollectionType(!storageCollection)} collection",
-            ModifyCollectionType.CannotMoveToStorageCollection, WriteResult.BadRequest);
+            ModifyCollectionType.CannotChangeCollectionType, WriteResult.BadRequest);
     }
 
     private static string CollectionType(bool isStorageCollection)
