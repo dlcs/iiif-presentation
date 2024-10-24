@@ -19,6 +19,17 @@ using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.A
 namespace API.Features.Manifest;
 
 public record UpsertManifestRequest(
+    string ManifestId,
+    string? Etag,
+    int CustomerId,
+    PresentationManifest PresentationManifest,
+    string RawRequestBody,
+    UrlRoots UrlRoots) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, UrlRoots);
+
+/// <summary>
+/// Base class for Upsert operations
+/// </summary>
+public record WriteManifestRequest(
     int CustomerId,
     PresentationManifest PresentationManifest,
     string RawRequestBody,
@@ -33,7 +44,29 @@ public class ManifestService(
     IIIFS3Service iiifS3,
     ILogger<ManifestService> logger)
 {
-    public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
+    public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request,
+        CancellationToken cancellationToken)
+    {
+        var existingItem =
+            await dbContext.Manifests.Retrieve(request.CustomerId, request.ManifestId, true, cancellationToken);
+
+        if (existingItem == null)
+        {
+            if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
+            
+            logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
+                request.ManifestId, request.CustomerId);
+            return await Create(request, cancellationToken);
+        }
+        
+        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, upserting",
+            request.ManifestId, request.CustomerId);
+
+        throw new NotImplementedException();
+    }
+    
+    // Should this be Insert() - called by Create? Have another procesor that does the 
+    public async Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
             request.PresentationManifest.GetParentSlug(), cancellationToken: cancellationToken);
@@ -61,7 +94,7 @@ public class ManifestService(
     }
     
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabase(
-        UpsertManifestRequest request, Collection parentCollection, CancellationToken cancellationToken)
+        WriteManifestRequest request, Collection parentCollection, CancellationToken cancellationToken)
     {
         var id = await GenerateUniqueId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
@@ -92,7 +125,7 @@ public class ManifestService(
         return (saveErrors, dbManifest);
     }
 
-    private async Task<string?> GenerateUniqueId(UpsertManifestRequest request, CancellationToken cancellationToken)
+    private async Task<string?> GenerateUniqueId(WriteManifestRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -106,7 +139,7 @@ public class ManifestService(
         }
     }
     
-    private async Task SaveToS3(DbManifest dbManifest, UpsertManifestRequest request, CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
         await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, dbManifest.GenerateFlatManifestId(request.UrlRoots),

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net;
+using System.Net.Http.Headers;
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
@@ -444,5 +446,102 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+    
+    [Fact]
+    public async Task UpsertManifest_Unauthorized_IfNoAuthTokenProvided()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", "{}");
+        
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task UpsertManifest_Forbidden_IfIncorrectShowExtraHeader()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/manifests/dolphin")
+            .WithJsonContent("{}");;
+        requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+    
+    [Fact]
+    public async Task UpsertManifest_Forbidden_IfNoShowExtraHeader()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/manifests/dolphin")
+            .WithJsonContent("{}");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+    
+    [Fact]
+    public async Task UpsertManifest_BadRequest_IfUnableToDeserialize()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", "foo");
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Theory]
+    [InlineData("{\"id\":\"123", "Unterminated string property")]
+    [InlineData("{\"id\":\"123\"", "Missing JSON closing bracket")]
+    public async Task UpsertManifest_BadRequest_IfInvalid(string invalidJson, string because)
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", invalidJson);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
+    }
+    
+    [Fact]
+    public async Task UpsertManifest_Insert_PreConditionFailed_IfEtagProvided()
+    {
+        const string id = nameof(UpsertManifest_Insert_PreConditionFailed_IfEtagProvided);
+        var manifest = new PresentationManifest
+        {
+            Parent = "not-found",
+            Slug = "balrog"
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
+
+        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"anything\""));
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ETagNotAllowed");
     }
 }
