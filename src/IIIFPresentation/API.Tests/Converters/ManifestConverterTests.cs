@@ -107,7 +107,7 @@ public class ManifestConverterTests
 
         // Assert
         result.Slug.Should().Be("hierarchy-slug");
-        result.Parent.Should().Be("hierarchy-parent");
+        result.Parent.Should().Be("/0/collections/hierarchy-parent", "Always use FlatId");
     }
     
     [Fact]
@@ -137,6 +137,6 @@ public class ManifestConverterTests
 
         // Assert
         result.Slug.Should().Be("other-slug");
-        result.Parent.Should().Be("other-parent");
+        result.Parent.Should().Be("/0/collections/other-parent", "Always use FlatId");
     } 
 }

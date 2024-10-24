@@ -33,7 +33,7 @@ public static class ManifestConverter
         iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
-        iiifManifest.Parent = hierarchy.Parent;
+        iiifManifest.Parent = hierarchy.GenerateFlatParentId(urlRoots);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);

@@ -315,7 +315,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be(RootCollection.Id);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
     
     [Fact]
@@ -345,7 +345,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be(RootCollection.Id);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
     
     [Fact]

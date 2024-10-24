@@ -162,7 +162,8 @@ public class CollectionHelperXTests
     [Theory]
     [InlineData(ResourceType.StorageCollection)]
     [InlineData(ResourceType.IIIFCollection)]
-    public void GenerateFlatParentId_Correct_Collection(ResourceType resourceType)
+    [InlineData(ResourceType.IIIFManifest)]
+    public void GenerateFlatParentId_Correct(ResourceType resourceType)
     {
         // Arrange
         var hierarchy = new Hierarchy
@@ -177,24 +178,6 @@ public class CollectionHelperXTests
 
         // Assert
         id.Should().Be("http://base/0/collections/parent");
-    }
-    
-    [Fact]
-    public void GenerateFlatParentId_Correct_Manifest()
-    {
-        // Arrange
-        var hierarchy = new Hierarchy
-        {
-            Slug = "slug",
-            Parent = "parent",
-            Type = ResourceType.IIIFManifest
-        };
-
-        // Act
-        var id = hierarchy.GenerateFlatParentId(urlRoots);
-
-        // Assert
-        id.Should().Be("http://base/0/manifests/parent");
     }
     
     [Fact]
