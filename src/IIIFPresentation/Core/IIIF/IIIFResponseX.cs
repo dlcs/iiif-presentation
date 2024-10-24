@@ -41,7 +41,7 @@ public static class IIIFResponseX
             serializer.Populate(jsonReader, result);
             return result;
         }
-        catch (JsonReaderException)
+        catch (JsonException)
         {
             return default;
         }

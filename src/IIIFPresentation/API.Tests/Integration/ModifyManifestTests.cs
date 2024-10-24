@@ -91,18 +91,20 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
-    [Fact]
-    public async Task CreateManifest_BadRequest_IfInvalid()
+    [Theory]
+    [InlineData("{\"id\":\"123", "Unterminated string property")]
+    [InlineData("{\"id\":\"123\"", "Missing JSON closing bracket")]
+    public async Task CreateManifest_BadRequest_IfInvalid(string invalidJson, string because)
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "{\"id\":\"123");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", invalidJson);
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
     }
     
     [Fact]
