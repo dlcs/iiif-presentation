@@ -265,10 +265,10 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task CreateManifest_Conflict_WhenParentIsInvalidHierarchicalUri()
+    public async Task CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
         // Arrange
-        var slug = nameof(CreateManifest_Conflict_WhenParentIsInvalidHierarchicalUri);
+        var slug = nameof(CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri);
         var manifest = new PresentationManifest
         {
             Parent = "http://different.host/root",
@@ -283,7 +283,7 @@ public class ModifyManifestTests: IClassFixture<PresentationAppFactory<Program>>
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
