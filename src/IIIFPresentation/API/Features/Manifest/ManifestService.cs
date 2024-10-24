@@ -56,7 +56,7 @@ public class ManifestService(
             
             logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
                 request.ManifestId, request.CustomerId);
-            return await Create(request, cancellationToken);
+            return await CreateInternal(request, request.ManifestId, cancellationToken);
         }
         
         logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, upserting",
@@ -66,7 +66,10 @@ public class ManifestService(
     }
     
     // Should this be Insert() - called by Create? Have another procesor that does the 
-    public async Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
+    public Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
+        => CreateInternal(request, null, cancellationToken);
+    
+    private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
             request.PresentationManifest.GetParentSlug(), cancellationToken: cancellationToken);
@@ -74,7 +77,7 @@ public class ManifestService(
         var parentErrors = ValidateParent(parentCollection, request.PresentationManifest, request.UrlRoots);
         if (parentErrors != null) return parentErrors;
 
-        var (error, dbManifest) = await UpdateDatabase(request, parentCollection!, cancellationToken);
+        var (error, dbManifest) = await UpdateDatabase(request, parentCollection!, manifestId, cancellationToken);
         if (error != null) return error; 
 
         await SaveToS3(dbManifest!, request, cancellationToken);
@@ -94,9 +97,9 @@ public class ManifestService(
     }
     
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabase(
-        WriteManifestRequest request, Collection parentCollection, CancellationToken cancellationToken)
+        WriteManifestRequest request, Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var id = await GenerateUniqueId(request, cancellationToken);
+        var id = requestedId ?? await GenerateUniqueId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
         var timeStamp = DateTime.UtcNow;
