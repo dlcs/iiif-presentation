@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using API.Converters;
 using API.Converters.Streaming;
 using LateApexEarlySpeed.Xunit.Assertion.Json;
 
@@ -9,24 +10,38 @@ public class S3StoredJsonProcessorTests
     [Fact]
     public void ProcessJson_ChangesTopLevelId()
     {
-        const string requestSlug = "fnord/quark/4534";
+      const string requestSlug =
+        "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
+      const int customerId = 52;
+      var urlRoots = new UrlRoots
+      {
+        BaseUrl = "http://localhost"
+      };
 
-        var result = GetProcessed(ManifestJsonWithId, new(requestSlug));
+      var result = GetProcessed(ManifestJsonWithId, new(requestSlug, customerId, urlRoots));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
-                .HasProperty("id", p => p.IsJsonString().Equal($"managed:{requestSlug}")),
+            .HasProperty("id", p => p.IsJsonString().Equal(
+              $"http://localhost/52/{requestSlug}")),
             result);
     }
 
     [Fact]
     public void ProcessJson_AddsTopLevelId()
     {
-        const string requestSlug = "fnord/quark/4534";
+      const string requestSlug =
+        "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
+      const int customerId = 52;
+      var urlRoots = new UrlRoots
+      {
+        BaseUrl = "http://localhost"
+      };
 
-        var result = GetProcessed(ManifestJsonWithoutId, new(requestSlug));
+      var result = GetProcessed(ManifestJsonWithoutId, new(requestSlug, customerId, urlRoots));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
-                .HasProperty("id", p => p.IsJsonString().Equal($"managed:{requestSlug}")),
+            .HasProperty("id", p => p.IsJsonString().Equal(
+              $"http://localhost/52/{requestSlug}")),
             result);
     }
 

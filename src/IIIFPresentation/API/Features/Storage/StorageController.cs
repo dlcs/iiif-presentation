@@ -36,7 +36,7 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
     [VaryHeader]
     public async Task<IActionResult> GetHierarchicalCollection(int customerId, string slug = "")
     {
-        var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug));
+        var storageRoot = await Mediator.Send(new GetHierarchicalCollection(customerId, slug, GetUrlRoots()));
 
         if (storageRoot.Collection is not { IsPublic: true }) return this.PresentationNotFound();
 

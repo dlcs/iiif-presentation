@@ -2,10 +2,15 @@
 
 namespace API.Converters.Streaming;
 
-public class S3StoredJsonProcessor(string requestSlug)
+public class S3StoredJsonProcessor(string requestSlug, int customerId, UrlRoots roots)
     : StreamingProcessorImplBase<S3StoredJsonProcessor.S3ProcessorCustomState>
 {
     private const string IdPropertyName = "id";
+
+    private string GeneratedId { get; } = new UriBuilder(roots.BaseUrl!)
+    {
+        Path = $"{customerId}/{requestSlug}"
+    }.Uri.ToString();
 
     #region Overrides of StreamingProcessorImplBase<S3ProcessorCustomState>
 
@@ -31,7 +36,7 @@ public class S3StoredJsonProcessor(string requestSlug)
         if (reader.CurrentDepth == 0 && !currentState.IdSet)
         {
             writer.WritePropertyName(IdPropertyName);
-            writer.WriteStringValue($"managed:{requestSlug}");
+            writer.WriteStringValue(GeneratedId);
         }
 
         base.OnEndObject(ref reader, writer, ref currentState);
@@ -56,7 +61,7 @@ public class S3StoredJsonProcessor(string requestSlug)
             currentState.IdSet = true;
 
             // Found id in the top-level object
-            return $"managed:{requestSlug}";
+            return GeneratedId;
         }
 
         return v;
