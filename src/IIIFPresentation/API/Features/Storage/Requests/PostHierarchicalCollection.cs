@@ -55,7 +55,7 @@ public class PostHierarchicalCollectionHandler(
         
         var splitSlug = request.Slug.Split('/');
 
-        var parentSlug = string.Join(string.Empty, splitSlug.Take(..^1));
+        var parentSlug = string.Join("/", splitSlug.Take(..^1));
         var parentCollection =
             await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
         

@@ -1770,6 +1770,53 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesMultipleNestedIIIFCollection_ViaHierarchicalCollection()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_CreatesMultipleNestedIIIFCollection_ViaHierarchicalCollection);
+
+        var collection = @"{
+   ""type"": ""Collection"",
+   ""behavior"": [
+       ""public-iiif""
+   ],
+   ""label"": {
+       ""en"": [
+           ""iiif hierarchical post""
+       ]
+   }
+}";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/first-child/second-child/{slug}", collection);
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
+
+        var fromS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/collections/{fromDatabase.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        responseCollection!.Items.Should().BeNull();
+        hierarchyFromDatabase.Parent.Should().Be("SecondChildCollection");
+        fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+        fromDatabase.Thumbnail.Should().BeNull();
+        fromDatabase.Tags.Should().BeNull();
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        fromS3.Should().NotBeNull();
+    }
 
     [Fact]
     public async Task CreateCollection_CreatesCollectionWithThumbnailAndItems_ViaHierarchicalCollection()
