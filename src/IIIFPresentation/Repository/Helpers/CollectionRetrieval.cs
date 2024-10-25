@@ -68,8 +68,15 @@ SELECT * FROM parentsearch ps
         return fullPath;
     }
 
-    public static async Task<Hierarchy?> RetrieveHierarchy(this PresentationContext dbContext,
-        int customerId, string slug, CancellationToken cancellationToken)
+    /// <summary>
+    /// For provided slug elements, return `<see cref="Hierarchy"/> and related resource.
+    /// slug should be full hierarchical path, e.g.
+    ///   "child"
+    ///   "parent/child"
+    ///   "grandparent/parent/child"
+    /// </summary>
+    public static async Task<Hierarchy?> RetrieveHierarchy(this PresentationContext dbContext, int customerId, 
+        string slug, CancellationToken cancellationToken = default)
     {
         var query = $@"
 WITH RECURSIVE tree_path AS (
@@ -144,25 +151,19 @@ WHERE
   AND tree_path.slug = slug_array[max_level]
   AND tree_path.customer_id = {customerId}";
 
-        Hierarchy? hierarchy;
-
         if (slug.Equals(string.Empty))
         {
-            hierarchy = await dbContext.Hierarchy
+            return await dbContext.Hierarchy
                 .Include(h => h.Collection)
                 .Include(h => h.Manifest)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Parent == null, cancellationToken);
         }
-        else
-        {
-            hierarchy = await dbContext.Hierarchy
-                .FromSqlRaw(query)
-                .Include(h => h.Collection)
-                .Include(h => h.Manifest).OrderBy(i => i.CustomerId)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
 
-        return hierarchy;
+        return await dbContext.Hierarchy
+            .FromSqlRaw(query)
+            .Include(h => h.Collection)
+            .Include(h => h.Manifest)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

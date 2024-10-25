@@ -80,6 +80,23 @@ public class CollectionRetrievalTests
                 ]
             });
 
+        dbContext.Manifests.Add(
+            new Manifest
+            {
+                Id = "Child4",
+                CustomerId = CustomerId,
+                Hierarchy =
+                [
+                    new Hierarchy
+                    {
+                        Slug = "third-sibling",
+                        Parent = "Child2",
+                        Type = ResourceType.StorageCollection,
+                        Canonical = true
+                    }
+                ]
+            });
+
         dbContext.SaveChanges();
         initialised = true;
     }
@@ -137,5 +154,64 @@ public class CollectionRetrievalTests
     
         // Assert
         actual.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task RetrieveHierarchy_ReturnsNull_HierarchyNotFound()
+    {
+        // Act
+        var actual = await dbContext.RetrieveHierarchy(CustomerId, "not_found");
+        
+        // Assert
+        actual.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task RetrieveHierarchy_ReturnsNull_CustomerNotFound()
+    {
+        // Act
+        var actual = await dbContext.RetrieveHierarchy(-CustomerId, "whatever");
+        
+        // Assert
+        actual.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task RetrieveHierarchy_ReturnsRoot_IfSlugEmpty()
+    {
+        // Act
+        var actual = await dbContext.RetrieveHierarchy(CustomerId, "");
+        
+        // Assert
+        actual.Slug.Should().BeEmpty();
+        actual.Collection.Id.Should().Be("root9988");
+    }
+    
+    [Theory]
+    [InlineData("Child1", "first-child")]
+    [InlineData("Child2", "first-child/second-child")]
+    [InlineData("Child3", "first-child/second-child/third-child")]
+    public async Task RetrieveHierarchy_ReturnsHierarchyWithCollection_IfFound(string collectionId, string slug)
+    {
+        // Arrange
+        var expectedSlug = slug.Split("/").Last();
+        
+        // Act
+        var actual = await dbContext.RetrieveHierarchy(CustomerId, slug);
+        
+        // Assert
+        actual.Slug.Should().Be(expectedSlug);
+        actual.Collection.Id.Should().Be(collectionId);
+    }
+    
+    [Fact]
+    public async Task RetrieveHierarchy_ReturnsHierarchyWithManifest_IfFound()
+    {
+        // Act
+        var actual = await dbContext.RetrieveHierarchy(CustomerId, "first-child/second-child/third-sibling");
+        
+        // Assert
+        actual.Slug.Should().Be("third-sibling");
+        actual.Manifest.Id.Should().Be("Child4");
     }
 }
