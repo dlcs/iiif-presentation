@@ -31,7 +31,7 @@ public static class PresentationCollectionX
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
         var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
         
-        presentationCollection.Context ??= CollectionConverter.GenerateContext();
+        presentationCollection.Context = CollectionConverter.GenerateContext();
         presentationCollection.Behavior ??= CollectionConverter.GenerateBehavior(collection);
         presentationCollection.Slug ??= hierarchy.Slug;
         presentationCollection.ItemsOrder ??= hierarchy.ItemsOrder;
