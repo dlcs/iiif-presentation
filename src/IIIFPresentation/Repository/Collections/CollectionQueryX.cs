@@ -21,8 +21,8 @@ public static class CollectionQueryX
         return field switch
         {
             "id" => descending 
-                ? hierarchyQuery.OrderByDescending(h => h.Id) 
-                : hierarchyQuery.OrderBy(c => c.Id),
+                ? hierarchyQuery.OrderByDescending(h => h.Manifest == null ? h.Collection.Id : h.Manifest.Id) 
+                : hierarchyQuery.OrderBy(h => h.Manifest == null ? h.Collection.Id : h.Manifest.Id),
             "slug" => descending
                 ? hierarchyQuery.OrderByDescending(h => h.Slug)
                 : hierarchyQuery.OrderBy(h => h.Slug),

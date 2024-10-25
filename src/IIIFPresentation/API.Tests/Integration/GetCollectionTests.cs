@@ -425,7 +425,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Theory]
-    [InlineData("id", "manifests/FirstChildManifest")]
+    [InlineData("id", "collections/NonPublic")]
     [InlineData("slug", "collections/NonPublic")]
     [InlineData("created", "manifests/FirstChildManifest")]
     public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field, string expectedItemId)
