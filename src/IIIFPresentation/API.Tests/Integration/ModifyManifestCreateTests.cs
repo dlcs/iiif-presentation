@@ -19,14 +19,14 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
+public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
-    private const int Customer = 10;
+    private const int Customer = 1;
 
-    public CreateManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
+    public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
@@ -55,25 +55,25 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests")
-            .WithJsonContent("{}");;
+            .WithJsonContent("{}");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
-
+    
     [Fact]
     public async Task CreateManifest_Forbidden_IfNoShowExtraHeader()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}/manifests")
             .WithJsonContent("{}");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -85,14 +85,14 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "foo");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
-
+    
     [Theory]
     [InlineData("{\"id\":\"123", "Unterminated string property")]
     [InlineData("{\"id\":\"123\"", "Missing JSON closing bracket")]
@@ -101,14 +101,14 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", invalidJson);
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
     }
-
+    
     [Fact]
     public async Task CreateManifest_BadRequest_IfParentNotFound()
     {
@@ -118,23 +118,23 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Parent = "not-found",
             Slug = "balrog"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
-
+    
     [Fact]
-    public async Task CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task CreateManifest_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection);
-        var slugId = $"slug_{nameof(CreateManifest_BadRequest_IfParentFoundButNotAStorageCollection)}";
+        var collectionId = nameof(CreateManifest_Conflict_IfParentFoundButNotAStorageCollection);
+        var slugId = $"slug_{nameof(CreateManifest_Conflict_IfParentFoundButNotAStorageCollection)}";
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -144,7 +144,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             CreatedBy = "admin",
             Tags = "some, tags",
             IsStorageCollection = false,
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -156,26 +156,26 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = collectionId,
             Slug = "balrog"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForCollection()
     {
@@ -190,7 +190,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
             IsStorageCollection = false,
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -202,26 +202,26 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.Collections.AddAsync(duplicateCollection);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForManifest()
     {
@@ -234,7 +234,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -246,26 +246,26 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.AddAsync(duplicateManifest);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
     public async Task CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
@@ -276,12 +276,12 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Parent = "http://different.host/root",
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -289,7 +289,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
-
+    
     [Fact]
     public async Task CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
@@ -297,19 +297,19 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         var slug = nameof(CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl);
         var manifest = new PresentationManifest
         {
-            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().NotBeNull();
@@ -317,9 +317,9 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
-
+    
     [Fact]
     public async Task CreateManifest_ReturnsManifest()
     {
@@ -330,16 +330,16 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().NotBeNull();
@@ -347,9 +347,9 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
-
+    
     [Fact]
     public async Task CreateManifest_CreatedDBRecord()
     {
@@ -360,16 +360,16 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
 
@@ -382,7 +382,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
     }
-
+    
     [Fact]
     public async Task CreateManifest_WritesToS3()
     {
@@ -393,19 +393,19 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
-
+        
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{id}");
@@ -414,7 +414,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
-
+    
     [Fact]
     public async Task CreateManifest_WritesToS3_IgnoringId()
     {
@@ -426,19 +426,19 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Slug = slug,
             Id = "https://presentation.example/i-will-be-overwritten"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
-
+        
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{id}");
@@ -447,13 +447,13 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Unauthorized_IfNoAuthTokenProvided()
+    public async Task PutFlatId_Unauthorized_IfNoAuthTokenProvided()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", "{}");
-
+        
         // Act
         var response = await httpClient.SendAsync(requestMessage);
 
@@ -462,95 +462,95 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
-    public async Task UpsertManifest_Forbidden_IfIncorrectShowExtraHeader()
+    public async Task PutFlatId_Forbidden_IfIncorrectShowExtraHeader()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/manifests/dolphin")
             .WithJsonContent("{}");;
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Forbidden_IfNoShowExtraHeader()
+    public async Task PutFlatId_Forbidden_IfNoShowExtraHeader()
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/manifests/dolphin")
             .WithJsonContent("{}");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_BadRequest_IfUnableToDeserialize()
+    public async Task PutFlatId_BadRequest_IfUnableToDeserialize()
     {
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", "foo");
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
-
+    
     [Theory]
     [InlineData("{\"id\":\"123", "Unterminated string property")]
     [InlineData("{\"id\":\"123\"", "Missing JSON closing bracket")]
-    public async Task UpsertManifest_BadRequest_IfInvalid(string invalidJson, string because)
+    public async Task PutFlatId_BadRequest_IfInvalid(string invalidJson, string because)
     {
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", invalidJson);
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_PreConditionFailed_IfEtagProvided()
+    public async Task PutFlatId_Insert_PreConditionFailed_IfEtagProvided()
     {
-        const string id = nameof(UpsertManifest_Insert_PreConditionFailed_IfEtagProvided);
+        const string id = nameof(PutFlatId_Insert_PreConditionFailed_IfEtagProvided);
         var manifest = new PresentationManifest
         {
             Parent = "not-found",
             Slug = "balrog"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
 
         requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"anything\""));
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
-
+        
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ETagNotAllowed");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(UpsertManifest_Insert_BadRequest_IfParentFoundButNotAStorageCollection);
-        var slug = $"s_{nameof(UpsertManifest_Insert_BadRequest_IfParentFoundButNotAStorageCollection)}";
+        var collectionId = nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection);
+        var slug = $"s_{nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection)}";
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -560,7 +560,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             CreatedBy = "admin",
             Tags = "some, tags",
             IsStorageCollection = false,
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -572,32 +572,32 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = collectionId,
             Slug = "balrog"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForCollection()
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection()
     {
         // Arrange
-        var collectionId = nameof(UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForCollection);
-        var slug = $"slug_{nameof(UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForCollection)}";
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection)}";
         var duplicateCollection = new Collection
         {
             Id = collectionId,
@@ -606,7 +606,7 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
             IsStorageCollection = false,
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -618,39 +618,39 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.Collections.AddAsync(duplicateCollection);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForManifest()
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest()
     {
         // Arrange
-        var collectionId = nameof(UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForManifest);
-        var slug = $"slug_{nameof(UpsertManifest_Insert_Conflict_IfParentAndSlugExist_ForManifest)}";
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest)}";
         var duplicateManifest = new Manifest
         {
             Id = collectionId,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            CustomerId = Customer,
+            CustomerId = 1,
             Hierarchy =
             [
                 new Hierarchy
@@ -662,42 +662,42 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
                 }
             ]
         };
-
+        
         await dbContext.AddAsync(duplicateManifest);
         await dbContext.SaveChangesAsync();
-
+        
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri()
+    public async Task PutFlatId_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
         // Arrange
-        var slug = nameof(UpsertManifest_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri);
+        var slug = nameof(PutFlatId_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri);
         var manifest = new PresentationManifest
         {
             Parent = "http://different.host/root",
             Slug = slug
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -705,28 +705,28 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_CreatesManifest_ParentIsValidHierarchicalUrl()
+    public async Task PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
         // Arrange
-        var id = nameof(UpsertManifest_Insert_CreatesManifest_ParentIsValidHierarchicalUrl);
-        var slug = $"s_{nameof(UpsertManifest_Insert_CreatesManifest_ParentIsValidHierarchicalUrl)}";
+        var id = nameof(PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl);
+        var slug = $"s_{nameof(PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl)}";
         var manifest = new PresentationManifest
         {
-            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().EndWith(id);
@@ -734,30 +734,30 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_ReturnsManifest()
+    public async Task PutFlatId_Insert_ReturnsManifest()
     {
         // Arrange
-        var slug = $"slug_{nameof(UpsertManifest_Insert_ReturnsManifest)}";
-        var id = nameof(UpsertManifest_Insert_ReturnsManifest);
+        var slug = $"slug_{nameof(PutFlatId_Insert_ReturnsManifest)}";
+        var id = nameof(PutFlatId_Insert_ReturnsManifest);
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().EndWith(id);
@@ -765,30 +765,30 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/root");
+        responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_CreatedDBRecord()
+    public async Task PutFlatId_Insert_CreatedDBRecord()
     {
         // Arrange
-        var slug = $"slug_{nameof(UpsertManifest_Insert_CreatedDBRecord)}";
-        var id = nameof(UpsertManifest_Insert_CreatedDBRecord);
+        var slug = $"slug_{nameof(PutFlatId_Insert_CreatedDBRecord)}";
+        var id = nameof(PutFlatId_Insert_CreatedDBRecord);
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var fromDatabase = dbContext.Manifests
             .Include(c => c.Hierarchy)
             .Single(c => c.Id == id);
@@ -798,28 +798,28 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_WritesToS3()
+    public async Task PutFlatId_Insert_WritesToS3()
     {
         // Arrange
-        var slug = $"slug_{nameof(UpsertManifest_Insert_WritesToS3)}";
-        var id = nameof(UpsertManifest_Insert_WritesToS3);
+        var slug = $"slug_{nameof(PutFlatId_Insert_WritesToS3)}";
+        var id = nameof(PutFlatId_Insert_WritesToS3);
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug,
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{id}");
@@ -828,29 +828,29 @@ public class CreateManifestTests: IClassFixture<PresentationAppFactory<Program>>
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
-
+    
     [Fact]
-    public async Task UpsertManifest_Insert_WritesToS3_IgnoringId()
+    public async Task PutFlatId_Insert_WritesToS3_IgnoringId()
     {
         // Arrange
-        var slug = $"slug_{nameof(UpsertManifest_Insert_WritesToS3_IgnoringId)}";
-        var id = nameof(UpsertManifest_Insert_WritesToS3_IgnoringId);
+        var slug = $"slug_{nameof(PutFlatId_Insert_WritesToS3_IgnoringId)}";
+        var id = nameof(PutFlatId_Insert_WritesToS3_IgnoringId);
         var manifest = new PresentationManifest
         {
             Parent = RootCollection.Id,
             Slug = slug,
             Id = "https://presentation.example/i-will-be-overwritten"
         };
-
+        
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
-
+        
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{id}");

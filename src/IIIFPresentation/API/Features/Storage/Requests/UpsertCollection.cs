@@ -115,11 +115,7 @@ public class UpsertCollectionHandler(
         {
             eTagManager.TryGetETag($"/{request.CustomerId}/collections/{request.CollectionId}", out var eTag);
 
-            if (request.ETag != eTag)
-            {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
-                    "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
-            }
+            if (request.ETag != eTag) return ErrorHelper.EtagNonMatching<PresentationCollection>();
             
             if (isStorageCollection != databaseCollection.IsStorageCollection)
             {

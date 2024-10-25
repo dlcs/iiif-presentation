@@ -5,6 +5,7 @@ using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.AWS;
+using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
@@ -18,6 +19,9 @@ using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.A
 
 namespace API.Features.Manifest;
 
+/// <summary>
+/// Record containing fields for Upserting a Manifest
+/// </summary>
 public record UpsertManifestRequest(
     string ManifestId,
     string? Etag,
@@ -27,7 +31,7 @@ public record UpsertManifestRequest(
     UrlRoots UrlRoots) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, UrlRoots);
 
 /// <summary>
-/// Base class for Upsert operations
+/// Record containing fields for creating a Manifest
 /// </summary>
 public record WriteManifestRequest(
     int CustomerId,
@@ -42,15 +46,15 @@ public class ManifestService(
     PresentationContext dbContext,
     IIdGenerator idGenerator,
     IIIFS3Service iiifS3,
+    IETagManager eTagManager,
     ILogger<ManifestService> logger)
 {
-    public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request,
-        CancellationToken cancellationToken)
+    public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
-        var existingItem =
+        var existingManifest =
             await dbContext.Manifests.Retrieve(request.CustomerId, request.ManifestId, true, cancellationToken);
 
-        if (existingItem == null)
+        if (existingManifest == null)
         {
             if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
             
@@ -59,25 +63,18 @@ public class ManifestService(
             return await CreateInternal(request, request.ManifestId, cancellationToken);
         }
         
-        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, upserting",
-            request.ManifestId, request.CustomerId);
-
-        throw new NotImplementedException();
+        return await UpdateInternal(request, existingManifest, cancellationToken);
     }
-    
-    // Should this be Insert() - called by Create? Have another procesor that does the 
+
     public Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
         => CreateInternal(request, null, cancellationToken);
     
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
-        var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
-            request.PresentationManifest.GetParentSlug(), cancellationToken: cancellationToken);
-
-        var parentErrors = ValidateParent(parentCollection, request.PresentationManifest, request.UrlRoots);
+        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
-        var (error, dbManifest) = await UpdateDatabase(request, parentCollection!, manifestId, cancellationToken);
+        var (error, dbManifest) = await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
         if (error != null) return error; 
 
         await SaveToS3(dbManifest!, request, cancellationToken);
@@ -86,17 +83,23 @@ public class ManifestService(
             request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
     }
 
-    private static PresUpdateResult? ValidateParent(
-        Collection? parentCollection, PresentationManifest manifest, UrlRoots urlRoots)
+    private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
+        WriteManifestRequest request, CancellationToken cancellationToken)
     {
-        if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationManifest>();
-        if (!parentCollection.IsStorageCollection) return ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>();
-        if (manifest.IsUriParentInvalid(parentCollection, urlRoots)) return ErrorHelper.NullParentResponse<PresentationManifest>();
+        var manifest = request.PresentationManifest;
+        var urlRoots = request.UrlRoots;;
+        var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
+            manifest.GetParentSlug(), cancellationToken: cancellationToken);
+        
+        // Validation
+        if (parentCollection == null) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
+        if (!parentCollection.IsStorageCollection) return (ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>(), null);
+        if (manifest.IsUriParentInvalid(parentCollection, urlRoots)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
 
-        return null;
+        return (null, parentCollection);
     }
     
-    private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabase(
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(
         WriteManifestRequest request, Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
         var id = requestedId ?? await GenerateUniqueId(request, cancellationToken);
@@ -121,11 +124,55 @@ public class ManifestService(
                 }
             ]
         };
+        
         dbContext.Add(dbManifest);
+        
+        // TODO Everything below here is shared - only the actual DB work that differs
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
 
         return (saveErrors, dbManifest);
+    }
+    
+    private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
+        DbManifest existingManifest, CancellationToken cancellationToken)
+    {
+        if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
+        {
+            return ErrorHelper.EtagNonMatching<PresentationManifest>();
+        }
+        
+        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
+        if (parentErrors != null) return parentErrors;
+
+        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, updating", request.ManifestId,
+            request.CustomerId);
+
+        var (error, dbManifest) =
+            await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
+        if (error != null) return error; 
+
+        await SaveToS3(dbManifest!, request, cancellationToken);
+        
+        return PresUpdateResult.Success(
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
+    }
+    
+    private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(
+        WriteManifestRequest request,  Collection parentCollection, DbManifest existingManifest,CancellationToken cancellationToken)
+    {
+        existingManifest.Modified = DateTime.UtcNow;
+        existingManifest.ModifiedBy = Authorizer.GetUser();
+        var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
+        
+        // TODO - are these allowed?
+        canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
+        canonicalHierarchy.Parent = parentCollection.Id;
+        
+        var saveErrors =
+            await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
+
+        return (saveErrors, existingManifest);
     }
 
     private async Task<string?> GenerateUniqueId(WriteManifestRequest request, CancellationToken cancellationToken)
