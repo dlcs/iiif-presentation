@@ -49,6 +49,9 @@ public class ManifestService(
     IETagManager eTagManager,
     ILogger<ManifestService> logger)
 {
+    /// <summary>
+    /// Create or update full manifest, using details provided in request object
+    /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
         var existingManifest =
@@ -66,6 +69,9 @@ public class ManifestService(
         return await UpdateInternal(request, existingManifest, cancellationToken);
     }
 
+    /// <summary>
+    /// Create new manifest, using details provided in request object
+    /// </summary>
     public Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
         => CreateInternal(request, null, cancellationToken);
     
@@ -81,6 +87,30 @@ public class ManifestService(
         
         return PresUpdateResult.Success(
             request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
+    }
+    
+    private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
+        DbManifest existingManifest, CancellationToken cancellationToken)
+    {
+        if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
+        {
+            return ErrorHelper.EtagNonMatching<PresentationManifest>();
+        }
+        
+        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
+        if (parentErrors != null) return parentErrors;
+
+        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, updating", request.ManifestId,
+            request.CustomerId);
+
+        var (error, dbManifest) =
+            await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
+        if (error != null) return error; 
+
+        await SaveToS3(dbManifest!, request, cancellationToken);
+        
+        return PresUpdateResult.Success(
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
@@ -127,48 +157,21 @@ public class ManifestService(
         
         dbContext.Add(dbManifest);
         
-        // TODO Everything below here is shared - only the actual DB work that differs
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
 
         return (saveErrors, dbManifest);
     }
-    
-    private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
-        DbManifest existingManifest, CancellationToken cancellationToken)
-    {
-        if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
-        {
-            return ErrorHelper.EtagNonMatching<PresentationManifest>();
-        }
-        
-        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
-        if (parentErrors != null) return parentErrors;
 
-        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, updating", request.ManifestId,
-            request.CustomerId);
-
-        var (error, dbManifest) =
-            await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
-        if (error != null) return error; 
-
-        await SaveToS3(dbManifest!, request, cancellationToken);
-        
-        return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
-    }
-    
-    private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(
-        WriteManifestRequest request,  Collection parentCollection, DbManifest existingManifest,CancellationToken cancellationToken)
+    private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
+        Collection parentCollection, DbManifest existingManifest, CancellationToken cancellationToken)
     {
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
-        
-        // TODO - are these allowed?
         canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
         canonicalHierarchy.Parent = parentCollection.Id;
-        
+
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
 

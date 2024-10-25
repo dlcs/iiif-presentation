@@ -254,6 +254,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Id.Should().NotBeNull();
         responseManifest.Created.Should().BeCloseTo(createdDate, TimeSpan.FromSeconds(2));
         responseManifest.Modified.Should().BeAfter(createdDate);
+        responseManifest.ModifiedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be(parent);
     }
@@ -290,6 +291,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         hierarchy.Parent.Should().Be("root");
         fromDatabase.Created.Should().BeCloseTo(createdDate, TimeSpan.FromSeconds(2));
         fromDatabase.Modified.Should().BeAfter(createdDate);
+        fromDatabase.ModifiedBy.Should().Be("Admin");
     }
     
     [Fact]
