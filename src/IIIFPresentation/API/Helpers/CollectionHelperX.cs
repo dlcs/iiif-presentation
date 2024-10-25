@@ -99,9 +99,18 @@ public static class CollectionHelperX
     /// </summary>
     public static string GenerateFlatManifestId(this Manifest manifest, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
+
+    /// <summary>
+    /// Get the ETag cache-key for resource 
+    /// </summary>
+    public static string GenerateETagCacheKey(this IHierarchyResource hierarchyResource)
+        => $"/{hierarchyResource.CustomerId}/{hierarchyResource.GetSlug()}/{hierarchyResource.Id}";
     
     private static string GetSlug(this ResourceType resourceType) 
         => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;
+
+    private static string GetSlug<T>(this T resource) where T : IHierarchyResource
+        => resource is Manifest ? ManifestsSlug : CollectionsSlug;
 
     public static async Task<string> GenerateUniqueIdAsync<T>(this DbSet<T> entities,
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)

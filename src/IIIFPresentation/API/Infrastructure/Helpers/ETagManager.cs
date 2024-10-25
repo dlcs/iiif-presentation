@@ -1,6 +1,8 @@
-﻿using API.Settings;
+﻿using API.Helpers;
+using API.Settings;
 using LazyCache;
 using Microsoft.Extensions.Options;
+using Models.Database.Collections;
 
 namespace API.Infrastructure.Helpers;
 
@@ -9,6 +11,7 @@ public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cach
 {
     public int CacheTimeoutSeconds { get; } = appCache.DefaultCachePolicy.DefaultCacheDurationSeconds;
 
+    /// <inheritdoc />
     public bool TryGetETag(string id, out string? eTag)
     {
         try
@@ -23,8 +26,13 @@ public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cach
         }
     }
 
-    public void UpsertETag(string id, string etag)
+    /// <inheritdoc />
+    public bool TryGetETag<T>(T resource, out string? eTag) where T : IHierarchyResource
+        => TryGetETag(resource.GenerateETagCacheKey(), out eTag);
+
+    /// <inheritdoc />
+    public void UpsertETag(string resourcePath, string etag)
     {
-        appCache.Add(id, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions());
+        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions());
     }
 }

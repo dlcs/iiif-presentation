@@ -1,12 +1,9 @@
 ﻿using System.Security.Cryptography;
 using API.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Http.Headers;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
-using Models.API.General;
 using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
-using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace API.Attributes;
 
@@ -54,7 +51,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
             {
                 responseHeaders.ETag ??=
                     GenerateETag(memoryStream,
-                        request.Path, eTagManager!); // This request generates a hash from the response - this would come from S3 in live
+                        request.Path, eTagManager); // This request generates a hash from the response - this would come from S3 in live
             }
             
             var requestHeaders = request.GetTypedHeaders();

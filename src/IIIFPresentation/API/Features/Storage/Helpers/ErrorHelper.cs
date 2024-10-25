@@ -44,6 +44,13 @@ public static class ErrorHelper
             "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
             WriteResult.PreConditionFailed);
     }
+    
+    public static ModifyEntityResult<T, ModifyCollectionType> EtagNonMatching<T>()
+        where T : class
+    {
+        return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
+    }
 
     private static string CollectionType(bool isStorageCollection)
     {
