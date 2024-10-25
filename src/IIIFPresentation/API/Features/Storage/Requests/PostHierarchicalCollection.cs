@@ -3,16 +3,12 @@ using API.Auth;
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
+using API.Infrastructure.AWS;
 using API.Infrastructure.Requests;
-using API.Settings;
-using AWS.S3;
-using AWS.S3.Models;
 using Core;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
-using IIIF.Serialisation;
 using MediatR;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.Database.General;
 using Repository;
@@ -40,18 +36,17 @@ public class PostHierarchicalCollection(
 public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
-    IBucketWriter bucketWriter,
     IIdGenerator idGenerator,
-    IOptions<ApiSettings> options)
+    IIIFS3Service iiifS3)
     : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
 {
-    private readonly ApiSettings settings = options.Value;
     
     public async Task<ModifyEntityResult<Collection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
-        var collectionFromBody = BuildIIIFCollection(request);
-        if (collectionFromBody == null) return ErrorHelper.CannotValidateIIIF<Collection>();
+        var convertResult = request.RawRequestBody.ConvertCollectionToIIIF<Collection>(logger);
+        if (convertResult.Error) return ErrorHelper.CannotValidateIIIF<Collection>();
+        var collectionFromBody = convertResult.ConvertedIIIF!;
         
         var splitSlug = request.Slug.Split('/');
 
@@ -76,16 +71,16 @@ public class PostHierarchicalCollectionHandler(
             return saveErrors;
         }
         
-        await bucketWriter.WriteToBucket(
-            new ObjectInBucket(settings.AWS.S3.StorageBucket,
-                collection.GetResourceBucketKey()),
-            collectionFromBody.AsJson(), "application/json", cancellationToken);
+        await iiifS3.SaveIIIFToS3(collectionFromBody, collection, collection.GenerateFlatCollectionId(request.UrlRoots),
+            cancellationToken);
         
         if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
         {
-            collection.FullPath = await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext);
+            collection.FullPath =
+                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
+        collectionFromBody.Id = request.GetCollectionId();
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
     }
 
@@ -120,22 +115,6 @@ public class PostHierarchicalCollectionHandler(
             ]
         };
         
-        return collection;
-    }
-
-    private Collection? BuildIIIFCollection(PostHierarchicalCollection request)
-    {
-        Collection? collection = null;
-        try
-        {
-            collection = request.RawRequestBody.FromJson<Collection>();
-            collection.Id = request.GetCollectionId();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
-        }
-
         return collection;
     }
 

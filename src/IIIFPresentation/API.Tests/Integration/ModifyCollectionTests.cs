@@ -1872,8 +1872,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
-        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
 
@@ -1998,17 +1996,19 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
-        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-
-        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == id);
+        // Assert
+        var fromDatabase = dbContext.Collections
+            .Include(c => c.Hierarchy)
+            .First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
+        var hierarchyFromDatabase = fromDatabase.Hierarchy.Single();
 
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/collections/{fromDatabase.Id}");
-
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        responseCollection.Id.Should().Be("http://localhost/1/iiif-collection-post-2", "Id is hierarchical path");
         responseCollection.Items!.Count.Should().Be(1);
         responseCollection.Thumbnail.Should().NotBeNull();
         responseCollection.Homepage.Should().NotBeNull();
@@ -2021,5 +2021,84 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollection_SavesInS3Correctly()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_CreatesCollection_SavesInS3Correctly);
+
+        var collection = @"{
+   ""type"": ""Collection"",
+   ""behavior"": [
+       ""public-iiif"", ""auto-advance""
+   ],
+   ""label"": {
+       ""en"": [
+           ""iiif hierarchical post""
+       ]
+   },
+    ""thumbnail"": [
+        {
+          ""id"": ""https://example.org/img/thumb.jpg"",
+          ""type"": ""Image"",
+          ""format"": ""image/jpeg"",
+          ""width"": 300,
+          ""height"": 200
+        }
+    ],
+    ""items"": [
+        {
+        ""id"": ""https://some.id/iiif/collection"",
+        ""type"": ""Collection"",
+        }
+    ],
+""homepage"": [
+  {
+    ""id"": ""https://presentation.example.com"",
+    ""type"": ""Text"",
+    ""label"": {
+      ""en"": [
+        ""Foo""
+      ]
+    },
+    ""format"": ""text/html"",
+    ""language"": [
+      ""en""
+    ]
+  }
+]
+}";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/{slug}", collection);
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        // Assert
+        var fromDatabase = dbContext.Collections
+            .First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
+
+        var fromS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/collections/{fromDatabase.Id}");
+        
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        responseCollection.Id.Should().Be($"http://localhost/1/{slug}", "Id is hierarchical path");
+        responseCollection.Items!.Count.Should().Be(1);
+        responseCollection.Thumbnail.Should().NotBeNull();
+        responseCollection.Homepage.Should().NotBeNull();
+        responseCollection.Behavior.Should()
+            .ContainSingle(b => b == "auto-advance", "Known presentation behaviours are removed");
+        
+        var s3Manifest = fromS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Collection>();
+        s3Manifest.Id.Should().EndWith(fromDatabase.Id, "Stored Id is flat path");
+        (s3Manifest.Context as string).Should()
+            .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
 }
