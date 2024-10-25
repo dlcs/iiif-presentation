@@ -18,6 +18,7 @@ using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastucture;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -101,6 +102,117 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesIIIFCollection_WhenAllValuesProvided()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_CreatesIIIFCollection_WhenAllValuesProvided);
+        var collection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = slug,
+            Parent = parent,
+            PresentationThumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
+        fromDatabase.Tags.Should().Be("some, tags");
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesIIIFCollection_AndSetsCorrectContext_RegardlessOfPassedContext()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_CreatesIIIFCollection_AndSetsCorrectContext_RegardlessOfPassedContext);
+        var collection = new PresentationCollection()
+        {
+            Context = "foo",
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = slug,
+            Parent = parent,
+            PresentationThumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/thumbnail");
+        fromDatabase.Tags.Should().Be("some, tags");
+        fromDatabase.IsPublic.Should().BeTrue();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
 
     [Fact]
@@ -622,6 +734,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
 
     [Fact]
@@ -826,6 +942,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated"); 
         fromDatabase.Thumbnail.Should().Be("https://iiif.io/api/image/3.0/example/reference/someRef");
         fromDatabase.Hierarchy![0].Slug.Should().Be("iiif-programmatic-child");
+        
+        var context = (JArray)collection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
     
     [Fact]
@@ -1015,6 +1135,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
 
     [Fact]
