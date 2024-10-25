@@ -1,14 +1,14 @@
-﻿using LazyCache;
-using Microsoft.Extensions.Caching.Memory;
+﻿using API.Settings;
+using LazyCache;
+using Microsoft.Extensions.Options;
 
 namespace API.Infrastructure.Helpers;
 
-public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETagManager
+public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cacheOptions, ILogger<ETagManager> logger)
+    : IETagManager
 {
-    private readonly MemoryCacheEntryOptions options = new MemoryCacheEntryOptions().SetSize(1);
-
     public int CacheTimeoutSeconds { get; } = appCache.DefaultCachePolicy.DefaultCacheDurationSeconds;
-    
+
     public bool TryGetETag(string id, out string? eTag)
     {
         try
@@ -17,14 +17,14 @@ public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETa
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error retrieving ETag");
+            logger.LogWarning(ex, "Error retrieving ETag {EtagId}", id);
             eTag = null;
             return false;
         }
     }
-    
+
     public void UpsertETag(string id, string etag)
     {
-        appCache.Add(id, etag, options);
+        appCache.Add(id, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions());
     }
 }
