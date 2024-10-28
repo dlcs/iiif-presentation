@@ -6,6 +6,7 @@ using API.Helpers;
 using API.Infrastructure.AWS;
 using API.Infrastructure.Requests;
 using Core;
+using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using MediatR;
