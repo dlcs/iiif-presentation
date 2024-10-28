@@ -3,6 +3,7 @@ using API.Settings;
 using AWS.S3;
 using AWS.S3.Models;
 using Core.Helpers;
+using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
@@ -22,7 +23,7 @@ public class IIIFS3Service(
     IOptionsMonitor<ApiSettings> options)
 {
     public async Task<T?> ReadIIIFFromS3<T>(string flatId, IHierarchyResource dbResource,
-        CancellationToken cancellationToken) where T : ResourceBase
+        CancellationToken cancellationToken) where T : ResourceBase, new()
     {
         var objectFromBucket = await bucketReader.GetObjectFromBucket(
             new(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey()), cancellationToken);
@@ -30,10 +31,7 @@ public class IIIFS3Service(
         if (objectFromBucket.Stream == null || objectFromBucket.Headers.ContentLength == 0)
             return null;
 
-        using var reader = new StreamReader(objectFromBucket.Stream);
-        var json = await reader.ReadToEndAsync(cancellationToken);
-
-        return json.FromJson<T>();
+        return await objectFromBucket.Stream.ToPresentation<T>();
     }
     
     /// <summary>
