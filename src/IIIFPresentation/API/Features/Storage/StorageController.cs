@@ -154,13 +154,6 @@ public class StorageController(IAuthenticator authenticator, IOptions<ApiSetting
 
         return await HandleDelete(new DeleteCollection(customerId, id));
     }
-
-    private StatusCodeResult SeeOther(string location)
-    {
-        Response.Headers.Location = location;
-
-        return StatusCode((int)HttpStatusCode.SeeOther);
-    } 
     
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.

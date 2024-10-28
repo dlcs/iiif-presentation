@@ -20,6 +20,28 @@ namespace API.Features.Manifest;
 public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
+    [HttpGet("manifests/{id}")]
+    [ETagCaching]
+    public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
+    {
+        var manifest = await Mediator.Send(new GetManifest(customerId, id, GetUrlRoots()));
+        if (manifest == null)
+            return NotFound();
+
+        if (!Request.HasShowExtraHeader())
+            return manifest.FullPath is {Length: > 0} fullPath
+                ? SeeOther(fullPath)
+                : NotFound();
+
+        return Ok(manifest);
+    }
+
+
+    [HttpGet("manifests/{**slug}")]
+    [ETagCaching]
+    public async Task<IActionResult> GetManifestHierarchical([FromRoute] int customerId, [FromRoute] string slug) =>
+        throw new NotImplementedException();
+
     [Authorize]
     [HttpPost("manifests")]
     [ETagCaching]
@@ -35,7 +57,7 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
 
         if (presentationManifest == null)
         {
-            return this.PresentationProblem("Could not deserialize manifest", null, (int)HttpStatusCode.BadRequest,
+            return this.PresentationProblem("Could not deserialize manifest", null, (int) HttpStatusCode.BadRequest,
                 "Deserialization Error");
         }
 

@@ -15,8 +15,27 @@ namespace API.Infrastructure.AWS;
 /// <summary>
 /// Class containing higher-level functions to aid interacting with S3
 /// </summary>
-public class IIIFS3Service(IBucketWriter bucketWriter, ILogger<IIIFS3Service> logger, IOptionsMonitor<ApiSettings> options)
+public class IIIFS3Service(
+    IBucketWriter bucketWriter,
+    IBucketReader bucketReader,
+    ILogger<IIIFS3Service> logger,
+    IOptionsMonitor<ApiSettings> options)
 {
+    public async Task<T?> ReadIIIFFromS3<T>(string flatId, IHierarchyResource dbResource,
+        CancellationToken cancellationToken) where T : ResourceBase
+    {
+        var objectFromBucket = await bucketReader.GetObjectFromBucket(
+            new(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey()), cancellationToken);
+
+        if (objectFromBucket.Stream == null || objectFromBucket.Headers.ContentLength == 0)
+            return null;
+
+        using var reader = new StreamReader(objectFromBucket.Stream);
+        var json = await reader.ReadToEndAsync(cancellationToken);
+
+        return json.FromJson<T>();
+    }
+    
     /// <summary>
     /// Write IIIF resource to S3 - ensuring @context and Id set
     /// </summary>

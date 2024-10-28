@@ -9,4 +9,6 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     public DateTime Modified { get; set; }
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
+
+    public string? FullPath { get; set; }
 }
