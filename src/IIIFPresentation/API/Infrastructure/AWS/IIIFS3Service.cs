@@ -2,11 +2,13 @@
 using API.Settings;
 using AWS.S3;
 using AWS.S3.Models;
+using Core.Helpers;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
+using Models.Infrastucture;
 
 namespace API.Infrastructure.AWS;
 
@@ -34,5 +36,15 @@ public class IIIFS3Service(IBucketWriter bucketWriter, ILogger<IIIFS3Service> lo
         // writing data to S3
         iiifResource.Id = flatId;
         iiifResource.EnsurePresentation3Context();
+        
+        RemovePresentationBehaviours(iiifResource);
+    }
+
+    private static void RemovePresentationBehaviours(ResourceBase iiifResource)
+    {
+        var toRemove = new[] { Behavior.IsStorageCollection, Behavior.IsPublic };
+        if (iiifResource.Behavior.IsNullOrEmpty()) return;
+        
+        iiifResource.Behavior = iiifResource.Behavior.Where(b => !toRemove.Contains(b)).ToList();
     }
 }
