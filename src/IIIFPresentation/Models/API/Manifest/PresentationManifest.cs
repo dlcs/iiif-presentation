@@ -24,6 +24,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [JsonProperty(Order = 12)]
     public List<PaintedResource>? PaintedResources { get; set; }
 
+    [JsonIgnore]
     public string? FullPath { get; set; }    
 }
 

@@ -21,9 +21,6 @@ namespace API.Features.Manifest;
 public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    /// <summary>
-    /// Create a new Manifest on Flat URL
-    /// </summary>
     [Authorize]
     [HttpGet("manifests/{id}")]
     [ETagCaching]
@@ -41,6 +38,9 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
         return Ok(manifest);
     }
 
+    /// <summary>
+    /// Create a new Manifest on Flat URL
+    /// </summary>
     [Authorize]
     [HttpPost("manifests")]
     [ETagCaching]

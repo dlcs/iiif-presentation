@@ -61,7 +61,10 @@ public static class PresentationContextX
     /// <returns>The retrieved collection</returns>
     public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
         string manifestId, bool tracked = false, CancellationToken cancellationToken = default)
-        => dbContext.Manifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
+        => dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .AsSplitQuery()
+            .Retrieve(customerId, manifestId, tracked, cancellationToken);
 
     
     /// <summary>
@@ -86,7 +89,7 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <returns>The retrieved <see cref="IHierarchyResource"/></returns>
-    public static async Task<T?> Retrieve<T>(this DbSet<T> entities,
+    public static async Task<T?> Retrieve<T>(this IQueryable<T> entities,
         int customerId, string resourceId, bool tracked = false, CancellationToken cancellationToken = default)
         where T : class, IHierarchyResource
     {
