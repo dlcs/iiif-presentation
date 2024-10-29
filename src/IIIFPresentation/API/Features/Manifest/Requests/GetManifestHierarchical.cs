@@ -11,7 +11,7 @@ namespace API.Features.Manifest.Requests;
 public class GetManifestHierarchical(
     Hierarchy hierarchy,
     string slug,
-    UrlRoots urlRoots) : IRequest<PresentationManifest?>
+    UrlRoots urlRoots) : IRequest<IIIF.Presentation.V3.Manifest?>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
     public string Slug { get; } = slug;
@@ -21,18 +21,18 @@ public class GetManifestHierarchical(
 public class GetManifestHierarchicalHandler(
     IMediator mediator,
     PresentationContext dbContext,
-    IIIFS3Service iiifS3) : IRequestHandler<GetManifestHierarchical, PresentationManifest?>
+    IIIFS3Service iiifS3) : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
 {
     #region Implementation of IRequestHandler<in GetManifestHierarchical,PresentationManifest?>
 
-    public async Task<PresentationManifest?> Handle(GetManifestHierarchical request,
+    public async Task<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
     {
         var flatId = request.Hierarchy.ManifestId ??
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
 
-        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(
+        var manifest = await iiifS3.ReadIIIFFromS3<IIIF.Presentation.V3.Manifest>(
             BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId), cancellationToken);
 
         if (manifest == null)
