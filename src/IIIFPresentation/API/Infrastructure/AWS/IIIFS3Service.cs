@@ -22,11 +22,15 @@ public class IIIFS3Service(
     ILogger<IIIFS3Service> logger,
     IOptionsMonitor<ApiSettings> options)
 {
-    public async Task<T?> ReadIIIFFromS3<T>(string flatId, IHierarchyResource dbResource,
+    public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
+        CancellationToken cancellationToken) where T : ResourceBase, new() =>
+        ReadIIIFFromS3<T>(dbResource.GetResourceBucketKey(), cancellationToken);
+
+    public async Task<T?> ReadIIIFFromS3<T>(string bucketKey,
         CancellationToken cancellationToken) where T : ResourceBase, new()
     {
         var objectFromBucket = await bucketReader.GetObjectFromBucket(
-            new(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey()), cancellationToken);
+            new(options.CurrentValue.AWS.S3.StorageBucket, bucketKey), cancellationToken);
 
         if (objectFromBucket.Stream == null || objectFromBucket.Headers.ContentLength == 0)
             return null;

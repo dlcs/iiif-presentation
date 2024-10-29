@@ -32,15 +32,15 @@ public class GetManifestHandler(
         if (dbManifest == null) return null;
 
 
-        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(request.Id, dbManifest, cancellationToken);
+        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);
 
         // PK: Will this even happen? Should we log or even throw here?
         if (manifest == null) return null;
 
         manifest = manifest.SetGeneratedFields(dbManifest, request.UrlRoots,
             m => m.Hierarchy!.Single(h => h.Canonical));
-        manifest.FullPath =
-            await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest, dbContext, cancellationToken);
+        manifest.FullPath = $"/{request.CustomerId}/" + 
+                            await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest, dbContext, cancellationToken);
 
         return manifest;
     }

@@ -36,12 +36,6 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
         return Ok(manifest);
     }
 
-
-    [HttpGet("manifests/{**slug}")]
-    [ETagCaching]
-    public async Task<IActionResult> GetManifestHierarchical([FromRoute] int customerId, [FromRoute] string slug) =>
-        throw new NotImplementedException();
-
     [Authorize]
     [HttpPost("manifests")]
     [ETagCaching]
