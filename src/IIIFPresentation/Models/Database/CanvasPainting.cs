@@ -1,4 +1,5 @@
 ﻿using IIIF.Presentation.V3.Strings;
+using Models.API;
 using Models.Database.Collections;
 
 namespace Models.Database;
@@ -11,7 +12,7 @@ namespace Models.Database;
 /// CanvasId, CustomerId and ManifestId do not use "required" as they are initially created as partial entities and
 /// hydrated later
 /// </remarks>
-public class CanvasPainting
+public class CanvasPainting : IIdentifiable
 {
     /// <summary>
     /// Unique identifier for this canvas

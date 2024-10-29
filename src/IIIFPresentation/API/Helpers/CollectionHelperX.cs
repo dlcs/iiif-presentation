@@ -2,6 +2,8 @@
 using API.Converters;
 using API.Infrastructure.IdGenerator;
 using Microsoft.EntityFrameworkCore;
+using Models.API;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -114,7 +116,7 @@ public static class CollectionHelperX
 
     public static async Task<string> GenerateUniqueIdAsync<T>(this DbSet<T> entities,
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)
-        where T : class, IHierarchyResource
+        where T : class, IIdentifiable
     {
         var isUnique = false;
         var id = string.Empty;

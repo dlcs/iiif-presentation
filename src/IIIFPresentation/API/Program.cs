@@ -9,6 +9,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
+using Repository.Manifests;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,7 +50,8 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
-    .AddScoped<ManifestService>();
+    .AddScoped<ManifestService>()
+    .AddSingleton<ManifestItemsParser>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();

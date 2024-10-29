@@ -4,16 +4,19 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
-using Models.Database.Collections;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Collection = Models.Database.Collections.Collection;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Integration;
 
@@ -355,14 +358,46 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
     {
         // Arrange
         var slug = nameof(CreateManifest_CreatedDBRecord);
-        var manifest = new PresentationManifest
-        {
-            Parent = RootCollection.Id,
-            Slug = slug,
-        };
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://iiif.example/{slug}.json"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1""
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
@@ -374,13 +409,17 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         var id = responseCollection!.Id.GetLastPathElement();
 
         var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
             .Include(c => c.Hierarchy)
             .Single(c => c.Id == id);
         var hierarchy = fromDatabase.Hierarchy.Single();
+        var canvasPainting = fromDatabase.CanvasPaintings.Single();
 
         fromDatabase.Should().NotBeNull();
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
+        canvasPainting.Id.Should().NotBeNullOrEmpty();
+        canvasPainting.CanvasOriginalId.Should().Be("https://iiif.example/CreateManifest_CreatedDBRecord.json");
     }
     
     [Fact]

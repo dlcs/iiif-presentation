@@ -13,6 +13,7 @@ using IIIF.Serialisation;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
+using Repository.Manifests;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -47,6 +48,7 @@ public class ManifestService(
     IIdGenerator idGenerator,
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
+    ManifestItemsParser manifestItemsParser,
     ILogger<ManifestService> logger)
 {
     /// <summary>
@@ -79,7 +81,7 @@ public class ManifestService(
     {
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
-
+        
         var (error, dbManifest) = await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
         if (error != null) return error; 
 
@@ -128,12 +130,21 @@ public class ManifestService(
 
         return (null, parentCollection);
     }
-    
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(
-        WriteManifestRequest request, Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
+
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+        Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
         var id = requestedId ?? await GenerateUniqueId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+
+        // All CanvasPaintings will be new so set a new identifier on each
+        var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
+        foreach (var cp in canvasPaintings)
+        {
+            var cpId = await GenerateUniqueId(request, cancellationToken);
+            if (cpId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+            cp.Id = cpId;
+        }
 
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
@@ -152,11 +163,12 @@ public class ManifestService(
                     Type = ResourceType.IIIFManifest,
                     Parent = parentCollection.Id,
                 }
-            ]
+            ],
+            CanvasPaintings = canvasPaintings
         };
-        
+
         dbContext.Add(dbManifest);
-        
+
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
 
