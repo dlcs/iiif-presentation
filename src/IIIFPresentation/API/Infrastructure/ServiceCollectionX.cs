@@ -70,4 +70,18 @@ public static class ServiceCollectionX
 
         return services;
     }
+    
+    /// <summary>
+    /// Add Cors policy allowing any Origin, Method and Header
+    /// </summary>
+    /// <param name="services">Current <see cref="IServiceCollection"/> object</param>
+    /// <param name="policyName">Cors policy name</param>
+    public static IServiceCollection ConfigureDefaultCors(this IServiceCollection services, string policyName)
+        => services.AddCors(options =>
+        {
+            options.AddPolicy(policyName, builder => builder
+                    .AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader());
+        });
 }

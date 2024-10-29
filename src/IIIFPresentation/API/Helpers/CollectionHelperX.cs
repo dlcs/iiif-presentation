@@ -17,7 +17,7 @@ public static class CollectionHelperX
     private const string ManifestsSlug = "manifests";
     private const string CollectionsSlug = "collections";
     private const string CanvasesSlug = "canvases";
-
+    
     public static string GenerateHierarchicalCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
 
@@ -86,15 +86,6 @@ public static class CollectionHelperX
     public static string GenerateFullPath(this Hierarchy hierarchy, string? parentPath) 
         => $"{(!string.IsNullOrEmpty(parentPath) ? $"{parentPath}/" : string.Empty)}{hierarchy.Slug}";
     
-    /// <summary>
-    /// Get key where this resource will be stored in S3
-    /// </summary>
-    public static string GetResourceBucketKey<T>(this T hierarchyResource)
-        where T : IHierarchyResource
-    {
-        var slug = hierarchyResource is Manifest ? ManifestsSlug : CollectionsSlug;
-        return $"{hierarchyResource.CustomerId}/{slug}/{hierarchyResource.Id}";
-    }
     
     /// <summary>
     /// Get Id for specified manifest

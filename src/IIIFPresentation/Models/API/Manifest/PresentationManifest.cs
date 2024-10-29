@@ -23,7 +23,8 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// </summary>
     [JsonProperty(Order = 12)]
     public List<PaintedResource>? PaintedResources { get; set; }
-    
+
+    public string? FullPath { get; set; }    
 }
 
 /// <summary>
