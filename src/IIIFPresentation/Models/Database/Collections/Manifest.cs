@@ -1,4 +1,5 @@
-﻿using Models.Database.General;
+﻿using IIIF.Presentation.V3.Strings;
+using Models.Database.General;
 
 namespace Models.Database.Collections;
 
@@ -30,6 +31,11 @@ public class Manifest : IHierarchyResource
     /// Who last committed a change to this Manifest
     /// </summary>
     public string? ModifiedBy { get; set; }
+    
+    /// <summary>
+    /// Manifest label
+    /// </summary>
+    public LanguageMap? Label { get; set; }
     
     public List<Hierarchy>? Hierarchy { get; set; }
     public List<CanvasPainting>? CanvasPaintings { get; set; }

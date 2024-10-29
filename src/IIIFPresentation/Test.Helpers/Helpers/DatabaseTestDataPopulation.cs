@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Models.Database.Collections;
@@ -13,7 +14,7 @@ public static class DatabaseTestDataPopulation
 {
     public static ValueTask<EntityEntry<Manifest>> AddTestManifest(this DbSet<Manifest> manifests,
         [CallerMemberName] string id = "", int customer = 1, DateTime? createdDate = null, string? slug = null,
-        string parent = "root")
+        string parent = "root", LanguageMap? label = null)
     {
         createdDate ??= DateTime.UtcNow;
         return manifests.AddAsync(new Manifest
@@ -23,6 +24,7 @@ public static class DatabaseTestDataPopulation
             CreatedBy = "Admin",
             Created = createdDate.Value,
             Modified = createdDate.Value,
+            Label = label,
             Hierarchy =
             [
                 new Hierarchy

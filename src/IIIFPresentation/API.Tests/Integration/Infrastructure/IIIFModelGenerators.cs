@@ -1,4 +1,5 @@
-﻿using Models.API.Manifest;
+﻿using IIIF.Presentation.V3.Strings;
+using Models.API.Manifest;
 using Models.Database.Collections;
 
 namespace API.Tests.Integration.Infrastructure;
@@ -9,10 +10,11 @@ namespace API.Tests.Integration.Infrastructure;
 public static class IIIFModelGenerators
 {
     public static PresentationManifest ToPresentationManifest(this Manifest manifest, string? slug = null,
-        string? parent = null)
+        string? parent = null, LanguageMap? label = null)
         => new()
         {
             Slug = slug ?? manifest.Hierarchy.Single().Slug,
             Parent = parent ?? manifest.Hierarchy.Single().Parent,
+            Label = label
         };
 }

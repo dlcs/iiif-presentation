@@ -4,9 +4,13 @@ using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
+using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastucture;
+using Collection = IIIF.Presentation.V3.Collection;
+using Manifest = IIIF.Presentation.V3.Manifest;
 
 namespace API.Converters;
 
@@ -67,7 +71,11 @@ public static class CollectionConverter
         
         if (hierarchy.Type == ResourceType.IIIFManifest)
         {
-            return new Manifest { Id = id };
+            return new Manifest
+            {
+                Id = id,
+                Label = hierarchy.Manifest?.Label,
+            };
         }
 
         return new Collection

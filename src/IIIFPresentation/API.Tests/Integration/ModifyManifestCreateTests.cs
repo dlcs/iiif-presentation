@@ -6,6 +6,7 @@ using Core.Helpers;
 using Core.Response;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
@@ -454,6 +455,38 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         hierarchy.Canonical.Should().BeTrue();
         canvasPainting.Id.Should().NotBeNullOrEmpty();
         canvasPainting.CanvasOriginalId.Should().Be("https://iiif.example/CreateManifest_CreatedDBRecord.json");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_WithLabel_SavesLabel()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_WithLabel_SavesLabel);
+
+        var label = new LanguageMap("en", "illinoise");
+        label.Add("none", ["nope"]);
+        
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug,
+            Label = label
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+        
+        var fromDatabase = dbContext.Manifests.Single(c => c.Id == id);
+        fromDatabase.Label.Should().BeEquivalentTo(label);
     }
     
     [Fact]
