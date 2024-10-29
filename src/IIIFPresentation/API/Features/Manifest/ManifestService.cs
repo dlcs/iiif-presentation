@@ -143,6 +143,7 @@ public class ManifestService(
             Created = timeStamp,
             Modified = timeStamp,
             CreatedBy = Authorizer.GetUser(),
+            Label = request.PresentationManifest.Label,
             Hierarchy =
             [
                 new Hierarchy
@@ -152,7 +153,7 @@ public class ManifestService(
                     Type = ResourceType.IIIFManifest,
                     Parent = parentCollection.Id,
                 }
-            ]
+            ],
         };
         
         dbContext.Add(dbManifest);
@@ -168,6 +169,7 @@ public class ManifestService(
     {
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
+        existingManifest.Label = request.PresentationManifest.Label;
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
         canonicalHierarchy.Parent = parentCollection.Id;

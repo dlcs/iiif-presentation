@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20241029112919_Manifest gains label")]
+    partial class Manifestgainslabel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,78 @@ namespace Repository.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Models.Database.CanvasPainting", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CanvasLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("canvas_label");
+
+                    b.Property<int>("CanvasOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("canvas_order");
+
+                    b.Property<string>("CanvasOriginalId")
+                        .HasColumnType("text")
+                        .HasColumnName("canvas_original_id");
+
+                    b.Property<int?>("ChoiceOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("choice_order");
+
+                    b.Property<DateTime>("Created")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("label");
+
+                    b.Property<string>("ManifestId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("manifest_id");
+
+                    b.Property<DateTime>("Modified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int?>("StaticHeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("static_height");
+
+                    b.Property<int?>("StaticWidth")
+                        .HasColumnType("integer")
+                        .HasColumnName("static_width");
+
+                    b.Property<string>("Target")
+                        .HasColumnType("text")
+                        .HasColumnName("target");
+
+                    b.Property<string>("Thumbnail")
+                        .HasColumnType("text")
+                        .HasColumnName("thumbnail");
+
+                    b.HasKey("Id")
+                        .HasName("pk_canvas_paintings");
+
+                    b.HasIndex("ManifestId", "CustomerId")
+                        .HasDatabaseName("ix_canvas_paintings_manifest_id_customer_id");
+
+                    b.ToTable("canvas_paintings", (string)null);
+                });
 
             modelBuilder.Entity("Models.Database.Collections.Collection", b =>
                 {
@@ -187,6 +262,18 @@ namespace Repository.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Models.Database.CanvasPainting", b =>
+                {
+                    b.HasOne("Models.Database.Collections.Manifest", "Manifest")
+                        .WithMany("CanvasPaintings")
+                        .HasForeignKey("ManifestId", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_canvas_paintings_manifests_manifest_id_customer_id");
+
+                    b.Navigation("Manifest");
+                });
+
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
                 {
                     b.HasOne("Models.Database.Collections.Collection", "Collection")
@@ -213,6 +300,8 @@ namespace Repository.Migrations
 
             modelBuilder.Entity("Models.Database.Collections.Manifest", b =>
                 {
+                    b.Navigation("CanvasPaintings");
+
                     b.Navigation("Hierarchy");
                 });
 #pragma warning restore 612, 618
