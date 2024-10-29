@@ -32,4 +32,5 @@ public class Manifest : IHierarchyResource
     public string? ModifiedBy { get; set; }
     
     public List<Hierarchy>? Hierarchy { get; set; }
+    public List<CanvasPainting>? CanvasPaintings { get; set; }
 }

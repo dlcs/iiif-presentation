@@ -8,19 +8,25 @@ namespace Models.Database;
 /// and which may or may not be Choice bodies.
 /// </summary>
 /// <remarks>
-/// ManifestId and CanvasId do not use "required" as they are initially created as partial entities and hydrated later
+/// CanvasId, CustomerId and ManifestId do not use "required" as they are initially created as partial entities and
+/// hydrated later
 /// </remarks>
 public class CanvasPainting
 {
     /// <summary>
-    /// Unique identifier for manifest
+    /// Unique identifier for this canvas
+    /// </summary>
+    public string Id { get; set; } = null!;
+    
+    /// <summary>
+    /// Id of related manifest
     /// </summary>
     public string ManifestId { get; set; } = null!;
-
+    
     /// <summary>
-    /// Unique identifier for this manifest.
+    /// The customer identifier
     /// </summary>
-    public string CanvasId { get; set; } = null!;
+    public int CustomerId { get; set; }
 
     /// <summary>
     /// A fully qualified external URI used when canvas_id is not managed; e.g., manifest was made externally.
@@ -87,14 +93,4 @@ public class CanvasPainting
     /// Last modified date/time
     /// </summary>
     public DateTime Modified { get; set; }
-
-    /// <summary>
-    /// Who created this Manifest
-    /// </summary>
-    public string? CreatedBy { get; set; }
-
-    /// <summary>
-    /// Who last committed a change to this Manifest
-    /// </summary>
-    public string? ModifiedBy { get; set; }
 }

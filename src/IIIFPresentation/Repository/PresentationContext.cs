@@ -1,5 +1,6 @@
 ﻿using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository.Converters;
@@ -22,7 +23,9 @@ public class PresentationContext : DbContext
     public virtual DbSet<Hierarchy> Hierarchy { get; set; }
     
     public virtual DbSet<Manifest> Manifests { get; set; }
-    
+
+    public virtual DbSet<CanvasPainting> CanvasPaintings { get; set; }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder
@@ -34,7 +37,7 @@ public class PresentationContext : DbContext
     {
         modelBuilder.Entity<Collection>(entity =>
         {
-            entity.HasKey(e => new {e.Id, e.CustomerId});
+            entity.HasKey(e => new { e.Id, e.CustomerId });
             
             entity.Property(e => e.Label).HasColumnType("jsonb");
             
@@ -47,7 +50,7 @@ public class PresentationContext : DbContext
         
         modelBuilder.Entity<Manifest>(entity =>
         {
-            entity.HasKey(e => new {e.Id, e.CustomerId});
+            entity.HasKey(e => new { e.Id, e.CustomerId });
             
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Manifest)
@@ -77,6 +80,19 @@ public class PresentationContext : DbContext
 
             entity.Ignore(p => p.ResourceId);
             entity.Ignore(p => p.FullPath);
+        });
+
+        modelBuilder.Entity<CanvasPainting>(entity =>
+        {
+            entity.Property(cp => cp.Label).HasColumnType("jsonb");
+            entity.Property(p => p.Created).HasDefaultValueSql("now()");
+            entity.Property(p => p.Modified).HasDefaultValueSql("now()");
+            
+            entity
+                .HasOne(cp => cp.Manifest)
+                .WithMany(m => m.CanvasPaintings)
+                .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
