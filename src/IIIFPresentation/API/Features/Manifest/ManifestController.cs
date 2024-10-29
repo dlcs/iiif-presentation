@@ -20,6 +20,7 @@ namespace API.Features.Manifest;
 public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
+    [Authorize]
     [HttpGet("manifests/{id}")]
     [ETagCaching]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
