@@ -2,7 +2,6 @@
 using API.Converters;
 using API.Infrastructure.IdGenerator;
 using Microsoft.EntityFrameworkCore;
-using Models.API;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -17,6 +16,7 @@ public static class CollectionHelperX
     private const int MaxAttempts = 3;
     private const string ManifestsSlug = "manifests";
     private const string CollectionsSlug = "collections";
+    private const string CanvasesSlug = "canvases";
 
     public static string GenerateHierarchicalCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
@@ -101,6 +101,12 @@ public static class CollectionHelperX
     /// </summary>
     public static string GenerateFlatManifestId(this Manifest manifest, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
+    
+    /// <summary>
+    /// Get Id for specified canvas 
+    /// </summary>
+    public static string GetCanvasId(this CanvasPainting canvasPainting, UrlRoots urlRoots) 
+        => $"{urlRoots.BaseUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
 
     /// <summary>
     /// Get the ETag cache-key for resource 

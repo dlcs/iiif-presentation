@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Helpers;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -370,7 +371,24 @@ public class CollectionHelperXTests
 
         // Assert
         id.Should().Be("/123/manifests/test");
-    } 
+    }
+    
+    [Fact]
+    public void GetCanvasId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123
+        };
+
+        // Act
+        var id = canvasPainting.GetCanvasId(urlRoots);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
+    }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }
