@@ -62,7 +62,6 @@ public static class PresentationContextX
     public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
         string manifestId, bool tracked = false, CancellationToken cancellationToken = default)
         => dbContext.Manifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
-
     
     /// <summary>
     /// Retrieves a collection from the database, with the Hierarchy records included
