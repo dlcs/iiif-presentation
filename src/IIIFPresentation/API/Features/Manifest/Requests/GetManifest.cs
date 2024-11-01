@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.AWS;
+using API.Infrastructure.Requests;
 using MediatR;
 using Models.API.Manifest;
 using Repository;
@@ -12,7 +13,7 @@ public class GetManifest(
     int customerId,
     string id,
     bool pathOnly,
-    UrlRoots urlRoots) : IRequest<PresentationManifest?>
+    UrlRoots urlRoots) : IRequest<FetchEntityResult<PresentationManifest>>
 {
     public int CustomerId { get; } = customerId;
     public string Id { get; } = id;
@@ -22,33 +23,38 @@ public class GetManifest(
 
 public class GetManifestHandler(
     PresentationContext dbContext,
-    IIIFS3Service iiifS3) : IRequestHandler<GetManifest, PresentationManifest?>
+    IIIFS3Service iiifS3) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
     #region Implementation of IRequestHandler<in GetManifest,PresentationManifest>
 
-    public async Task<PresentationManifest?> Handle(GetManifest request, CancellationToken cancellationToken)
+    public async Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
+        CancellationToken cancellationToken)
     {
         var dbManifest =
             await dbContext.RetrieveManifestAsync(request.CustomerId, request.Id, cancellationToken: cancellationToken);
 
-        if (dbManifest == null) return null;
+        if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
 
+        var fetchFullPath = ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId,
+            dbContext, cancellationToken);
+        
         if (request.PathOnly)
-            return new()
+            return FetchEntityResult<PresentationManifest>.Success(new()
             {
-                FullPath = await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId,
-                    dbContext, cancellationToken)
-            };
+                FullPath = await fetchFullPath
+            });
 
         var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);
 
         // PK: Will this even happen? Should we log or even throw here?
-        if (manifest == null) return null;
+        if (manifest == null)
+            return FetchEntityResult<PresentationManifest>.Failure(
+                "Unable to read and deserialize manifest from storage");
 
         manifest = manifest.SetGeneratedFields(dbManifest, request.UrlRoots,
             m => m.Hierarchy!.Single(h => h.Canonical));
-        
-        return manifest;
+
+        return FetchEntityResult<PresentationManifest>.Success(manifest);
     }
 
     #endregion

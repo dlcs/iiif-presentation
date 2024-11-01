@@ -28,16 +28,20 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         var pathOnly = !Request.HasShowExtraHeader() ||
                        await authenticator.ValidateRequest(Request) != AuthResult.Success;
 
-        var manifest = await Mediator.Send(new GetManifest(customerId, id, pathOnly, GetUrlRoots()));
-        if (manifest == null)
-            return NotFound();
+        var entityResult = await Mediator.Send(new GetManifest(customerId, id, pathOnly, GetUrlRoots()));
+        if (entityResult.EntityNotFound)
+            return this.PresentationNotFound();
+
+        if (entityResult.Error)
+            return this.PresentationProblem(entityResult.ErrorMessage,
+                statusCode: (int) HttpStatusCode.InternalServerError);
 
         if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
-            return manifest.FullPath is {Length: > 0} fullPath
+            return entityResult.Entity?.FullPath is {Length: > 0} fullPath
                 ? SeeOther(fullPath)
-                : NotFound();
+                : this.PresentationNotFound();
 
-        return Ok(manifest);
+        return Ok(entityResult.Entity);
     }
 
     [Authorize]
