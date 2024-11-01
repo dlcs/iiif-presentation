@@ -49,7 +49,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     using var reader = new StreamReader(memoryStream);
                     StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
                         objectFromS3.Headers.ContentLength,
-                        new S3StoredJsonProcessor(request.Slug, request.Hierarchy.CustomerId, request.UrlRoots));
+                        new S3StoredJsonProcessor(request.Hierarchy.GenerateHierarchicalId(request.UrlRoots)));
                     memoryStream.Seek(0, SeekOrigin.Begin);
                     collectionFromS3 = await reader.ReadToEndAsync(cancellationToken);
                 }
