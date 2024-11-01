@@ -28,9 +28,7 @@ public class GetManifestHierarchicalHandler(
     IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, string?>
 {
     private readonly AWSSettings settings = options.Value;
-
-    #region Implementation of IRequestHandler<in GetManifestHierarchical,PresentationManifest?>
-
+    
     public async Task<string?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
     {          
@@ -62,6 +60,4 @@ public class GetManifestHierarchicalHandler(
         memoryStream.Seek(0, SeekOrigin.Begin);
         return await reader.ReadToEndAsync(cancellationToken);
     }
-
-    #endregion
 }

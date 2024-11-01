@@ -25,8 +25,6 @@ public class GetManifestHandler(
     PresentationContext dbContext,
     IIIFS3Service iiifS3) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
-    #region Implementation of IRequestHandler<in GetManifest,PresentationManifest>
-
     public async Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
         CancellationToken cancellationToken)
     {
@@ -56,6 +54,4 @@ public class GetManifestHandler(
 
         return FetchEntityResult<PresentationManifest>.Success(manifest);
     }
-
-    #endregion
 }
