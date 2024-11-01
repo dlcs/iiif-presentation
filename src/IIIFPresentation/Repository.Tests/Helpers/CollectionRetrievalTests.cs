@@ -214,4 +214,14 @@ public class CollectionRetrievalTests
         actual.Slug.Should().Be("third-sibling");
         actual.Manifest.Id.Should().Be("Child4");
     }
+
+    [Fact]
+    public async Task ManifestRetrieval_GetFullPath_ReturnsFullPath_IfFound()
+    {
+        var actual =
+            await ManifestRetrieval.RetrieveFullPathForManifest(
+                new Manifest {Id = "Child4", CustomerId = CustomerId}, dbContext);
+
+        actual.Should().Be("first-child/second-child/third-sibling");
+    }
 }

@@ -4,6 +4,7 @@ using AWS.S3;
 using AWS.S3.Models;
 using Core.Helpers;
 using Core.IIIF;
+using Core.Streams;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
@@ -32,7 +33,7 @@ public class IIIFS3Service(
         var objectFromBucket = await bucketReader.GetObjectFromBucket(
             new(options.CurrentValue.AWS.S3.StorageBucket, bucketKey), cancellationToken);
 
-        if (objectFromBucket.Stream == null || objectFromBucket.Headers.ContentLength == 0)
+        if (objectFromBucket.Stream.IsNull())
             return null;
 
         return await objectFromBucket.Stream.ToPresentation<T>();

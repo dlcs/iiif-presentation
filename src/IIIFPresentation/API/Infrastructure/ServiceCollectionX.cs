@@ -80,8 +80,8 @@ public static class ServiceCollectionX
         => services.AddCors(options =>
         {
             options.AddPolicy(policyName, builder => builder
-                    .AllowAnyOrigin()
-                    .AllowAnyMethod()
-                    .AllowAnyHeader());
+                .AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader());
         });
 }

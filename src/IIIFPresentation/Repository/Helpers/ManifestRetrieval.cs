@@ -52,7 +52,7 @@ WITH RECURSIVE parentsearch AS (
     child.type,
     generation_number+1 AS generation_number
  FROM hierarchy child
-     JOIN parentsearch ps ON child.manifest_id=ps.parent
+     JOIN parentsearch ps ON child.collection_id=ps.parent
  WHERE generation_number <= 1000 AND child.customer_id = {customerId}
 )
 SELECT * FROM parentsearch ps
