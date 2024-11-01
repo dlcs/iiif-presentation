@@ -1,12 +1,8 @@
-using System.Net;
 using API.Attributes;
 using API.Auth;
 using API.Converters;
 using API.Features.Manifest.Requests;
-using API.Features.Storage.Helpers;
-using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
-using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
@@ -20,7 +16,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
-using Models.API.Collection;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
@@ -47,7 +42,7 @@ public class StorageController(
         switch (hierarchy?.Type)
         {
             case ResourceType.IIIFManifest:
-                if (Request.HasShowExtraHeader())
+                if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                     return hierarchy.ManifestId == null ? NotFound() : SeeOther($"manifests/{hierarchy.ManifestId}");
 
                 var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy, slug, GetUrlRoots()));
