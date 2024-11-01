@@ -7,6 +7,8 @@ using Core.Streams;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
+using Repository;
+using Repository.Helpers;
 
 namespace API.Features.Manifest.Requests;
 
@@ -22,6 +24,7 @@ public class GetManifestHierarchical(
 
 public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
+    PresentationContext dbContext,
     IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, string?>
 {
     private readonly AWSSettings settings = options.Value;
@@ -36,7 +39,10 @@ public class GetManifestHierarchicalHandler(
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
 
-
+        // So db can respond while we talk to S3
+        var fetchFullPath =
+            ManifestRetrieval.RetrieveFullPathForManifest(request.Hierarchy, dbContext, cancellationToken);
+        
         var objectFromS3 = await bucketReader.GetObjectFromBucket(
             new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
             cancellationToken);
@@ -44,11 +50,15 @@ public class GetManifestHierarchicalHandler(
         if (objectFromS3.Stream.IsNull())
             return null;
 
+        request.Hierarchy.FullPath = await fetchFullPath;
+
+        var hierarchicalId = request.Hierarchy.GenerateHierarchicalId(request.UrlRoots);
+        
         using var memoryStream = new MemoryStream();
         using var reader = new StreamReader(memoryStream);
         StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
             objectFromS3.Headers.ContentLength,
-            new S3StoredJsonProcessor(request.Hierarchy.GenerateHierarchicalId(request.UrlRoots)));
+            new S3StoredJsonProcessor(hierarchicalId));
         memoryStream.Seek(0, SeekOrigin.Begin);
         return await reader.ReadToEndAsync(cancellationToken);
     }

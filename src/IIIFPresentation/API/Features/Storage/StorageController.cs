@@ -51,7 +51,7 @@ public class StorageController(
                     return hierarchy.ManifestId == null ? NotFound() : SeeOther($"manifests/{hierarchy.ManifestId}");
 
                 var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy, slug, GetUrlRoots()));
-                return storedManifest == null ? NotFound() : Ok(storedManifest);
+                return storedManifest == null ? NotFound() : Content(storedManifest, ContentTypes.V3);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
