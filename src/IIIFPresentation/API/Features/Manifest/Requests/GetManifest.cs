@@ -11,10 +11,12 @@ namespace API.Features.Manifest.Requests;
 public class GetManifest(
     int customerId,
     string id,
+    bool pathOnly,
     UrlRoots urlRoots) : IRequest<PresentationManifest?>
 {
     public int CustomerId { get; } = customerId;
     public string Id { get; } = id;
+    public bool PathOnly { get; } = pathOnly;
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
@@ -31,6 +33,12 @@ public class GetManifestHandler(
 
         if (dbManifest == null) return null;
 
+        if (request.PathOnly)
+            return new()
+            {
+                FullPath = await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId,
+                    dbContext, cancellationToken)
+            };
 
         var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);
 
@@ -39,9 +47,7 @@ public class GetManifestHandler(
 
         manifest = manifest.SetGeneratedFields(dbManifest, request.UrlRoots,
             m => m.Hierarchy!.Single(h => h.Canonical));
-        manifest.FullPath = $"/{request.CustomerId}/" + 
-                            await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest, dbContext, cancellationToken);
-
+        
         return manifest;
     }
 

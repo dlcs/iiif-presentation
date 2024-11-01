@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Repository;
 
 namespace API.Features.Storage;
 
@@ -25,13 +24,10 @@ namespace API.Features.Storage;
 [ApiController]
 public class CollectionController(
     IAuthenticator authenticator,
-    PresentationContext dbContext,
     IOptions<ApiSettings> options,
     IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    
-
     [HttpGet("collections/{id}")]
     [ETagCaching]
     [VaryHeader]
@@ -134,5 +130,4 @@ public class CollectionController(
     private ObjectResult PresentationUnableToSerialize() =>
         this.PresentationProblem("Could not deserialize collection", null, (int) HttpStatusCode.BadRequest,
             "Deserialization Error");
-
 }

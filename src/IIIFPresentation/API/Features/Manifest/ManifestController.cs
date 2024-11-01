@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Attributes;
+using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Infrastructure;
@@ -17,19 +18,21 @@ namespace API.Features.Manifest;
 
 [Route("/{customerId:int}")]
 [ApiController]
-public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
+public class ManifestController(IOptions<ApiSettings> options, IAuthenticator authenticator, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
-    [Authorize]
     [HttpGet("manifests/{id}")]
     [ETagCaching]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
-        var manifest = await Mediator.Send(new GetManifest(customerId, id, GetUrlRoots()));
+        var pathOnly = !Request.HasShowExtraHeader() ||
+                       await authenticator.ValidateRequest(Request) != AuthResult.Success;
+
+        var manifest = await Mediator.Send(new GetManifest(customerId, id, pathOnly, GetUrlRoots()));
         if (manifest == null)
             return NotFound();
 
-        if (!Request.HasShowExtraHeader())
+        if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
             return manifest.FullPath is {Length: > 0} fullPath
                 ? SeeOther(fullPath)
                 : NotFound();
