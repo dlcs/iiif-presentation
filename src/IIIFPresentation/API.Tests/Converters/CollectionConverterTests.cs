@@ -189,7 +189,12 @@ public class CollectionConverterTests
                 CollectionId = "some-child",
                 CustomerId = 1,
                 Slug = "root",
-                Type = ResourceType.StorageCollection
+                Type = ResourceType.StorageCollection,
+                Collection = new Collection
+                {
+                    Id = "someId",
+                    IsPublic = true,
+                }
             }
         };
         
