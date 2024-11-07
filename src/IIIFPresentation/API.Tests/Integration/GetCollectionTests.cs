@@ -42,6 +42,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         firstItem.Id.Should().Be("http://localhost/1/first-child");
         firstItem.Behavior.Should().Contain("public-iiif");
         firstItem.Behavior.Should().Contain("storage-collection");
+        var secondItem = (Collection)collection.Items[1];
+        secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
+        secondItem.Behavior.Should().Contain("public-iiif");
+        secondItem.Behavior.Should().NotContain("storage-collection");
     }
     
     [Fact]
