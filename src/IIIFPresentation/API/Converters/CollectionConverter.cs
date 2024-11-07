@@ -73,7 +73,8 @@ public static class CollectionConverter
         return new Collection
         {
             Id = id,
-            Label = hierarchy.Collection?.Label
+            Label = hierarchy.Collection?.Label,
+            Behavior = GenerateBehavior(hierarchy.Collection!)
         };
     }
 

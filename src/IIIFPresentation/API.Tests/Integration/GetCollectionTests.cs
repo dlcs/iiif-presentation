@@ -40,6 +40,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Items.Count.Should().Be(TotalDatabaseChildItems);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
+        firstItem.Behavior.Should().Contain("public-iiif");
+        firstItem.Behavior.Should().Contain("storage-collection");
     }
     
     [Fact]
