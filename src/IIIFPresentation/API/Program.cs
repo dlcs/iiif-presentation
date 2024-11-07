@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Repository;
 using Serilog;
 
+const string corsPolicyName = "CorsPolicy";
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
@@ -44,6 +45,7 @@ builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
 {
     opts.Realm = "DLCS-API";
 });
+builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services.AddSingleton<IETagManager, ETagManager>();
@@ -81,7 +83,8 @@ app
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()
-    .UseSerilogRequestLogging();
+    .UseSerilogRequestLogging()
+    .UseCors(corsPolicyName);
 
 app.MapControllers();
 

@@ -12,6 +12,13 @@ namespace API.Infrastructure;
 
 public abstract class PresentationController : Controller
 {
+    protected StatusCodeResult SeeOther(string location)
+    {
+        Response.Headers.Location = location;
+
+        return StatusCode((int) HttpStatusCode.SeeOther);
+    } 
+    
     protected readonly IMediator Mediator;
 
     /// <summary>
