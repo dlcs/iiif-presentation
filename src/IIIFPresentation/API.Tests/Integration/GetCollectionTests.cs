@@ -225,7 +225,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         secondItem.Behavior.Should().NotContain("public-iiif");
         secondItem.Behavior.Should().Contain("storage-collection");
         var thirdItem = (Collection)collection.Items[2];
-        thirdItem.Id.Should().Be("http://localhost/1/iiifCollection");
+        thirdItem.Id.Should().Be("http://localhost/1/collections/IiifCollection");
         thirdItem.Behavior.Should().Contain("public-iiif");
         thirdItem.Behavior.Should().NotContain("storage-collection");
     }
