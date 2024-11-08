@@ -1,6 +1,7 @@
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
+using Amazon.SQS;
 using AWS.Settings;
 using Core.Helpers;
 using Microsoft.Extensions.Configuration;
@@ -82,6 +83,36 @@ public class AwsBuilder
         else
         {
             services.AddAWSService<IAmazonS3>(lifetime);
+        }
+        
+        return this;
+    }
+    
+    /// <summary>
+    /// Add <see cref="IAmazonSQS"/> to service collection with specified lifetime.
+    /// </summary>
+    /// <param name="lifetime">ServiceLifetime for dependency</param>
+    /// <returns>Current <see cref="AwsBuilder"/> instance</returns>
+    public AwsBuilder WithAmazonSQS(ServiceLifetime lifetime = ServiceLifetime.Singleton)
+    {
+        if (useLocalStack)
+        {
+            var serviceDescriptor = ServiceDescriptor.Describe(typeof(IAmazonSQS), _ =>
+            {
+                var amazonS3Config = new AmazonSQSConfig
+                {
+                    UseHttp = true,
+                    RegionEndpoint = RegionEndpoint.USEast1,
+                    ServiceURL =
+                        awsSettings.SQS?.ServiceUrl.ThrowIfNullOrWhiteSpace(nameof(awsSettings.SQS.ServiceUrl)),
+                };
+                return new AmazonSQSClient(new BasicAWSCredentials("foo", "bar"), amazonS3Config);
+            }, lifetime);
+            services.Add(serviceDescriptor);
+        }
+        else
+        {
+            services.AddAWSService<IAmazonSQS>(lifetime);
         }
         
         return this;
