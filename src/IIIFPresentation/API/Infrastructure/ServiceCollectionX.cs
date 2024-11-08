@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using API.Features.CustomerCreation;
 using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Mediatr.Behaviours;
@@ -6,6 +7,8 @@ using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
 using AWS.Configuration;
 using AWS.S3;
+using AWS.Settings;
+using AWS.SQS;
 using MediatR;
 using Repository;
 using Sqids;
@@ -59,14 +62,27 @@ public static class ServiceCollectionX
     /// Add required AWS services
     /// </summary>
     public static IServiceCollection AddAws(this IServiceCollection services,
-        IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
+        IConfiguration configuration, IWebHostEnvironment webHostEnvironment, AWSSettings aws)
     {
         services
             .AddSingleton<IBucketReader, S3BucketReader>()
             .AddSingleton<IBucketWriter, S3BucketWriter>()
-            .AddSingleton<IIIFS3Service>()
+            .AddSingleton<IIIFS3Service>();
+
+        var awsBuilder = services
             .SetupAWS(configuration, webHostEnvironment)
             .WithAmazonS3();
+
+        if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
+        {
+            services
+                .AddSingleton<SqsListener>()
+                .AddSingleton<SqsQueueUtilities>()
+                .AddHostedService<CustomerCreatedListenerService>()
+                .AddScoped<CustomerCreatedMessageHandler>();
+
+            awsBuilder.WithAmazonSQS();
+        }
 
         return services;
     }

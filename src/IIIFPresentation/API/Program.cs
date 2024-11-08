@@ -4,6 +4,7 @@ using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using AWS.Settings;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
@@ -41,6 +42,8 @@ builder.Services.Configure<DlcsSettings>(dlcsSettings);
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+var aws = builder.Configuration.GetSection("AWS").Get<AWSSettings>() ?? new AWSSettings();
+
 builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
 {
     opts.Realm = "DLCS-API";
@@ -52,7 +55,7 @@ builder.Services.AddSingleton<IETagManager, ETagManager>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
-builder.Services.AddAws(builder.Configuration, builder.Environment);
+builder.Services.AddAws(builder.Configuration, builder.Environment, aws);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
