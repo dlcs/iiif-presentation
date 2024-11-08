@@ -40,12 +40,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Items.Count.Should().Be(TotalDatabaseChildItems);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
-        firstItem.Behavior.Should().Contain("public-iiif");
-        firstItem.Behavior.Should().Contain("storage-collection");
+        firstItem.Behavior.Should().BeNull();
         var secondItem = (Collection)collection.Items[1];
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
-        secondItem.Behavior.Should().Contain("public-iiif");
-        secondItem.Behavior.Should().NotContain("storage-collection");
+        secondItem.Behavior.Should().BeNull();
     }
     
     [Fact]
@@ -218,6 +216,18 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        firstItem.Behavior.Should().Contain("public-iiif");
+        firstItem.Behavior.Should().Contain("storage-collection");
+        var secondItem = (Collection)collection.Items[1];
+        secondItem.Id.Should().Be("http://localhost/1/collections/NonPublic");
+        secondItem.Behavior.Should().NotContain("public-iiif");
+        secondItem.Behavior.Should().Contain("storage-collection");
+        var thirdItem = (Collection)collection.Items[2];
+        thirdItem.Id.Should().Be("http://localhost/1/iiifCollection");
+        thirdItem.Behavior.Should().Contain("public-iiif");
+        thirdItem.Behavior.Should().NotContain("storage-collection");
     }
     
     [Fact]
