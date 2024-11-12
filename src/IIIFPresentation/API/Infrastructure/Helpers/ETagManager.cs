@@ -1,14 +1,17 @@
-﻿using LazyCache;
-using Microsoft.Extensions.Caching.Memory;
+﻿using API.Helpers;
+using API.Settings;
+using LazyCache;
+using Microsoft.Extensions.Options;
+using Models.Database.Collections;
 
 namespace API.Infrastructure.Helpers;
 
-public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETagManager
+public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cacheOptions, ILogger<ETagManager> logger)
+    : IETagManager
 {
-    private readonly MemoryCacheEntryOptions options = new MemoryCacheEntryOptions().SetSize(1);
-
     public int CacheTimeoutSeconds { get; } = appCache.DefaultCachePolicy.DefaultCacheDurationSeconds;
-    
+
+    /// <inheritdoc />
     public bool TryGetETag(string id, out string? eTag)
     {
         try
@@ -17,14 +20,19 @@ public class ETagManager(IAppCache appCache, ILogger<ETagManager> logger) : IETa
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error retrieving ETag");
+            logger.LogWarning(ex, "Error retrieving ETag {EtagId}", id);
             eTag = null;
             return false;
         }
     }
-    
-    public void UpsertETag(string id, string etag)
+
+    /// <inheritdoc />
+    public bool TryGetETag<T>(T resource, out string? eTag) where T : IHierarchyResource
+        => TryGetETag(resource.GenerateETagCacheKey(), out eTag);
+
+    /// <inheritdoc />
+    public void UpsertETag(string resourcePath, string etag)
     {
-        appCache.Add(id, etag, options);
+        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions());
     }
 }

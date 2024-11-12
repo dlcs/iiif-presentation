@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using API.Auth;
+using API.Features.Manifest;
 using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
@@ -51,7 +52,9 @@ builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
-builder.Services.AddSingleton<IETagManager, ETagManager>();
+builder.Services
+    .AddSingleton<IETagManager, ETagManager>()
+    .AddScoped<ManifestService>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
