@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Attributes;
+using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Infrastructure;
@@ -18,9 +19,32 @@ namespace API.Features.Manifest;
 
 [Route("/{customerId:int}")]
 [ApiController]
-public class ManifestController(IOptions<ApiSettings> options, IMediator mediator)
+public class ManifestController(IOptions<ApiSettings> options, IAuthenticator authenticator, IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
+    [HttpGet("manifests/{id}")]
+    [ETagCaching]
+    public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
+    {
+        var pathOnly = !Request.HasShowExtraHeader() ||
+                       await authenticator.ValidateRequest(Request) != AuthResult.Success;
+
+        var entityResult = await Mediator.Send(new GetManifest(customerId, id, pathOnly, GetUrlRoots()));
+        if (entityResult.EntityNotFound)
+            return this.PresentationNotFound();
+
+        if (entityResult.Error)
+            return this.PresentationProblem(entityResult.ErrorMessage,
+                statusCode: (int) HttpStatusCode.InternalServerError);
+
+        if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
+            return entityResult.Entity?.FullPath is {Length: > 0} fullPath
+                ? SeeOther(fullPath)
+                : this.PresentationNotFound();
+
+        return Ok(entityResult.Entity);
+    }
+
     /// <summary>
     /// Create a new Manifest on Flat URL
     /// </summary>
@@ -70,7 +94,7 @@ public class ManifestController(IOptions<ApiSettings> options, IMediator mediato
 
         if (presentationManifest == null)
         {
-            return this.PresentationProblem("Could not deserialize manifest", null, (int)HttpStatusCode.BadRequest,
+            return this.PresentationProblem("Could not deserialize manifest", null, (int) HttpStatusCode.BadRequest,
                 "Deserialization Error");
         }
 

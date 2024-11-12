@@ -70,11 +70,15 @@ public static class CollectionConverter
             return new Manifest { Id = id };
         }
 
-        return new Collection
+        var collection = new Collection
         {
             Id = id,
-            Label = hierarchy.Collection?.Label
+            Label = hierarchy.Collection?.Label,
         };
+
+        if (flatId) collection.Behavior = GenerateBehavior(hierarchy.Collection!);
+            
+        return collection;
     }
 
     /// <summary>

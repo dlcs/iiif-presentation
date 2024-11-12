@@ -3,6 +3,8 @@ using API.Settings;
 using AWS.S3;
 using AWS.S3.Models;
 using Core.Helpers;
+using Core.IIIF;
+using Core.Streams;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
@@ -15,8 +17,28 @@ namespace API.Infrastructure.AWS;
 /// <summary>
 /// Class containing higher-level functions to aid interacting with S3
 /// </summary>
-public class IIIFS3Service(IBucketWriter bucketWriter, ILogger<IIIFS3Service> logger, IOptionsMonitor<ApiSettings> options)
+public class IIIFS3Service(
+    IBucketWriter bucketWriter,
+    IBucketReader bucketReader,
+    ILogger<IIIFS3Service> logger,
+    IOptionsMonitor<ApiSettings> options)
 {
+    public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
+        CancellationToken cancellationToken) where T : ResourceBase, new() =>
+        ReadIIIFFromS3<T>(dbResource.GetResourceBucketKey(), cancellationToken);
+
+    public async Task<T?> ReadIIIFFromS3<T>(string bucketKey,
+        CancellationToken cancellationToken) where T : ResourceBase, new()
+    {
+        var objectFromBucket = await bucketReader.GetObjectFromBucket(
+            new(options.CurrentValue.AWS.S3.StorageBucket, bucketKey), cancellationToken);
+
+        if (objectFromBucket.Stream.IsNull())
+            return null;
+
+        return await objectFromBucket.Stream.ToPresentation<T>();
+    }
+    
     /// <summary>
     /// Write IIIF resource to S3 - ensuring @context and Id set
     /// </summary>
