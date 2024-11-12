@@ -41,17 +41,24 @@ public class ETagCachingAttribute : ActionFilterAttribute
         {
             var responseHeaders = response.GetTypedHeaders();
 
-            responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
-            {
-                Public = request.HasShowExtraHeader(),
-                MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
-            };
-
-            if (IsEtagSupported(response))
-            {
+            if (IsEtagSupported(response)) {
+                // The no-cache response directive indicates that the response can be stored in caches,
+                // but the response must be validated with the origin server before each reuse,
+                // even when the cache is disconnected from the origin server.
+                responseHeaders.CacheControl = new CacheControlHeaderValue() {
+                    NoCache = true
+                };
+                
                 responseHeaders.ETag ??=
                     GenerateETag(memoryStream,
                         request.Path, eTagManager); // This request generates a hash from the response - this would come from S3 in live
+            }
+            else {
+                responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
+                {
+                    Public = request.HasShowExtraHeader(),
+                    MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
+                };
             }
             
             var requestHeaders = request.GetTypedHeaders();
