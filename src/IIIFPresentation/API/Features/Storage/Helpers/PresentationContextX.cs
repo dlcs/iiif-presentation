@@ -119,15 +119,15 @@ public static class PresentationContextX
 
         return hierarchy;
     }
-    
-    public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext, Collection collection, 
-        int itemCount, int pageSize, CancellationToken cancellationToken = default)
+
+    public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext,
+        Collection collection, int itemCount, int pageSize, int pageNo, CancellationToken cancellationToken = default)
     {
         int total;
         if (itemCount < pageSize)
         {
             // there can't be more as we've asked for PageSize and got less 
-            total = itemCount;
+            total = itemCount + (pageNo - 1) * pageSize;
         }
         else
         {
