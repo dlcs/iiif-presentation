@@ -46,7 +46,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
                 // but the response must be validated with the origin server before each reuse,
                 // even when the cache is disconnected from the origin server.
                 responseHeaders.CacheControl = new CacheControlHeaderValue() {
-                    NoCache = true
+                    MustRevalidate = true
                 };
                 
                 responseHeaders.ETag ??=
