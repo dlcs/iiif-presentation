@@ -187,8 +187,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
 
         // Act
         var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
-
-        // Assert
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
