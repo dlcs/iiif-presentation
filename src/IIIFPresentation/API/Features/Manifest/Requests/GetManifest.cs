@@ -35,7 +35,7 @@ public class GetManifestHandler(
 
         var fetchFullPath = ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId,
             dbContext, cancellationToken);
-        
+
         if (request.PathOnly)
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
@@ -43,6 +43,7 @@ public class GetManifestHandler(
             });
 
         var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);
+        dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 
         // PK: Will this even happen? Should we log or even throw here?
         if (manifest == null)

@@ -799,6 +799,7 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
     }
     
     [Fact]

@@ -4,6 +4,7 @@ using System.Net;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
+using Models.API.Manifest;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -25,14 +26,14 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
 
     [Fact]
-    public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3()
+    public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithDbValues()
     {
         // Arrange and Act
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/FirstChildManifest");
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
-        var manifest = await response.ReadAsPresentationJsonAsync<Manifest>();
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -40,6 +41,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
     }
 
     [Fact]

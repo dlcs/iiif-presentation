@@ -18,14 +18,13 @@ public static class CollectionHelperX
     
     public static string GenerateHierarchicalCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
-
+    
     public static string GenerateHierarchicalCollectionParent(this Collection collection, Hierarchy hierarchy, UrlRoots urlRoots)
     {
         var parentPath = collection.FullPath![..^hierarchy.Slug.Length].TrimEnd('/');
 
         return $"{urlRoots.BaseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(parentPath) ? string.Empty : $"/{parentPath}")}";
     }
-    
     
     public static string GenerateFlatCollectionId(this Collection collection, UrlRoots urlRoots) =>
         $"{urlRoots.BaseUrl}/{collection.CustomerId}/collections/{collection.Id}";
