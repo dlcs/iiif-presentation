@@ -189,8 +189,9 @@ public class UpsertCollectionHandler(
         var items = dbContext
             .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
             .Take(settings.PageSize);
-        
-        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(), settings.PageSize, cancellationToken);
+
+        var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(),
+            settings.PageSize, 1, cancellationToken);
         
         foreach (var item in items)
         {

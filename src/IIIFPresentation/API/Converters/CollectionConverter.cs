@@ -19,13 +19,13 @@ public static class CollectionConverter
     public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset,
         UrlRoots urlRoots, List<Hierarchy>? items)
     {
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Label = dbAsset.Label,
             Items = items?.Count > 0
                 ? items.Select(i => GenerateCollectionItem(i, urlRoots, false)).ToList()
-                : null
+                : []
         };
 
         collection.EnsurePresentation3Context();
@@ -122,7 +122,7 @@ public static class CollectionConverter
         return
         [
             PresentationJsonLdContext.Context,
-            IIIF.Presentation.Context.Presentation3Context
+            Context.Presentation3Context
         ];
     }
 
