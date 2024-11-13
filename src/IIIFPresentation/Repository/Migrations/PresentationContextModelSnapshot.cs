@@ -174,10 +174,6 @@ namespace Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
-                    b.Property<string>("Label")
-                        .HasColumnType("text")
-                        .HasColumnName("label");
-
                     b.Property<DateTime>("Modified")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
