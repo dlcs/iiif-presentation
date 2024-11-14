@@ -111,7 +111,7 @@ public class ETagCachingAttributeTests
         });
 
         // Assert
-        Assert.Single(context.HttpContext.Response.Headers.CacheControl.ToList(), "max-age=10");
+        Assert.Single(context.HttpContext.Response.Headers.CacheControl, "max-age=10");
     }
     
     [Fact]
@@ -141,6 +141,6 @@ public class ETagCachingAttributeTests
         });
 
         // Assert
-        Assert.Single(context.HttpContext.Response.Headers.CacheControl.ToList(), "public, max-age=10");
+        Assert.Single(context.HttpContext.Response.Headers.CacheControl, "public, max-age=10");
     }
 }
