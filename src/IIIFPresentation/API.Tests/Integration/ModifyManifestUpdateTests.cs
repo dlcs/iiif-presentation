@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using Amazon.S3;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3.Strings;
@@ -173,6 +174,33 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
+    public static TheoryData<string> ProhibitedSlugProvider =>
+        new(SpecConstants.ProhibitedSlugs);
+
+    [Theory]
+    [MemberData(nameof(ProhibitedSlugProvider))]
+    public async Task PutFlatId_BadRequest_WhenProhibitedSlug(string slug)
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest($"id_for_slug_{slug}")).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(slug);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
+    }
+    
     [Fact]
     public async Task PutFlatId_Update_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
