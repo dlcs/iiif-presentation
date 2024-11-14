@@ -2,12 +2,8 @@ using API.Attributes;
 using API.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Models.Database.Collections;
 
@@ -22,8 +18,6 @@ public class ETagCachingAttributeTests
 
     private static ResultExecutingContext CreateResultExecutingContext(HttpContext context) =>
         new ResultExecutingContext(CreateActionContext(context), [], new ObjectResult(null), new object());
-
-    private class StubController : Controller;
 
     private class StubETagManager : IETagManager
     {
