@@ -210,6 +210,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        collection.FlatId.Should().Be(RootCollection.Id);
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(TotalDatabaseChildItems);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
@@ -245,6 +246,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.FlatId.Should().Be("FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
@@ -269,6 +271,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         flatResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         flatCollection!.Id.Should().Be("http://localhost/1/collections/NonPublic");
+        flatCollection.FlatId.Should().Be("NonPublic");
         flatCollection.PublicId.Should().Be("http://localhost/1/non-public");
         flatCollection.Items!.Count.Should().Be(0);
         flatCollection.CreatedBy.Should().Be("admin");

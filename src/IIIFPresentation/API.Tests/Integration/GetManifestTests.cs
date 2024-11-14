@@ -43,6 +43,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.FlatId.Should().Be("FirstChildManifest");
         manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
     }
 

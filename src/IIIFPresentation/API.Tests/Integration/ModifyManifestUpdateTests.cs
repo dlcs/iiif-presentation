@@ -254,6 +254,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be(parent);
         responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     
     [Fact]
