@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Amazon.S3;
+using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
@@ -9,8 +10,8 @@ using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.General;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -289,6 +290,33 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    public static TheoryData<string> ProhibitedSlugProvider =>
+        new(SpecConstants.ProhibitedSlugs);
+
+    [Theory]
+    [MemberData(nameof(ProhibitedSlugProvider))]
+    public async Task CreateManifest_BadRequest_WhenProhibitedSlug(string slug)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
     }
     
     [Fact]

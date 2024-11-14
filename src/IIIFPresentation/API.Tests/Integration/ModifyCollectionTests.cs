@@ -7,6 +7,7 @@ using System.Text;
 using Amazon.S3;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using FakeItEasy;
@@ -106,6 +107,42 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+
+    public static TheoryData<string> ProhibitedSlugProvider =>
+        new(SpecConstants.ProhibitedSlugs);
+
+    [Theory]
+    [MemberData(nameof(ProhibitedSlugProvider))]
+    public async Task CreateCollection_DoesntCreatesCollection_WhenProhibitedSlug(string slug)
+    {
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior = new()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new("en", ["test collection"]),
+            Slug = slug,
+            Parent = parent,
+            PresentationThumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
     }
     
     [Fact]
