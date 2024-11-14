@@ -14,6 +14,7 @@ public static class SpecConstants
             "annotations",
             "adjuncts",
             "pipelines",
-            "configuration"
+            "configuration",
+            "publish"
         }.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
 }
