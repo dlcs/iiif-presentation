@@ -41,19 +41,29 @@ public class ETagCachingAttribute : ActionFilterAttribute
         {
             var responseHeaders = response.GetTypedHeaders();
 
-            responseHeaders.CacheControl = new CacheControlHeaderValue() // how long clients should cache the response
-            {
-                Public = request.HasShowExtraHeader(),
-                MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
-            };
-
             if (IsEtagSupported(response))
             {
-                responseHeaders.ETag ??=
-                    GenerateETag(memoryStream,
-                        request.Path, eTagManager); // This request generates a hash from the response - this would come from S3 in live
+                // The no-cache response directive indicates that the response can be stored in caches,
+                // but the response must be validated with the origin server before each reuse,
+                // even when the cache is disconnected from the origin server.
+                responseHeaders.CacheControl = new CacheControlHeaderValue
+                {
+                    NoCache = true
+                };
+                
+                // This request generates a hash from the response - this would come from S3 in live
+                responseHeaders.ETag ??= GenerateETag(memoryStream, request.Path, eTagManager); 
             }
-            
+            else
+            {
+                responseHeaders.CacheControl =
+                    new CacheControlHeaderValue() // how long clients should cache the response
+                    {
+                        Public = request.HasShowExtraHeader(),
+                        MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
+                    };
+            }
+
             var requestHeaders = request.GetTypedHeaders();
 
             if (IsClientCacheValid(requestHeaders, responseHeaders))
@@ -64,7 +74,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
                 foreach (var header in response.Headers)
                     if (!HeadersToKeepFor304.Contains(header.Key))
                     {
-                        response.Headers.Remove(header.Key);   
+                        response.Headers.Remove(header.Key);
                     }
 
                 return;
@@ -75,13 +85,15 @@ public class ETagCachingAttribute : ActionFilterAttribute
             .CopyToAsync(
                 originalStream); // Writes anything the later middleware wrote to the body (and by extension our `memoryStream`) to the original response body stream, so that it will be sent back to the client as the response body.
     }
-    
+
     private static bool IsEtagSupported(HttpResponse response)
     {
+        // Response already has an e-tag, we'll use it as-is, even if the content is large.
+        if (response.Headers.ContainsKey(HeaderNames.ETag)) return true;
+        
         // 20kb length limit - can be changed
-        if (response.Body.Length > 20 * 1024) return false;
+        if (response.Body.Length > 256 * 1024) return false;
 
-        if (response.Headers.ContainsKey(HeaderNames.ETag)) return false;
 
         return true;
     }
@@ -103,8 +115,8 @@ public class ETagCachingAttribute : ActionFilterAttribute
         // If both `If-None-Match` and `If-Modified-Since` are present in a request, `If-None-Match` takes precedence and `If-Modified-Since` is ignored (provided, of course, that the resource supports entity-tags, hence the second condition after the `&&` operator in the following `if`). See https://datatracker.ietf.org/doc/html/rfc7232#section-3.3:~:text=A%20recipient%20MUST%20ignore%20If%2DModified%2DSince%20if
         if (reqHeaders.IfNoneMatch.Any() && resHeaders.ETag is not null)
             return reqHeaders.IfNoneMatch.Any(etag =>
-                    etag.Compare(resHeaders.ETag,
-                        false)
+                etag.Compare(resHeaders.ETag,
+                    false)
             );
 
         if (reqHeaders.IfModifiedSince is not null && resHeaders.LastModified is not null)

@@ -5,6 +5,7 @@ using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
 using Models.API.Manifest;
+using Microsoft.Net.Http.Headers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -37,6 +38,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
@@ -54,6 +56,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/iiif-manifest", "requested by hierarchical URI");
