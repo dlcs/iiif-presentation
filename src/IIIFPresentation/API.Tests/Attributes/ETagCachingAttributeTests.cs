@@ -102,7 +102,7 @@ public class ETagCachingAttributeTests
         // Act
         await filter.OnResultExecutionAsync(context, () =>
         {
-            var largeContentThreshold = 64 * 1024;
+            var largeContentThreshold = 512 * 1024;
             var stream = new MemoryStream(new byte[largeContentThreshold]);;
             stream.SetLength(largeContentThreshold);
             context.HttpContext.Response.Body = stream;
@@ -131,7 +131,7 @@ public class ETagCachingAttributeTests
         // Act
         await filter.OnResultExecutionAsync(context, () =>
         {
-            var largeContentThreshold = 64 * 1024;
+            var largeContentThreshold = 512 * 1024;
             var stream = new MemoryStream(new byte[largeContentThreshold]);;
             stream.SetLength(largeContentThreshold);
             context.HttpContext.Response.Body = stream;

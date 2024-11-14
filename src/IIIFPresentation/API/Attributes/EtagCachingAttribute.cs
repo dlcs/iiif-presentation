@@ -92,7 +92,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
         if (response.Headers.ContainsKey(HeaderNames.ETag)) return true;
         
         // 20kb length limit - can be changed
-        if (response.Body.Length > 20 * 1024) return false;
+        if (response.Body.Length > 256 * 1024) return false;
 
 
         return true;
