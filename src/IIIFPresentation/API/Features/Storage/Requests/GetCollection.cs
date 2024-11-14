@@ -3,8 +3,6 @@ using API.Features.Storage.Models;
 using API.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Models.Database.Collections;
-using Models.Database.General;
 using Repository;
 using Repository.Collections;
 using Repository.Helpers;
@@ -46,7 +44,7 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
             .ToListAsync(cancellationToken: cancellationToken);
 
         var total = await dbContext.GetTotalItemCountForCollection(collection, items.Count, request.PageSize,
-            cancellationToken);
+            request.Page, cancellationToken);
          
         if (hierarchy.Parent != null)
         {

@@ -4,6 +4,7 @@ using Amazon.S3;
 using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -224,6 +225,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be(parent);
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
     }
     
     [Fact]
@@ -262,10 +264,14 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var createdDate = DateTime.UtcNow.AddDays(-1);
-        var dbManifest = (await dbContext.Manifests.AddTestManifest(createdDate: createdDate)).Entity;
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(createdDate: createdDate, label: new LanguageMap("en", "foo")))
+            .Entity;
         await dbContext.SaveChangesAsync();
         var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
-        var manifest = dbManifest.ToPresentationManifest(parent: "root", slug: slug);
+        var updatedLabel = new LanguageMap("fr", "foo");
+        var manifest =
+            dbManifest.ToPresentationManifest(parent: "root", slug: slug, label: updatedLabel);
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
@@ -290,6 +296,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         fromDatabase.Created.Should().BeCloseTo(createdDate, TimeSpan.FromSeconds(2));
         fromDatabase.Modified.Should().BeAfter(createdDate);
         fromDatabase.ModifiedBy.Should().Be("Admin");
+        fromDatabase.Label.Should().BeEquivalentTo(updatedLabel);
     }
     
     [Fact]

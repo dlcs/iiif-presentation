@@ -35,8 +35,6 @@ public class CollectionHelperXTests
     [InlineData("slug", "")]
     public void GenerateHierarchicalCollectionParent_Correct_ParentId(string fullPath, string outputUrl)
     {
-        
-        
         // Arrange
         var collection = new Collection
         {

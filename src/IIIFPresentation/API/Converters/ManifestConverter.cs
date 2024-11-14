@@ -29,6 +29,7 @@ public static class ManifestConverter
         var hierarchy = hierarchyFactory(dbManifest);
         
         iiifManifest.Id = dbManifest.GenerateFlatManifestId(urlRoots);
+        iiifManifest.PublicId = hierarchy.GenerateHierarchicalId(urlRoots);
         iiifManifest.Created = dbManifest.Created.Floor(DateTimeX.Precision.Second);
         iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
