@@ -8,7 +8,6 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core.IIIF;
-using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -77,6 +76,15 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
                 new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody, GetUrlRoots()),
             validator,
             cancellationToken: cancellationToken);
+
+    [Authorize]
+    [HttpDelete("manifests/{id}")]
+    public async Task<IActionResult> Delete(int customerId, string id)
+    {
+        if (!Request.HasShowExtraHeader()) return this.Forbidden();
+
+        return await HandleDelete(new DeleteManifest(customerId, id));
+    }
     
     private async Task<IActionResult> ManifestUpsert<T, TEnum>(
         Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
