@@ -41,28 +41,16 @@ public class ETagCachingAttribute : ActionFilterAttribute
         {
             var responseHeaders = response.GetTypedHeaders();
 
-            if (IsEtagSupported(response))
+            // The no-cache response directive indicates that the response can be stored in caches,
+            // but the response must be validated with the origin server before each reuse,
+            // even when the cache is disconnected from the origin server.
+            responseHeaders.CacheControl = new CacheControlHeaderValue
             {
-                // The no-cache response directive indicates that the response can be stored in caches,
-                // but the response must be validated with the origin server before each reuse,
-                // even when the cache is disconnected from the origin server.
-                responseHeaders.CacheControl = new CacheControlHeaderValue
-                {
-                    NoCache = true
-                };
-                
-                // This request generates a hash from the response - this would come from S3 in live
-                responseHeaders.ETag ??= GenerateETag(memoryStream, request.Path, eTagManager); 
-            }
-            else
-            {
-                responseHeaders.CacheControl =
-                    new CacheControlHeaderValue() // how long clients should cache the response
-                    {
-                        Public = request.HasShowExtraHeader(),
-                        MaxAge = TimeSpan.FromSeconds(eTagManager.CacheTimeoutSeconds)
-                    };
-            }
+                NoCache = true
+            };
+            
+            // This request generates a hash from the response - this would come from S3 in live
+            responseHeaders.ETag ??= GenerateETag(memoryStream, request.Path, eTagManager); 
 
             var requestHeaders = request.GetTypedHeaders();
 
@@ -84,18 +72,6 @@ public class ETagCachingAttribute : ActionFilterAttribute
         await memoryStream
             .CopyToAsync(
                 originalStream); // Writes anything the later middleware wrote to the body (and by extension our `memoryStream`) to the original response body stream, so that it will be sent back to the client as the response body.
-    }
-
-    private static bool IsEtagSupported(HttpResponse response)
-    {
-        // Response already has an e-tag, we'll use it as-is, even if the content is large.
-        if (response.Headers.ContainsKey(HeaderNames.ETag)) return true;
-        
-        // 20kb length limit - can be changed
-        if (response.Body.Length > 256 * 1024) return false;
-
-
-        return true;
     }
 
     private static EntityTagHeaderValue GenerateETag(Stream stream, string path, IETagManager eTagManager)
