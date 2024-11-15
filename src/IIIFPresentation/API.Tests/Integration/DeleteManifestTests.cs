@@ -2,8 +2,12 @@
 using Amazon.S3;
 using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
+using Core.Helpers;
+using Core.Response;
+using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Models.API.Manifest;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -85,5 +89,38 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         // Cleanup
         dbContext.Manifests.Remove(dbManifest);
         await dbContext.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task DeleteManifest_DeletesInS3()
+    {
+        // Arrange
+        var slug = nameof(DeleteManifest_DeletesInS3);
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{id}");
+
+
+        // Act
+        response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        await new Func<Task>(async () => await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"{Customer}/manifests/{id}")).Should().ThrowAsync<AmazonS3Exception>();
     }
 }
