@@ -6,7 +6,6 @@ using API.Settings;
 using Core;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Models.API.General;
 
 namespace API.Infrastructure;
 
@@ -83,10 +82,10 @@ public abstract class PresentationController : Controller
     /// error and appropriate status code if failed.
     /// </returns>
     /// <remarks>This will be replaced with overload that takes DeleteEntityResult in future</remarks>
-    protected async Task<IActionResult> HandleDelete(
-        IRequest<ResultMessage<DeleteResult, DeleteCollectionType>> request,
+    protected async Task<IActionResult> HandleDelete<T>(
+        IRequest<ResultMessage<DeleteResult, T>> request,
         string? errorTitle = "Delete failed",
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) where T : Enum
     {
         return await HandleRequest(async () =>
         {
