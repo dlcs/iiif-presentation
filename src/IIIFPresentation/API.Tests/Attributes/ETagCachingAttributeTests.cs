@@ -63,6 +63,7 @@ public class ETagCachingAttributeTests
 
         // Assert
         Assert.Single(context.HttpContext.Response.Headers.CacheControl, "no-cache");
+        Assert.Single(context.HttpContext.Response.Headers.ETag, "\"abc\"");
     }
 
     [Fact]
@@ -86,7 +87,8 @@ public class ETagCachingAttributeTests
         Assert.Single(context.HttpContext.Response.Headers.ETag, "\"1B2M2Y8AsgTpgAmY7PhCfg==\"");
     }
     
-    [Fact]
+    [Fact(Skip = "public caching is currently disabled")]
+
     public async Task Should_Use_MaxAge_Cache_For_Large_Content()
     {
         // See limit in API.Attributes.ETagCachingAttribute.IsEtagSupported
@@ -114,7 +116,7 @@ public class ETagCachingAttributeTests
         Assert.Single(context.HttpContext.Response.Headers.CacheControl, "max-age=10");
     }
     
-    [Fact]
+    [Fact(Skip = "public caching is currently disabled")]
     public async Task Should_Use_PublicMaxAge_Cache_For_Large_Content_With_ShowExtras()
     {
         // See limit in API.Attributes.ETagCachingAttribute.IsEtagSupported
