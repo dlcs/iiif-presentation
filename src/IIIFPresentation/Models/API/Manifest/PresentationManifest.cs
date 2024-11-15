@@ -5,6 +5,7 @@ namespace Models.API.Manifest;
 public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 {
     public string? PublicId { get; set; }
+    public string? FlatId { get; set; }
     public string? Slug { get; set; }
     public string? Parent { get; set; }
     public DateTime Created { get; set; }

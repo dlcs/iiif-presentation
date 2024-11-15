@@ -7,6 +7,7 @@ namespace Models.API.Collection;
 public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresentation
 {
     public string? PublicId { get; set; }
+    public string? FlatId { get; set; }
     
     public string? Slug { get; set; }
     

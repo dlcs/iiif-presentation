@@ -48,6 +48,7 @@ public static class CollectionConverter
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = GenerateContext(),
             Label = dbAsset.Label,
+            FlatId = dbAsset.Id,
             PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = GenerateBehavior(dbAsset),
             Slug = hierarchy.Slug,
