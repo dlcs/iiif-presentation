@@ -5,6 +5,7 @@ using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
+using Models.API.Manifest;
 using Models.Database.General;
 using Models.Infrastucture;
 
@@ -38,18 +39,19 @@ public static class CollectionConverter
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
         var hierarchy = dbAsset.Hierarchy!.Single(h => h.Canonical);
+        var publicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots);
 
         return new()
         {
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = GenerateContext(),
             Label = dbAsset.Label,
-            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+            PublicId = publicId,
             Behavior = GenerateBehavior(dbAsset),
             Slug = hierarchy.Slug,
             Parent = GeneratePresentationCollectionParent(urlRoots, hierarchy),
             ItemsOrder = hierarchy.ItemsOrder,
-            Items = GenerateItems(urlRoots, items),
+            Items = GenerateItems(urlRoots, items, publicId),
             PartOf = GeneratePartOf(hierarchy, dbAsset, urlRoots),
             TotalItems = totalItems,
             View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
@@ -61,23 +63,30 @@ public static class CollectionConverter
         };
     }
 
-    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, UrlRoots urlRoots, bool flatId)
+    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, UrlRoots urlRoots, bool flatId,
+        string? parentPublicId = null)
     {
         var id = flatId ? hierarchy.GenerateFlatId(urlRoots) : hierarchy.GenerateHierarchicalId(urlRoots);
-        
+
         if (hierarchy.Type == ResourceType.IIIFManifest)
         {
-            return new Manifest { Id = id };
+            return new PresentationManifestItem
+                { Id = id, PublicId = flatId ? hierarchy.GenerateHierarchicalItemId(parentPublicId!) : null };
         }
 
-        var collection = new Collection
+        var collection = new PresentationCollectionItem
         {
             Id = id,
-            Label = hierarchy.Collection?.Label,
+            Label = hierarchy.Collection?.Label
         };
 
-        if (flatId) collection.Behavior = GenerateBehavior(hierarchy.Collection!);
-            
+        if (flatId)
+        {
+
+            collection.Behavior = GenerateBehavior(hierarchy.Collection!);
+            collection.PublicId = hierarchy.GenerateHierarchicalItemId(parentPublicId!);
+        }
+
         return collection;
     }
 
@@ -177,16 +186,18 @@ public static class CollectionConverter
             }
         ];
     }
-    
+
     /// <summary>
     /// Generates items in a hierarchy into the correct format
     /// </summary>
     /// <param name="urlRoots">The URL to use</param>
     /// <param name="items">The items to convert</param>
+    /// <param name="parentPublicId">The public id of the parent collection</param>
     /// <returns>A list of ICollectionItems</returns>
-    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, IEnumerable<Hierarchy> items)
+    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, IEnumerable<Hierarchy> items, 
+        string? parentPublicId = null)
     {
-        return items.Select(i => GenerateCollectionItem(i, urlRoots, true)).ToList();
+        return items.Select(i => GenerateCollectionItem(i, urlRoots, true, parentPublicId)).ToList();
     }
 
     /// <summary>

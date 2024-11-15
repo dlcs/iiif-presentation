@@ -1,6 +1,11 @@
+using System.Runtime.Serialization;
 using IIIF;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
+using Models.API.Collection;
+using Models.API.Manifest;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Core.IIIF;
 
@@ -38,6 +43,18 @@ public static class IIIFResponseX
         await using var jsonReader = new JsonTextReader(streamReader);
 
         settings ??= new(IIIFSerialiserX.DeserializerSettings);
+        settings.Context  = new StreamingContext(StreamingContextStates.Other,
+            new Dictionary<Type, IDictionary<string, Func<JObject, object>>>
+            {
+                { 
+                    typeof(ICollectionItem), 
+                    new Dictionary<string, Func<JObject, object>>
+                    {
+                        { "Collection", p => new PresentationCollectionItem() }, 
+                        { "Manifest", p => new PresentationManifestItem() } 
+                    }
+                }
+            });
 
         var serializer = JsonSerializer.Create(settings);
 

@@ -37,6 +37,12 @@ public static class CollectionHelperX
         $"{urlRoots.BaseUrl}/{hierarchy.CustomerId}{(string.IsNullOrEmpty(hierarchy.FullPath) ? string.Empty : $"/{hierarchy.FullPath}")}";
     
     /// <summary>
+    /// Get hierarchical id for a child hierarchy item
+    /// </summary>
+    public static string GenerateHierarchicalItemId(this Hierarchy hierarchy, string fullPathUrl) =>
+        $"{fullPathUrl}/{hierarchy.Slug}";
+    
+    /// <summary>
     /// Get flat id for current hierarchy item
     /// </summary>
     public static string GenerateFlatId(this Hierarchy hierarchy, UrlRoots urlRoots) =>

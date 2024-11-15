@@ -54,7 +54,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
             {
                 responseHeaders.ETag ??=
                     GenerateETag(memoryStream,
-                        request.Path, eTagManager!); // This request generates a hash from the response - this would come from S3 in live
+                        request.Path, eTagManager); // This request generates a hash from the response - this would come from S3 in live
             }
             
             var requestHeaders = request.GetTypedHeaders();

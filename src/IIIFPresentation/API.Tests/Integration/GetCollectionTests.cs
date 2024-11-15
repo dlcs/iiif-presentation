@@ -38,10 +38,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
         collection.Items.Count.Should().Be(TotalDatabaseChildItems);
-        var firstItem = (Collection)collection.Items[0];
+        var firstItem = (PresentationCollectionItem)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
         firstItem.Behavior.Should().BeNull();
-        var secondItem = (Collection)collection.Items[1];
+        var secondItem = (PresentationCollectionItem)collection.Items[1];
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
         secondItem.Behavior.Should().BeNull();
     }
@@ -59,7 +59,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Id.Should().Be("http://localhost/1/first-child");
         collection.Items.Count.Should().Be(1);
         
-        var firstItem = (Collection)collection.Items[0];
+        var firstItem = (PresentationCollectionItem)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child/second-child");
     }
 
@@ -212,19 +212,19 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(TotalDatabaseChildItems);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
-        var firstItem = (Collection)collection.Items[0];
+        var firstItem = (PresentationCollectionItem)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         firstItem.Behavior.Should().Contain("public-iiif");
         firstItem.Behavior.Should().Contain("storage-collection");
-        var secondItem = (Collection)collection.Items[1];
+        var secondItem = (PresentationCollectionItem)collection.Items[1];
         secondItem.Id.Should().Be("http://localhost/1/collections/NonPublic");
         secondItem.Behavior.Should().NotContain("public-iiif");
         secondItem.Behavior.Should().Contain("storage-collection");
-        var thirdItem = (Collection)collection.Items[2];
+        var thirdItem = (PresentationCollectionItem)collection.Items[2];
         thirdItem.Id.Should().Be("http://localhost/1/collections/IiifCollection");
         thirdItem.Behavior.Should().Contain("public-iiif");
         thirdItem.Behavior.Should().NotContain("storage-collection");
@@ -247,7 +247,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
         collection.TotalItems.Should().Be(1);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
@@ -316,7 +316,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Fact]
@@ -333,7 +333,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         collection.PublicId.Should().Be("http://localhost/1");
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Fact]
@@ -349,8 +349,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.PublicId.Should().Be("http://localhost/1/first-child");
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
+        collection!.PublicId.Should().Be("http://localhost/1/first-child");
+        collection.Items!.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
     }
     
     [Fact]
@@ -371,7 +371,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(2);
         collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/NonPublic");
     }
     
     [Fact]
@@ -437,7 +437,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
     [Theory]
@@ -487,7 +487,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Page.Should().Be(1);
         collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
-        collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.Items.OfType<PresentationCollectionItem>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
 
     [Fact]
