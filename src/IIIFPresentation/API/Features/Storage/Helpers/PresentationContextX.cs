@@ -124,7 +124,7 @@ public static class PresentationContextX
         Collection collection, int itemCount, int pageSize, int pageNo, CancellationToken cancellationToken = default)
     {
         int total;
-        if (itemCount < pageSize)
+        if (itemCount > 0 && itemCount < pageSize)
         {
             // there can't be more as we've asked for PageSize and got less 
             total = itemCount + (pageNo - 1) * pageSize;

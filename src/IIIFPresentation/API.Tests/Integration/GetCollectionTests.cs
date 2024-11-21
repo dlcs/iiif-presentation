@@ -494,6 +494,27 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
+    public async Task Get_ChildFlat_CorrectTotalItems_WhenPageOutOfBOunds()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/{RootCollection.Id}?page=7&pageSize=15");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        collection.TotalItems.Should().Be(TotalDatabaseChildItems);
+        collection.View!.PageSize.Should().Be(15);
+        collection.View.Page.Should().Be(7);
+        collection.View.TotalPages.Should().Be(1);
+        collection.Items.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
     public async Task Get_ChildFlat_Returns_Vary_Header()
     {
         // Arrange
