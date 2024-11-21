@@ -20,6 +20,7 @@ namespace Repository.Migrations
                 .HasAnnotation("ProductVersion", "8.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Models.Database.Collections.Collection", b =>
@@ -157,7 +158,7 @@ namespace Repository.Migrations
 
                     b.Property<string>("Slug")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasColumnType("citext")
                         .HasColumnName("slug");
 
                     b.Property<int>("Type")

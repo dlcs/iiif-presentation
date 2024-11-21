@@ -21,7 +21,7 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Program>>
+public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
@@ -607,11 +607,11 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
     }
     
     [Fact]
-    public async Task PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection);
-        var slug = $"s_{nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection)}";
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection);
+        var slug = $"s_{nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection)}";
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -698,6 +698,52 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+
+    [Fact]
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection()
+    {
+        // Arrange
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection)}";
+        var duplicateCollection = new Collection
+        {
+            Id = collectionId,
+            UsePath = true,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = false,
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        await dbContext.Collections.AddAsync(duplicateCollection);
+        await dbContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug.VaryCase()
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
     
     [Fact]
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest()
@@ -736,6 +782,50 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest()
+    {
+        // Arrange
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest)}";
+        var duplicateManifest = new Manifest
+        {
+            Id = collectionId,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        await dbContext.AddAsync(duplicateManifest);
+        await dbContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug.VaryCase()
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
+
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
