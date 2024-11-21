@@ -607,11 +607,11 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection);
-        var slug = $"s_{nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection)}";
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection);
+        var slug = $"s_{nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection)}";
         var initialCollection = new Collection
         {
             Id = collectionId,

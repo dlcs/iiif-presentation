@@ -111,7 +111,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Update_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
         var dbCollection = (await dbContext.Collections.AddTestCollection(isStorage: false)).Entity;
@@ -132,7 +132,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForCollection()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlugAlreadyExist_ForCollection()
     {
         // Arrange
         var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
@@ -153,7 +153,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
 
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForCollection()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForCollection()
     {
         // Arrange
         var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
@@ -175,7 +175,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlugAlreadyExist_ForManifest()
     {
         // Arrange
         var duplicateId = "id_mod_man_upd_tst_pands_ae_fm";
@@ -197,10 +197,10 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
 
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForManifest()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest()
     {
         // Arrange
-        var duplicateId = $"id_{PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForManifest}";
+        var duplicateId = $"id_{PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest}";
         var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();
