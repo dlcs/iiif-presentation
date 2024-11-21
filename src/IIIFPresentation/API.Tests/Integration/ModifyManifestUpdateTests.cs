@@ -178,7 +178,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest()
     {
         // Arrange
-        var duplicateId = $"id_{PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest}";
+        var duplicateId = "id_mod_man_upd_tst_pands_ae_fm";
         var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();

@@ -32,6 +32,8 @@ public class PresentationContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("citext");
+        
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => new {e.Id, e.CustomerId});
@@ -77,6 +79,7 @@ public class PresentationContext : DbContext
 
             entity.Ignore(p => p.ResourceId);
             entity.Ignore(p => p.FullPath);
+            entity.Property(p => p.Slug).HasColumnType("citext");
         });
     }
 }
