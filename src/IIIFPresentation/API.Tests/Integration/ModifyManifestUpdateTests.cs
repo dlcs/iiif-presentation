@@ -151,6 +151,28 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+
+    [Fact]
+    public async Task PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForCollection()
+    {
+        // Arrange
+        var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(dbCollection.Hierarchy.Single().Slug);
+        manifest.Slug = manifest.Slug!.VaryCase();
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
     
     [Fact]
     public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest()
@@ -162,6 +184,29 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         await dbContext.SaveChangesAsync();
         var manifest = dbManifest.ToPresentationManifest(slug: duplicateManifest.Hierarchy.Single().Slug);
         
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForManifest()
+    {
+        // Arrange
+        var duplicateId = $"id_{PutFlatId_Update_BadRequest_IfParentAndSlug_VaryCase_ForManifest}";
+        var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(duplicateManifest.Hierarchy.Single().Slug);
+        manifest.Slug = manifest.Slug!.VaryCase();
+
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());

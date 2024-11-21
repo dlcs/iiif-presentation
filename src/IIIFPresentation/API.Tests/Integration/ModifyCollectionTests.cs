@@ -520,6 +520,36 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
 
     [Fact]
+    public async Task CreateCollection_FailsToCreateCollection_WhenSlugOnlyDifferentInCasing()
+    {
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior = new()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new("en", ["test collection"]),
+            Slug = "fIrSt-cHiLd",
+            Parent = parent
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.Detail.Should().Be("The collection could not be created due to a duplicate slug value");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateSlugValue");
+    }
+    
+    [Fact]
     public async Task CreateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange
