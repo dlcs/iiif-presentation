@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using Amazon.S3;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3.Strings;
@@ -110,7 +111,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Update_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
         var dbCollection = (await dbContext.Collections.AddTestCollection(isStorage: false)).Entity;
@@ -131,7 +132,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForCollection()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlugAlreadyExist_ForCollection()
     {
         // Arrange
         var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
@@ -150,12 +151,34 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
-    
+
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest()
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForCollection()
     {
         // Arrange
-        var duplicateId = $"id_{PutFlatId_Update_BadRequest_IfParentAndSlugAlreadyExist_ForManifest}";
+        var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(dbCollection.Hierarchy.Single().Slug);
+        manifest.Slug = manifest.Slug!.VaryCase();
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlugAlreadyExist_ForManifest()
+    {
+        // Arrange
+        var duplicateId = "id_mod_man_upd_tst_pands_ae_fm";
         var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();
@@ -174,6 +197,56 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
 
     [Fact]
+    public async Task PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest()
+    {
+        // Arrange
+        var duplicateId = $"id_{PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest}";
+        var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(duplicateManifest.Hierarchy.Single().Slug);
+        manifest.Slug = manifest.Slug!.VaryCase();
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    public static TheoryData<string> ProhibitedSlugProvider =>
+        new(SpecConstants.ProhibitedSlugs);
+
+    [Theory]
+    [MemberData(nameof(ProhibitedSlugProvider))]
+    public async Task PutFlatId_BadRequest_WhenProhibitedSlug(string slug)
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest($"id_for_slug_{slug}")).Entity;
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(slug);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
+    }
+    
+    [Fact]
     public async Task PutFlatId_Update_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
         // Arrange
@@ -188,8 +261,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
 
         // Act
         var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
-
-        // Assert
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -227,6 +298,8 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be(parent);
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     
     [Fact]

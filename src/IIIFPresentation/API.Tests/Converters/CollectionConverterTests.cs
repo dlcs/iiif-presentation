@@ -100,6 +100,7 @@ public class CollectionConverterTests
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
+        flatCollection.FlatId.Should().Be("some-id");
         flatCollection.PublicId.Should().Be("http://base/1");
         flatCollection.Label!.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
@@ -129,6 +130,7 @@ public class CollectionConverterTests
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
+        flatCollection.FlatId.Should().Be("some-id");
         flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
         flatCollection.Label!.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
@@ -160,6 +162,7 @@ public class CollectionConverterTests
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
+        flatCollection.FlatId.Should().Be("some-id");
         flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
         flatCollection.Label!.Count.Should().Be(1);
         flatCollection.Label["en"].Should().Contain("repository root");
@@ -189,7 +192,12 @@ public class CollectionConverterTests
                 CollectionId = "some-child",
                 CustomerId = 1,
                 Slug = "root",
-                Type = ResourceType.StorageCollection
+                Type = ResourceType.StorageCollection,
+                Collection = new Collection
+                {
+                    Id = "someId",
+                    IsPublic = true,
+                }
             }
         };
         

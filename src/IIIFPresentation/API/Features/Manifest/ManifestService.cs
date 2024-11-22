@@ -14,6 +14,7 @@ using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
 using Repository.Manifests;
+using Repository.Helpers;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -154,6 +155,7 @@ public class ManifestService(
             Created = timeStamp,
             Modified = timeStamp,
             CreatedBy = Authorizer.GetUser(),
+            Label = request.PresentationManifest.Label,
             Hierarchy =
             [
                 new Hierarchy
@@ -165,14 +167,11 @@ public class ManifestService(
                 }
             ],
             CanvasPaintings = canvasPaintings,
-            Label = request.PresentationManifest.Label,
         };
 
         dbContext.Add(dbManifest);
-
-        var saveErrors =
-            await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
-
+        
+        var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
 
@@ -186,10 +185,21 @@ public class ManifestService(
         canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
         canonicalHierarchy.Parent = parentCollection.Id;
 
+        var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
+        return (saveErrors, existingManifest);
+    }
+
+    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest, CancellationToken cancellationToken)
+    {
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
+        
+        if (saveErrors != null) return saveErrors;
 
-        return (saveErrors, existingManifest);
+        dbManifest.Hierarchy.Single().FullPath =
+            await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId, dbContext,
+                cancellationToken);
+        return null;
     }
 
     private async Task<string?> GenerateUniqueId(WriteManifestRequest request, CancellationToken cancellationToken)

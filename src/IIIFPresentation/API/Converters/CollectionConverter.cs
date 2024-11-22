@@ -19,13 +19,13 @@ public static class CollectionConverter
     public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset,
         UrlRoots urlRoots, List<Hierarchy>? items)
     {
-        var collection = new Collection()
+        var collection = new Collection
         {
             Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Label = dbAsset.Label,
             Items = items?.Count > 0
                 ? items.Select(i => GenerateCollectionItem(i, urlRoots, false)).ToList()
-                : null
+                : []
         };
 
         collection.EnsurePresentation3Context();
@@ -48,6 +48,7 @@ public static class CollectionConverter
             Id = dbAsset.GenerateFlatCollectionId(urlRoots),
             Context = GenerateContext(),
             Label = dbAsset.Label,
+            FlatId = dbAsset.Id,
             PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
             Behavior = GenerateBehavior(dbAsset),
             Slug = hierarchy.Slug,
@@ -78,11 +79,15 @@ public static class CollectionConverter
             };
         }
 
-        return new Collection
+        var collection = new Collection
         {
             Id = id,
-            Label = hierarchy.Collection?.Label
+            Label = hierarchy.Collection?.Label,
         };
+
+        if (flatId) collection.Behavior = GenerateBehavior(hierarchy.Collection!);
+            
+        return collection;
     }
 
     /// <summary>
@@ -118,7 +123,7 @@ public static class CollectionConverter
         return
         [
             PresentationJsonLdContext.Context,
-            IIIF.Presentation.Context.Presentation3Context
+            Context.Presentation3Context
         ];
     }
 

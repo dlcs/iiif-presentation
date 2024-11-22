@@ -8,6 +8,8 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [JsonProperty(Order = 6)]
     public string? Slug { get; set; }
     [JsonProperty(Order = 7)]
+    public string? PublicId { get; set; }
+    public string? FlatId { get; set; }
     public string? Parent { get; set; }
     [JsonProperty(Order = 8)]
     public DateTime Created { get; set; }
@@ -23,6 +25,9 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// </summary>
     [JsonProperty(Order = 12)]
     public List<PaintedResource>? PaintedResources { get; set; }
+
+    [JsonIgnore]
+    public string? FullPath { get; set; }
     
 }
 

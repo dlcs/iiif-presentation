@@ -40,6 +40,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Items.Count.Should().Be(TotalDatabaseChildItems);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
+        firstItem.Behavior.Should().BeNull();
+        var secondItem = (Collection)collection.Items[1];
+        secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
+        secondItem.Behavior.Should().BeNull();
     }
     
     [Fact]
@@ -206,12 +210,25 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        collection.FlatId.Should().Be(RootCollection.Id);
         collection.PublicId.Should().Be("http://localhost/1");
         collection.Items!.Count.Should().Be(TotalDatabaseChildItems);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        firstItem.Behavior.Should().Contain("public-iiif");
+        firstItem.Behavior.Should().Contain("storage-collection");
+        var secondItem = (Collection)collection.Items[1];
+        secondItem.Id.Should().Be("http://localhost/1/collections/NonPublic");
+        secondItem.Behavior.Should().NotContain("public-iiif");
+        secondItem.Behavior.Should().Contain("storage-collection");
+        var thirdItem = (Collection)collection.Items[2];
+        thirdItem.Id.Should().Be("http://localhost/1/collections/IiifCollection");
+        thirdItem.Behavior.Should().Contain("public-iiif");
+        thirdItem.Behavior.Should().NotContain("storage-collection");
     }
     
     [Fact]
@@ -229,6 +246,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+        collection.FlatId.Should().Be("FirstChildCollection");
         collection.PublicId.Should().Be("http://localhost/1/first-child");
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
@@ -253,6 +271,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         flatResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         flatCollection!.Id.Should().Be("http://localhost/1/collections/NonPublic");
+        flatCollection.FlatId.Should().Be("NonPublic");
         flatCollection.PublicId.Should().Be("http://localhost/1/non-public");
         flatCollection.Items!.Count.Should().Be(0);
         flatCollection.CreatedBy.Should().Be("admin");
@@ -472,6 +491,27 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.TotalPages.Should().Be(TotalDatabaseChildItems);
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
+    }
+
+    [Fact]
+    public async Task Get_ChildFlat_CorrectTotalItems_WhenPageOutOfBOunds()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"1/collections/{RootCollection.Id}?page=7&pageSize=15");
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        collection.TotalItems.Should().Be(TotalDatabaseChildItems);
+        collection.View!.PageSize.Should().Be(15);
+        collection.View.Page.Should().Be(7);
+        collection.View.TotalPages.Should().Be(1);
+        collection.Items.Should().BeNullOrEmpty();
     }
 
     [Fact]

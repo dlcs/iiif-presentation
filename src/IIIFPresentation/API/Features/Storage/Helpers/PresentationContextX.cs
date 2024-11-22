@@ -6,6 +6,7 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
+using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Storage.Helpers;
 
@@ -49,6 +50,19 @@ public static class PresentationContextX
         return null;
     }
 
+    /// <summary>
+    ///     Retrieves a manifest from the database, with the Hierarchy records included
+    /// </summary>
+    /// <param name="dbContext">The context to pull records from</param>
+    /// <param name="customerId">Customer the record is attached to</param>
+    /// <param name="manifestId">The manifest to retrieve</param>
+    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="cancellationToken">A cancellation token</param>
+    /// <returns>The retrieved collection</returns>
+    public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
+        string manifestId, bool tracked = false, CancellationToken cancellationToken = default)
+        => dbContext.Manifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
+    
     /// <summary>
     /// Retrieves a collection from the database, with the Hierarchy records included
     /// </summary>
@@ -105,15 +119,15 @@ public static class PresentationContextX
 
         return hierarchy;
     }
-    
-    public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext, Collection collection, 
-        int itemCount, int pageSize, CancellationToken cancellationToken = default)
+
+    public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext,
+        Collection collection, int itemCount, int pageSize, int pageNo, CancellationToken cancellationToken = default)
     {
         int total;
-        if (itemCount < pageSize)
+        if (itemCount > 0 && itemCount < pageSize)
         {
             // there can't be more as we've asked for PageSize and got less 
-            total = itemCount;
+            total = itemCount + (pageNo - 1) * pageSize;
         }
         else
         {

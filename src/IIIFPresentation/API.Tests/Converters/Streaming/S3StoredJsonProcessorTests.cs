@@ -1,7 +1,9 @@
 ﻿using System.Text;
 using API.Converters;
 using API.Converters.Streaming;
+using API.Helpers;
 using LateApexEarlySpeed.Xunit.Assertion.Json;
+using Models.Database.General;
 
 namespace API.Tests.Converters.Streaming;
 
@@ -18,7 +20,9 @@ public class S3StoredJsonProcessorTests
         BaseUrl = "http://localhost"
       };
 
-      var result = GetProcessed(ManifestJsonWithId, new(requestSlug, customerId, urlRoots));
+      var result = GetProcessed(ManifestJsonWithId,
+        new(new Hierarchy {Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug}
+          .GenerateHierarchicalId(urlRoots)));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
             .HasProperty("id", p => p.IsJsonString().Equal(
@@ -37,7 +41,9 @@ public class S3StoredJsonProcessorTests
         BaseUrl = "http://localhost"
       };
 
-      var result = GetProcessed(ManifestJsonWithoutId, new(requestSlug, customerId, urlRoots));
+      var result = GetProcessed(ManifestJsonWithoutId, new(
+        new Hierarchy {Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug}
+          .GenerateHierarchicalId(urlRoots)));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
             .HasProperty("id", p => p.IsJsonString().Equal(

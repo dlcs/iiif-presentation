@@ -6,6 +6,8 @@
 /// <remarks>Shared items should be added to this as required</remarks>
 public interface IPresentation
 {
+    public string? PublicId { get; set; }
+    public string? FlatId { get; set; }
     string? Slug { get; set; }
     string? Parent { get; set; }
     public DateTime Created { get; set; }

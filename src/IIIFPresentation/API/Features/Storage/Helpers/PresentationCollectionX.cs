@@ -39,6 +39,7 @@ public static class PresentationCollectionX
         presentationCollection.Items ??= CollectionConverter.GenerateItems(urlRoots, items);
         presentationCollection.TotalItems = totalItems;
 
+        presentationCollection.FlatId = collection.Id;
         presentationCollection.Id = collection.GenerateFlatCollectionId(urlRoots);
         presentationCollection.PublicId = collection.GenerateHierarchicalCollectionId(urlRoots);
         presentationCollection.Parent = CollectionConverter.GeneratePresentationCollectionParent(urlRoots, hierarchy);

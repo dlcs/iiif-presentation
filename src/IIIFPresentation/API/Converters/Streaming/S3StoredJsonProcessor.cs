@@ -2,16 +2,12 @@
 
 namespace API.Converters.Streaming;
 
-public class S3StoredJsonProcessor(string requestSlug, int customerId, UrlRoots roots)
+public class S3StoredJsonProcessor(string generatedId)
     : StreamingProcessorImplBase<S3StoredJsonProcessor.S3ProcessorCustomState>
 {
     private const string IdPropertyName = "id";
 
-    private string GeneratedId { get; } = new UriBuilder(roots.BaseUrl!)
-    {
-        Path = $"{customerId}/{requestSlug}"
-    }.Uri.ToString();
-
+    private string GeneratedId { get; } = generatedId;
     #region Overrides of StreamingProcessorImplBase<S3ProcessorCustomState>
 
     public override object GetInitialState() => new S3ProcessorCustomState();

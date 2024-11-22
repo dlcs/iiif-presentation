@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Amazon.S3;
+using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
@@ -11,6 +12,7 @@ using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Test.Helpers;
@@ -23,7 +25,7 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Program>>
+public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
@@ -292,6 +294,33 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("The parent collection could not be found");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    public static TheoryData<string> ProhibitedSlugProvider =>
+        new(SpecConstants.ProhibitedSlugs);
+
+    [Theory]
+    [MemberData(nameof(ProhibitedSlugProvider))]
+    public async Task CreateManifest_BadRequest_WhenProhibitedSlug(string slug)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
     }
     
     [Fact]
@@ -652,11 +681,11 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
     }
     
     [Fact]
-    public async Task PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection()
+    public async Task PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection);
-        var slug = $"s_{nameof(PutFlatId_Insert_BadRequest_IfParentFoundButNotAStorageCollection)}";
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection);
+        var slug = $"s_{nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection)}";
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -743,6 +772,52 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+
+    [Fact]
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection()
+    {
+        // Arrange
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection)}";
+        var duplicateCollection = new Collection
+        {
+            Id = collectionId,
+            UsePath = true,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = false,
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        await dbContext.Collections.AddAsync(duplicateCollection);
+        await dbContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug.VaryCase()
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
     
     [Fact]
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest()
@@ -781,6 +856,50 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest()
+    {
+        // Arrange
+        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest);
+        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest)}";
+        var duplicateManifest = new Manifest
+        {
+            Id = collectionId,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            CustomerId = 1,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = slug,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        await dbContext.AddAsync(duplicateManifest);
+        await dbContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug.VaryCase()
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
+
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
 
@@ -906,6 +1025,8 @@ public class ModifyManifestCreateTests: IClassFixture<PresentationAppFactory<Pro
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should()
             .ContainSingle(pr => pr.CanvasPainting.CanvasOriginalId == $"https://iiif.example/{slug}.json");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.FlatId.Should().Be(id);
     }
     
     [Fact]

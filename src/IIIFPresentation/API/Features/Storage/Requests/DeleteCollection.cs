@@ -18,14 +18,12 @@ public class DeleteCollectionHandler(
     ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteCollectionType>>
 {
-    private const string RootCollection = "root";
-    
     public async Task<ResultMessage<DeleteResult, DeleteCollectionType>> Handle(DeleteCollection request, CancellationToken cancellationToken)
     {
         logger.LogDebug("Deleting collection {CollectionId} for customer {CustomerId}", request.CollectionId,
             request.CustomerId);
         
-        if (request.CollectionId.Equals(RootCollection, StringComparison.OrdinalIgnoreCase))
+        if (request.CollectionId.Equals(KnownCollections.RootCollection, StringComparison.OrdinalIgnoreCase))
         {
             return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");

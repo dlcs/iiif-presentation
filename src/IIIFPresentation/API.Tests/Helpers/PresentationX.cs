@@ -29,6 +29,8 @@ public class PresentationX
     
     public class TestPresentation : IPresentation
     {
+        public string? PublicId { get; set; }
+        public string? FlatId { get; set; }
         public string? Slug { get; set; }
         public string? Parent { get; set; }
         public DateTime Created { get; set; }

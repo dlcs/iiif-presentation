@@ -5,6 +5,7 @@ using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
+using AWS.Settings;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
@@ -12,6 +13,7 @@ using Repository;
 using Repository.Manifests;
 using Serilog;
 
+const string corsPolicyName = "CorsPolicy";
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
@@ -42,10 +44,13 @@ builder.Services.Configure<DlcsSettings>(dlcsSettings);
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+var aws = builder.Configuration.GetSection("AWS").Get<AWSSettings>() ?? new AWSSettings();
+
 builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
 {
     opts.Realm = "DLCS-API";
 });
+builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
@@ -55,7 +60,7 @@ builder.Services
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
-builder.Services.AddAws(builder.Configuration, builder.Environment);
+builder.Services.AddAws(builder.Configuration, builder.Environment, aws);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
@@ -86,7 +91,8 @@ app
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()
-    .UseSerilogRequestLogging();
+    .UseSerilogRequestLogging()
+    .UseCors(corsPolicyName);
 
 app.MapControllers();
 
