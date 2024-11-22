@@ -51,6 +51,16 @@ public class IIIFS3Service(
         var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
     }
+    
+    /// <summary>
+    /// Delete IIIF resource from S3
+    /// </summary>
+    public void DeleteIIIFFromS3(IHierarchyResource dbResource)
+    {
+        logger.LogDebug("Deleting resource {Customer}:{ResourceId} file from S3", dbResource.CustomerId, dbResource.Id);
+        var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
+        bucketWriter.DeleteFromBucket(item);
+    }
 
     private static void EnsureIIIFValid(ResourceBase iiifResource, string flatId)
     {

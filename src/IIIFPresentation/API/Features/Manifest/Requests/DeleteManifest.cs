@@ -1,12 +1,8 @@
 ﻿using API.Features.Storage.Helpers;
-using API.Helpers;
-using API.Settings;
-using AWS.S3;
-using AWS.S3.Models;
+using API.Infrastructure.AWS;
 using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Repository;
 
@@ -21,8 +17,7 @@ public class DeleteManifest(int customerId, string manifestId)
 
 public class DeleteManifestHandler(
     PresentationContext dbContext,
-    IBucketWriter bucketWriter,
-    IOptionsMonitor<ApiSettings> options,
+    IIIFS3Service iiifS3,
     ILogger<DeleteManifestHandler> logger)
     : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteManifestType>>
 {
@@ -39,8 +34,7 @@ public class DeleteManifestHandler(
 
         dbContext.Manifests.Remove(manifest);
 
-        var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, manifest.GetResourceBucketKey());
-        await bucketWriter.DeleteFromBucket(item);
+        iiifS3.DeleteIIIFFromS3(manifest);
 
         try
         {
