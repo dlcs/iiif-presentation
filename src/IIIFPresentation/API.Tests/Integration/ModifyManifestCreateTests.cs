@@ -61,7 +61,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -75,7 +75,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .WithJsonContent("{}");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -89,7 +89,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", "foo");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -105,7 +105,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", invalidJson);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
@@ -125,7 +125,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -172,7 +172,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -218,7 +218,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -262,7 +262,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -283,7 +283,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -310,7 +310,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -334,7 +334,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -364,7 +364,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -394,7 +394,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -432,7 +432,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -459,7 +459,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -492,7 +492,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -531,7 +531,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -545,7 +545,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .WithJsonContent("{}");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -559,7 +559,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", "foo");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -575,7 +575,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/dolphin", invalidJson);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, because);
@@ -597,7 +597,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"anything\""));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
@@ -647,7 +647,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -693,7 +693,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -739,7 +739,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -783,7 +783,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -827,7 +827,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -848,7 +848,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/foo", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -873,7 +873,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -904,7 +904,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -937,7 +937,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -968,7 +968,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -999,7 +999,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
