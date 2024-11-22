@@ -80,7 +80,7 @@ public class PostHierarchicalCollectionHandler(
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
-        collectionFromBody.Id = request.GetCollectionId();
+        collectionFromBody.Id = collection.GenerateHierarchicalCollectionId(request.UrlRoots);
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
     }
 
