@@ -62,7 +62,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -81,7 +81,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/collections/{dbCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(deleteRequestMessage);
 
         var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == dbCollection.Id);
         var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == dbCollection.Id);
@@ -100,7 +100,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/collections/doesNotExist");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(deleteRequestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -114,7 +114,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(deleteRequestMessage);
 
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -133,7 +133,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/collections/FirstChildCollection");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(deleteRequestMessage);
 
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -162,7 +162,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
                 collection.AsJson());
 
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
         var id = responseCollection!.Id.GetLastPathElement();
@@ -176,7 +176,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
 
         // Act
-        response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
