@@ -55,11 +55,11 @@ public class IIIFS3Service(
     /// <summary>
     /// Delete IIIF resource from S3
     /// </summary>
-    public void DeleteIIIFFromS3(IHierarchyResource dbResource)
+    public async Task DeleteIIIFFromS3(IHierarchyResource dbResource)
     {
         logger.LogDebug("Deleting resource {Customer}:{ResourceId} file from S3", dbResource.CustomerId, dbResource.Id);
         var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
-        bucketWriter.DeleteFromBucket(item);
+        await bucketWriter.DeleteFromBucket(item);
     }
 
     private static void EnsureIIIFValid(ResourceBase iiifResource, string flatId)

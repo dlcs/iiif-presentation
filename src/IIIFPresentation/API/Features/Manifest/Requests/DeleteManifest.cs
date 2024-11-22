@@ -34,7 +34,7 @@ public class DeleteManifestHandler(
 
         dbContext.Manifests.Remove(manifest);
 
-        iiifS3.DeleteIIIFFromS3(manifest);
+        await iiifS3.DeleteIIIFFromS3(manifest);
 
         try
         {

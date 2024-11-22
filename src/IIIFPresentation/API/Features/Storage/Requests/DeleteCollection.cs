@@ -58,7 +58,7 @@ public class DeleteCollectionHandler(
 
         if (!collection.IsStorageCollection)
         {
-            iiifS3.DeleteIIIFFromS3(collection);
+            await iiifS3.DeleteIIIFFromS3(collection);
         }
 
         try

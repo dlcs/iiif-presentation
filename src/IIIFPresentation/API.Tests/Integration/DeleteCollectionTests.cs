@@ -3,12 +3,9 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
-using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Models.API.Collection;
 using Models.API.General;
-using Models.Database.Collections;
-using Models.Database.General;
 using Models.Infrastucture;
 using Repository;
 using Test.Helpers.Helpers;
@@ -75,45 +72,19 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task DeleteCollection_DeletesCollection_WhenAllValuesProvided()
     {
         // Arrange
-        var initialCollection = new Collection()
-        {
-            Id = "DeleteTester",
-            UsePath = true,
-            Label = new LanguageMap
-            {
-                {"en", new() {"update testing"}}
-            },
-            Thumbnail = "some/location",
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
-            CustomerId = 1
-        };
-
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "DeleteTester",
-            Slug = "delete-test",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1,
-            Canonical = true
-        });
-
-        await dbContext.Collections.AddAsync(initialCollection);
-        await dbContext.SaveChangesAsync();
+        var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
+        
+       await dbContext.Collections.AddAsync(dbCollection); 
+       await dbContext.SaveChangesAsync();
 
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{initialCollection.Id}");
+            $"{Customer}/collections/{dbCollection.Id}");
 
         // Act
         var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
 
-        var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == initialCollection.Id);
-        var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == initialCollection.Id);
+        var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == dbCollection.Id);
+        var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == dbCollection.Id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -137,26 +108,6 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
     [Fact]
     public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRoot()
-    {
-        // Arrange
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{RootCollection.Id}");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
-        errorResponse.Detail.Should().Be("Cannot delete a root collection");
-    }
-
-
-    [Fact]
-    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRootDirectly()
     {
         // Arrange
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
