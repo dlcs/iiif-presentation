@@ -69,7 +69,7 @@ public static class PresentationCollectionX
             var thumbnails = thumbnailsAsCollection.OfType<Image>().ToList();
             return thumbnails.GetThumbnailPath();
         }
-        
+
         return collection.PresentationThumbnail;
     }
 }
