@@ -25,7 +25,8 @@ namespace API.Features.Storage;
 public class CollectionController(
     IAuthenticator authenticator,
     IOptions<ApiSettings> options,
-    IMediator mediator)
+    IMediator mediator,
+    IPathGenerator pathGenerator)
     : PresentationController(options.Value, mediator)
 {
     [HttpGet("collections/{id}")]
@@ -51,12 +52,12 @@ public class CollectionController(
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}"
                 : null;
 
-            return Ok(storageRoot.Collection.ToFlatCollection(GetUrlRoots(), pageSize.Value, page.Value,
-                storageRoot.TotalItems, storageRoot.Items, orderByParameter));
+            return Ok(storageRoot.Collection.ToFlatCollection( pageSize.Value, page.Value,
+                storageRoot.TotalItems, storageRoot.Items, pathGenerator, orderByParameter));
         }
 
         return storageRoot.Collection.IsPublic
-            ? SeeOther(storageRoot.Collection.GenerateHierarchicalCollectionId(GetUrlRoots()))
+            ? SeeOther( pathGenerator.GenerateHierarchicalCollectionId(storageRoot.Collection))
             : this.PresentationNotFound();
     }
 

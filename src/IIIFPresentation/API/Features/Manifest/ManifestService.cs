@@ -29,6 +29,7 @@ public record UpsertManifestRequest(
     int CustomerId,
     PresentationManifest PresentationManifest,
     string RawRequestBody,
+    IPathGenerator PathGenerator,
     UrlRoots UrlRoots) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, UrlRoots);
 
 /// <summary>
@@ -48,6 +49,7 @@ public class ManifestService(
     IIdGenerator idGenerator,
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
+    IPathGenerator pathGenerator,
     ILogger<ManifestService> logger)
 {
     /// <summary>
@@ -87,7 +89,7 @@ public class ManifestService(
         await SaveToS3(dbManifest!, request, cancellationToken);
         
         return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
     }
     
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -111,7 +113,7 @@ public class ManifestService(
         await SaveToS3(dbManifest!, request, cancellationToken);
         
         return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
@@ -125,7 +127,7 @@ public class ManifestService(
         // Validation
         if (parentCollection == null) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
         if (!parentCollection.IsStorageCollection) return (ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>(), null);
-        if (manifest.IsUriParentInvalid(parentCollection, urlRoots)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
+        if (manifest.IsUriParentInvalid(parentCollection, pathGenerator)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
 
         return (null, parentCollection);
     }
@@ -207,7 +209,7 @@ public class ManifestService(
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, dbManifest.GenerateFlatManifestId(request.UrlRoots),
+        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             cancellationToken);
     }
 }

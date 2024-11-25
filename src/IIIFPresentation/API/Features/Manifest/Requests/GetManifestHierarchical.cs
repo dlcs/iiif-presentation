@@ -25,6 +25,7 @@ public class GetManifestHierarchical(
 public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
     PresentationContext dbContext,
+    IPathGenerator pathGenerator,
     IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, string?>
 {
     private readonly AWSSettings settings = options.Value;
@@ -50,7 +51,7 @@ public class GetManifestHierarchicalHandler(
 
         request.Hierarchy.FullPath = await fetchFullPath;
 
-        var hierarchicalId = request.Hierarchy.GenerateHierarchicalId(request.UrlRoots);
+        var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
         
         using var memoryStream = new MemoryStream();
         using var reader = new StreamReader(memoryStream);

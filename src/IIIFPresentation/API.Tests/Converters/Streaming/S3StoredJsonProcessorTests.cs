@@ -3,51 +3,56 @@ using API.Converters;
 using API.Converters.Streaming;
 using API.Helpers;
 using LateApexEarlySpeed.Xunit.Assertion.Json;
+using Microsoft.AspNetCore.Http;
 using Models.Database.General;
 
 namespace API.Tests.Converters.Streaming;
 
 public class S3StoredJsonProcessorTests
 {
+    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
+    {
+        HttpContext = new DefaultHttpContext()
+        {
+            Request =
+            {
+                Scheme = Uri.UriSchemeHttp,
+                Host = new HostString("localhost")
+            }
+        }
+    });
+
     [Fact]
     public void ProcessJson_ChangesTopLevelId()
     {
-      const string requestSlug =
-        "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
-      const int customerId = 52;
-      var urlRoots = new UrlRoots
-      {
-        BaseUrl = "http://localhost"
-      };
+        const string requestSlug =
+            "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
+        const int customerId = 52;
 
-      var result = GetProcessed(ManifestJsonWithId,
-        new(new Hierarchy {Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug}
-          .GenerateHierarchicalId(urlRoots)));
+        var result = GetProcessed(ManifestJsonWithId,
+            new(pathGenerator.GenerateHierarchicalId(new Hierarchy
+                { Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug })));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
-            .HasProperty("id", p => p.IsJsonString().Equal(
-              $"http://localhost/52/{requestSlug}")),
+                .HasProperty("id", p => p.IsJsonString().Equal(
+                    $"http://localhost/52/{requestSlug}")),
             result);
     }
 
     [Fact]
     public void ProcessJson_AddsTopLevelId()
     {
-      const string requestSlug =
-        "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
-      const int customerId = 52;
-      var urlRoots = new UrlRoots
-      {
-        BaseUrl = "http://localhost"
-      };
+        const string requestSlug =
+            "0004_hierarchical_iiif_collection_2O71nF/0004_hierarchical_iiif_collection_child_PWZnry";
+        const int customerId = 52;
 
-      var result = GetProcessed(ManifestJsonWithoutId, new(
-        new Hierarchy {Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug}
-          .GenerateHierarchicalId(urlRoots)));
+        var result = GetProcessed(ManifestJsonWithoutId, new(
+            pathGenerator.GenerateHierarchicalId(new Hierarchy
+                { Slug = requestSlug, CustomerId = customerId, FullPath = requestSlug })));
 
         JsonAssertion.Meet(root => root.IsJsonObject()
-            .HasProperty("id", p => p.IsJsonString().Equal(
-              $"http://localhost/52/{requestSlug}")),
+                .HasProperty("id", p => p.IsJsonString().Equal(
+                    $"http://localhost/52/{requestSlug}")),
             result);
     }
 

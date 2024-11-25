@@ -39,6 +39,7 @@ public class CreateCollectionHandler(
     ILogger<CreateCollectionHandler> logger,
     IIIFS3Service iiifS3,
     IIdGenerator idGenerator,
+    IPathGenerator pathGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -63,7 +64,7 @@ public class CreateCollectionHandler(
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
         // If full URI was used, verify it indeed is pointing to the resolved parent collection
-        if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots))
+        if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
             return ErrorHelper.NullParentResponse<PresentationCollection>();
         
         string id;
@@ -128,7 +129,7 @@ public class CreateCollectionHandler(
         }
         
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection, 
-            request.UrlRoots, settings.PageSize, CurrentPage, 0, []); // there can be no items attached to this, as it's just been created
+            settings.PageSize, CurrentPage, 0, [], pathGenerator); // there can be no items attached to this, as it's just been created
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,
@@ -140,7 +141,7 @@ public class CreateCollectionHandler(
     {
         if (!isStorageCollection)
         {
-            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
                 cancellationToken);
         }
     }

@@ -16,15 +16,15 @@ namespace API.Converters;
 
 public static class CollectionConverter
 {
-    public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset,
-        UrlRoots urlRoots, List<Hierarchy>? items)
+    public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset, 
+        IPathGenerator pathGenerator, List<Hierarchy>? items)
     {
         var collection = new Collection
         {
-            Id = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+            Id = pathGenerator.GenerateHierarchicalCollectionId(dbAsset),
             Label = dbAsset.Label,
             Items = items?.Count > 0
-                ? items.Select(i => GenerateCollectionItem(i, urlRoots, false)).ToList()
+                ? items.Select(i => GenerateCollectionItem(i, pathGenerator, false)).ToList()
                 : []
         };
 
@@ -34,8 +34,8 @@ public static class CollectionConverter
     }
     
     public static PresentationCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
-        UrlRoots urlRoots, int pageSize, int currentPage, int totalItems,
-        IEnumerable<Hierarchy>? items, string? orderQueryParam = null)
+        int pageSize, int currentPage, int totalItems,
+        IEnumerable<Hierarchy>? items, IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
         var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
         items ??= [];
@@ -45,20 +45,20 @@ public static class CollectionConverter
 
         return new()
         {
-            Id = dbAsset.GenerateFlatCollectionId(urlRoots),
+            Id = pathGenerator.GenerateFlatCollectionId(dbAsset),
             Context = GenerateContext(),
             Label = dbAsset.Label,
             FlatId = dbAsset.Id,
-            PublicId = dbAsset.GenerateHierarchicalCollectionId(urlRoots),
+            PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbAsset),
             Behavior = GenerateBehavior(dbAsset),
             Slug = hierarchy.Slug,
-            Parent = GeneratePresentationCollectionParent(urlRoots, hierarchy),
+            Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy),
             ItemsOrder = hierarchy.ItemsOrder,
-            Items = GenerateItems(urlRoots, items),
-            PartOf = GeneratePartOf(hierarchy, dbAsset, urlRoots),
+            Items = GenerateItems(pathGenerator, items),
+            PartOf = GeneratePartOf(hierarchy, dbAsset, pathGenerator),
             TotalItems = totalItems,
-            View = GenerateView(dbAsset, urlRoots, pageSize, currentPage, totalPages, orderQueryParamConverted),
-            SeeAlso = GenerateSeeAlso(dbAsset, urlRoots),
+            View = GenerateView(dbAsset, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted),
+            SeeAlso = GenerateSeeAlso(dbAsset, pathGenerator),
             Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
             Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
             CreatedBy = dbAsset.CreatedBy,
@@ -66,9 +66,9 @@ public static class CollectionConverter
         };
     }
 
-    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, UrlRoots urlRoots, bool flatId)
+    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator, bool flatId)
     {
-        var id = flatId ? hierarchy.GenerateFlatId(urlRoots) : hierarchy.GenerateHierarchicalId(urlRoots);
+        var id = flatId ? pathGenerator.GenerateFlatId(hierarchy) : pathGenerator.GenerateHierarchicalId(hierarchy);
         
         if (hierarchy.Type == ResourceType.IIIFManifest)
         {
@@ -104,13 +104,13 @@ public static class CollectionConverter
     /// <summary>
     /// Generates a parent id for a collection in the presentation collection form
     /// </summary>
-    /// <param name="urlRoots">The URL</param>
+    /// <param name="pathGenerator">The path generator</param>
     /// <param name="hierarchy">The hierarchy to get the parent from</param>
     /// <returns>An id of the parent, in the presentation collection form</returns>
-    public static string? GeneratePresentationCollectionParent(UrlRoots urlRoots, Hierarchy hierarchy)
+    public static string? GeneratePresentationCollectionParent(IPathGenerator pathGenerator, Hierarchy hierarchy)
     {
         return hierarchy.Parent != null
-            ? hierarchy.GenerateFlatParentId(urlRoots)
+            ? pathGenerator.GenerateFlatParentId(hierarchy)
             : null;
     }
 
@@ -147,15 +147,17 @@ public static class CollectionConverter
     /// <param name="hierarchy">The hierarchy to use to generate</param>
     /// <param name="collection">The collection required</param>
     /// <param name="urlRoots">The URL</param>
+    /// <param name="pathGenerator">Class used to generate paths for collections</param>
     /// <returns>A list of ResourceBase</returns>
-    public static List<ResourceBase>? GeneratePartOf(Hierarchy hierarchy, Models.Database.Collections.Collection collection, UrlRoots urlRoots)
+    public static List<ResourceBase>? GeneratePartOf(Hierarchy hierarchy, Models.Database.Collections.Collection collection, 
+        IPathGenerator pathGenerator)
     {
         return hierarchy.Parent != null
             ? new List<ResourceBase>
             {
                 new PartOf(nameof(PresentationType.Collection))
                 {
-                    Id = collection.GenerateHierarchicalCollectionParent(hierarchy, urlRoots),
+                    Id = pathGenerator.GenerateHierarchicalCollectionParent(collection, hierarchy),
                     Label = collection.Label
                 }
             }
@@ -167,53 +169,55 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="collection">The collection to use in generation</param>
     /// <param name="urlRoots">The URL</param>
+    /// <param name="pathGenerator">Generates paths for collections</param>
     /// <returns>A list of external resources</returns>
-    public static List<ExternalResource>? GenerateSeeAlso(Models.Database.Collections.Collection collection, UrlRoots urlRoots)
+    public static List<ExternalResource> GenerateSeeAlso(Models.Database.Collections.Collection collection, 
+        IPathGenerator pathGenerator)
     {
         return [
             new(nameof(PresentationType.Collection))
             {
-                Id = collection.GenerateHierarchicalCollectionId(urlRoots),
+                Id = pathGenerator.GenerateHierarchicalCollectionId(collection),
                 Label = collection.Label,
                 Profile = "Public"
             },
 
             new(nameof(PresentationType.Collection))
             {
-                Id = $"{collection.GenerateHierarchicalCollectionId(urlRoots)}/iiif",
+                Id = $"{pathGenerator.GenerateHierarchicalCollectionId(collection)}/iiif",
                 Label = collection.Label,
                 Profile = "api-hierarchical"
             }
         ];
     }
-    
+
     /// <summary>
     /// Generates items in a hierarchy into the correct format
     /// </summary>
-    /// <param name="urlRoots">The URL to use</param>
+    /// <param name="pathGenerator">Generates a path</param>
     /// <param name="items">The items to convert</param>
     /// <returns>A list of ICollectionItems</returns>
-    public static List<ICollectionItem> GenerateItems(UrlRoots urlRoots, IEnumerable<Hierarchy> items)
+    public static List<ICollectionItem> GenerateItems(IPathGenerator pathGenerator, IEnumerable<Hierarchy> items)
     {
-        return items.Select(i => GenerateCollectionItem(i, urlRoots, true)).ToList();
+        return items.Select(i => GenerateCollectionItem(i, pathGenerator, true)).ToList();
     }
 
     /// <summary>
     /// Generates the view component of a presentation collection
     /// </summary>
     /// <param name="collection">The database collection to use in the convewrsion</param>
-    /// <param name="urlRoots">The URL</param>
+    /// <param name="pathGenerator">The path generator</param>
     /// <param name="pageSize">Sets the page size</param>
     /// <param name="currentPage">The current page that the view is being generated for</param>
     /// <param name="totalPages">How many pages to generate the View for</param>
     /// <param name="orderQueryParam">What the View is being ordered by</param>
     /// <returns>A View</returns>
-    public static View GenerateView(Models.Database.Collections.Collection collection, UrlRoots urlRoots, int pageSize,
+    public static View GenerateView(Models.Database.Collections.Collection collection, IPathGenerator pathGenerator, int pageSize,
         int currentPage, int totalPages, string? orderQueryParam = null)
     {
         var view = new View()
         {
-            Id = collection.GenerateFlatCollectionViewId(urlRoots, currentPage, pageSize, orderQueryParam),
+            Id = pathGenerator.GenerateFlatCollectionViewId(collection, currentPage, pageSize, orderQueryParam),
             Type = PresentationType.PartialCollectionView,
             Page = currentPage,
             PageSize = pageSize,
@@ -222,15 +226,15 @@ public static class CollectionConverter
 
         if (currentPage > 1)
         {
-            view.First = collection.GenerateFlatCollectionViewFirst(urlRoots, pageSize, orderQueryParam);
+            view.First = pathGenerator.GenerateFlatCollectionViewFirst(collection, pageSize, orderQueryParam);
             view.Previous =
-                collection.GenerateFlatCollectionViewPrevious(urlRoots, currentPage, pageSize, orderQueryParam);
+                pathGenerator.GenerateFlatCollectionViewPrevious(collection, currentPage, pageSize, orderQueryParam);
         }
 
         if (totalPages > currentPage)
         {
-            view.Next = collection.GenerateFlatCollectionViewNext(urlRoots, currentPage, pageSize, orderQueryParam);
-            view.Last = collection.GenerateFlatCollectionViewLast(urlRoots, totalPages, pageSize, orderQueryParam);
+            view.Next = pathGenerator.GenerateFlatCollectionViewNext(collection, currentPage, pageSize, orderQueryParam);
+            view.Last = pathGenerator.GenerateFlatCollectionViewLast(collection, totalPages, pageSize, orderQueryParam);
         }
 
         return view;

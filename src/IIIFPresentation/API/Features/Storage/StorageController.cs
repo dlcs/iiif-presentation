@@ -28,6 +28,7 @@ public class StorageController(
     IAuthenticator authenticator,
     PresentationContext dbContext,
     IOptions<ApiSettings> options,
+    IPathGenerator pathGenerator,
     IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
@@ -56,14 +57,14 @@ public class StorageController(
 
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                 {
-                    var relativeUrl = storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots());
+                    var relativeUrl = pathGenerator.GenerateFlatCollectionId(storageRoot.Collection);
                     relativeUrl = QueryHelpers.AddQueryString(relativeUrl, Request.Query);
                     return SeeOther(relativeUrl);
                 }
 
                 return storageRoot.StoredCollection == null
                     ? Content(
-                        storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+                        storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items).AsJson(),
                         ContentTypes.V3)
                     : Content(storageRoot.StoredCollection, ContentTypes.V3);
 

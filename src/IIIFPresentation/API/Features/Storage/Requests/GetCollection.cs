@@ -26,7 +26,8 @@ public class GetCollection(
     public bool Descending { get; } = descending;
 }
 
-public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandler<GetCollection, CollectionWithItems>
+public class GetCollectionHandler(PresentationContext dbContext, IPathGenerator pathGenerator) 
+    : IRequestHandler<GetCollection, CollectionWithItems>
 {
     public async Task<CollectionWithItems> Handle(GetCollection request,
         CancellationToken cancellationToken)
@@ -53,7 +54,7 @@ public class GetCollectionHandler(PresentationContext dbContext) : IRequestHandl
         }
         
         // We know the fullPath of parent collection so we can use that as the base for child items
-        items.ForEach(item => item.FullPath = item.GenerateFullPath(collection));
+        items.ForEach(item => item.FullPath = pathGenerator.GenerateFullPath(hierarchy, collection));
         
         return new CollectionWithItems(collection, items, total);
     }

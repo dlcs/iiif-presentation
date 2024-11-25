@@ -45,6 +45,7 @@ public class UpsertCollectionHandler(
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
     IIIFS3Service iiifS3,
+    IPathGenerator pathGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -78,7 +79,7 @@ public class UpsertCollectionHandler(
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
             // If full URI was used, verify it indeed is pointing to the resolved parent collection
-            if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots))
+            if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
                 return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
@@ -136,7 +137,7 @@ public class UpsertCollectionHandler(
                 if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 // If full URI was used, verify it indeed is pointing to the resolved parent collection
-                if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots)) 
+                if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator)) 
                     return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 parentId = parentCollection.Id;
@@ -196,15 +197,15 @@ public class UpsertCollectionHandler(
         foreach (var item in items)
         {
             // We know the fullPath of parent collection so we can use that as the base for child items 
-            item.FullPath = item.GenerateFullPath(databaseCollection);
+            item.FullPath = pathGenerator.GenerateFullPath(item, databaseCollection);
         }
 
         await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
             isStorageCollection, cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
-            request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
-            await items.ToListAsync(cancellationToken: cancellationToken));
+            settings.PageSize, DefaultCurrentPage, total,
+            await items.ToListAsync(cancellationToken: cancellationToken), pathGenerator);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
     }
@@ -214,7 +215,7 @@ public class UpsertCollectionHandler(
     {
         if (!isStorageCollection)
         {
-            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
                 cancellationToken);
         }
     }

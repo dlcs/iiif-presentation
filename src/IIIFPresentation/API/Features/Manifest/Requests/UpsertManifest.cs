@@ -1,4 +1,5 @@
 ﻿using API.Converters;
+using API.Helpers;
 using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
@@ -26,7 +27,7 @@ public class UpsertManifest(
     public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
-public class UpsertManifestHandler(ManifestService manifestService)
+public class UpsertManifestHandler(ManifestService manifestService, IPathGenerator pathGenerator)
     : IRequestHandler<UpsertManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(UpsertManifest request,
@@ -38,6 +39,7 @@ public class UpsertManifestHandler(ManifestService manifestService)
             request.CustomerId,
             request.PresentationManifest,
             request.RawRequestBody,
+            pathGenerator,
             request.UrlRoots);
 
         return manifestService.Upsert(upsertRequest, cancellationToken);
