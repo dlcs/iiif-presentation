@@ -90,6 +90,10 @@ public class PresentationContext : DbContext
             entity.Property(cp => cp.Label).HasColumnType("jsonb");
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
+
+            // TODO - add Asset
+            entity.HasKey(cp => new
+                { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder });
             
             entity
                 .HasOne(cp => cp.Manifest)

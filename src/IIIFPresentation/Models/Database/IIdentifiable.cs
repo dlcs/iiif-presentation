@@ -5,5 +5,7 @@ namespace Models.Database;
 /// </summary>
 public interface IIdentifiable
 {
-    string Id { get; set; }
+    string Id { get; }
+    
+    int CustomerId { get; }
 }

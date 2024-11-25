@@ -3,7 +3,7 @@
 public class ResultMessage<T, TEnum>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ResultStatus{T}" /> class.
+    /// Initializes a new instance of the <see cref="ResultMessage{T, TEnum}" /> class.
     /// </summary>
     /// <param name="value">The value.</param>
     /// <param name="type">A type used to generate an error</param>
@@ -16,7 +16,7 @@ public class ResultMessage<T, TEnum>
     }
     
     /// <summary>
-    /// Initializes a new instance of the <see cref="ResultStatus{T}" /> class.
+    /// Initializes a new instance of the <see cref="ResultMessage{T, TEnum}" /> class.
     /// </summary>
     /// <param name="value">The value.</param>
     /// <param name="message">A message related to the result</param>

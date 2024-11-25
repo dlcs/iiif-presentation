@@ -1,5 +1,4 @@
 ﻿using IIIF.Presentation.V3.Strings;
-using Models.API;
 using Models.Database.Collections;
 
 namespace Models.Database;
@@ -15,8 +14,11 @@ namespace Models.Database;
 public class CanvasPainting : IIdentifiable
 {
     /// <summary>
-    /// Unique identifier for this canvas
+    /// Unique identifier for canvas on a manifest.
     /// </summary>
+    /// <remarks>
+    /// There can be multiple rows with the same CanvasId and ManifestId (e.g. if there are multiple choices_
+    /// </remarks>
     public string Id { get; set; } = null!;
     
     /// <summary>
@@ -30,23 +32,26 @@ public class CanvasPainting : IIdentifiable
     public int CustomerId { get; set; }
 
     /// <summary>
-    /// A fully qualified external URI used when canvas_id is not managed; e.g., manifest was made externally.
+    /// A fully qualified external URI specific with "items" property;
     /// </summary>
+    /// <remarks>
+    /// This can be an externally managed Id (ie on a separate domain) or an id for another Canvas managed by
+    /// iiif-presentation
+    /// </remarks>
     public Uri? CanvasOriginalId { get; set; }
 
     /// <summary>
-    /// Canvas sequence order within a Manifest. This keeps incrementing for successive paintings 
-    /// on the same canvas, it is always >= number of canvases in the manifest. For most manifests, 
-    /// the number of rows equals the highest value of this. It stays the same for successive content 
-    /// resources within a Choice (see choice_order). It gets recalculated on a Manifest save by 
-    /// walking through the manifest.items, incrementing as we go.
+    /// 0-based Canvas sequence order within a Manifest. This keeps incrementing for successive paintings on the same
+    /// canvas, it is always >= number of canvases in the manifest. For most manifests, the number of rows equals the
+    /// highest value of this. It stays the same for successive content resources within a Choice (see choice_order). It
+    /// gets recalculated on a Manifest save by walking through the manifest.items, incrementing as we go.
     /// </summary>
     public int CanvasOrder { get; set; }
 
     /// <summary>
-    /// Normally null; a positive integer indicates that the asset is part of a Choice body. 
-    /// Multiple choice bodies share same value of order. When the successive content resources 
-    /// are items in a Choice body, canvas_order holds constant and this row increments.
+    /// 1-based. Normally null; a positive integer indicates that the asset is part of a Choice body. 
+    /// Multiple choice bodies share same value of canvas_order. When the successive content resources are items in a
+    /// Choice body, canvas_order holds constant and this row increments.
     /// </summary>
     public int? ChoiceOrder { get; set; }
 
@@ -63,8 +68,7 @@ public class CanvasPainting : IIdentifiable
     public LanguageMap? Label { get; set; }
 
     /// <summary>
-    /// Only needed if the canvas label is not to be the first asset label; 
-    /// multiple assets on a canvas use the first.
+    /// Only needed if the canvas label is not to be the first asset label; multiple assets on a canvas use the first.
     /// </summary>
     public LanguageMap? CanvasLabel { get; set; }
     
@@ -94,4 +98,36 @@ public class CanvasPainting : IIdentifiable
     /// Last modified date/time
     /// </summary>
     public DateTime Modified { get; set; }
+}
+
+public class CanvasPaintingEqualityComparer : IEqualityComparer<CanvasPainting>
+{
+    /// <summary>
+    /// Default instance of <see cref="CanvasPaintingEqualityComparer"/>
+    /// </summary>
+    public static readonly CanvasPaintingEqualityComparer Instance = new();
+    
+    public bool Equals(CanvasPainting? x, CanvasPainting? y)
+    {
+        if (ReferenceEquals(x, y)) return true;
+        if (x is null) return false;
+        if (y is null) return false;
+        if (x.GetType() != y.GetType()) return false;
+        return string.Equals(x.Id, y.Id, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(x.ManifestId, y.ManifestId, StringComparison.OrdinalIgnoreCase) &&
+               x.CustomerId == y.CustomerId && Equals(x.CanvasOriginalId, y.CanvasOriginalId) &&
+               x.CanvasOrder == y.CanvasOrder && x.ChoiceOrder == y.ChoiceOrder;
+    }
+
+    public int GetHashCode(CanvasPainting obj)
+    {
+        var hashCode = new HashCode();
+        hashCode.Add(obj.Id, StringComparer.OrdinalIgnoreCase);
+        hashCode.Add(obj.ManifestId, StringComparer.OrdinalIgnoreCase);
+        hashCode.Add(obj.CustomerId);
+        hashCode.Add(obj.CanvasOriginalId);
+        hashCode.Add(obj.CanvasOrder);
+        hashCode.Add(obj.ChoiceOrder);
+        return hashCode.ToHashCode();
+    }
 }
