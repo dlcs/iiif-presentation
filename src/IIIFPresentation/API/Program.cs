@@ -56,7 +56,7 @@ builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
     .AddSingleton<IPathGenerator, PathGenerator>()
-    .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()
+    .AddHttpContextAccessor()
     .AddScoped<ManifestService>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();

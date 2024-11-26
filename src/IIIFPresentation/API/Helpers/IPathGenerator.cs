@@ -6,10 +6,19 @@ namespace API.Helpers;
 
 public interface IPathGenerator
 {
+    /// <summary>
+    /// Get a hierarchical id for the current collection
+    /// </summary>
     public string GenerateHierarchicalCollectionId(Collection collection);
 
+    /// <summary>
+    /// Get the hierarchical id for the parent of a collection
+    /// </summary>
     public string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy);
 
+    /// <summary>
+    /// Get the flat id for the current collection
+    /// </summary>
     public string GenerateFlatCollectionId(Collection collection);
 
     /// <summary>
@@ -27,17 +36,32 @@ public interface IPathGenerator
     /// </summary>
     public string GenerateFlatParentId(Hierarchy hierarchy);
 
+    /// <summary>
+    /// Get the view id for the current collection
+    /// </summary>
     public string GenerateFlatCollectionViewId(Collection collection, int currentPage, int pageSize,
         string? orderQueryParam);
 
+    /// <summary>
+    /// Get the next id for the current collection view
+    /// </summary>
     public Uri GenerateFlatCollectionViewNext(Collection collection, int currentPage, int pageSize,
         string orderQueryParam);
 
+    /// <summary>
+    /// Get the previous id for the current collection view
+    /// </summary>
     public Uri GenerateFlatCollectionViewPrevious(Collection collection, int currentPage, int pageSize,
         string orderQueryParam);
 
+    /// <summary>
+    /// Get the first id for the current collection view
+    /// </summary>
     public Uri GenerateFlatCollectionViewFirst(Collection collection, int pageSize, string orderQueryParam);
 
+    /// <summary>
+    /// Get the last id for the current collection view
+    /// </summary>
     public Uri GenerateFlatCollectionViewLast(Collection collection, int lastPage, int pageSize,
         string orderQueryParam);
 
