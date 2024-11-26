@@ -12,13 +12,12 @@ namespace API.Features.Manifest.Requests;
 public class CreateManifest(
     int customerId,
     PresentationManifest presentationManifest,
-    string rawRequestBody,
-    UrlRoots urlRoots) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    string rawRequestBody) 
+    : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class CreateManifestHandler(
@@ -30,8 +29,7 @@ public class CreateManifestHandler(
     {
         var upsertRequest = new WriteManifestRequest(request.CustomerId, 
             request.PresentationManifest,
-            request.RawRequestBody,
-            request.UrlRoots);
+            request.RawRequestBody);
 
         return manifestService.Create(upsertRequest, cancellationToken);
     }

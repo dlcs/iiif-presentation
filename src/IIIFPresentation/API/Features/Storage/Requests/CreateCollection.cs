@@ -22,7 +22,7 @@ using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody, UrlRoots urlRoots)
+public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
@@ -30,8 +30,6 @@ public class CreateCollection(int customerId, PresentationCollection collection,
     public PresentationCollection? Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class CreateCollectionHandler(
@@ -119,8 +117,8 @@ public class CreateCollectionHandler(
             return saveErrors;
         }
 
-        await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
-            isStorageCollection, cancellationToken);
+        await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, isStorageCollection,
+            cancellationToken);
 
         if (hierarchy.Parent != null)
         {
@@ -137,7 +135,7 @@ public class CreateCollectionHandler(
     }
 
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
-        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+        bool isStorageCollection, CancellationToken cancellationToken = default)
     {
         if (!isStorageCollection)
         {

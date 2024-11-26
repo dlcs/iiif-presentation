@@ -15,13 +15,11 @@ using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetHierarchicalCollection(Hierarchy hierarchy, string slug, UrlRoots urlRoots)
+public class GetHierarchicalCollection(Hierarchy hierarchy, string slug)
     : IRequest<CollectionWithItems>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
     public string Slug { get; } = slug;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class GetHierarchicalCollectionHandler(

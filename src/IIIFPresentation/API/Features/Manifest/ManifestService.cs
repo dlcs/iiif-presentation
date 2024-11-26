@@ -28,9 +28,7 @@ public record UpsertManifestRequest(
     string? Etag,
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    IPathGenerator PathGenerator,
-    UrlRoots UrlRoots) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, UrlRoots);
+    string RawRequestBody) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody);
 
 /// <summary>
 /// Record containing fields for creating a Manifest
@@ -38,8 +36,7 @@ public record UpsertManifestRequest(
 public record WriteManifestRequest(
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    UrlRoots UrlRoots);
+    string RawRequestBody);
 
 /// <summary>
 /// Service to help with creation of manifests
@@ -120,7 +117,6 @@ public class ManifestService(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var manifest = request.PresentationManifest;
-        var urlRoots = request.UrlRoots;;
         var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         

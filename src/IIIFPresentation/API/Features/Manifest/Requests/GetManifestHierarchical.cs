@@ -12,14 +12,9 @@ using Repository.Helpers;
 
 namespace API.Features.Manifest.Requests;
 
-public class GetManifestHierarchical(
-    Hierarchy hierarchy,
-    string slug,
-    UrlRoots urlRoots) : IRequest<string?>
+public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<string?>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
-    public string Slug { get; } = slug;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class GetManifestHierarchicalHandler(

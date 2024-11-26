@@ -46,12 +46,12 @@ public class StorageController(
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                     return hierarchy.ManifestId == null ? NotFound() : SeeOther($"manifests/{hierarchy.ManifestId}");
 
-                var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy, slug, GetUrlRoots()));
+                var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
                 return storedManifest == null ? NotFound() : Content(storedManifest, ContentTypes.V3);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
-                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug, GetUrlRoots()));
+                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug));
 
                 if (storageRoot.Collection is not {IsPublic: true}) return this.PresentationNotFound();
 
@@ -80,6 +80,6 @@ public class StorageController(
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
+        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, rawRequestBody));
     }
 }

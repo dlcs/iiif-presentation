@@ -21,14 +21,11 @@ namespace API.Features.Storage.Requests;
 public class PostHierarchicalCollection(
     int customerId,
     string slug, 
-    UrlRoots urlRoots,
     string rawRequestBody) : IRequest<ModifyEntityResult<Collection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
     public string Slug { get; } = slug;
-    
-    public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string RawRequestBody { get; } = rawRequestBody;
 }

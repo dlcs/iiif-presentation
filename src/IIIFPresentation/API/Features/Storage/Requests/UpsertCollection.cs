@@ -23,8 +23,8 @@ using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, UrlRoots urlRoots, 
-    string? eTag, string rawRequestBody)
+public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, string? eTag, 
+    string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
@@ -32,8 +32,6 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
     public string CollectionId { get; set; } = collectionId;
 
     public PresentationCollection Collection { get; } = collection;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string? ETag { get; set; } = eTag;
     
@@ -200,8 +198,8 @@ public class UpsertCollectionHandler(
             item.FullPath = pathGenerator.GenerateFullPath(item, databaseCollection);
         }
 
-        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
-            isStorageCollection, cancellationToken);
+        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, isStorageCollection,
+            cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
             settings.PageSize, DefaultCurrentPage, total,
@@ -211,7 +209,7 @@ public class UpsertCollectionHandler(
     }
     
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
-        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+        bool isStorageCollection, CancellationToken cancellationToken = default)
     {
         if (!isStorageCollection)
         {

@@ -16,15 +16,13 @@ public class UpsertManifest(
     string manifestId,
     StringValues etag,
     PresentationManifest presentationManifest,
-    string rawRequestBody,
-    UrlRoots urlRoots) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    string rawRequestBody) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
     public string? Etag { get; } = etag.ToString();
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class UpsertManifestHandler(ManifestService manifestService, IPathGenerator pathGenerator)
@@ -38,9 +36,7 @@ public class UpsertManifestHandler(ManifestService manifestService, IPathGenerat
             request.Etag,
             request.CustomerId,
             request.PresentationManifest,
-            request.RawRequestBody,
-            pathGenerator,
-            request.UrlRoots);
+            request.RawRequestBody);
 
         return manifestService.Upsert(upsertRequest, cancellationToken);
     }

@@ -70,8 +70,7 @@ public class CollectionController(
         if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new CreateCollection(customerId,
-            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody,
-            GetUrlRoots()));
+            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody));
     }
 
     [Authorize]
@@ -84,7 +83,7 @@ public class CollectionController(
         if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
-            deserializeValidationResult.ConvertedIIIF, GetUrlRoots(), Request.Headers.IfMatch,
+            deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
             deserializeValidationResult.RawRequestBody));
     }
 

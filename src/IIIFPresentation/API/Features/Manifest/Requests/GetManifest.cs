@@ -13,13 +13,11 @@ namespace API.Features.Manifest.Requests;
 public class GetManifest(
     int customerId,
     string id,
-    bool pathOnly,
-    UrlRoots urlRoots) : IRequest<FetchEntityResult<PresentationManifest>>
+    bool pathOnly) : IRequest<FetchEntityResult<PresentationManifest>>
 {
     public int CustomerId { get; } = customerId;
     public string Id { get; } = id;
     public bool PathOnly { get; } = pathOnly;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class GetManifestHandler(
