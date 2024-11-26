@@ -484,6 +484,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         hierarchy.Canonical.Should().BeTrue();
         canvasPainting.Id.Should().NotBeNullOrEmpty();
         canvasPainting.CanvasOriginalId.Should().Be("https://iiif.example/CreateManifest_CreatedDBRecord.json");
+        canvasPainting.CanvasOrder.Should().Be(1);
+        canvasPainting.ChoiceOrder.Should().BeNull();
     }
     
     [Fact]

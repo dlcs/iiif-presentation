@@ -87,13 +87,24 @@ public class PresentationContext : DbContext
 
         modelBuilder.Entity<CanvasPainting>(entity =>
         {
+            entity.HasKey(cp => cp.CanvasPaintingId);
+
+            entity.Property(cp => cp.Id).HasColumnName("canvas_id");
             entity.Property(cp => cp.Label).HasColumnType("jsonb");
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
 
+            // ChoiceOrder is nullable in Entity but not in DB, to ease use in unique constraint, so use field
+            // 'internalChoiceOrder' for EF read/write
+            entity.Property(cp => cp.ChoiceOrder)
+                .IsRequired()
+                .HasField("internalChoiceOrder")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
             // TODO - add Asset
-            entity.HasKey(cp => new
-                { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder });
+            entity.HasIndex(cp => new
+                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
+                .IsUnique();
             
             entity
                 .HasOne(cp => cp.Manifest)

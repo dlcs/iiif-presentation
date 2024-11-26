@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20241125173610_Add canvasPaintings")]
+    [Migration("20241126165909_Add canvasPaintings")]
     partial class AddcanvasPaintings
     {
         /// <inheritdoc />
@@ -28,33 +28,29 @@ namespace Repository.Migrations
 
             modelBuilder.Entity("Models.Database.CanvasPainting", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
-                        .HasColumnName("id");
-
-                    b.Property<int>("CustomerId")
+                    b.Property<int>("CanvasPaintingId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("customer_id");
+                        .HasColumnName("canvas_painting_id");
 
-                    b.Property<string>("ManifestId")
-                        .HasColumnType("text")
-                        .HasColumnName("manifest_id");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CanvasPaintingId"));
 
-                    b.Property<string>("CanvasOriginalId")
+                    b.Property<string>("CanvasLabel")
                         .HasColumnType("text")
-                        .HasColumnName("canvas_original_id");
+                        .HasColumnName("canvas_label");
 
                     b.Property<int>("CanvasOrder")
                         .HasColumnType("integer")
                         .HasColumnName("canvas_order");
 
+                    b.Property<string>("CanvasOriginalId")
+                        .HasColumnType("text")
+                        .HasColumnName("canvas_original_id");
+
                     b.Property<int?>("ChoiceOrder")
+                        .IsRequired()
                         .HasColumnType("integer")
                         .HasColumnName("choice_order");
-
-                    b.Property<string>("CanvasLabel")
-                        .HasColumnType("text")
-                        .HasColumnName("canvas_label");
 
                     b.Property<DateTime>("Created")
                         .ValueGeneratedOnAdd()
@@ -62,9 +58,22 @@ namespace Repository.Migrations
                         .HasColumnName("created")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("canvas_id");
+
                     b.Property<string>("Label")
                         .HasColumnType("jsonb")
                         .HasColumnName("label");
+
+                    b.Property<string>("ManifestId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("manifest_id");
 
                     b.Property<DateTime>("Modified")
                         .ValueGeneratedOnAdd()
@@ -88,11 +97,15 @@ namespace Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("thumbnail");
 
-                    b.HasKey("Id", "CustomerId", "ManifestId", "CanvasOriginalId", "CanvasOrder", "ChoiceOrder")
+                    b.HasKey("CanvasPaintingId")
                         .HasName("pk_canvas_paintings");
 
                     b.HasIndex("ManifestId", "CustomerId")
                         .HasDatabaseName("ix_canvas_paintings_manifest_id_customer_id");
+
+                    b.HasIndex("Id", "CustomerId", "ManifestId", "CanvasOriginalId", "CanvasOrder", "ChoiceOrder")
+                        .IsUnique()
+                        .HasDatabaseName("ix_canvas_paintings_canvas_id_customer_id_manifest_id_canvas_o");
 
                     b.ToTable("canvas_paintings", (string)null);
                 });

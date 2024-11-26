@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -15,10 +16,12 @@ namespace Repository.Migrations
                 name: "canvas_paintings",
                 columns: table => new
                 {
-                    id = table.Column<string>(type: "text", nullable: false),
+                    canvas_painting_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    canvas_id = table.Column<string>(type: "text", nullable: true),
                     manifest_id = table.Column<string>(type: "text", nullable: false),
                     customer_id = table.Column<int>(type: "integer", nullable: false),
-                    canvas_original_id = table.Column<string>(type: "text", nullable: false),
+                    canvas_original_id = table.Column<string>(type: "text", nullable: true),
                     canvas_order = table.Column<int>(type: "integer", nullable: false),
                     choice_order = table.Column<int>(type: "integer", nullable: false),
                     thumbnail = table.Column<string>(type: "text", nullable: true),
@@ -32,7 +35,7 @@ namespace Repository.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_canvas_paintings", x => new { x.id, x.customer_id, x.manifest_id, x.canvas_original_id, x.canvas_order, x.choice_order });
+                    table.PrimaryKey("pk_canvas_paintings", x => x.canvas_painting_id);
                     table.ForeignKey(
                         name: "fk_canvas_paintings_manifests_manifest_id_customer_id",
                         columns: x => new { x.manifest_id, x.customer_id },
@@ -40,6 +43,12 @@ namespace Repository.Migrations
                         principalColumns: new[] { "id", "customer_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_canvas_paintings_canvas_id_customer_id_manifest_id_canvas_o",
+                table: "canvas_paintings",
+                columns: new[] { "canvas_id", "customer_id", "manifest_id", "canvas_original_id", "canvas_order", "choice_order" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_canvas_paintings_manifest_id_customer_id",
