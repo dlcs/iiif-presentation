@@ -1,7 +1,8 @@
 ﻿using API.Infrastructure.IdGenerator;
+using Microsoft.Extensions.Logging.Abstractions;
 using Sqids;
 
-namespace API.Tests.Infrastructure;
+namespace API.Tests.Infrastructure.IdGenerator;
 
 public class SqidsGeneratorTests
 {
@@ -11,7 +12,7 @@ public class SqidsGeneratorTests
     public SqidsGeneratorTests()
     {
         sqidsEncoder = new SqidsEncoder<long>();
-        sqidsGenerator = new SqidsGenerator(sqidsEncoder);
+        sqidsGenerator = new SqidsGenerator(sqidsEncoder, new NullLogger<SqidsGenerator>());
     }
 
     [Fact]

@@ -17,6 +17,11 @@ public class PresentationContextFixture : IAsyncLifetime
     public PresentationContext DbContext { get; private set; }
     public string ConnectionString { get; private set; }
     
+    /// <summary>
+    /// Identity of default seeded customer
+    /// </summary>
+    public const int CustomerId = 1;
+    
     public PresentationContextFixture()
     {
         var postgresBuilder = new PostgreSqlBuilder()
@@ -57,7 +62,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Hierarchy =
             [
                 new Hierarchy
@@ -85,7 +90,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Hierarchy =
             [
                 new Hierarchy
@@ -114,7 +119,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Hierarchy =
             [
                 new Hierarchy
@@ -143,7 +148,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = false,
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Hierarchy =
             [
                 new Hierarchy
@@ -172,7 +177,7 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = false,
             IsPublic = true,
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Hierarchy =
             [
                 new Hierarchy
@@ -189,7 +194,7 @@ public class PresentationContextFixture : IAsyncLifetime
         await DbContext.Manifests.AddAsync(new Manifest
         {
             Id = "FirstChildManifest",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
