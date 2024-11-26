@@ -35,11 +35,11 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
                 if (body is PaintingChoice choice)
                 {
                     logger.LogTrace("Canvas {CanvasOrder}:'{CanvasId}' is a choice", canvasOrder, canvas.Id);
-                    int choiceCanvasOrder = canvasOrder;
-                    bool first = true;
+                    var choiceCanvasOrder = canvasOrder;
+                    var first = true;
 
                     // (not -1; "a positive integer indicates that the asset is part of a Choice body.")
-                    int choiceOrder = 1;
+                    var choiceOrder = 1;
 
                     foreach (var choiceItem in choice.Items ?? [])
                     {
@@ -71,10 +71,10 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
                         }
                         else
                         {
-                            logger.LogError("Canvas {CanvasOrder}:'{CanvasId}' not supported", canvasOrder, canvas.Id);
                             // body could be a Canvas - will need to handle that eventually but not right now
                             // It is handled by unpacking the canvas into another loop through this
-                            throw new NotImplementedException("Not yet support canvases as painting anno bodies");
+                            logger.LogError("Canvas {CanvasOrder}:'{CanvasId}' not supported", canvasOrder, canvas.Id);
+                            throw new NotImplementedException("Support for canvases as painting anno bodies not implemented");
                         }
                     }
                 }
@@ -118,6 +118,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
         return resource;
     }
 
+    // TODO - should these be elsewhere? Somewhere that can handle updates too? 
     private CanvasPainting CreatePartialCanvasPainting(ResourceBase resource,
         string? canvasOriginalId,
         int canvasOrder,

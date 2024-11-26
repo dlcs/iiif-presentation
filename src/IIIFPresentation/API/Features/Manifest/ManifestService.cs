@@ -9,12 +9,16 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
+using Core.Helpers;
 using IIIF.Serialisation;
+using Microsoft.EntityFrameworkCore;
 using Models.API.Manifest;
+using Models.Database;
 using Models.Database.General;
 using Repository;
 using Repository.Manifests;
 using Repository.Helpers;
+using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -46,7 +50,7 @@ public record WriteManifestRequest(
 /// </summary>
 public class ManifestService(
     PresentationContext dbContext,
-    IIdGenerator idGenerator,
+    IdentityManager identityManager,
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
     ManifestItemsParser manifestItemsParser,
@@ -58,7 +62,7 @@ public class ManifestService(
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
         var existingManifest =
-            await dbContext.Manifests.Retrieve(request.CustomerId, request.ManifestId, true, cancellationToken);
+            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, cancellationToken);
 
         if (existingManifest == null)
         {
@@ -121,7 +125,7 @@ public class ManifestService(
     {
         var manifest = request.PresentationManifest;
         var urlRoots = request.UrlRoots;;
-        var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         
         // Validation
@@ -135,16 +139,35 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var id = requestedId ?? await GenerateUniqueId(request, cancellationToken);
+        var id = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
         // All CanvasPaintings will be new so set a new identifier on each
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
-        foreach (var cp in canvasPaintings)
+        // TODO - do I need this??
+        if (canvasPaintings.Any())
         {
-            var cpId = await GenerateUniqueId(request, cancellationToken);
-            if (cpId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-            cp.Id = cpId;
+            // TODO - make this logic shared for Create and Update
+            var requiredIds = canvasPaintings.DistinctBy(c => c.CanvasOrder).Count();
+            var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, request, cancellationToken);
+            if (canvasPaintingIds.IsNullOrEmpty())
+                return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+
+            var canvasIds = new Dictionary<int, string>(requiredIds);
+            int count = 0;
+            foreach (var cp in canvasPaintings)
+            {
+                // CanvasPainting records that have the same CanvasOrder will share the same CanvasId 
+                if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
+                {
+                    cp.Id = canvasOrderId;
+                    continue;
+                }
+
+                var canvasId = canvasPaintingIds[count++];
+                canvasIds[cp.CanvasOrder] = canvasId;
+                cp.Id = canvasId;
+            }
         }
 
         var timeStamp = DateTime.UtcNow;
@@ -168,9 +191,9 @@ public class ManifestService(
             ],
             CanvasPaintings = canvasPaintings,
         };
-
-        dbContext.Add(dbManifest);
         
+        await dbContext.AddAsync(dbManifest, cancellationToken);
+
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
@@ -202,11 +225,14 @@ public class ManifestService(
         return null;
     }
 
-    private async Task<string?> GenerateUniqueId(WriteManifestRequest request, CancellationToken cancellationToken)
+    private async Task<string?> GenerateUniqueManifestId(WriteManifestRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return await dbContext.Manifests.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+            // TODO - a bulk version of this for multiple CanvasPaintings?
+            // TODO this can't be done for CanvasId. CanvasId needs to be unique but there can be multiple rows
+            return await identityManager.GenerateUniqueId<DbManifest>(request.CustomerId, cancellationToken);
         }
         catch (ConstraintException ex)
         {
@@ -216,6 +242,24 @@ public class ManifestService(
         }
     }
     
+    private async Task<IList<string>?> GenerateUniqueCanvasPaintingIds(int count, WriteManifestRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // TODO - a bulk version of this for multiple CanvasPaintings?
+            // TODO this can't be done for CanvasId. CanvasId needs to be unique but there can be multiple rows
+            return await identityManager.GenerateUniqueIds<CanvasPainting>(request.CustomerId, count,
+                cancellationToken);
+        }
+        catch (ConstraintException ex)
+        {
+            logger.LogError(ex, "Unable to generate unique CanvasPainting ids for customer {CustomerId}",
+                request.CustomerId);
+            return null;
+        }
+    }
+
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
