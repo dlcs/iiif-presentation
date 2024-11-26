@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Helpers;
+using API.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -9,17 +10,7 @@ namespace API.Tests.Converters;
 
 public class ManifestConverterTests
 {
-    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
-    {
-        HttpContext = new DefaultHttpContext()
-        {
-            Request =
-            {
-                Scheme = Uri.UriSchemeHttp,
-                Host = new HostString("base")
-            }
-        }
-    });
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
     
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()

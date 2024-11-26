@@ -15,7 +15,6 @@ public static class PresentationCollectionX
     /// </summary>
     /// <param name="presentationCollection">The presentation collection to enrich</param>
     /// <param name="collection">The collection to use for enrichment</param>
-    /// <param name="urlRoots">URL details</param>
     /// <param name="pageSize">Size of the page</param>
     /// <param name="currentPage">The current page of items</param>
     /// <param name="totalItems">The total number of items</param>

@@ -146,7 +146,6 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="hierarchy">The hierarchy to use to generate</param>
     /// <param name="collection">The collection required</param>
-    /// <param name="urlRoots">The URL</param>
     /// <param name="pathGenerator">Class used to generate paths for collections</param>
     /// <returns>A list of ResourceBase</returns>
     public static List<ResourceBase>? GeneratePartOf(Hierarchy hierarchy, Models.Database.Collections.Collection collection, 
@@ -168,7 +167,6 @@ public static class CollectionConverter
     /// Generates the SeeAlso part of a collection
     /// </summary>
     /// <param name="collection">The collection to use in generation</param>
-    /// <param name="urlRoots">The URL</param>
     /// <param name="pathGenerator">Generates paths for collections</param>
     /// <returns>A list of external resources</returns>
     public static List<ExternalResource> GenerateSeeAlso(Models.Database.Collections.Collection collection, 

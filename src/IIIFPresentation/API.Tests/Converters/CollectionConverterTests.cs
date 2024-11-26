@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Helpers;
+using API.Tests.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.AspNetCore.Http;
 using Models.Database.Collections;
@@ -13,17 +14,7 @@ public class CollectionConverterTests
 {
     private const int pageSize = 100;
     
-    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
-    {
-        HttpContext = new DefaultHttpContext()
-        {
-            Request =
-            {
-                Scheme = Uri.UriSchemeHttp,
-                Host = new HostString("base")
-            }
-        }
-    });
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
 
     [Fact]
     public void ToHierarchicalCollection_ConvertsStorageCollection()

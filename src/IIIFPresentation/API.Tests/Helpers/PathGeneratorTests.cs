@@ -7,17 +7,7 @@ namespace API.Tests.Helpers;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
-    {
-        HttpContext = new DefaultHttpContext()
-        {
-            Request = 
-            { 
-                Scheme = Uri.UriSchemeHttp,
-                Host = new HostString("base") 
-            }
-        }
-    });
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
 
     [Fact]
     public void GenerateHierarchicalCollectionId_CreatesIdWhenNoFullPath()

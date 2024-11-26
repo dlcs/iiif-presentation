@@ -16,7 +16,6 @@ public static class ManifestConverter
     /// </summary>
     /// <param name="iiifManifest">Presentation Manifest to update</param>
     /// <param name="dbManifest">Database Manifest</param>
-    /// <param name="urlRoots">Current UrlRoots instance</param>
     /// <param name="pathGenerator">used to generate paths</param>
     /// <param name="hierarchyFactory">
     /// Optional factory to specify <see cref="Hierarchy"/> to use to get Parent and Slug. Defaults to using .Single()

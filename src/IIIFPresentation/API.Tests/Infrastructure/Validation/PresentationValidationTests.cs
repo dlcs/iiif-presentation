@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Helpers;
 using API.Infrastructure.Validation;
+using API.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Models.API;
 using Models.Database.Collections;
@@ -9,17 +10,7 @@ namespace API.Tests.Infrastructure.Validation;
 
 public class PresentationValidationTests
 {
-    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
-    {
-        HttpContext = new DefaultHttpContext()
-        {
-            Request =
-            {
-                Scheme = Uri.UriSchemeHttps,
-                Host = new HostString("api.tests")
-            }
-        }
-    });
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("api.tests", Uri.UriSchemeHttps);
     
     [Fact]
     public void IsUriParentInvalid_False_IfNotUri()

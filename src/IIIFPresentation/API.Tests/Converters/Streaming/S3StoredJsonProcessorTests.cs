@@ -2,6 +2,7 @@
 using API.Converters;
 using API.Converters.Streaming;
 using API.Helpers;
+using API.Tests.Helpers;
 using LateApexEarlySpeed.Xunit.Assertion.Json;
 using Microsoft.AspNetCore.Http;
 using Models.Database.General;
@@ -10,17 +11,7 @@ namespace API.Tests.Converters.Streaming;
 
 public class S3StoredJsonProcessorTests
 {
-    private readonly IPathGenerator pathGenerator = new PathGenerator(new HttpContextAccessor()
-    {
-        HttpContext = new DefaultHttpContext()
-        {
-            Request =
-            {
-                Scheme = Uri.UriSchemeHttp,
-                Host = new HostString("localhost")
-            }
-        }
-    });
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("localhost", Uri.UriSchemeHttp);
 
     [Fact]
     public void ProcessJson_ChangesTopLevelId()
