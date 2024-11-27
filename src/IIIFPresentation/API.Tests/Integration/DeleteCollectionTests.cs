@@ -16,7 +16,7 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Program>>
+public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
 {
     private readonly HttpClient httpClient;
 
