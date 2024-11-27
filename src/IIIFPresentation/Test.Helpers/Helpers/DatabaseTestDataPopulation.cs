@@ -2,6 +2,7 @@
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -63,5 +64,57 @@ public static class DatabaseTestDataPopulation
                 }
             ]
         });
+    }
+
+    public static ValueTask<EntityEntry<CanvasPainting>> AddTestCanvasPainting(
+        this DbSet<CanvasPainting> canvasPaintings, Manifest manifest, string? id = null, int? canvasOrder = null,
+        int? choiceOrder = null, DateTime? createdDate = null, int? width = null, int? height = null,
+        Uri? canvasOriginalId = null)
+    {
+        createdDate ??= DateTime.UtcNow;
+        manifest.CanvasPaintings ??= [];
+
+        var canvasPaintingsCount = manifest.CanvasPaintings.Count;
+        var canvasPainting = new CanvasPainting
+        {
+            Id = string.IsNullOrEmpty(id) ? $"{manifest}_{canvasPaintingsCount + 1}" : id,
+            CanvasOrder = canvasOrder ?? canvasPaintingsCount,
+            ChoiceOrder = choiceOrder,
+            Created = createdDate.Value,
+            Modified = createdDate.Value,
+            StaticHeight = height,
+            StaticWidth = width,
+            CanvasOriginalId = canvasOriginalId,
+            CustomerId = manifest.CustomerId,
+            ManifestId = manifest.Id,
+        };
+        manifest.CanvasPaintings.Add(canvasPainting);
+        return canvasPaintings.AddAsync(canvasPainting);
+    }
+
+    public static CanvasPainting WithCanvasPainting(this EntityEntry<Manifest> entry,
+        string? id = null, int? canvasOrder = null, int? choiceOrder = null, DateTime? createdDate = null,
+        int? width = null, int? height = null, Uri? canvasOriginalId = null)
+    {
+        createdDate ??= DateTime.UtcNow;
+        var manifest = entry.Entity;
+        manifest.CanvasPaintings ??= [];
+
+        var canvasPaintingsCount = manifest.CanvasPaintings.Count;
+        var canvasPainting = new CanvasPainting
+        {
+            Id = string.IsNullOrEmpty(id) ? $"{manifest}_{canvasPaintingsCount + 1}" : id,
+            CanvasOrder = canvasOrder ?? canvasPaintingsCount,
+            ChoiceOrder = choiceOrder,
+            Created = createdDate.Value,
+            Modified = createdDate.Value,
+            StaticHeight = height,
+            StaticWidth = width,
+            CanvasOriginalId = canvasOriginalId,
+            CustomerId = manifest.CustomerId,
+            ManifestId = manifest.Id,
+        };
+        manifest.CanvasPaintings.Add(canvasPainting);
+        return canvasPainting;
     }
 }

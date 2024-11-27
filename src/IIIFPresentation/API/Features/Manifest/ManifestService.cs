@@ -107,17 +107,18 @@ public class ManifestService(
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
-        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, updating", request.ManifestId,
-            request.CustomerId);
+        using (logger.BeginScope("Manifest {ManifestId} for Customer {CustomerId} exists, updating",
+                   request.ManifestId, request.CustomerId))
+        {
+            var (error, dbManifest) =
+                await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
+            if (error != null) return error;
 
-        var (error, dbManifest) =
-            await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
-        if (error != null) return error; 
+            await SaveToS3(dbManifest!, request, cancellationToken);
 
-        await SaveToS3(dbManifest!, request, cancellationToken);
-        
-        return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
+            return PresUpdateResult.Success(
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
+        }
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
@@ -141,8 +142,7 @@ public class ManifestService(
     {
         var id = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
-        // All CanvasPaintings will be new so set a new identifier on each
+        
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
         // TODO - do I need this??
         if (canvasPaintings.Any())
@@ -201,6 +201,77 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         Collection parentCollection, DbManifest existingManifest, CancellationToken cancellationToken)
     {
+        var incomingCanvasPaintings =
+            manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
+        
+        existingManifest.CanvasPaintings ??= new List<CanvasPainting>();
+        
+        // Iterate through all incoming - this is what we want to preserve in DB
+        var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
+        var toInsert = new List<CanvasPainting>();
+        foreach (var incoming in incomingCanvasPaintings)
+        {
+            var matching =
+                existingManifest.CanvasPaintings.SingleOrDefault(cp =>
+                    cp.CanvasOriginalId == incoming.CanvasOriginalId);
+
+            // If it's not in DB, create...
+            if (matching == null)
+            {
+                // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
+                toInsert.Add(incoming);
+            }
+            else
+            {
+                // Found matching DB record, update..
+                logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
+                matching.Label = incoming.Label;
+                matching.CanvasLabel = incoming.CanvasLabel;
+                matching.CanvasOrder = incoming.CanvasOrder;
+                matching.ChoiceOrder = incoming.ChoiceOrder;
+                matching.Thumbnail = incoming.Thumbnail;
+                matching.StaticHeight = incoming.StaticHeight;
+                matching.StaticWidth = incoming.StaticWidth;
+                matching.Target = incoming.Target;
+                matching.Modified = DateTime.UtcNow;
+                processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
+            }
+        }
+
+        foreach (var toRemove in existingManifest.CanvasPaintings
+                     .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
+        {
+            logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
+            existingManifest.CanvasPaintings.Remove(toRemove);
+        }
+
+        if (toInsert.Count > 0)
+        {
+            // TODO - make this logic shared for Create and Update
+            logger.LogTrace("Adding {CanvasCounts} to Manifest", toInsert.Count);
+            var requiredIds = toInsert.DistinctBy(c => c.CanvasOrder).Count();
+            var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, request, cancellationToken);
+            if (canvasPaintingIds.IsNullOrEmpty())
+                return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+
+            var canvasIds = new Dictionary<int, string>(requiredIds);
+            int count = 0;
+            foreach (var cp in toInsert)
+            {
+                // CanvasPainting records that have the same CanvasOrder will share the same CanvasId 
+                if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
+                {
+                    cp.Id = canvasOrderId;
+                    continue;
+                }
+
+                var canvasId = canvasPaintingIds[count++];
+                canvasIds[cp.CanvasOrder] = canvasId;
+                cp.Id = canvasId;
+            }
+            existingManifest.CanvasPaintings.AddRange(toInsert);
+        }
+        
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
         existingManifest.Label = request.PresentationManifest.Label;
