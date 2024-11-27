@@ -15,7 +15,6 @@ namespace API.Tests.Integration;
 public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    private const int TotalDatabaseChildItems = 4;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -32,7 +31,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange and Act
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/FirstChildManifest");
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
 
