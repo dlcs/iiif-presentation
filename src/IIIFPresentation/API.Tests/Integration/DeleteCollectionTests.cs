@@ -10,6 +10,7 @@ using Models.Infrastucture;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Test.Helpers.Integration.Infrastructure;
 
 namespace API.Tests.Integration;
 
