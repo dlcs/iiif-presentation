@@ -69,7 +69,7 @@ public static class DatabaseTestDataPopulation
     public static ValueTask<EntityEntry<CanvasPainting>> AddTestCanvasPainting(
         this DbSet<CanvasPainting> canvasPaintings, Manifest manifest, string? id = null, int? canvasOrder = null,
         int? choiceOrder = null, DateTime? createdDate = null, int? width = null, int? height = null,
-        Uri? canvasOriginalId = null)
+        Uri? canvasOriginalId = null, LanguageMap? label = null)
     {
         createdDate ??= DateTime.UtcNow;
         manifest.CanvasPaintings ??= [];
@@ -87,6 +87,7 @@ public static class DatabaseTestDataPopulation
             CanvasOriginalId = canvasOriginalId,
             CustomerId = manifest.CustomerId,
             ManifestId = manifest.Id,
+            Label = label,
         };
         manifest.CanvasPaintings.Add(canvasPainting);
         return canvasPaintings.AddAsync(canvasPainting);

@@ -11,9 +11,7 @@ using API.Infrastructure.Validation;
 using Core;
 using Core.Helpers;
 using IIIF.Serialisation;
-using Microsoft.EntityFrameworkCore;
 using Models.API.Manifest;
-using Models.Database;
 using Models.Database.General;
 using Repository;
 using Repository.Manifests;
@@ -144,32 +142,9 @@ public class ManifestService(
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
         
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
-        // TODO - do I need this??
-        if (canvasPaintings.Any())
-        {
-            // TODO - make this logic shared for Create and Update
-            var requiredIds = canvasPaintings.DistinctBy(c => c.CanvasOrder).Count();
-            var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, request, cancellationToken);
-            if (canvasPaintingIds.IsNullOrEmpty())
-                return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
-            var canvasIds = new Dictionary<int, string>(requiredIds);
-            int count = 0;
-            foreach (var cp in canvasPaintings)
-            {
-                // CanvasPainting records that have the same CanvasOrder will share the same CanvasId 
-                if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
-                {
-                    cp.Id = canvasOrderId;
-                    continue;
-                }
-
-                var canvasId = canvasPaintingIds[count++];
-                canvasIds[cp.CanvasOrder] = canvasId;
-                cp.Id = canvasId;
-            }
-        }
-
+        var insertCanvasPaintingsError = await HandleInserts(canvasPaintings, request, cancellationToken);
+        if (insertCanvasPaintingsError != null) return (insertCanvasPaintingsError, null);
+        
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
@@ -204,26 +179,46 @@ public class ManifestService(
         var incomingCanvasPaintings =
             manifestItemsParser.ParseItemsToCanvasPainting(request.PresentationManifest).ToList();
         
-        existingManifest.CanvasPaintings ??= new List<CanvasPainting>();
+        existingManifest.CanvasPaintings ??= [];
         
         // Iterate through all incoming - this is what we want to preserve in DB
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<CanvasPainting>();
         foreach (var incoming in incomingCanvasPaintings)
         {
-            var matching =
-                existingManifest.CanvasPaintings.SingleOrDefault(cp =>
-                    cp.CanvasOriginalId == incoming.CanvasOriginalId);
-
-            // If it's not in DB, create...
+            CanvasPainting? matching = null;
+            var candidates = existingManifest.CanvasPaintings
+                .Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId).ToList();
+            if (candidates.Count == 1)
+            {
+                // Single item matching - check if we've processed it already. If so this is due to choice
+                var potential = candidates.Single();
+                if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
+                {
+                    matching = candidates.Single();
+                }
+            }
+            else if (candidates.Count > 1)
+            {
+                // If there are multiple matching items then Canvas is a choice
+                matching = candidates.SingleOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder);
+            }
+            
             if (matching == null)
             {
+                // If it's not in DB, create...
+                if (incoming.ChoiceOrder.HasValue)
+                {
+                    // This is a choice. If there are other, existing items for the same canvas then seed canvas_id
+                    incoming.Id = candidates.SingleOrDefault()?.Id;
+                }
+                
                 // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
                 toInsert.Add(incoming);
             }
             else
             {
-                // Found matching DB record, update..
+                // Found matching DB record, update...
                 logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
                 matching.Label = incoming.Label;
                 matching.CanvasLabel = incoming.CanvasLabel;
@@ -244,34 +239,10 @@ public class ManifestService(
             logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
             existingManifest.CanvasPaintings.Remove(toRemove);
         }
-
-        if (toInsert.Count > 0)
-        {
-            // TODO - make this logic shared for Create and Update
-            logger.LogTrace("Adding {CanvasCounts} to Manifest", toInsert.Count);
-            var requiredIds = toInsert.DistinctBy(c => c.CanvasOrder).Count();
-            var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, request, cancellationToken);
-            if (canvasPaintingIds.IsNullOrEmpty())
-                return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
-            var canvasIds = new Dictionary<int, string>(requiredIds);
-            int count = 0;
-            foreach (var cp in toInsert)
-            {
-                // CanvasPainting records that have the same CanvasOrder will share the same CanvasId 
-                if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
-                {
-                    cp.Id = canvasOrderId;
-                    continue;
-                }
-
-                var canvasId = canvasPaintingIds[count++];
-                canvasIds[cp.CanvasOrder] = canvasId;
-                cp.Id = canvasId;
-            }
-            existingManifest.CanvasPaintings.AddRange(toInsert);
-        }
         
+        var insertCanvasPaintingsError = await HandleInserts(toInsert, request, cancellationToken);
+        if (insertCanvasPaintingsError != null) return (insertCanvasPaintingsError, null);
+        existingManifest.CanvasPaintings.AddRange(toInsert);
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
         existingManifest.Label = request.PresentationManifest.Label;
@@ -282,12 +253,50 @@ public class ManifestService(
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);
     }
+    
+    private async Task<PresUpdateResult?> HandleInserts(List<CanvasPainting> canvasPaintings, WriteManifestRequest request, CancellationToken cancellationToken)
+    {
+        if (canvasPaintings.IsNullOrEmpty()) return null;
+        
+        logger.LogTrace("Adding {CanvasCounts} to Manifest", canvasPaintings.Count);
+        var requiredIds = canvasPaintings
+            .Where(cp => string.IsNullOrEmpty(cp.Id))
+            .DistinctBy(c => c.CanvasOrder)
+            .Count();
+        var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, request, cancellationToken);
+        if (canvasPaintingIds == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
-    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest, CancellationToken cancellationToken)
+        // Build a dictionary of canvas_order:canvas_id, this is populated as we iterate over canvas paintings.
+        // We will also seed it with any 'new' items that are actually new Choices as these will have been prepopulated
+        // with a canvas_id
+        var canvasIds = canvasPaintings
+            .Where(cp => !string.IsNullOrEmpty(cp.Id))
+            .ToDictionary(k => k.CanvasOrder, v => v.Id);
+        var count = 0;
+        foreach (var cp in canvasPaintings)
+        {
+            // CanvasPainting records that have the same CanvasOrder will share the same CanvasId
+            if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
+            {
+                cp.Id = canvasOrderId;
+                continue;
+            }
+
+            // If item has an Id, it's an update for a Choice so use the existing canvas_id. Else grab a new one
+            var canvasId = string.IsNullOrEmpty(cp.Id) ? canvasPaintingIds[count++] : cp.Id;
+            canvasIds[cp.CanvasOrder] = canvasId;
+            cp.Id = canvasId;
+        }
+
+        return null;
+    }
+
+    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest,
+        CancellationToken cancellationToken)
     {
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
-        
+
         if (saveErrors != null) return saveErrors;
 
         dbManifest.Hierarchy.Single().FullPath =
@@ -301,8 +310,6 @@ public class ManifestService(
     {
         try
         {
-            // TODO - a bulk version of this for multiple CanvasPaintings?
-            // TODO this can't be done for CanvasId. CanvasId needs to be unique but there can be multiple rows
             return await identityManager.GenerateUniqueId<DbManifest>(request.CustomerId, cancellationToken);
         }
         catch (ConstraintException ex)
@@ -318,8 +325,8 @@ public class ManifestService(
     {
         try
         {
-            // TODO - a bulk version of this for multiple CanvasPaintings?
-            // TODO this can't be done for CanvasId. CanvasId needs to be unique but there can be multiple rows
+            if (count == 0) return [];
+            
             return await identityManager.GenerateUniqueIds<CanvasPainting>(request.CustomerId, count,
                 cancellationToken);
         }

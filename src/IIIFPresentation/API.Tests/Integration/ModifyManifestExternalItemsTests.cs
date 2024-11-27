@@ -919,6 +919,235 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         newCanvas.Label.Should().BeEquivalentTo(new LanguageMap("en", "This replaces original"));
     }
     
+    [Fact]
+    public async Task PutFlatId_Update_ExternalItemsWithChoices_AddChoice_UpdatesDBRecord()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        var canvasOriginalId = new Uri("https://iiif.io/api/eclipse");
+        var canvasId = $"{dbManifest.Id}_canvas";
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest,
+            id: canvasId, canvasOriginalId: canvasOriginalId, canvasOrder: 0, choiceOrder: 1, width: 10, height: 10,
+            label: new LanguageMap("en", "Original one"));
+        await dbContext.SaveChangesAsync();
+        var slug = dbManifest.Hierarchy.Single().Slug;
+        
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasOriginalId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""type"": ""Choice"",
+                                ""items"": [
+                                  {{
+                                    ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                    ""type"": ""Image"",
+                                    ""format"": ""image/jpeg"",
+                                    ""width"": 100,
+                                    ""height"": 100,
+                                    ""label"": {{ ""en"": [ ""One"" ] }},
+                                    ""service"": [
+                                      {{
+                                        ""@id"": ""https://iiif.org/image/002.jp2"",
+                                        ""@type"": ""ImageService2"",
+                                        ""profile"": ""http://iiif.io/api/image/2/level1.json""
+                                      }}
+                                    ]
+                                  }},
+                                  {{
+                                    ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                    ""type"": ""Image"",
+                                    ""format"": ""image/jpeg"",
+                                    ""width"": 200,
+                                    ""height"": 200,
+                                    ""label"": {{ ""en"": [ ""Two"" ] }},
+                                    ""service"": [
+                                      {{
+                                        ""@id"": ""https://iiif.org/image/001.jp2"",
+                                        ""@type"": ""ImageService2"",
+                                        ""profile"": ""http://iiif.io/api/image/2/level1.json""
+                                      }}
+                                    ]
+                                  }}
+                                ]
+                            }},
+                            ""target"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1""
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest);
+        SetCorrectEtag(requestMessage, dbManifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        var hierarchy = fromDatabase.Hierarchy.Single();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        fromDatabase.Should().NotBeNull();
+        hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
+        hierarchy.Canonical.Should().BeTrue();
+
+        canvasPaintings.Should().HaveCount(2, "There was 1 initially but 2 in payload");
+        
+        var canvasPainting1 = canvasPaintings.First();
+        canvasPainting1.Id.Should().NotBeNullOrEmpty();
+        canvasPainting1.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting1.CanvasOrder.Should().Be(0);
+        canvasPainting1.ChoiceOrder.Should().Be(1);
+        canvasPainting1.StaticWidth.Should().Be(100);
+        canvasPainting1.StaticHeight.Should().Be(100);
+        canvasPainting1.Label.Should().BeEquivalentTo(new LanguageMap("en", "One"));
+        
+        var canvasPainting2 = canvasPaintings.Last();
+        canvasPainting2.Id.Should().Be(canvasPainting1.Id, "Canvas choices share same id");
+        canvasPainting2.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting2.CanvasOrder.Should().Be(0, "Canvas choices share same order");
+        canvasPainting2.ChoiceOrder.Should().Be(2);
+        canvasPainting2.StaticWidth.Should().Be(200);
+        canvasPainting2.StaticHeight.Should().Be(200);
+        canvasPainting2.Label.Should().BeEquivalentTo(new LanguageMap("en", "Two"));
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Update_ExternalItemsWithChoices_RemoveChoices_UpdatesDBRecord()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        var canvasOriginalId = new Uri("https://iiif.io/api/eclipse");
+        var canvasId = $"{dbManifest.Id}_canvas";
+        var dbCanvasPainting = (await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest,
+            id: canvasId, canvasOriginalId: canvasOriginalId, canvasOrder: 0, choiceOrder: 1, width: 10, height: 10,
+            label: new LanguageMap("en", "Original one"))).Entity;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest,
+            id: canvasId, canvasOriginalId: canvasOriginalId, canvasOrder: 0, choiceOrder: 2, width: 10, height: 10,
+            label: new LanguageMap("en", "Original two"));
+        await dbContext.SaveChangesAsync();
+        var slug = dbManifest.Hierarchy.Single().Slug;
+        
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasOriginalId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""type"": ""Choice"",
+                                ""items"": [
+                                  {{
+                                    ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                    ""type"": ""Image"",
+                                    ""format"": ""image/jpeg"",
+                                    ""width"": 200,
+                                    ""height"": 200,
+                                    ""label"": {{ ""en"": [ ""Two"" ] }},
+                                    ""service"": [
+                                      {{
+                                        ""@id"": ""https://iiif.org/image/001.jp2"",
+                                        ""@type"": ""ImageService2"",
+                                        ""profile"": ""http://iiif.io/api/image/2/level1.json""
+                                      }}
+                                    ]
+                                  }}
+                                ]
+                            }},
+                            ""target"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1""
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest);
+        SetCorrectEtag(requestMessage, dbManifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        var hierarchy = fromDatabase.Hierarchy.Single();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        fromDatabase.Should().NotBeNull();
+        hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
+        hierarchy.Canonical.Should().BeTrue();
+
+        canvasPaintings.Should().HaveCount(1);
+        
+        var canvasPainting = canvasPaintings.Last();
+        canvasPainting.Id.Should().Be(dbCanvasPainting.Id);
+        canvasPainting.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting.CanvasOrder.Should().Be(0);
+        canvasPainting.ChoiceOrder.Should().Be(1);
+        canvasPainting.StaticWidth.Should().Be(200);
+        canvasPainting.StaticHeight.Should().Be(200);
+        canvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "Two"));
+    }
+    
     private void SetCorrectEtag(HttpRequestMessage requestMessage, Manifest dbManifest)
     {
         // This saves some boilerplate by correctly setting Etag in manager and request

@@ -67,7 +67,6 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
                             }
                             
                             canvasPaintings.Add(cp);
-
                         }
                         else
                         {
