@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using API.Auth;
 using API.Features.Manifest;
-using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
@@ -9,6 +8,7 @@ using API.Settings;
 using AWS.Settings;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
 using Serilog;
@@ -88,7 +88,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+var rewriteOptions = new RewriteOptions()
+    .AddRedirect("(.*)/$", "$1");
+
 app
+    .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()

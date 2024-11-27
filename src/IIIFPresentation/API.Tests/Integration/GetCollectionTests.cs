@@ -45,6 +45,28 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
         secondItem.Behavior.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Get_RootHierarchical_Returns_TrailingSlashRedirect()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.Location!.Should().Be("/1");
+    }
+
+    [Fact]
+    public async Task Get_ChildHierarchical_Returns_TrailingSlashRedirect()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/first-child/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.Location!.Should().Be("/1/first-child");
+    }
     
     [Fact]
     public async Task Get_ChildHierarchical_Returns_Child()
