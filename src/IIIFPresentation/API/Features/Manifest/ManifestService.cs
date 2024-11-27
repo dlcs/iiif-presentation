@@ -10,6 +10,7 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
 using IIIF.Serialisation;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -56,27 +57,48 @@ public class ManifestService(
     /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
-        var existingManifest =
-            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, cancellationToken);
-
-        if (existingManifest == null)
+        try
         {
-            if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
-            
-            logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
-                request.ManifestId, request.CustomerId);
-            return await CreateInternal(request, request.ManifestId, cancellationToken);
+            var existingManifest =
+                await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, cancellationToken);
+
+            if (existingManifest == null)
+            {
+                if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
+
+                logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
+                    request.ManifestId, request.CustomerId);
+                return await CreateInternal(request, request.ManifestId, cancellationToken);
+            }
+
+            return await UpdateInternal(request, existingManifest, cancellationToken);
         }
-        
-        return await UpdateInternal(request, existingManifest, cancellationToken);
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error upserting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
+                request.CustomerId);
+            return PresUpdateResult.Failure($"Unexpected error upserting manifest {request.ManifestId}",
+                ModifyCollectionType.Unknown, WriteResult.Error);
+        }
     }
 
     /// <summary>
     /// Create new manifest, using details provided in request object
     /// </summary>
-    public Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
-        => CreateInternal(request, null, cancellationToken);
-    
+    public async Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await CreateInternal(request, null, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating manifest for customer {CustomerId}", request.CustomerId);
+            return PresUpdateResult.Failure("Unexpected error creating manifest", ModifyCollectionType.Unknown,
+                WriteResult.Error);
+        }
+    }
+
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
