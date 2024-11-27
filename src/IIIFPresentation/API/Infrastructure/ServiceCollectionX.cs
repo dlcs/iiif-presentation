@@ -82,7 +82,7 @@ public static class ServiceCollectionX
             services
                 .AddSingleton<SqsListener>()
                 .AddSingleton<SqsQueueUtilities>()
-                .AddHostedService<CustomerCreatedListenerService>()
+            //    .AddHostedService<CustomerCreatedListenerService>()
                 .AddScoped<CustomerCreatedMessageHandler>();
 
             awsBuilder.WithAmazonSQS();

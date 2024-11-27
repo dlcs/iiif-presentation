@@ -30,7 +30,7 @@ public class SqsQueueUtilities
     /// </summary>
     /// <param name="queueName">Queue name to get URL for</param>
     /// <returns>SQS URL for queue</returns>
-    public async Task<string> GetQueueUrl(string queueName, CancellationToken cancellationToken)
+    public async Task<string> GetQueueUrl(string queueName, CancellationToken cancellationToken = default)
     {
         // Having this here isn't great; alternative is a different entrypoint with similar logic
         var usingLocalStack = options.UseLocalStack;

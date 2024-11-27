@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AWS.Tests", "AWS.Tests\AWS.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Repository.Tests", "Repository.Tests\Repository.Tests.csproj", "{A35D3AB4-7F13-4F81-90E6-60C93A5EAB30}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundHandler", "BackgroundHandler\BackgroundHandler.csproj", "{79E59E95-F81F-41ED-B587-D4891795642E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +78,10 @@ Global
 		{A35D3AB4-7F13-4F81-90E6-60C93A5EAB30}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A35D3AB4-7F13-4F81-90E6-60C93A5EAB30}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A35D3AB4-7F13-4F81-90E6-60C93A5EAB30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79E59E95-F81F-41ED-B587-D4891795642E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79E59E95-F81F-41ED-B587-D4891795642E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79E59E95-F81F-41ED-B587-D4891795642E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79E59E95-F81F-41ED-B587-D4891795642E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{CDB60D14-DA74-486F-AE46-F4D6F801DE21} = {23CF47D6-E80B-4B6A-828D-4635800CD326}
