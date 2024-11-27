@@ -113,35 +113,3 @@ public class CanvasPainting : IIdentifiable
     /// </summary>
     public int CanvasPaintingId { get; set; }
 }
-
-public class CanvasPaintingEqualityComparer : IEqualityComparer<CanvasPainting>
-{
-    /// <summary>
-    /// Default instance of <see cref="CanvasPaintingEqualityComparer"/>
-    /// </summary>
-    public static readonly CanvasPaintingEqualityComparer Instance = new();
-    
-    public bool Equals(CanvasPainting? x, CanvasPainting? y)
-    {
-        if (ReferenceEquals(x, y)) return true;
-        if (x is null) return false;
-        if (y is null) return false;
-        if (x.GetType() != y.GetType()) return false;
-        return string.Equals(x.Id, y.Id, StringComparison.OrdinalIgnoreCase) &&
-               string.Equals(x.ManifestId, y.ManifestId, StringComparison.OrdinalIgnoreCase) &&
-               x.CustomerId == y.CustomerId && Equals(x.CanvasOriginalId, y.CanvasOriginalId) &&
-               x.CanvasOrder == y.CanvasOrder && x.ChoiceOrder == y.ChoiceOrder;
-    }
-
-    public int GetHashCode(CanvasPainting obj)
-    {
-        var hashCode = new HashCode();
-        hashCode.Add(obj.Id, StringComparer.OrdinalIgnoreCase);
-        hashCode.Add(obj.ManifestId, StringComparer.OrdinalIgnoreCase);
-        hashCode.Add(obj.CustomerId);
-        hashCode.Add(obj.CanvasOriginalId);
-        hashCode.Add(obj.CanvasOrder);
-        hashCode.Add(obj.ChoiceOrder);
-        return hashCode.ToHashCode();
-    }
-}

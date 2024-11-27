@@ -55,6 +55,7 @@ builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<ManifestService>()
+    .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
