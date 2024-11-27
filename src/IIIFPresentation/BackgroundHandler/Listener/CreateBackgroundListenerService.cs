@@ -3,16 +3,16 @@ using AWS.SQS;
 using Core.Helpers;
 using Microsoft.Extensions.Options;
 
-namespace API.Features.CustomerCreation;
+namespace BackgroundHandler.Listener;
 
 /// <summary>
 /// Background service that monitors SQS queue for incoming messages that customer has been created
 /// </summary>
-public class CustomerCreatedListenerService(
+public class CreateBackgroundListenerService<T>(
     SqsListener sqsListener,
     IOptions<AWSSettings> awsSettings,
-    ILogger<CustomerCreatedListenerService> logger)
-    : BackgroundService
+    ILogger<T> logger)
+    : BackgroundService where T: IMessageHandler
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -21,6 +21,6 @@ public class CustomerCreatedListenerService(
 
         logger.LogInformation("CustomerCreatedListenerService ExecuteAsync. Listening to {QueueName}",
             customerCreatedQueueName);
-        await sqsListener.StartListenLoop<CustomerCreatedMessageHandler>(customerCreatedQueueName, stoppingToken);
+        await sqsListener.StartListenLoop<T>(customerCreatedQueueName, stoppingToken);
     }
 }

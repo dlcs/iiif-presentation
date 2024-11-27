@@ -10,6 +10,7 @@ using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using API.Settings;
 using Core;
+using Core.Auth;
 using Core.Helpers;
 using MediatR;
 using Microsoft.Extensions.Options;

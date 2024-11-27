@@ -22,8 +22,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Core\Core.csproj" />
-      <ProjectReference Include="..\Models\Models.csproj" />
+      <ProjectReference Include="..\BackgroundHandler\BackgroundHandler.csproj" />
+      <ProjectReference Include="..\Test.Helpers\Test.Helpers.csproj" />
     </ItemGroup>
 
 </Project>

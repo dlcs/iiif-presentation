@@ -2,6 +2,7 @@
 using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Models;
 using Models.API.General;
 using Repository;
 

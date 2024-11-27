@@ -1,4 +1,4 @@
-﻿namespace API;
+﻿namespace Models;
 
 public static class KnownCollections
 {

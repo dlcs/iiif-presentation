@@ -16,12 +16,13 @@ using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Test.Helpers.Integration.Infrastructure;
 
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Program>>
+public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;

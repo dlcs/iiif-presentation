@@ -1,6 +1,4 @@
-﻿using Test.Helpers.Integration;
-
-namespace API.Tests.Integration.Infrastructure;
+﻿namespace Test.Helpers.Integration.Infrastructure;
 
 public class CollectionDefinitions
 {

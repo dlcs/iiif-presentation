@@ -1,14 +1,15 @@
 ﻿using System.Text.Json;
-using API.Auth;
 using AWS.SQS;
+using Core.Auth;
 using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
+using Models;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 
-namespace API.Features.CustomerCreation;
+namespace BackgroundHandler.CustomerCreation;
 
 /// <summary>
 /// Handler for customer created messages

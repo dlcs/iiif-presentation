@@ -1,58 +1,41 @@
-﻿using API.Features.CustomerCreation;
-using API.Settings;
-using AWS.Configuration;
-using AWS.S3;
+﻿using AWS.Configuration;
 using AWS.Settings;
 using AWS.SQS;
-using Microsoft.DotNet.Scaffolding.Shared;
-using Repository;
+using BackgroundHandler.CustomerCreation;
+using BackgroundHandler.Listener;
 
 namespace BackgroundHandler.Infrastructure;
 
 public static class ServiceCollectionX
 {
-    /// <summary>
-    /// Configure AWS services. Generic, non project-specific
-    /// </summary>
-    public static IServiceCollection AddAws(this IServiceCollection services,
-        IConfiguration configuration, IHostEnvironment hostEnvironment)
+    public static IServiceCollection AddBackgroundServices(this IServiceCollection services, 
+        IConfiguration configuration, IWebHostEnvironment webHostEnvironment, AWSSettings aws)
     {
-        var awsBuilder = services
-            .SetupAWS(configuration, hostEnvironment)
-            .WithAmazonSQS();
-
         services
             .AddSingleton<SqsListener>()
             .AddSingleton<SqsQueueUtilities>();
+
+        if (services.FirstOrDefault(x => x.ServiceType == typeof(AwsBuilder))?
+                .ImplementationInstance is AwsBuilder awsBuilder)
+        {
+            awsBuilder
+                .WithAmazonSQS();
+        }
+        else
+        {
+            services
+                .SetupAWS(configuration, webHostEnvironment)
+                .WithAmazonS3()
+                .WithAmazonSQS();
+        }
         
-
-        return services;
-    }
-
-    /// <summary>
-    /// Configure BackgroundWorker + handler services
-    /// </summary>
-    public static IServiceCollection AddQueueMonitoring(this IServiceCollection services, AWSSettings aws)
-    {
         if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
         {
             services
-                .AddHostedService<CustomerCreatedListenerService>()
+                .AddHostedService<CreateBackgroundListenerService<CustomerCreatedMessageHandler>>()
                 .AddScoped<CustomerCreatedMessageHandler>();
         }
 
         return services;
     }
-
-    /// <summary>
-    /// Add required caching dependencies
-    /// </summary>
-    public static IServiceCollection AddCaching(this IServiceCollection services, CacheSettings cacheSettings)
-        => services
-            .AddMemoryCache(memoryCacheOptions =>
-            {
-                memoryCacheOptions.SizeLimit = cacheSettings.MemoryCacheSizeLimit;
-                memoryCacheOptions.CompactionPercentage = cacheSettings.MemoryCacheCompactionPercentage;
-            })
-            .AddLazyCache();
 }

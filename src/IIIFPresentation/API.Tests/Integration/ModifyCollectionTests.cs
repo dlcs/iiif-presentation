@@ -23,13 +23,14 @@ using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Test.Helpers.Integration.Infrastructure;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Program>>
+public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
 {
     private readonly HttpClient httpClient;
 

@@ -1,4 +1,4 @@
-﻿namespace API.Auth;
+﻿namespace Core.Auth;
 
 public static class Authorizer
 {

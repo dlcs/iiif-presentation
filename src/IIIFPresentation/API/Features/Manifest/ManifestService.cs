@@ -9,6 +9,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
+using Core.Auth;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;

@@ -35,6 +35,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\AWS\AWS.csproj" />
+        <ProjectReference Include="..\BackgroundHandler\BackgroundHandler.csproj" />
         <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

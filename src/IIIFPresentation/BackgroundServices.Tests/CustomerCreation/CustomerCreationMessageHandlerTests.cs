@@ -1,16 +1,17 @@
-﻿using API.Features.CustomerCreation;
-using API.Tests.Integration.Infrastructure;
-using AWS.SQS;
+﻿using AWS.SQS;
+using BackgroundHandler.CustomerCreation;
+using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.Database.General;
 using Repository;
 using Test.Helpers.Integration;
+using Test.Helpers.Integration.Infrastructure;
 
-namespace API.Tests.Features.CustomerCreation;
+namespace BackgroundServices.Tests.CustomerCreation;
 
 [Trait("Category", "Database")]
 [Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
-public class CustomerCreationMessageHandlerTests
+public class CustomerCreationMessageHandlerTests : IClassFixture<PresentationContextFixture>
 {
     private readonly PresentationContext dbContext;
     private readonly CustomerCreatedMessageHandler sut;
