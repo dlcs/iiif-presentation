@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.AWS;
 using API.Infrastructure.Requests;
 using MediatR;
@@ -12,17 +13,16 @@ namespace API.Features.Manifest.Requests;
 public class GetManifest(
     int customerId,
     string id,
-    bool pathOnly,
-    UrlRoots urlRoots) : IRequest<FetchEntityResult<PresentationManifest>>
+    bool pathOnly) : IRequest<FetchEntityResult<PresentationManifest>>
 {
     public int CustomerId { get; } = customerId;
     public string Id { get; } = id;
     public bool PathOnly { get; } = pathOnly;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class GetManifestHandler(
     PresentationContext dbContext,
+    IPathGenerator pathGenerator,
     IIIFS3Service iiifS3) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
     public async Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
@@ -50,7 +50,7 @@ public class GetManifestHandler(
             return FetchEntityResult<PresentationManifest>.Failure(
                 "Unable to read and deserialize manifest from storage");
 
-        manifest = manifest.SetGeneratedFields(dbManifest, request.UrlRoots,
+        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator,
             m => m.Hierarchy!.Single(h => h.Canonical));
 
         return FetchEntityResult<PresentationManifest>.Success(manifest);

@@ -23,8 +23,8 @@ using Repository.Helpers;
 
 namespace API.Features.Storage.Requests;
 
-public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, UrlRoots urlRoots, 
-    string? eTag, string rawRequestBody)
+public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, string? eTag, 
+    string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
@@ -32,8 +32,6 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
     public string CollectionId { get; set; } = collectionId;
 
     public PresentationCollection Collection { get; } = collection;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string? ETag { get; set; } = eTag;
     
@@ -45,6 +43,7 @@ public class UpsertCollectionHandler(
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
     IIIFS3Service iiifS3,
+    IPathGenerator pathGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -78,7 +77,7 @@ public class UpsertCollectionHandler(
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
             // If full URI was used, verify it indeed is pointing to the resolved parent collection
-            if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots))
+            if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
                 return ErrorHelper.NullParentResponse<PresentationCollection>();
 
             databaseCollection = new Collection
@@ -136,7 +135,7 @@ public class UpsertCollectionHandler(
                 if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 // If full URI was used, verify it indeed is pointing to the resolved parent collection
-                if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots)) 
+                if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator)) 
                     return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 parentId = parentCollection.Id;
@@ -196,25 +195,25 @@ public class UpsertCollectionHandler(
         foreach (var item in items)
         {
             // We know the fullPath of parent collection so we can use that as the base for child items 
-            item.FullPath = item.GenerateFullPath(databaseCollection);
+            item.FullPath = pathGenerator.GenerateFullPath(item, databaseCollection);
         }
 
-        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
-            isStorageCollection, cancellationToken);
+        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, isStorageCollection,
+            cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
-            request.UrlRoots, settings.PageSize, DefaultCurrentPage, total,
-            await items.ToListAsync(cancellationToken: cancellationToken));
+            settings.PageSize, DefaultCurrentPage, total,
+            await items.ToListAsync(cancellationToken: cancellationToken), pathGenerator);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
     }
     
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
-        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+        bool isStorageCollection, CancellationToken cancellationToken = default)
     {
         if (!isStorageCollection)
         {
-            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
                 cancellationToken);
         }
     }

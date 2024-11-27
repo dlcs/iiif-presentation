@@ -1796,6 +1796,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection!.Items.Should().BeNull();
+        responseCollection.Id.Should().Be(requestMessage.RequestUri!.AbsoluteUri);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);

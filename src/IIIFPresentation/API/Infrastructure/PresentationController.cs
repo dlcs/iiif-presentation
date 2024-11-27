@@ -28,14 +28,9 @@ public abstract class PresentationController : Controller
     /// <inheritdoc />
     protected PresentationController(ApiSettings settings, IMediator mediator)
     {
-        this.Settings = settings;
+        Settings = settings;
         Mediator = mediator;
     }
-
-    /// <summary>
-    /// Used by derived controllers to construct correct fully qualified URLs in returned objects.
-    /// </summary>
-    protected UrlRoots GetUrlRoots() => new() { BaseUrl = Request.GetBaseUrl(), };
 
     /// <summary>
     /// Handle an upsert request - this takes a IRequest which returns a ModifyEntityResult{T}.
@@ -133,7 +128,7 @@ public abstract class PresentationController : Controller
         };
     }
 
-    private string GetErrorType<TType>(TType type) => $"{GetUrlRoots().BaseUrl}/errors/{type?.GetType().Name}/{type}";
+    private string GetErrorType<TType>(TType type) => $"{Request.GetBaseUrl()}/errors/{type?.GetType().Name}/{type}";
 
     /// <summary>
     /// Handle a GET request - this takes a IRequest which returns a FetchEntityResult{T}.

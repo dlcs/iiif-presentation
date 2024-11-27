@@ -22,7 +22,7 @@ using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
-public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody, UrlRoots urlRoots)
+public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
@@ -30,8 +30,6 @@ public class CreateCollection(int customerId, PresentationCollection collection,
     public PresentationCollection? Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class CreateCollectionHandler(
@@ -39,6 +37,7 @@ public class CreateCollectionHandler(
     ILogger<CreateCollectionHandler> logger,
     IIIFS3Service iiifS3,
     IIdGenerator idGenerator,
+    IPathGenerator pathGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -63,7 +62,7 @@ public class CreateCollectionHandler(
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
         // If full URI was used, verify it indeed is pointing to the resolved parent collection
-        if (request.Collection.IsUriParentInvalid(parentCollection, request.UrlRoots))
+        if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
             return ErrorHelper.NullParentResponse<PresentationCollection>();
         
         string id;
@@ -118,8 +117,8 @@ public class CreateCollectionHandler(
             return saveErrors;
         }
 
-        await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, request.UrlRoots,
-            isStorageCollection, cancellationToken);
+        await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, isStorageCollection,
+            cancellationToken);
 
         if (hierarchy.Parent != null)
         {
@@ -128,7 +127,7 @@ public class CreateCollectionHandler(
         }
         
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection, 
-            request.UrlRoots, settings.PageSize, CurrentPage, 0, []); // there can be no items attached to this, as it's just been created
+            settings.PageSize, CurrentPage, 0, [], pathGenerator); // there can be no items attached to this, as it's just been created
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,
@@ -136,11 +135,11 @@ public class CreateCollectionHandler(
     }
 
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 
-        UrlRoots urlRoots, bool isStorageCollection, CancellationToken cancellationToken = default)
+        bool isStorageCollection, CancellationToken cancellationToken = default)
     {
         if (!isStorageCollection)
         {
-            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, collection.GenerateFlatCollectionId(urlRoots),
+            await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
                 cancellationToken);
         }
     }

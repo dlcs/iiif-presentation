@@ -28,8 +28,7 @@ public record UpsertManifestRequest(
     string? Etag,
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    UrlRoots UrlRoots) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, UrlRoots);
+    string RawRequestBody) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody);
 
 /// <summary>
 /// Record containing fields for creating a Manifest
@@ -37,8 +36,7 @@ public record UpsertManifestRequest(
 public record WriteManifestRequest(
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    UrlRoots UrlRoots);
+    string RawRequestBody);
 
 /// <summary>
 /// Service to help with creation of manifests
@@ -48,6 +46,7 @@ public class ManifestService(
     IIdGenerator idGenerator,
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
+    IPathGenerator pathGenerator,
     ILogger<ManifestService> logger)
 {
     /// <summary>
@@ -87,7 +86,7 @@ public class ManifestService(
         await SaveToS3(dbManifest!, request, cancellationToken);
         
         return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Created);
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
     }
     
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -111,21 +110,20 @@ public class ManifestService(
         await SaveToS3(dbManifest!, request, cancellationToken);
         
         return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, request.UrlRoots), WriteResult.Updated);
+            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var manifest = request.PresentationManifest;
-        var urlRoots = request.UrlRoots;;
         var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         
         // Validation
         if (parentCollection == null) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
         if (!parentCollection.IsStorageCollection) return (ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>(), null);
-        if (manifest.IsUriParentInvalid(parentCollection, urlRoots)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
+        if (manifest.IsUriParentInvalid(parentCollection, pathGenerator)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
 
         return (null, parentCollection);
     }
@@ -207,7 +205,7 @@ public class ManifestService(
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, dbManifest.GenerateFlatManifestId(request.UrlRoots),
+        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             cancellationToken);
     }
 }

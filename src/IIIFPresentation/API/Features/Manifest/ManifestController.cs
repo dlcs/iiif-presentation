@@ -28,7 +28,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         var pathOnly = !Request.HasShowExtraHeader() ||
                        await authenticator.ValidateRequest(Request) != AuthResult.Success;
 
-        var entityResult = await Mediator.Send(new GetManifest(customerId, id, pathOnly, GetUrlRoots()));
+        var entityResult = await Mediator.Send(new GetManifest(customerId, id, pathOnly));
         if (entityResult.EntityNotFound)
             return this.PresentationNotFound();
 
@@ -55,7 +55,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         [FromServices] PresentationManifestValidator validator,
         CancellationToken cancellationToken) 
         => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest, rawRequestBody, GetUrlRoots()),
+            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest, rawRequestBody),
             validator,
             cancellationToken: cancellationToken);
 
@@ -73,7 +73,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         CancellationToken cancellationToken)
         => await ManifestUpsert(
             (presentationManifest, rawRequestBody) =>
-                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody, GetUrlRoots()),
+                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody),
             validator,
             cancellationToken: cancellationToken);
 
