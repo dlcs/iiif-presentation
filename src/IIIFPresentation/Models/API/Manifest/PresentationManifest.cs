@@ -5,20 +5,14 @@ namespace Models.API.Manifest;
 
 public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 {
-    [JsonProperty(Order = 6)]
-    public string? Slug { get; set; }
-    [JsonProperty(Order = 7)]
-    public string? PublicId { get; set; }
-    public string? FlatId { get; set; }
-    public string? Parent { get; set; }
-    [JsonProperty(Order = 8)]
-    public DateTime Created { get; set; }
-    [JsonProperty(Order = 9)]
-    public DateTime Modified { get; set; }
-    [JsonProperty(Order = 10)]
-    public string? CreatedBy { get; set; }
-    [JsonProperty(Order = 11)]
-    public string? ModifiedBy { get; set; }
+    [JsonProperty(Order = 6)] public string? Slug { get; set; }
+    [JsonProperty(Order = 7)] public string? PublicId { get; set; }
+    [JsonProperty(Order = 8)] public string? Parent { get; set; }
+    [JsonProperty(Order = 9)] public DateTime Created { get; set; }
+    [JsonProperty(Order = 9)] public DateTime Modified { get; set; }
+    [JsonProperty(Order = 10)] public string? CreatedBy { get; set; }
+    [JsonProperty(Order = 10)] public string? ModifiedBy { get; set; }
+    [JsonProperty(Order = 11)] public string? FlatId { get; set; }
     
     /// <summary>
     /// Represents, in a compact non-IIIF form, the relationship between a Content Resource and a Manifest.
