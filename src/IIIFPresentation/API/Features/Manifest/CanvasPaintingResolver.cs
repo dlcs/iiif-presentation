@@ -77,6 +77,8 @@ public class CanvasPaintingResolver(
                 }
 
                 // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
+                logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
+                    incoming.ChoiceOrder);
                 toInsert.Add(incoming);
             }
             else
