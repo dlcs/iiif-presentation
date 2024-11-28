@@ -63,7 +63,9 @@ builder.Services
     .AddHttpContextAccessor();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
-builder.Services.AddHealthChecks();
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<PresentationContext>("Database");
 builder.Services.AddAws(builder.Configuration, builder.Environment, aws);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
