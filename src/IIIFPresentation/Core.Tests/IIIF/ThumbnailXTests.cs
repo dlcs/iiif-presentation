@@ -1,8 +1,8 @@
-﻿using API.Features.Storage.Helpers;
+﻿using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 
-namespace API.Tests.Helpers;
+namespace Core.Tests.IIIF;
 
 public class ThumbnailXTests
 {

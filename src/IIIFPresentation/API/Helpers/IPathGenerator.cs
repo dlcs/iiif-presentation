@@ -1,4 +1,4 @@
-﻿using API.Converters;
+﻿using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -71,7 +71,7 @@ public interface IPathGenerator
     public string GenerateFullPath(Hierarchy collection, Collection parent);
 
     /// <summary>
-    /// Get the FullPath of an item, using Canonical slug of attached Hierarcy collection and provided parent 
+    /// Get the FullPath of an item, using Canonical slug of attached Hierarchy collection and provided parent 
     /// </summary>
     public string GenerateFullPath(Hierarchy hierarchy, string? parentPath);
 
@@ -79,4 +79,9 @@ public interface IPathGenerator
     /// Get Id for specified manifest
     /// </summary>
     public string GenerateFlatManifestId(Manifest manifest);
+    
+    /// <summary>
+    /// Get id for specified <see cref="CanvasPainting"/>
+    /// </summary>
+    public string GenerateCanvasId(CanvasPainting canvasPainting);
 }

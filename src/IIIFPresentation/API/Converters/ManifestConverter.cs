@@ -37,9 +37,33 @@ public static class ManifestConverter
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
+        iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator);
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
         
         return iiifManifest;
+    }
+
+    private static List<PaintedResource>? GetPaintedResources(this Manifest dbManifest, IPathGenerator pathGenerator)
+    {
+        if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
+
+        return dbManifest.CanvasPaintings.Select(cp => new PaintedResource
+        {
+            CanvasPainting = new CanvasPainting
+            {
+                CanvasId = pathGenerator.GenerateCanvasId(cp),
+                Thumbnail = cp.Thumbnail?.ToString(),
+                StaticHeight = cp.StaticHeight,
+                CanvasOrder = cp.CanvasOrder,
+                ChoiceOrder = cp.ChoiceOrder,
+                StaticWidth = cp.StaticWidth,
+                Target = cp.Target,
+                Label = cp.Label,
+                CanvasOriginalId = cp.CanvasOriginalId?.ToString(),
+                CanvasLabel = cp.CanvasLabel,
+
+            }
+        }).ToList();
     }
 }

@@ -10,6 +10,7 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
 using IIIF.Serialisation;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -43,9 +44,10 @@ public record WriteManifestRequest(
 /// </summary>
 public class ManifestService(
     PresentationContext dbContext,
-    IIdGenerator idGenerator,
+    IdentityManager identityManager,
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
+    CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     ILogger<ManifestService> logger)
 {
@@ -54,39 +56,64 @@ public class ManifestService(
     /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
-        var existingManifest =
-            await dbContext.Manifests.Retrieve(request.CustomerId, request.ManifestId, true, cancellationToken);
-
-        if (existingManifest == null)
+        try
         {
-            if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
-            
-            logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
-                request.ManifestId, request.CustomerId);
-            return await CreateInternal(request, request.ManifestId, cancellationToken);
+            var existingManifest =
+                await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, true, cancellationToken);
+
+            if (existingManifest == null)
+            {
+                if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
+
+                logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
+                    request.ManifestId, request.CustomerId);
+                return await CreateInternal(request, request.ManifestId, cancellationToken);
+            }
+
+            return await UpdateInternal(request, existingManifest, cancellationToken);
         }
-        
-        return await UpdateInternal(request, existingManifest, cancellationToken);
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error upserting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
+                request.CustomerId);
+            return PresUpdateResult.Failure($"Unexpected error upserting manifest {request.ManifestId}",
+                ModifyCollectionType.Unknown, WriteResult.Error);
+        }
     }
 
     /// <summary>
     /// Create new manifest, using details provided in request object
     /// </summary>
-    public Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
-        => CreateInternal(request, null, cancellationToken);
-    
+    public async Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await CreateInternal(request, null, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating manifest for customer {CustomerId}", request.CustomerId);
+            return PresUpdateResult.Failure("Unexpected error creating manifest", ModifyCollectionType.Unknown,
+                WriteResult.Error);
+        }
+    }
+
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
-        var (error, dbManifest) = await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
-        if (error != null) return error; 
+        using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
+        {
+            var (error, dbManifest) =
+                await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
+            if (error != null) return error;
 
-        await SaveToS3(dbManifest!, request, cancellationToken);
-        
-        return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
+            await SaveToS3(dbManifest!, request, cancellationToken);
+
+            return PresUpdateResult.Success(
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
+        }
     }
     
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -100,24 +127,25 @@ public class ManifestService(
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
-        logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} exists, updating", request.ManifestId,
-            request.CustomerId);
+        using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
+                   request.ManifestId, request.CustomerId))
+        {
+            var (error, dbManifest) =
+                await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
+            if (error != null) return error;
 
-        var (error, dbManifest) =
-            await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
-        if (error != null) return error; 
+            await SaveToS3(dbManifest!, request, cancellationToken);
 
-        await SaveToS3(dbManifest!, request, cancellationToken);
-        
-        return PresUpdateResult.Success(
-            request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
+            return PresUpdateResult.Success(
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
+        }
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var manifest = request.PresentationManifest;
-        var parentCollection = await dbContext.Collections.Retrieve(request.CustomerId,
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         
         // Validation
@@ -127,13 +155,18 @@ public class ManifestService(
 
         return (null, parentCollection);
     }
-    
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(
-        WriteManifestRequest request, Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
+
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+        Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var id = requestedId ?? await GenerateUniqueId(request, cancellationToken);
+        var id = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
+        var (canvasPaintingsError, canvasPaintings) =
+            await canvasPaintingResolver.InsertCanvasPaintings(request.CustomerId, request.PresentationManifest,
+                cancellationToken);
+        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
+        
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
@@ -153,10 +186,11 @@ public class ManifestService(
                     Parent = parentCollection.Id,
                 }
             ],
+            CanvasPaintings = canvasPaintings,
         };
         
-        dbContext.Add(dbManifest);
-        
+        await dbContext.AddAsync(dbManifest, cancellationToken);
+
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
@@ -164,6 +198,10 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         Collection parentCollection, DbManifest existingManifest, CancellationToken cancellationToken)
     {
+        var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
+            request.PresentationManifest, existingManifest, cancellationToken);
+        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
+        
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
         existingManifest.Label = request.PresentationManifest.Label;
@@ -174,12 +212,13 @@ public class ManifestService(
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);
     }
-
-    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest, CancellationToken cancellationToken)
+    
+    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest,
+        CancellationToken cancellationToken)
     {
         var saveErrors =
             await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
-        
+
         if (saveErrors != null) return saveErrors;
 
         dbManifest.Hierarchy.Single().FullPath =
@@ -188,11 +227,12 @@ public class ManifestService(
         return null;
     }
 
-    private async Task<string?> GenerateUniqueId(WriteManifestRequest request, CancellationToken cancellationToken)
+    private async Task<string?> GenerateUniqueManifestId(WriteManifestRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return await dbContext.Manifests.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+            return await identityManager.GenerateUniqueId<DbManifest>(request.CustomerId, cancellationToken);
         }
         catch (ConstraintException ex)
         {
@@ -201,7 +241,7 @@ public class ManifestService(
             return null;
         }
     }
-    
+
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();

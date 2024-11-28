@@ -37,5 +37,5 @@ public class CollectionHelperXTests
 
         // Assert
         id.Should().Be("/123/manifests/test");
-    } 
+    }
 }

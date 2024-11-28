@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
+using Repository.Manifests;
 using Serilog;
 
 const string corsPolicyName = "CorsPolicy";
@@ -55,9 +56,11 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
+    .AddScoped<ManifestService>()
+    .AddScoped<CanvasPaintingResolver>()
+    .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, PathGenerator>()
-    .AddHttpContextAccessor()
-    .AddScoped<ManifestService>();
+    .AddHttpContextAccessor();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();

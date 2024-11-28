@@ -2,6 +2,7 @@
 using API.Converters;
 using API.Infrastructure.IdGenerator;
 using Microsoft.EntityFrameworkCore;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -25,9 +26,10 @@ public static class CollectionHelperX
     private static string GetSlug<T>(this T resource) where T : IHierarchyResource
         => resource is Manifest ? ManifestsSlug : CollectionsSlug;
 
+    [Obsolete("Use IdentityManager.GenerateUniqueId instead.")]
     public static async Task<string> GenerateUniqueIdAsync<T>(this DbSet<T> entities,
         int customerId, IIdGenerator idGenerator, CancellationToken cancellationToken = default)
-        where T : class, IHierarchyResource
+        where T : class, IIdentifiable
     {
         var isUnique = false;
         var id = string.Empty;
@@ -48,7 +50,7 @@ public static class CollectionHelperX
                 random.Next(0, maxRandomValue)
             ]);
 
-            isUnique = !await entities.AnyAsync(e => e.Id == id, cancellationToken);
+            isUnique = !await entities.AnyAsync(e => e.Id == id && e.CustomerId == customerId, cancellationToken);
 
             currentAttempt++;
         }

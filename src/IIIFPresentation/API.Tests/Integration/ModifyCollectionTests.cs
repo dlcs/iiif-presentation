@@ -631,34 +631,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
 
     [Fact]
-    public async Task GenerateUniqueIdAsync_CreatesNewId()
-    {
-        // Arrange
-        var sqidsGenerator = A.Fake<IIdGenerator>();
-        A.CallTo(() => sqidsGenerator.Generate(A<List<long>>.Ignored)).Returns("generated");
-        
-        // Act
-        var id = await dbContext.Collections.GenerateUniqueIdAsync(1, sqidsGenerator);
-
-        // Assert
-        id.Should().Be("generated");
-    }
-
-    [Fact]
-    public async Task GenerateUniqueIdAsync_ThrowsException_WhenGeneratingExistingId()
-    {
-        // Arrange
-        var sqidsGenerator = A.Fake<IIdGenerator>();
-        A.CallTo(() => sqidsGenerator.Generate(A<List<long>>.Ignored)).Returns("root");
-
-        // Act
-        Func<Task> action = () => dbContext.Collections.GenerateUniqueIdAsync(1, sqidsGenerator);
-
-        // Assert
-        await action.Should().ThrowAsync<ConstraintException>();
-    }
-
-    [Fact]
     public async Task UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
     {
         // Arrange

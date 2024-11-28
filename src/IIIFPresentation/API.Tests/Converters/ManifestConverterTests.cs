@@ -1,9 +1,9 @@
 ﻿using API.Converters;
 using API.Helpers;
 using API.Tests.Helpers;
-using Microsoft.AspNetCore.Http;
 using Models.API.Manifest;
 using Models.Database.General;
+using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Converters;
@@ -143,5 +143,43 @@ public class ManifestConverterTests
         // Assert
         result.Slug.Should().Be("other-slug");
         result.Parent.Should().Be("http://base/0/collections/other-parent", "Always use FlatId");
-    } 
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsCanvasPainting_IfPresent()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow.AddDays(1),
+            CreatedBy = "creator",
+            ModifiedBy = "modifier",
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                {
+                    CanvasOriginalId = new Uri("http://example.test/canvas1"),
+                    CustomerId = 123,
+                    Id = "the-canvas",
+                    ChoiceOrder = 10,
+                    CanvasOrder = 100
+                }
+            ]
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+
+        // Assert
+        var cp = result.PaintedResources.Single().CanvasPainting;
+        cp.CanvasId.Should().Be("http://base/123/canvases/the-canvas");
+        cp.ChoiceOrder.Should().Be(10);
+        cp.CanvasOrder.Should().Be(100);
+        cp.CanvasOriginalId.Should().Be("http://example.test/canvas1");
+    }
 }

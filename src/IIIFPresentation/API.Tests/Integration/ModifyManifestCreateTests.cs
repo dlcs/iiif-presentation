@@ -5,6 +5,8 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,8 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Collection = Models.Database.Collections.Collection;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Integration;
 
@@ -354,14 +358,17 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var slug = nameof(CreateManifest_ReturnsManifest);
-        var manifest = new PresentationManifest
-        {
-            Parent = RootCollection.Id,
-            Slug = slug,
-        };
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -377,6 +384,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.PaintedResources.Should().BeNullOrEmpty();
     }
     
     [Fact]
@@ -527,7 +535,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var requestMessage = new HttpRequestMessage(HttpMethod.Put, $"{Customer}/manifests/dolphin")
-            .WithJsonContent("{}");;
+            .WithJsonContent("{}");
         requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
         
         // Act
@@ -894,14 +902,17 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Arrange
         var slug = $"slug_{nameof(PutFlatId_Insert_ReturnsManifest)}";
         var id = nameof(PutFlatId_Insert_ReturnsManifest);
-        var manifest = new PresentationManifest
-        {
-            Parent = RootCollection.Id,
-            Slug = slug,
-        };
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -917,6 +928,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
+        responseManifest.PaintedResources.Should().BeNullOrEmpty();
         responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
         responseManifest.FlatId.Should().Be(id);
     }
@@ -927,14 +939,17 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Arrange
         var slug = $"slug_{nameof(PutFlatId_Insert_CreatedDBRecord)}";
         var id = nameof(PutFlatId_Insert_CreatedDBRecord);
-        var manifest = new PresentationManifest
-        {
-            Parent = RootCollection.Id,
-            Slug = slug,
-        };
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest.AsJson());
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -943,6 +958,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
         var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
             .Include(c => c.Hierarchy)
             .Single(c => c.Id == id);
         var hierarchy = fromDatabase.Hierarchy.Single();
@@ -950,6 +966,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         fromDatabase.Should().NotBeNull();
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
+        fromDatabase.CanvasPaintings.Should().BeNullOrEmpty();
     }
     
     [Fact]

@@ -48,6 +48,9 @@ public static class ServiceCollectionX
             .AddScoped(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehaviour<,>));
     }
 
+    /// <summary>
+    /// Add services for identity generation
+    /// </summary>
     public static IServiceCollection ConfigureIdGenerator(this IServiceCollection services)
     {
         return services.AddSingleton(new SqidsEncoder<long>(new()
@@ -55,7 +58,8 @@ public static class ServiceCollectionX
                 Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789",
                 MinLength = 6,
             }))
-            .AddSingleton<IIdGenerator, SqidsGenerator>();
+            .AddSingleton<IIdGenerator, SqidsGenerator>()
+            .AddScoped<IdentityManager>();
     }
     
     /// <summary>

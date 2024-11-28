@@ -1,7 +1,7 @@
 ﻿using IIIF;
 using IIIF.Presentation.V3.Content;
 
-namespace API.Features.Storage.Helpers;
+namespace Core.IIIF;
 
 public static class ThumbnailX
 {
@@ -12,7 +12,7 @@ public static class ThumbnailX
     /// </summary>
     /// <param name="thumbnails">List of thumbnails to check for closest</param>
     /// <returns>The id of the closest thumbnail</returns>
-    public static string? GetThumbnailPath(this List<Image> thumbnails)
+    public static string? GetThumbnailPath(this IEnumerable<Image> thumbnails)
     {
         return thumbnails.SizeClosestTo(ThumbnailSize).Id;
     }

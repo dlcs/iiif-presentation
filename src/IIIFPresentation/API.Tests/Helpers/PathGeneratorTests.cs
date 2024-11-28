@@ -1,5 +1,4 @@
 ﻿using API.Helpers;
-using Microsoft.AspNetCore.Http;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -331,6 +330,23 @@ public class PathGeneratorTests
 
         // Assert
         id.Should().Be("http://base/123/manifests/test");
+    }
+    
+    [Fact]
+    public void GenerateCanvasId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new Models.Database.CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasId(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];

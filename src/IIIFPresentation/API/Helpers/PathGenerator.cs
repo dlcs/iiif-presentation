@@ -1,15 +1,15 @@
-﻿using API.Converters;
-using API.Infrastructure.Requests;
+﻿using API.Infrastructure.Requests;
 using Models.Database.Collections;
 using Models.Database.General;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Helpers;
 
 public class PathGenerator : IPathGenerator
 {
-    private const int MaxAttempts = 3;
     private const string ManifestsSlug = "manifests";
     private const string CollectionsSlug = "collections";
+    private const string CanvasesSlug = "canvases";
     private readonly string baseUrl;
     
     public PathGenerator(IHttpContextAccessor contextAccessor)
@@ -70,7 +70,10 @@ public class PathGenerator : IPathGenerator
     
     public string GenerateFlatManifestId(Manifest manifest) =>
         $"{baseUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
-    
+
+    public string GenerateCanvasId(CanvasPainting canvasPainting)
+        => $"{baseUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
+
     private string GetSlug(ResourceType resourceType) 
         => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;
 }

@@ -1,6 +1,7 @@
 ﻿using API.Converters;
 using API.Helpers;
 using Core.Helpers;
+using Core.IIIF;
 using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Database.General;
