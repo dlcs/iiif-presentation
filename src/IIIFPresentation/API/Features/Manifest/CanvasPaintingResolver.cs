@@ -20,9 +20,6 @@ public class CanvasPaintingResolver(
     /// <summary>
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>
-    /// <param name="customerId"></param>
-    /// <param name="presentationManifest"></param>
-    /// <param name="cancellationToken"></param>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintings(
         int customerId, IIIFManifest presentationManifest, CancellationToken cancellationToken)
