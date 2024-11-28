@@ -29,10 +29,8 @@ public static class ServiceCollectionX
         if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
         {
             services
-                .AddHostedService(serviceProvider => new CreateBackgroundListenerService<CustomerCreatedMessageHandler>(
-                    serviceProvider.GetRequiredService<SqsListener>(), 
-                    aws.SQS.CustomerCreatedQueueName, 
-                    serviceProvider.GetRequiredService<ILogger<CustomerCreatedMessageHandler>>()))
+                .AddHostedService(sp => 
+                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<CustomerCreatedMessageHandler>>(sp, aws.SQS.CustomerCreatedQueueName))
                 .AddScoped<CustomerCreatedMessageHandler>();
         }
 

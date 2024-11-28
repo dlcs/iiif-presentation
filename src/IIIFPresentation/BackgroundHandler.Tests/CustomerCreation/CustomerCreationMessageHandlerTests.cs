@@ -11,7 +11,7 @@ namespace BackgroundHandler.Tests.CustomerCreation;
 
 [Trait("Category", "Database")]
 [Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
-public class CustomerCreationMessageHandlerTests : IClassFixture<PresentationContextFixture>
+public class CustomerCreationMessageHandlerTests
 {
     private readonly PresentationContext dbContext;
     private readonly CustomerCreatedMessageHandler sut;
