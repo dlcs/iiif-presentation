@@ -28,7 +28,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Repository.Tests", "Reposit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundHandler", "BackgroundHandler\BackgroundHandler.csproj", "{79E59E95-F81F-41ED-B587-D4891795642E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundServices.Tests", "BackgroundServices.Tests\BackgroundServices.Tests.csproj", "{56A6B34D-7916-4138-9226-C4285140F2C7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundHandler.Tests", "BackgroundHandler.Tests\BackgroundHandler.Tests.csproj", "{56A6B34D-7916-4138-9226-C4285140F2C7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

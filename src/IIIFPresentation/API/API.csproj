@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.400.25" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
         <PackageReference Include="iiif-net" Version="0.3.1" />
         <PackageReference Include="LazyCache.AspNetCore" Version="2.4.0" />
@@ -35,7 +34,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\AWS\AWS.csproj" />
-        <ProjectReference Include="..\BackgroundHandler\BackgroundHandler.csproj" />
         <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

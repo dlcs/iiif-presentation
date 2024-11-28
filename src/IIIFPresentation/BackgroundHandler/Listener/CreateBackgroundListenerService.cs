@@ -10,17 +10,14 @@ namespace BackgroundHandler.Listener;
 /// </summary>
 public class CreateBackgroundListenerService<T>(
     SqsListener sqsListener,
-    IOptions<AWSSettings> awsSettings,
+    string queueName,
     ILogger<T> logger)
     : BackgroundService where T: IMessageHandler
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var customerCreatedQueueName =
-            awsSettings.Value.SQS.CustomerCreatedQueueName?.ThrowIfNullOrWhiteSpace("queueName")!;
-
-        logger.LogInformation("CustomerCreatedListenerService ExecuteAsync. Listening to {QueueName}",
-            customerCreatedQueueName);
-        await sqsListener.StartListenLoop<T>(customerCreatedQueueName, stoppingToken);
+        logger.LogInformation("{Type} ExecuteAsync. Listening to {QueueName}", typeof(T).Name,
+            queueName);
+        await sqsListener.StartListenLoop<T>(queueName, stoppingToken);
     }
 }
