@@ -5,6 +5,7 @@ using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
 using API.Infrastructure.AWS;
+using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using API.Settings;
@@ -36,7 +37,7 @@ public class CreateCollectionHandler(
     PresentationContext dbContext,
     ILogger<CreateCollectionHandler> logger,
     IIIFS3Service iiifS3,
-    IIdGenerator idGenerator,
+    IdentityManager identityManager,
     IPathGenerator pathGenerator,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
@@ -69,7 +70,7 @@ public class CreateCollectionHandler(
 
         try
         {
-            id = await dbContext.Collections.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+            id = await identityManager.GenerateUniqueId<Collection>(request.CustomerId, cancellationToken);
         }
         catch (ConstraintException ex)
         {

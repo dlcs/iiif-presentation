@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using API.Auth;
-using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.AWS;
+using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
 using Core;
 using Core.IIIF;
@@ -15,7 +15,6 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using DatabaseCollection = Models.Database.Collections;
-using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
@@ -34,7 +33,7 @@ public class PostHierarchicalCollection(
 public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
-    IIdGenerator idGenerator,
+    IdentityManager identityManager,
     IIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
     : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
@@ -119,16 +118,14 @@ public class PostHierarchicalCollectionHandler(
 
     private async Task<string?> GenerateUniqueId(PostHierarchicalCollection request, CancellationToken cancellationToken)
     {
-        string? id = null;
         try
         {
-            id = await dbContext.Collections.GenerateUniqueIdAsync(request.CustomerId, idGenerator, cancellationToken);
+            return await identityManager.GenerateUniqueId<DatabaseCollection.Collection>(request.CustomerId, cancellationToken);
         }
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
+            return null;
         }
-        
-        return id;
     }
 }

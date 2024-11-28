@@ -63,7 +63,9 @@ builder.Services
     .AddHttpContextAccessor();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
-builder.Services.AddHealthChecks();
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<PresentationContext>("Database");
 builder.Services.AddAws(builder.Configuration, builder.Environment, aws);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
@@ -84,17 +86,12 @@ app.UseForwardedHeaders();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 var rewriteOptions = new RewriteOptions()
     .AddRedirect("(.*)/$", "$1");
 
 app
+    .UseSwagger()
+    .UseSwaggerUI()
     .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
