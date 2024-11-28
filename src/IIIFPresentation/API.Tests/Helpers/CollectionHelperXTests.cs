@@ -1,5 +1,4 @@
 ﻿using API.Helpers;
-using Models.Database;
 using Models.Database.Collections;
 
 namespace API.Tests.Helpers;

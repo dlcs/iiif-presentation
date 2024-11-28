@@ -10,10 +10,7 @@ public class SqidsGenerator(SqidsEncoder<long> sqids, ILogger<SqidsGenerator> lo
 {
     private const int ListLength = 5;
     
-    public string Generate(List<long>? seed = null)
-    {
-        return sqids.Encode(seed ?? GenerateRandomSeed());
-    }
+    public string Generate(List<long>? seed = null) => sqids.Encode(seed ?? GenerateRandomSeed());
 
     private List<long> GenerateRandomSeed()
     {

@@ -1,6 +1,4 @@
 ﻿using API.Helpers;
-using Microsoft.AspNetCore.Http;
-using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
 

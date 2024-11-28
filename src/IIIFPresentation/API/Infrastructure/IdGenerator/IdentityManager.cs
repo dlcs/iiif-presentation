@@ -24,7 +24,6 @@ public class IdentityManager(
         {
             var id = GenerateIdentity(customerId, random);
 
-            // isUnique means Id doesn't exist
             var isUnique = !await dbContext.Set<T>()
                 .AnyAsync(e => e.Id == id && e.CustomerId == customerId, cancellationToken);
 
