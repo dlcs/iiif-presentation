@@ -84,17 +84,12 @@ app.UseForwardedHeaders();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 var rewriteOptions = new RewriteOptions()
     .AddRedirect("(.*)/$", "$1");
 
 app
+    .UseSwagger()
+    .UseSwaggerUI()
     .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
