@@ -56,3 +56,15 @@ jobs:
           dockerfile: "Dockerfile.Migrator"
           context: "./src/IIIFPresentation"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-push-background-handler:
+    runs-on: ubuntu-latest
+    needs: test-dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker-build-and-push
+        with:
+          image-name: "presentation-background-handler"
+          dockerfile: "Dockerfile.BackgroundHandler"
+          context: "./src/IIIFPresentation"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
