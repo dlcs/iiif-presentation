@@ -101,7 +101,6 @@ public class PresentationContext : DbContext
                 .HasField("internalChoiceOrder")
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
 
-            // TODO - add Asset
             entity.HasIndex(cp => new
                     { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
                 .IsUnique();

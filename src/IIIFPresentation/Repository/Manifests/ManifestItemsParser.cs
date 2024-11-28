@@ -117,7 +117,6 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
         return resource;
     }
 
-    // TODO - should these be elsewhere? Somewhere that can handle updates too? 
     private CanvasPainting CreatePartialCanvasPainting(ResourceBase resource,
         string? canvasOriginalId,
         int canvasOrder,
@@ -125,9 +124,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
         Canvas currentCanvas,
         int? choiceOrder = null)
     {
-        // TODO - should these be interim CanvasPainting objects. The don't have a properId yet, the Id is the Id
-        // as given in the payload. When we are at the point of working out whether this is an Insert or Update operation
-        // OR it's an internal or external operation we can then CreateId
+        // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
         var cp = new CanvasPainting
         {
             CanvasOriginalId = string.IsNullOrEmpty(canvasOriginalId) ? null : new Uri(canvasOriginalId),

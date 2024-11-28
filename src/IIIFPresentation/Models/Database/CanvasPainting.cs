@@ -61,7 +61,9 @@ public class CanvasPainting : IIdentifiable
         get => internalChoiceOrder == NoChoiceOrderValue ? null : internalChoiceOrder;
         set => internalChoiceOrder = value ?? NoChoiceOrderValue;
     }
-    private int internalChoiceOrder;
+    
+    // Note - this is value stored in DB
+    private int internalChoiceOrder; 
     private const int NoChoiceOrderValue = -1;
 
     /// <summary>
@@ -112,4 +114,25 @@ public class CanvasPainting : IIdentifiable
     /// Unique identifier for this CanvasPainting object
     /// </summary>
     public int CanvasPaintingId { get; set; }
+}
+
+public static class CanvasPaintingX
+{
+    /// <summary>
+    /// Update current object, with values from specified <see cref="CanvasPainting"/>
+    /// Modified date is _always_ updated - whether there were changes or not
+    /// </summary>
+    public static CanvasPainting UpdateFrom(this CanvasPainting canvasPainting, CanvasPainting updated)
+    {
+        canvasPainting.Label = updated.Label;
+        canvasPainting.CanvasLabel = updated.CanvasLabel;
+        canvasPainting.CanvasOrder = updated.CanvasOrder;
+        canvasPainting.ChoiceOrder = updated.ChoiceOrder;
+        canvasPainting.Thumbnail = updated.Thumbnail;
+        canvasPainting.StaticHeight = updated.StaticHeight;
+        canvasPainting.StaticWidth = updated.StaticWidth;
+        canvasPainting.Target = updated.Target;
+        canvasPainting.Modified = DateTime.UtcNow;
+        return canvasPainting;
+    } 
 }

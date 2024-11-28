@@ -3,6 +3,7 @@ using API.Features.Storage.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Helpers;
 using Models.API.Manifest;
+using Models.Database;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -60,7 +61,7 @@ public class CanvasPaintingResolver(
                 if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
                 {
                     logger.LogTrace("Found existing canvas painting for {CanvasOriginalId}", incoming.CanvasOriginalId);
-                    matching = candidates.Single();
+                    matching = potential;
                 }
             }
             else if (candidates.Count > 1)
@@ -72,7 +73,6 @@ public class CanvasPaintingResolver(
 
             if (matching == null)
             {
-                // If it's not in DB, create...
                 if (incoming.ChoiceOrder.HasValue)
                 {
                     // This is a choice. If there are other, existing items for the same canvas then seed canvas_id
@@ -86,19 +86,12 @@ public class CanvasPaintingResolver(
             {
                 // Found matching DB record, update...
                 logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-                matching.Label = incoming.Label;
-                matching.CanvasLabel = incoming.CanvasLabel;
-                matching.CanvasOrder = incoming.CanvasOrder;
-                matching.ChoiceOrder = incoming.ChoiceOrder;
-                matching.Thumbnail = incoming.Thumbnail;
-                matching.StaticHeight = incoming.StaticHeight;
-                matching.StaticWidth = incoming.StaticWidth;
-                matching.Target = incoming.Target;
-                matching.Modified = DateTime.UtcNow;
+                matching.UpdateFrom(incoming);
                 processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
             }
         }
 
+        // Delete canvasPaintings from DB that are not in payload
         foreach (var toRemove in existingManifest.CanvasPaintings
                      .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
         {

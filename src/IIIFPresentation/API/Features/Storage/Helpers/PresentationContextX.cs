@@ -51,22 +51,28 @@ public static class PresentationContextX
     }
 
     /// <summary>
-    ///     Retrieves a manifest from the database, with the Hierarchy records included
+    /// Retrieves a manifest from the database, with the Hierarchy records included
     /// </summary>
     /// <param name="dbContext">The context to pull records from</param>
     /// <param name="customerId">Customer the record is attached to</param>
     /// <param name="manifestId">The manifest to retrieve</param>
     /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="withCanvasPaintings">Whether the CanvasPaintings records should be included</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
     public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
-        string manifestId, bool tracked = false, CancellationToken cancellationToken = default)
-        => dbContext
-            .Manifests
-            .Include(m => m.CanvasPaintings)// TODO - do we _always_ want this???
-            .AsSplitQuery()
-            .Retrieve(customerId, manifestId, tracked, cancellationToken);
-    
+        string manifestId, bool tracked = false, bool withCanvasPaintings = true, CancellationToken cancellationToken = default)
+    {
+        IQueryable<DbManifest> dbContextManifests = dbContext.Manifests;
+
+        if (withCanvasPaintings)
+        {
+            dbContextManifests = dbContextManifests.Include(m => m.CanvasPaintings).AsSplitQuery();
+        }
+
+        return dbContextManifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
+    }
+
     /// <summary>
     /// Retrieves a collection from the database, with the Hierarchy records included
     /// </summary>
