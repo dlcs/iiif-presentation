@@ -10,13 +10,12 @@ using Models.Infrastucture;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using Test.Helpers.Integration.Infrastructure;
 
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
+public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
 

@@ -1,13 +1,13 @@
 ﻿using AWS.SQS;
 using BackgroundHandler.CustomerCreation;
+using BackgroundHandler.Tests.infrastructure;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.Database.General;
 using Repository;
 using Test.Helpers.Integration;
-using Test.Helpers.Integration.Infrastructure;
 
-namespace BackgroundServices.Tests.CustomerCreation;
+namespace BackgroundHandler.Tests.CustomerCreation;
 
 [Trait("Category", "Database")]
 [Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]

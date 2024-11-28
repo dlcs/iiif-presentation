@@ -7,13 +7,12 @@ using IIIF.Presentation.V3;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
 using Test.Helpers.Integration;
-using Test.Helpers.Integration.Infrastructure;
 
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
+public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
 

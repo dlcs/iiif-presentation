@@ -7,13 +7,12 @@ using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using Test.Helpers.Integration.Infrastructure;
 
 namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
+public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private const int TotalDatabaseChildItems = 4;
