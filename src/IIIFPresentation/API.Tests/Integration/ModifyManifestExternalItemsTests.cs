@@ -91,7 +91,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -155,7 +155,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -255,7 +255,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -364,7 +364,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -448,7 +448,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -515,7 +515,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -587,7 +587,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -659,7 +659,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -729,7 +729,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -824,7 +824,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -902,7 +902,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1004,7 +1004,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1117,7 +1117,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1216,7 +1216,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         SetCorrectEtag(requestMessage, dbManifest);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
