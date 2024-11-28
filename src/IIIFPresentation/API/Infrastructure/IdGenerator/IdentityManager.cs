@@ -12,7 +12,6 @@ public class IdentityManager(
     ILogger<IdentityManager> logger)
 {
     private const int MaxAttempts = 3;
-    private const int MaxRandomValue = 25000;
 
     public async Task<string> GenerateUniqueId<T>(int customerId, CancellationToken cancellationToken = default)
         where T : class, IIdentifiable
@@ -70,7 +69,7 @@ public class IdentityManager(
         
         throw new ConstraintException("Max attempts to generate an identifier exceeded");
     }
-    
+
     private string GenerateIdentity(int customerId, Random random)
-        => idGenerator.Generate([customerId, DateTime.UtcNow.Ticks, random.Next(0, MaxRandomValue)]);
+        => idGenerator.Generate([random.Next(0, int.MaxValue), DateTime.UtcNow.Ticks, customerId]);
 }
