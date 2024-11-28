@@ -4,8 +4,8 @@ using System.Net;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
-using Models.API.Manifest;
 using Microsoft.Net.Http.Headers;
+using Models.API.Manifest;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -15,7 +15,6 @@ namespace API.Tests.Integration;
 public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    private const int TotalDatabaseChildItems = 4;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -32,7 +31,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange and Act
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/FirstChildManifest");
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
 
@@ -45,6 +44,17 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be("FirstChildManifest");
         manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Hierarchical_Returns_TrailingSlashRedirect()
+    {
+        // Arrange and Act
+        var response = await httpClient.GetAsync("1/iiif-manifest/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.Location!.Should().Be("/1/iiif-manifest");
     }
 
     [Fact]

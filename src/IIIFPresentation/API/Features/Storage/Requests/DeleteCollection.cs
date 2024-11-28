@@ -1,4 +1,5 @@
-﻿using Core;
+﻿using API.Infrastructure.AWS;
+using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
@@ -15,6 +16,7 @@ public class DeleteCollection (int customerId, string collectionId) : IRequest<R
 
 public class DeleteCollectionHandler(
     PresentationContext dbContext,
+    IIIFS3Service iiifS3,
     ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteCollectionType>>
 {
@@ -53,7 +55,12 @@ public class DeleteCollectionHandler(
         }
 
         dbContext.Collections.Remove(collection);
-        
+
+        if (!collection.IsStorageCollection)
+        {
+            await iiifS3.DeleteIIIFFromS3(collection);
+        }
+
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);

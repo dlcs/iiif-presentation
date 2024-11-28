@@ -16,16 +16,16 @@ public static class PresentationCollectionX
     /// </summary>
     /// <param name="presentationCollection">The presentation collection to enrich</param>
     /// <param name="collection">The collection to use for enrichment</param>
-    /// <param name="urlRoots">URL details</param>
     /// <param name="pageSize">Size of the page</param>
     /// <param name="currentPage">The current page of items</param>
     /// <param name="totalItems">The total number of items</param>
     /// <param name="items">The list of items that use this collection as a </param>
+    /// <param name="pathGenerator">A collection path generator</param>
     /// <param name="orderQueryParam">Used to describe the type of ordering done</param>
     /// <returns>An enriched presentation collection</returns>
     public static PresentationCollection EnrichPresentationCollection(this PresentationCollection presentationCollection, 
-    Collection collection, UrlRoots urlRoots, int pageSize, int currentPage, 
-    int totalItems, List<Hierarchy>? items, string? orderQueryParam = null)
+    Collection collection, int pageSize, int currentPage, int totalItems, List<Hierarchy>? items, 
+    IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
         var totalPages = CollectionConverter.GenerateTotalPages(pageSize, totalItems);
 
@@ -36,17 +36,17 @@ public static class PresentationCollectionX
         presentationCollection.Behavior ??= CollectionConverter.GenerateBehavior(collection);
         presentationCollection.Slug ??= hierarchy.Slug;
         presentationCollection.ItemsOrder ??= hierarchy.ItemsOrder;
-        presentationCollection.Items ??= CollectionConverter.GenerateItems(urlRoots, items);
+        presentationCollection.Items ??= CollectionConverter.GenerateItems(pathGenerator, items);
         presentationCollection.TotalItems = totalItems;
 
         presentationCollection.FlatId = collection.Id;
-        presentationCollection.Id = collection.GenerateFlatCollectionId(urlRoots);
-        presentationCollection.PublicId = collection.GenerateHierarchicalCollectionId(urlRoots);
-        presentationCollection.Parent = CollectionConverter.GeneratePresentationCollectionParent(urlRoots, hierarchy);
-        presentationCollection.PartOf = CollectionConverter.GeneratePartOf(hierarchy, collection, urlRoots);
-        presentationCollection.View = CollectionConverter.GenerateView(collection, urlRoots, pageSize, currentPage,
+        presentationCollection.Id = pathGenerator.GenerateFlatCollectionId(collection);
+        presentationCollection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(collection);
+        presentationCollection.Parent = CollectionConverter.GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        presentationCollection.PartOf = CollectionConverter.GeneratePartOf(hierarchy, collection, pathGenerator);
+        presentationCollection.View = CollectionConverter.GenerateView(collection, pathGenerator, pageSize, currentPage,
             totalPages, orderQueryParamConverted);
-        presentationCollection.SeeAlso = CollectionConverter.GenerateSeeAlso(collection, urlRoots);
+        presentationCollection.SeeAlso = CollectionConverter.GenerateSeeAlso(collection, pathGenerator);
         presentationCollection.Created = collection.Created.Floor(DateTimeX.Precision.Second);
         presentationCollection.Modified = collection.Modified.Floor(DateTimeX.Precision.Second);
         presentationCollection.CreatedBy = collection.CreatedBy;

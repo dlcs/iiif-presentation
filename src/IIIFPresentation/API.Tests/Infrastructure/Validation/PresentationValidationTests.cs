@@ -1,5 +1,8 @@
 ﻿using API.Converters;
+using API.Helpers;
 using API.Infrastructure.Validation;
+using API.Tests.Helpers;
+using Microsoft.AspNetCore.Http;
 using Models.API;
 using Models.Database.Collections;
 
@@ -7,7 +10,7 @@ namespace API.Tests.Infrastructure.Validation;
 
 public class PresentationValidationTests
 {
-    private readonly UrlRoots urlRoots = new() { BaseUrl = "https://api.tests" };
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("api.tests", Uri.UriSchemeHttps);
     
     [Fact]
     public void IsUriParentInvalid_False_IfNotUri()
@@ -17,7 +20,7 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "bar" };
         
         // Assert
-        presentation.IsUriParentInvalid(parent, urlRoots).Should().BeFalse();
+        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeFalse();
     }
     
     [Fact]
@@ -28,7 +31,7 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "parent", CustomerId = 1 };
         
         // Assert
-        presentation.IsUriParentInvalid(parent, urlRoots).Should().BeFalse();
+        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeFalse();
     }
     
     [Fact]
@@ -39,7 +42,7 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "parent", CustomerId = 1 };
         
         // Assert
-        presentation.IsUriParentInvalid(parent, urlRoots).Should().BeTrue();
+        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeTrue();
     }
 }
 

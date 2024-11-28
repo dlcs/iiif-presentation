@@ -175,6 +175,7 @@ public static class ControllerBaseX
         if (value is JsonLdBase jsonLdBase)
         {
             controller.Response.Headers.Location = uri;
+            
             return new ContentResult
             {
                 Content = jsonLdBase.AsJson(),

@@ -45,6 +45,28 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
         secondItem.Behavior.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Get_RootHierarchical_Returns_TrailingSlashRedirect()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.Location!.Should().Be("/1");
+    }
+
+    [Fact]
+    public async Task Get_ChildHierarchical_Returns_TrailingSlashRedirect()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/first-child/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.Location!.Should().Be("/1/first-child");
+    }
     
     [Fact]
     public async Task Get_ChildHierarchical_Returns_Child()
@@ -81,7 +103,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -95,7 +117,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1?page=2&pageSize=2");
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -120,7 +142,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -135,7 +157,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         requestMessage.Headers.Add("IIIF-CS-Show-Extra", "Incorrect");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -174,7 +196,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"2/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -203,7 +225,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
@@ -239,7 +261,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
@@ -263,8 +285,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/NonPublic");
 
         // Act
-        var flatResponse = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-        var hierarchicalResponse = await httpClient.AsCustomer(1).GetAsync("1/non-public");
+        var flatResponse = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var hierarchicalResponse = await httpClient.AsCustomer().GetAsync("1/non-public");
 
         var flatCollection = await flatResponse.ReadAsPresentationJsonAsync<PresentationCollection>();
 
@@ -289,7 +311,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=100");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -309,7 +331,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=1");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -330,7 +352,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -347,7 +369,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/FirstChildCollection");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -364,7 +386,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=2&pageSize=1");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -385,7 +407,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=0&pageSize=0");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -405,7 +427,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}?page=1&pageSize=1000");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -429,7 +451,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
                 $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderBy={field}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -455,7 +477,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
                 $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending={field}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -479,7 +501,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
                 $"1/collections/{RootCollection.Id}?page=1&pageSize=1&orderByDescending=notValid");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
@@ -502,7 +524,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
                 $"1/collections/{RootCollection.Id}?page=7&pageSize=15");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
@@ -523,7 +545,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
                 $"1/collections/{RootCollection.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

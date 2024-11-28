@@ -28,6 +28,7 @@ public class StorageController(
     IAuthenticator authenticator,
     PresentationContext dbContext,
     IOptions<ApiSettings> options,
+    IPathGenerator pathGenerator,
     IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
@@ -45,25 +46,25 @@ public class StorageController(
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                     return hierarchy.ManifestId == null ? NotFound() : SeeOther($"manifests/{hierarchy.ManifestId}");
 
-                var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy, slug, GetUrlRoots()));
+                var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
                 return storedManifest == null ? NotFound() : Content(storedManifest, ContentTypes.V3);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
-                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug, GetUrlRoots()));
+                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug));
 
                 if (storageRoot.Collection is not {IsPublic: true}) return this.PresentationNotFound();
 
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                 {
-                    var relativeUrl = storageRoot.Collection.GenerateFlatCollectionId(GetUrlRoots());
+                    var relativeUrl = pathGenerator.GenerateFlatCollectionId(storageRoot.Collection);
                     relativeUrl = QueryHelpers.AddQueryString(relativeUrl, Request.Query);
                     return SeeOther(relativeUrl);
                 }
 
                 return storageRoot.StoredCollection == null
                     ? Content(
-                        storageRoot.Collection.ToHierarchicalCollection(GetUrlRoots(), storageRoot.Items).AsJson(),
+                        storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items).AsJson(),
                         ContentTypes.V3)
                     : Content(storageRoot.StoredCollection, ContentTypes.V3);
 
@@ -79,6 +80,6 @@ public class StorageController(
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, GetUrlRoots(), rawRequestBody));
+        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, rawRequestBody));
     }
 }

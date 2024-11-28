@@ -55,7 +55,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
                 manifest.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
@@ -81,7 +81,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"anything\""));
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
@@ -104,7 +104,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -125,7 +125,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -146,7 +146,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -168,7 +168,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -190,7 +190,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -213,7 +213,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -237,7 +237,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -260,7 +260,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -286,7 +286,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -319,7 +319,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -353,7 +353,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -387,7 +387,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -416,7 +416,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         SetCorrectEtag(requestMessage, dbManifest);
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

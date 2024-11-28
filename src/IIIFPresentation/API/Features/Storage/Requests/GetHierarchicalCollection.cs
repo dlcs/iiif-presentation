@@ -15,16 +15,17 @@ using Repository;
 
 namespace API.Features.Storage.Requests;
 
-public class GetHierarchicalCollection(Hierarchy hierarchy, string slug, UrlRoots urlRoots)
+public class GetHierarchicalCollection(Hierarchy hierarchy, string slug)
     : IRequest<CollectionWithItems>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
     public string Slug { get; } = slug;
-
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
-public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBucketReader bucketReader, 
+public class GetHierarchicalCollectionHandler(
+    PresentationContext dbContext, 
+    IBucketReader bucketReader, 
+    IPathGenerator pathGenerator,
     IOptions<AWSSettings> options)
     : IRequestHandler<GetHierarchicalCollection, CollectionWithItems>
 {
@@ -49,7 +50,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                     using var reader = new StreamReader(memoryStream);
                     StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
                         objectFromS3.Headers.ContentLength,
-                        new S3StoredJsonProcessor(request.Hierarchy.GenerateHierarchicalId(request.UrlRoots)));
+                        new S3StoredJsonProcessor(pathGenerator.GenerateHierarchicalId(request.Hierarchy)));
                     memoryStream.Seek(0, SeekOrigin.Begin);
                     collectionFromS3 = await reader.ReadToEndAsync(cancellationToken);
                 }
@@ -63,7 +64,7 @@ public class GetHierarchicalCollectionHandler(PresentationContext dbContext, IBu
                         .ToListAsync(cancellationToken: cancellationToken);
 
                     // The incoming slug will be the base, use that to generate child item path
-                    items.ForEach(item => item.FullPath = item.GenerateFullPath(request.Slug));
+                    items.ForEach(item => item.FullPath = pathGenerator.GenerateFullPath(item, request.Slug));
 
                     request.Hierarchy.Collection.FullPath = request.Slug;
                 }

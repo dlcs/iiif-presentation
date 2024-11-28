@@ -1,12 +1,14 @@
 using System.Text.Json.Serialization;
 using API.Auth;
 using API.Features.Manifest;
+using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Settings;
 using AWS.Settings;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
 using Repository.Manifests;
@@ -56,7 +58,9 @@ builder.Services
     .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<ManifestService>()
     .AddScoped<CanvasPaintingResolver>()
-    .AddSingleton<ManifestItemsParser>();
+    .AddSingleton<ManifestItemsParser>()
+    .AddSingleton<IPathGenerator, PathGenerator>()
+    .AddHttpContextAccessor();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services.AddHealthChecks();
@@ -87,7 +91,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+var rewriteOptions = new RewriteOptions()
+    .AddRedirect("(.*)/$", "$1");
+
 app
+    .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()

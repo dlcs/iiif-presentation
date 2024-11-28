@@ -79,7 +79,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             JsonSerializer.Serialize(collection));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -136,7 +136,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             JsonSerializer.Serialize(collection));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -168,7 +168,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -222,7 +222,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -275,7 +275,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             JsonSerializer.Serialize(collection));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -324,7 +324,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -382,7 +382,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections", collection);
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -435,7 +435,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             JsonSerializer.Serialize(collection));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -480,7 +480,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection);
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         
@@ -509,7 +509,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -539,7 +539,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             collection.AsJson());
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
@@ -597,7 +597,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             new MediaTypeHeaderValue("application/json"));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -624,7 +624,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             new MediaTypeHeaderValue("application/json"));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -682,7 +682,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             new MediaTypeHeaderValue("application/json"));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -729,7 +729,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
         
         var updatedCollection = new PresentationCollection()
         {
@@ -751,7 +751,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -819,7 +819,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvidedAndParentIsFullUri);
         var updatedCollection = new PresentationCollection
@@ -842,7 +842,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -903,7 +903,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
         
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = 
 """
@@ -968,7 +968,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         
         var collection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
         var fromDatabase = dbContext.Collections.Include(c => c.Hierarchy).First(c => c.Id == initialCollection.Id);
@@ -1024,7 +1024,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
         
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
         
         var updatedCollection = new PresentationCollection()
         {
@@ -1046,7 +1046,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
         
@@ -1096,7 +1096,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
         
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
         
         var updatedCollection = new PresentationCollection()
         {
@@ -1117,7 +1117,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<Error>();
         
@@ -1151,7 +1151,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/collections/createFromUpdate", updatedCollection.AsJson());
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -1204,7 +1204,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"someTag\""));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -1252,7 +1252,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = new PresentationCollection()
         {
@@ -1270,7 +1270,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
@@ -1327,7 +1327,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = new PresentationCollection
         {
@@ -1345,7 +1345,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -1391,7 +1391,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = new PresentationCollection()
         {
@@ -1410,7 +1410,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -1460,7 +1460,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
 
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = new PresentationCollection
         {
@@ -1479,7 +1479,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -1509,7 +1509,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -1599,14 +1599,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var getRequestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{parentCollection.Id}");
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"1/collections/{parentCollection.Id}", updatedCollection.AsJson());
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
@@ -1621,7 +1621,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders);
         var getRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
         
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
         
         var updatedCollection = new PresentationCollection()
         {
@@ -1686,7 +1686,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
                 $"{Customer}/collections/{initialCollection.Id}");
         
-        var getResponse = await httpClient.AsCustomer(1).SendAsync(getRequestMessage);
+        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = 
 """
@@ -1723,166 +1723,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
         
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(updateRequestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error.Detail.Should().Be("Could not deserialize collection");
-    }
-    
-    [Fact]
-    public async Task DeleteCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
-    {
-        // Arrange
-        var collectionName = nameof(DeleteCollection_ReturnsUnauthorized_WhenCalledWithoutAuth);
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{collectionName}");
-
-        // Act
-        var response = await httpClient.SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task DeleteCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader()
-    {
-        // Arrange
-        var collectionName = nameof(DeleteCollection_ReturnsForbidden_WhenCalledWithIncorrectShowExtraHeader);
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Delete, $"{Customer}/collections/{collectionName}");
-        requestMessage.Headers.Add("X-IIIF-CS-Show-Extras", "Incorrect");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-    }
-
-    [Fact]
-    public async Task DeleteCollection_DeletesCollection_WhenAllValuesProvided()
-    {
-        // Arrange
-        var initialCollection = new Collection()
-        {
-            Id = "DeleteTester",
-            UsePath = true,
-            Label = new LanguageMap
-            {
-                {"en", new() {"update testing"}}
-            },
-            Thumbnail = "some/location",
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
-            CustomerId = 1
-        };
-
-        await dbContext.Hierarchy.AddAsync(new Hierarchy
-        {
-            CollectionId = "DeleteTester",
-            Slug = "delete-test",
-            Parent = RootCollection.Id,
-            Type = ResourceType.StorageCollection,
-            CustomerId = 1,
-            Canonical = true
-        });
-
-        await dbContext.Collections.AddAsync(initialCollection);
-        await dbContext.SaveChangesAsync();
-
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{initialCollection.Id}");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == initialCollection.Id);
-        var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == initialCollection.Id);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        fromDatabase.Should().BeNull();
-        fromDatabaseHierarchy.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task DeleteCollection_FailsToDeleteCollection_WhenNotFound()
-    {
-        // Arrange
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/doesNotExist");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRoot()
-    {
-        // Arrange
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{RootCollection.Id}");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
-        errorResponse.Detail.Should().Be("Cannot delete a root collection");
-    }
-
-
-    [Fact]
-    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteRootDirectly()
-    {
-        // Arrange
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{RootCollection.Id}");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
-        errorResponse.Detail.Should().Be("Cannot delete a root collection");
-    }
-
-    [Fact]
-    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteCollectionWithItems()
-    {
-        // Arrange
-        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/FirstChildCollection");
-
-        // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(deleteRequestMessage);
-
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CollectionNotEmpty");
-        errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
     }
 
     [Fact]
@@ -1907,7 +1754,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/{slug}", collection);
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
@@ -1921,6 +1768,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection!.Items.Should().BeNull();
+        responseCollection.Id.Should().Be(requestMessage.RequestUri!.AbsoluteUri);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
@@ -1954,7 +1802,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/first-child/second-child/{slug}", collection);
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
@@ -2031,7 +1879,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/{slug}", collection);
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
@@ -2114,7 +1962,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             $"{Customer}/{slug}", collection);
 
         // Act
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 

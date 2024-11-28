@@ -22,14 +22,11 @@ namespace API.Features.Storage.Requests;
 public class PostHierarchicalCollection(
     int customerId,
     string slug, 
-    UrlRoots urlRoots,
     string rawRequestBody) : IRequest<ModifyEntityResult<Collection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
     public string Slug { get; } = slug;
-    
-    public UrlRoots UrlRoots { get; } = urlRoots;
     
     public string RawRequestBody { get; } = rawRequestBody;
 }
@@ -38,7 +35,8 @@ public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
     IIdGenerator idGenerator,
-    IIIFS3Service iiifS3)
+    IIIFS3Service iiifS3,
+    IPathGenerator pathGenerator)
     : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
 {
     
@@ -72,7 +70,7 @@ public class PostHierarchicalCollectionHandler(
             return saveErrors;
         }
         
-        await iiifS3.SaveIIIFToS3(collectionFromBody, collection, collection.GenerateFlatCollectionId(request.UrlRoots),
+        await iiifS3.SaveIIIFToS3(collectionFromBody, collection, pathGenerator.GenerateFlatCollectionId(collection),
             cancellationToken);
         
         if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
@@ -81,7 +79,7 @@ public class PostHierarchicalCollectionHandler(
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
-        collectionFromBody.Id = request.GetCollectionId();
+        collectionFromBody.Id = pathGenerator.GenerateHierarchicalCollectionId(collection);
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
     }
 

@@ -48,7 +48,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{dbManifest.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -65,7 +65,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
                 $"{Customer}/manifests/this_does_not_exist_1610");
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -81,7 +81,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         var requestMessage = new HttpRequestMessage(HttpMethod.Delete, $"{Customer}/manifests/{dbManifest.Id}");
 
         // Act
-        var response = await httpClient.AsCustomer(Customer).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -105,7 +105,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
 
-        var response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
@@ -115,7 +115,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
 
 
         // Act
-        response = await httpClient.AsCustomer(1).SendAsync(requestMessage);
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);

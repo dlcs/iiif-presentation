@@ -1,5 +1,8 @@
 ﻿using API.Converters;
+using API.Helpers;
+using API.Tests.Helpers;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.AspNetCore.Http;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -9,13 +12,9 @@ namespace API.Tests.Converters;
 
 public class CollectionConverterTests
 {
-    private readonly UrlRoots urlRoots = new UrlRoots()
-    {
-        BaseUrl = "http://base"
-    };
-
     private const int pageSize = 100;
     
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
 
     [Fact]
     public void ToHierarchicalCollection_ConvertsStorageCollection()
@@ -41,7 +40,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, CreateTestItems());
+            storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1");
         hierarchicalCollection.Label!.Count.Should().Be(1);
@@ -58,7 +57,7 @@ public class CollectionConverterTests
 
         // Act
         var hierarchicalCollection =
-            storageRoot.ToHierarchicalCollection(urlRoots, CreateTestItems());
+            storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/top/some-id");
         hierarchicalCollection.Label!.Count.Should().Be(1);
@@ -96,7 +95,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            collection.ToFlatCollection(urlRoots, pageSize, 1, 1, CreateTestItems());
+            collection.ToFlatCollection(pageSize, 1, 1, CreateTestItems(), pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -126,7 +125,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, pageSize, 1, 0, CreateTestItems());
+            storageRoot.ToFlatCollection(pageSize, 1, 0, CreateTestItems(), pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -158,7 +157,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(urlRoots, 1, 2, 3, CreateTestItems(), "orderBy=created");
+            storageRoot.ToFlatCollection(1, 2, 3, CreateTestItems(), pathGenerator, "orderBy=created");
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");

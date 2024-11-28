@@ -9,7 +9,7 @@ namespace Test.Helpers.Integration;
 
 public static class TestAuthHandlerX
 {
-    public static HttpClient AsCustomer(this HttpClient client, int customer = 2)
+    public static HttpClient AsCustomer(this HttpClient client, int customer = 1)
     {
         client.DefaultRequestHeaders.Authorization = 
             new AuthenticationHeaderValue($"user|{customer}");

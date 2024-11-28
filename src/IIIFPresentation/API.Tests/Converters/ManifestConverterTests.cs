@@ -1,4 +1,6 @@
 ﻿using API.Converters;
+using API.Helpers;
+using API.Tests.Helpers;
 using Models.API.Manifest;
 using Models.Database.General;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -8,6 +10,8 @@ namespace API.Tests.Converters;
 
 public class ManifestConverterTests
 {
+    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
+    
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()
     {
@@ -29,7 +33,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
         result.Context.As<List<string>>().Should().BeEquivalentTo(expectedContexts);
@@ -50,10 +54,10 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
-        result.Id.Should().Be("/123/manifests/id");
+        result.Id.Should().Be("http://base/123/manifests/id");
     }
     
     [Fact]
@@ -73,7 +77,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
         result.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
@@ -104,11 +108,11 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
         result.Slug.Should().Be("hierarchy-slug");
-        result.Parent.Should().Be("/0/collections/hierarchy-parent", "Always use FlatId");
+        result.Parent.Should().Be("http://base/0/collections/hierarchy-parent", "Always use FlatId");
     }
     
     [Fact]
@@ -134,11 +138,11 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots(), manifest => manifest.Hierarchy.Last());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, manifest => manifest.Hierarchy.Last());
 
         // Assert
         result.Slug.Should().Be("other-slug");
-        result.Parent.Should().Be("/0/collections/other-parent", "Always use FlatId");
+        result.Parent.Should().Be("http://base/0/collections/other-parent", "Always use FlatId");
     }
     
     [Fact]
@@ -169,11 +173,11 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, new UrlRoots());
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
         var cp = result.PaintedResources.Single().CanvasPainting;
-        cp.CanvasId.Should().Be("/123/canvases/the-canvas");
+        cp.CanvasId.Should().Be("http://base/123/canvases/the-canvas");
         cp.ChoiceOrder.Should().Be(10);
         cp.CanvasOrder.Should().Be(100);
         cp.CanvasOriginalId.Should().Be("http://example.test/canvas1");

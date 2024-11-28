@@ -12,19 +12,15 @@ using Repository.Helpers;
 
 namespace API.Features.Manifest.Requests;
 
-public class GetManifestHierarchical(
-    Hierarchy hierarchy,
-    string slug,
-    UrlRoots urlRoots) : IRequest<string?>
+public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<string?>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
-    public string Slug { get; } = slug;
-    public UrlRoots UrlRoots { get; } = urlRoots;
 }
 
 public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
     PresentationContext dbContext,
+    IPathGenerator pathGenerator,
     IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, string?>
 {
     private readonly AWSSettings settings = options.Value;
@@ -50,7 +46,7 @@ public class GetManifestHierarchicalHandler(
 
         request.Hierarchy.FullPath = await fetchFullPath;
 
-        var hierarchicalId = request.Hierarchy.GenerateHierarchicalId(request.UrlRoots);
+        var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
         
         using var memoryStream = new MemoryStream();
         using var reader = new StreamReader(memoryStream);
