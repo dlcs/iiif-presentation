@@ -7,7 +7,7 @@ namespace API.Tests.Helpers;
 
 [Trait("Category", "Database")]
 [Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
-public class PresentationContextXTests: IClassFixture<PresentationContextFixture>
+public class PresentationContextXTests
 {
     private readonly PresentationContext dbContext;
 
