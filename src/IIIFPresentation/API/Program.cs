@@ -8,6 +8,7 @@ using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Settings;
 using AWS.Settings;
+using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
@@ -50,10 +51,11 @@ builder.Services.Configure<DlcsSettings>(dlcsSettings);
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
-builder.Services.AddDelegatedAuthHandler(dlcs, opts =>
-{
-    opts.Realm = "DLCS-API";
-});
+var aws = builder.Configuration.GetSection("AWS").Get<AWSSettings>() ?? new AWSSettings();
+
+builder.Services
+    .AddDlcsClient(dlcs)
+    .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);

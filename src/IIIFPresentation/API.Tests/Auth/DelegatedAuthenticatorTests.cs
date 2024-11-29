@@ -1,35 +1,25 @@
-﻿using System.Net;
-using API.Auth;
+﻿using API.Auth;
 using API.Settings;
+using DLCS;
+using DLCS.API;
+using FakeItEasy;
 using LazyCache.Mocks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
-using Stubbery;
 using Test.Helpers.Settings;
 
 namespace API.Tests.Auth;
 
-public class DelegatedAuthenticatorTests : IClassFixture<ApiStub>
+public class DelegatedAuthenticatorTests
 {
     private readonly DelegatedAuthenticator sut;
 
-    public DelegatedAuthenticatorTests(ApiStub apiStub)
+    public DelegatedAuthenticatorTests()
     {
-        apiStub.EnsureStarted();
+        var fakeClient = A.Fake<IDlcsApiClient>();
+        A.CallTo(() => fakeClient.IsRequestAuthenticated(10)).Returns(true);
 
-        var httpClient = new HttpClient
-        {
-            BaseAddress = new Uri(apiStub.Address)
-        };
-        apiStub
-            .Get("/customers/10", (_, _) => new HttpResponseMessage(HttpStatusCode.OK))
-            .IfHeader("Authorization", "Bearer 12345");
-        
-        apiStub
-            .Get("/customers/10", (_, _) => new HttpResponseMessage(HttpStatusCode.OK))
-            .IfHeader("Authorization", "Basic 12345");
-
-        sut = new DelegatedAuthenticator(httpClient, OptionsHelpers.GetOptionsMonitor(new CacheSettings()),
+        sut = new DelegatedAuthenticator(fakeClient, OptionsHelpers.GetOptionsMonitor(new CacheSettings()),
             new MockCachingService(), new NullLogger<DelegatedAuthenticator>());
     }
     
@@ -70,7 +60,7 @@ public class DelegatedAuthenticatorTests : IClassFixture<ApiStub>
     {
         var request = new DefaultHttpContext().Request;
         request.Headers.Authorization = authHeader;
-        request.RouteValues.Add("customerId", "10");
+        request.RouteValues.Add("customerId", "11");
         
         var result = await sut.ValidateRequest(request);
         result.Should().Be(AuthResult.Failed);
