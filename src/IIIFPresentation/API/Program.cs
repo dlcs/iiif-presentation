@@ -4,6 +4,7 @@ using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Http.CorrelationId;
 using API.Settings;
 using AWS.Settings;
 using FluentValidation;
@@ -15,15 +16,18 @@ using Repository.Manifests;
 using Serilog;
 
 const string corsPolicyName = "CorsPolicy";
-var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
+Log.Information("Application starting...");
 
-builder.Services.AddSerilog(lc => lc
-    .ReadFrom.Configuration(builder.Configuration));
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog((hostContext, loggerConfig) =>
+    loggerConfig
+        .ReadFrom.Configuration(hostContext.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithCorrelationId());
 
 builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
@@ -58,7 +62,8 @@ builder.Services
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, PathGenerator>()
-    .AddHttpContextAccessor();
+    .AddHttpContextAccessor()
+    .AddCorrelationIdHeaderPropagation();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services
@@ -80,7 +85,9 @@ builder.Services.AddOptionsWithValidateOnStart<Program>();
 
 var app = builder.Build();
 
-app.UseForwardedHeaders();
+app
+    .UseMiddleware<CorrelationIdMiddleware>()
+    .UseForwardedHeaders();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
