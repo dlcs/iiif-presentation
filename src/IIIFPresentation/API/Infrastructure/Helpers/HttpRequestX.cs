@@ -20,5 +20,5 @@ public static class HttpRequestX
     /// Checks if the <see cref="HttpRequest"/> has header requesting a space be created 
     /// </summary>
     public static bool HasCreateSpaceHeader(this HttpRequest request)
-        => request.Headers.Location.Contains(CreateSpaceHeader);
+        => request.Headers.Link.Contains(CreateSpaceHeader);
 }

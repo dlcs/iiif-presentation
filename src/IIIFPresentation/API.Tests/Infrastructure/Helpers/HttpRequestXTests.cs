@@ -45,7 +45,7 @@ public class HttpRequestXTests
     public void HasCreateSpaceHeader_False_IfHeaderPresent_ButUnknownValue()
     {
         var httpRequest = new DefaultHttpContext().Request;
-        httpRequest.Headers.Location = "Foo";
+        httpRequest.Headers.Link = "Foo";
 
         httpRequest.HasCreateSpaceHeader().Should().BeFalse();
     }
@@ -54,7 +54,7 @@ public class HttpRequestXTests
     public void HasCreateSpaceHeader_True_IfHeaderPresent_AndValueIsCorrectCase()
     {
         var httpRequest = new DefaultHttpContext().Request;
-        httpRequest.Headers.Location = "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"";
+        httpRequest.Headers.Link = "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"";
 
         httpRequest.HasCreateSpaceHeader().Should().BeTrue();
     }
@@ -63,7 +63,7 @@ public class HttpRequestXTests
     public void HasCreateSpaceHeader_False_IfHeaderPresent_AndValueCorrectButWrongCase()
     {
         var httpRequest = new DefaultHttpContext().Request;
-        httpRequest.Headers.Location = "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"".ToLower();
+        httpRequest.Headers.Link = "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"".ToLower();
 
         httpRequest.HasCreateSpaceHeader().Should().BeFalse();
     }
