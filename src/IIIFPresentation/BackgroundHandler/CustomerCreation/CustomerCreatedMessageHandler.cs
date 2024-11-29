@@ -1,14 +1,16 @@
 ﻿using System.Text.Json;
-using API.Auth;
 using AWS.SQS;
+using BackgroundHandler.Helpers;
+using Core.Auth;
 using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
+using Models;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 
-namespace API.Features.CustomerCreation;
+namespace BackgroundHandler.CustomerCreation;
 
 /// <summary>
 /// Handler for customer created messages
@@ -22,17 +24,20 @@ public class CustomerCreatedMessageHandler(
 
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
-        try
+        using (LogContextHelpers.SetServiceName(nameof(CustomerCreatedMessageHandler)))
         {
-            var customerCreatedMessage = DeserializeMessage(message);
+            try
+            {
+                var customerCreatedMessage = DeserializeMessage(message);
 
-            await EnsureRootCollection(customerCreatedMessage, cancellationToken);
-            
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error handling customer-created message {MessageId}", message.MessageId);
+                await EnsureRootCollection(customerCreatedMessage, cancellationToken);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling customer-created message {MessageId}", message.MessageId);
+            }
         }
 
         return false;

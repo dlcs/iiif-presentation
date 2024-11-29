@@ -5,14 +5,11 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
-using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Test.Helpers;
@@ -25,7 +22,7 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Program>>
+public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Program>>, IClassFixture<StorageFixture>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Amazon.S3;
 using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;

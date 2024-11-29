@@ -1,16 +1,12 @@
 ﻿#nullable disable
 
-using System.Data;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Amazon.S3;
-using API.Helpers;
-using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
-using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
