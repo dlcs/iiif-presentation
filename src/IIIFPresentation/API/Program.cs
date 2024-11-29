@@ -4,6 +4,7 @@ using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Settings;
 using AWS.Settings;
@@ -63,7 +64,7 @@ builder.Services
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, PathGenerator>()
     .AddHttpContextAccessor()
-    .AddCorrelationIdHeaderPropagation();
+    .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
 builder.Services

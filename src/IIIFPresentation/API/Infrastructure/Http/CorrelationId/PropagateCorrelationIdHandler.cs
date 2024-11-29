@@ -3,32 +3,6 @@ using Microsoft.Extensions.Primitives;
 
 namespace API.Infrastructure.Http.CorrelationId;
 
-public static class ApplicationBuilderX
-{
-    /// <summary>
-    /// Propagate x-correlation-id header to any downstream calls.
-    /// NOTE: This will be added to ALL httpClient requests.
-    /// </summary>
-    public static IServiceCollection AddCorrelationIdHeaderPropagation(this IServiceCollection services)
-    {
-        services.AddSingleton<IHttpMessageHandlerBuilderFilter, HeaderPropagationMessageHandlerBuilderFilter>();
-        return services;
-    }
-}
-
-internal class HeaderPropagationMessageHandlerBuilderFilter(IHttpContextAccessor contextAccessor)
-    : IHttpMessageHandlerBuilderFilter
-{
-    public Action<HttpMessageHandlerBuilder> Configure(Action<HttpMessageHandlerBuilder> next)
-    {
-        return builder =>
-        {
-            builder.AdditionalHandlers.Add(new PropagateCorrelationIdHandler(contextAccessor));
-            next(builder);
-        };
-    }
-}
-
 /// <summary>
 /// A DelegatingHandler that propagates x-correlation-id to downstream service
 /// </summary>
