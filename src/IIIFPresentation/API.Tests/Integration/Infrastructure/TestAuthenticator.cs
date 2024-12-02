@@ -11,7 +11,7 @@ public class TestAuthenticator : IAuthenticator
 {
     private const string AuthHeader = "Authorization";
     
-    public async Task<AuthResult> ValidateRequest(HttpRequest request)
+    public async Task<AuthResult> ValidateRequest(HttpRequest request, CancellationToken cancellationToken = default)
     {
         if (!request.Headers.TryGetValue(AuthHeader, out var value))
         {

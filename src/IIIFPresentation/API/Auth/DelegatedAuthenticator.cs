@@ -21,7 +21,7 @@ public class DelegatedAuthenticator(
 {
     private const string CustomerIdRouteValue = "customerId";
 
-    public async Task<AuthResult> ValidateRequest(HttpRequest request)
+    public async Task<AuthResult> ValidateRequest(HttpRequest request, CancellationToken cancellationToken = default)
     {
         var headerValue = request.TryGetValidAuthHeader();
         

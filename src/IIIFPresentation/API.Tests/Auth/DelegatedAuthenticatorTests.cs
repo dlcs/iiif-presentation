@@ -1,6 +1,5 @@
 ﻿using API.Auth;
 using API.Settings;
-using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using LazyCache.Mocks;
@@ -17,7 +16,7 @@ public class DelegatedAuthenticatorTests
     public DelegatedAuthenticatorTests()
     {
         var fakeClient = A.Fake<IDlcsApiClient>();
-        A.CallTo(() => fakeClient.IsRequestAuthenticated(10)).Returns(true);
+        A.CallTo(() => fakeClient.IsRequestAuthenticated(10, CancellationToken.None)).Returns(true);
 
         sut = new DelegatedAuthenticator(fakeClient, OptionsHelpers.GetOptionsMonitor(new CacheSettings()),
             new MockCachingService(), new NullLogger<DelegatedAuthenticator>());
