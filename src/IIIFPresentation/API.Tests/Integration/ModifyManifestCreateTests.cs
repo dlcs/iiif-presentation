@@ -363,8 +363,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         // Assert
         var error = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         error!.Detail.Should().Be("Error creating DLCS space");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
@@ -996,7 +995,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         error!.Detail.Should().Be("Error creating DLCS space");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
