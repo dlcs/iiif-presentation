@@ -37,7 +37,7 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator);
-        iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest);
+        iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
         
