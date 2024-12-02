@@ -9,9 +9,12 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
 using Core.Auth;
+using DLCS.API;
+using DLCS.Exceptions;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
@@ -29,7 +32,8 @@ public record UpsertManifestRequest(
     string? Etag,
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody);
+    string RawRequestBody,
+    bool CreateSpace) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, CreateSpace);
 
 /// <summary>
 /// Record containing fields for creating a Manifest
@@ -37,7 +41,8 @@ public record UpsertManifestRequest(
 public record WriteManifestRequest(
     int CustomerId,
     PresentationManifest PresentationManifest,
-    string RawRequestBody);
+    string RawRequestBody,
+    bool CreateSpace);
 
 /// <summary>
 /// Service to help with creation of manifests
@@ -49,6 +54,7 @@ public class ManifestService(
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
+    IDlcsApiClient dlcsApiClient,
     ILogger<ManifestService> logger)
 {
     /// <summary>
@@ -72,6 +78,10 @@ public class ManifestService(
 
             return await UpdateInternal(request, existingManifest, cancellationToken);
         }
+        catch (DlcsException)
+        {
+            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error upserting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
@@ -89,6 +99,10 @@ public class ManifestService(
         try
         {
             return await CreateInternal(request, null, cancellationToken);
+        }
+        catch (DlcsException)
+        {
+            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
         }
         catch (Exception ex)
         {
@@ -159,8 +173,10 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var id = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
-        if (id == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
+        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+        
+        var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
 
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.InsertCanvasPaintings(request.CustomerId, request.PresentationManifest,
@@ -170,7 +186,7 @@ public class ManifestService(
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
-            Id = id,
+            Id = manifestId,
             CustomerId = request.CustomerId,
             Created = timeStamp,
             Modified = timeStamp,
@@ -187,12 +203,24 @@ public class ManifestService(
                 }
             ],
             CanvasPaintings = canvasPaintings,
+            SpaceId = await spaceIdTask
         };
         
         await dbContext.AddAsync(dbManifest, cancellationToken);
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
+    }
+
+    private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
+        CancellationToken cancellationToken)
+    {
+        if (!createSpace) return null;
+        
+        logger.LogDebug("Creating new space for customer {Customer}", customerId);
+        var newSpace =
+            await dlcsApiClient.CreateSpace(customerId, ManifestX.GetDefaultSpaceName(manifestId), cancellationToken);
+        return newSpace.Id;
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,

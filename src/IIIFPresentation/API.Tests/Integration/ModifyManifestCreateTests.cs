@@ -5,9 +5,14 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
+using DLCS.API;
+using DLCS.Exceptions;
+using DLCS.Models;
+using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -27,17 +32,32 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
+    private readonly IDlcsApiClient dlcsApiClient;
     private const int Customer = 1;
+    private const int InvalidSpaceCustomer = 34512;
+    private const int NewlyCreatedSpace = 999;
 
     public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-
-        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+        dlcsApiClient = A.Fake<IDlcsApiClient>();
+        A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(new Space { Id = NewlyCreatedSpace });
+        A.CallTo(() => dlcsApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
+            .ThrowsAsync(new DlcsException("err"));
+        httpClient = factory
+            .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+                appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
+                services => services.AddSingleton(dlcsApiClient)
+            );
 
         storageFixture.DbFixture.CleanUp();
+        if (!dbContext.Collections.Any(i => i.CustomerId == InvalidSpaceCustomer))
+        {
+            dbContext.Collections.AddTestCollection(RootCollection.Id, customer: InvalidSpaceCustomer).GetAwaiter().GetResult();
+            dbContext.SaveChanges();    
+        }
     }
 
     [Fact]
@@ -321,6 +341,36 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
+    public async Task CreateManifest_InternalServerError_IfSpaceRequested_ButFails()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_InternalServerError_IfSpaceRequested_ButFails);
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{InvalidSpaceCustomer}/manifests", manifest);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer(InvalidSpaceCustomer).SendAsync(requestMessage);
+
+        // Assert
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        error!.Detail.Should().Be("Error creating DLCS space");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
+    }
+    
+    [Fact]
     public async Task CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
         // Arrange
@@ -382,6 +432,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         responseManifest.PaintedResources.Should().BeNullOrEmpty();
+        responseManifest.Space.Should().BeNull("No space was requested");
     }
     
     [Fact]
@@ -413,8 +464,67 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var hierarchy = fromDatabase.Hierarchy.Single();
 
         fromDatabase.Should().NotBeNull();
+        fromDatabase.SpaceId.Should().BeNull("No space was requested");
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
+    }
+    
+    [Fact]
+    public async Task CreateManifest_IfSpaceRequested_ReturnsManifest()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_IfSpaceRequested_ReturnsManifest);
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Space.Should().Be("https://localhost:7230/customers/1/spaces/999");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_IfSpaceRequested_CreatedDBRecord()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_IfSpaceRequested_CreatedDBRecord);
+        var manifest = new PresentationManifest
+        {
+            Parent = RootCollection.Id,
+            Slug = slug,
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        fromDatabase.SpaceId.Should().Be(NewlyCreatedSpace);
     }
     
     [Fact]
@@ -863,6 +973,36 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
+    public async Task PutFlatId_Insert_InternalServerError_IfSpaceRequested_ButFails()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_InternalServerError_IfSpaceRequested_ButFails);
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{InvalidSpaceCustomer}/manifests/foo", manifest);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer(InvalidSpaceCustomer).SendAsync(requestMessage);
+
+        // Assert
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        error!.Detail.Should().Be("Error creating DLCS space");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
+    }
+    
+    [Fact]
     public async Task PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
         // Arrange
@@ -964,6 +1104,67 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
         fromDatabase.CanvasPaintings.Should().BeNullOrEmpty();
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Insert_IfSpaceRequested_ReturnsManifest()
+    {
+        // Arrange
+        var slug = $"slug_{nameof(PutFlatId_Insert_IfSpaceRequested_ReturnsManifest)}";
+        var id = nameof(PutFlatId_Insert_IfSpaceRequested_ReturnsManifest);
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Space.Should().Be("https://localhost:7230/customers/1/spaces/999");
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord()
+    {
+        // Arrange
+        var slug = $"slug_{nameof(PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord)}";
+        var id = nameof(PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord);
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""{RootCollection.Id}"",
+    ""slug"": ""{slug}""
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        fromDatabase.SpaceId.Should().Be(NewlyCreatedSpace);
     }
     
     [Fact]

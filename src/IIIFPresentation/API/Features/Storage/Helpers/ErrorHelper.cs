@@ -51,6 +51,11 @@ public static class ErrorHelper
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
+    
+    public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
+        where T : class
+        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "Error creating DLCS space", ModifyCollectionType.ErrorCreatingSpace, WriteResult.Error);
 
     private static string CollectionType(bool isStorageCollection)
     {

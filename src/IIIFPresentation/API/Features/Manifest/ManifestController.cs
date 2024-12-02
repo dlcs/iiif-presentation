@@ -53,9 +53,10 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
         [FromServices] PresentationManifestValidator validator,
-        CancellationToken cancellationToken) 
+        CancellationToken cancellationToken)
         => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest, rawRequestBody),
+            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest,
+                rawRequestBody, Request.HasCreateSpaceHeader()),
             validator,
             cancellationToken: cancellationToken);
 
@@ -73,7 +74,8 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         CancellationToken cancellationToken)
         => await ManifestUpsert(
             (presentationManifest, rawRequestBody) =>
-                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody),
+                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
+                    Request.HasCreateSpaceHeader()),
             validator,
             cancellationToken: cancellationToken);
 

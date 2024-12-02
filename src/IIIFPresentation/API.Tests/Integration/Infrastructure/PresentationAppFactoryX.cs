@@ -14,7 +14,8 @@ public static class PresentationAppFactoryX
     public static HttpClient ConfigureBasicIntegrationTestHttpClient<T>(
         this PresentationAppFactory<T> factory,
         PresentationContextFixture dbFixture,
-        Func<PresentationAppFactory<T>, PresentationAppFactory<T>>? additionalSetup = null) where T : class
+        Func<PresentationAppFactory<T>, PresentationAppFactory<T>>? additionalSetup = null,
+        Action<IServiceCollection>? additionalTestServices = null) where T : class
     {
         additionalSetup ??= f => f;
         
@@ -23,6 +24,7 @@ public static class PresentationAppFactoryX
             .WithTestServices(services =>
             {
                 services.AddSingleton<IAuthenticator, TestAuthenticator>();
+                additionalTestServices?.Invoke(services);
             });
 
         var httpClient = additionalSetup(configuredFactory)
