@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using System.Globalization;
+using IIIF.Presentation.V3.Strings;
 using Models.Database.General;
 
 namespace Models.Database.Collections;
@@ -37,6 +38,20 @@ public class Manifest : IHierarchyResource
     /// </summary>
     public LanguageMap? Label { get; set; }
     
+    /// <summary>
+    /// Optional DLCS space id associated with this manifest
+    /// </summary>
+    public int? SpaceId { get; set; }
+    
     public List<Hierarchy>? Hierarchy { get; set; }
     public List<CanvasPainting>? CanvasPaintings { get; set; }
+}
+
+public static class ManifestX
+{
+    /// <summary>
+    /// Get the default space name for manifests Dlcs space
+    /// </summary>
+    public static string GetDefaultSpaceName(string manifestId)
+        => $"For manifest {manifestId} - {DateTime.UtcNow.ToString("s", CultureInfo.InvariantCulture)}";
 }

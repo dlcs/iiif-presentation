@@ -20,7 +20,6 @@ public static class ManifestConverter
     /// <param name="hierarchyFactory">
     /// Optional factory to specify <see cref="Hierarchy"/> to use to get Parent and Slug. Defaults to using .Single()
     /// </param>
-    /// <returns></returns>
     public static PresentationManifest SetGeneratedFields(this PresentationManifest iiifManifest,
         Manifest dbManifest, IPathGenerator pathGenerator, Func<Manifest, Hierarchy>? hierarchyFactory = null)
     {
@@ -38,6 +37,7 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator);
+        iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest);
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
         

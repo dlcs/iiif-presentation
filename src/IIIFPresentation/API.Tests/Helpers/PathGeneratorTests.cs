@@ -348,6 +348,33 @@ public class PathGeneratorTests
         // Assert
         id.Should().Be("http://base/123/canvases/test");
     }
+
+    [Fact]
+    public void GenerateSpaceUri_Null_IfManifestHasNoSpace()
+    {
+        var manifest = new Manifest
+        {
+            Id = "hello",
+            CustomerId = 123
+        };
+
+        pathGenerator.GenerateSpaceUri(manifest).Should().BeNull("Manifest has no space");
+    }
+    
+    [Fact]
+    public void GenerateSpaceUri_Correct_IfManifestHasSpace()
+    {
+        var manifest = new Manifest
+        {
+            Id = "hello",
+            CustomerId = 123,
+            SpaceId = 93
+        };
+
+        var expected = new Uri("https://dlcs.test/customers/123/spaces/93");
+
+        pathGenerator.GenerateSpaceUri(manifest).Should().Be(expected);
+    }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }

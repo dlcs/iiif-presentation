@@ -1,4 +1,6 @@
 ﻿using API.Infrastructure.Requests;
+using DLCS;
+using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Database.General;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -11,10 +13,12 @@ public class PathGenerator : IPathGenerator
     private const string CollectionsSlug = "collections";
     private const string CanvasesSlug = "canvases";
     private readonly string baseUrl;
-    
-    public PathGenerator(IHttpContextAccessor contextAccessor)
+    private readonly DlcsSettings dlcsSettings;
+
+    public PathGenerator(IHttpContextAccessor contextAccessor, IOptions<DlcsSettings> dlcsOptions)
     {
          baseUrl = contextAccessor.HttpContext!.Request.GetBaseUrl();
+         dlcsSettings = dlcsOptions.Value;
     }
     
     public string GenerateHierarchicalCollectionId(Collection collection) =>
@@ -73,6 +77,17 @@ public class PathGenerator : IPathGenerator
 
     public string GenerateCanvasId(CanvasPainting canvasPainting)
         => $"{baseUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
+    
+    public Uri? GenerateSpaceUri(Manifest manifest)
+    {
+        if (!manifest.SpaceId.HasValue) return null;
+
+        var uriBuilder = new UriBuilder(dlcsSettings.ApiUri)
+        {
+            Path = $"/customers/{manifest.CustomerId}/spaces/{manifest.SpaceId}",
+        };
+        return uriBuilder.Uri;
+    }
 
     private string GetSlug(ResourceType resourceType) 
         => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;

@@ -17,8 +17,8 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// <summary>
     /// Represents, in a compact non-IIIF form, the relationship between a Content Resource and a Manifest.
     /// </summary>
-    [JsonProperty(Order = 12)]
-    public List<PaintedResource>? PaintedResources { get; set; }
+    [JsonProperty(Order = 12)] public List<PaintedResource>? PaintedResources { get; set; }
+    [JsonProperty(Order = 13)] public Uri? Space { get; set; }
 
     [JsonIgnore]
     public string? FullPath { get; set; }
