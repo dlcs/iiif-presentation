@@ -975,7 +975,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_InternalServerError_IfSpaceRequested_ButFails()
     {
         // Arrange
-        var slug = nameof(CreateManifest_InternalServerError_IfSpaceRequested_ButFails);
+        var slug = nameof(PutFlatId_Insert_InternalServerError_IfSpaceRequested_ButFails);
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",

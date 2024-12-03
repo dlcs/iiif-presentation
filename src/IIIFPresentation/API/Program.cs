@@ -7,7 +7,6 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Settings;
-using AWS.Settings;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -50,8 +49,6 @@ builder.Services.Configure<DlcsSettings>(dlcsSettings);
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
-
-var aws = builder.Configuration.GetSection("AWS").Get<AWSSettings>() ?? new AWSSettings();
 
 builder.Services
     .AddDlcsClient(dlcs)
