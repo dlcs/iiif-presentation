@@ -44,12 +44,13 @@ public class DelegatedAuthenticator(
             return AuthResult.NoCredentials;
         }
 
-        return await IsValidUser(headerValue, customerId)
+        return await IsValidUser(headerValue, customerId, cancellationToken)
             ? AuthResult.Success
             : AuthResult.Failed;
     }
 
-    private async Task<bool> IsValidUser(AuthenticationHeaderValue authenticationHeaderValue, int customerId)
+    private async Task<bool> IsValidUser(AuthenticationHeaderValue authenticationHeaderValue, int customerId,
+        CancellationToken cancellationToken)
     {
         var cacheKey = $"{customerId}:{authenticationHeaderValue.Scheme}";
         var authParameter = authenticationHeaderValue.Parameter!;
@@ -57,7 +58,7 @@ public class DelegatedAuthenticator(
         var list = await appCache.GetAsync<ConcurrentBag<string>>(cacheKey);
         if (list != null && list.Contains(authParameter)) return true;
 
-        var isValid = await dlcsApiClient.IsRequestAuthenticated(customerId);
+        var isValid = await dlcsApiClient.IsRequestAuthenticated(customerId, cancellationToken);
         if (!isValid) return false;
         
         list ??= [];
