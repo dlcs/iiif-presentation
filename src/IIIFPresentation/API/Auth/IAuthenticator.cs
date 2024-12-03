@@ -5,5 +5,5 @@ namespace API.Auth;
 /// </summary>
 public interface IAuthenticator
 {
-    Task<AuthResult> ValidateRequest(HttpRequest request);
+    Task<AuthResult> ValidateRequest(HttpRequest request, CancellationToken cancellationToken = default);
 }

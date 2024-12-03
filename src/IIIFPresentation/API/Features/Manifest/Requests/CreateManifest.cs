@@ -1,5 +1,4 @@
-﻿using API.Converters;
-using API.Infrastructure.Requests;
+﻿using API.Infrastructure.Requests;
 using MediatR;
 using Models.API.General;
 using Models.API.Manifest;
@@ -12,12 +11,14 @@ namespace API.Features.Manifest.Requests;
 public class CreateManifest(
     int customerId,
     PresentationManifest presentationManifest,
-    string rawRequestBody) 
+    string rawRequestBody,
+    bool createSpace) 
     : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
+    public bool CreateSpace { get; } = createSpace;
 }
 
 public class CreateManifestHandler(
@@ -29,7 +30,8 @@ public class CreateManifestHandler(
     {
         var upsertRequest = new WriteManifestRequest(request.CustomerId, 
             request.PresentationManifest,
-            request.RawRequestBody);
+            request.RawRequestBody,
+            request.CreateSpace);
 
         return manifestService.Create(upsertRequest, cancellationToken);
     }

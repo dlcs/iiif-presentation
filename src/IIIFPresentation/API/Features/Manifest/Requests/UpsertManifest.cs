@@ -1,5 +1,4 @@
 ﻿using API.Converters;
-using API.Helpers;
 using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
@@ -16,16 +15,18 @@ public class UpsertManifest(
     string manifestId,
     StringValues etag,
     PresentationManifest presentationManifest,
-    string rawRequestBody) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    string rawRequestBody,
+    bool createSpace) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
     public string? Etag { get; } = etag.ToString();
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
+    public bool CreateSpace { get; } = createSpace;
 }
 
-public class UpsertManifestHandler(ManifestService manifestService, IPathGenerator pathGenerator)
+public class UpsertManifestHandler(ManifestService manifestService)
     : IRequestHandler<UpsertManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(UpsertManifest request,
@@ -36,7 +37,8 @@ public class UpsertManifestHandler(ManifestService manifestService, IPathGenerat
             request.Etag,
             request.CustomerId,
             request.PresentationManifest,
-            request.RawRequestBody);
+            request.RawRequestBody,
+            request.CreateSpace);
 
         return manifestService.Upsert(upsertRequest, cancellationToken);
     }

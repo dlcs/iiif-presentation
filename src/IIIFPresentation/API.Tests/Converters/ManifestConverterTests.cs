@@ -182,4 +182,24 @@ public class ManifestConverterTests
         cp.CanvasOrder.Should().Be(100);
         cp.CanvasOriginalId.Should().Be("http://example.test/canvas1");
     }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsSpace()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            SpaceId = 321,
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+
+        // Assert
+        result.Space.Should().Be("https://dlcs.test/customers/123/spaces/321");
+    }
 }

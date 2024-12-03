@@ -1,15 +1,16 @@
 ﻿using API.Helpers;
+using DLCS;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 namespace API.Tests.Helpers;
 
-public class TestPathGenerator
+public static class TestPathGenerator
 {
-    public static PathGenerator CreatePathGenerator(string baseUrl, string scheme)
-    {
-        return new PathGenerator(new HttpContextAccessor()
+    public static PathGenerator CreatePathGenerator(string baseUrl, string scheme) 
+        => new(new HttpContextAccessor
         {
-            HttpContext = new DefaultHttpContext()
+            HttpContext = new DefaultHttpContext
             {
                 Request =
                 {
@@ -17,6 +18,5 @@ public class TestPathGenerator
                     Host = new HostString(baseUrl)
                 }
             }
-        });
-    }
+        }, Options.Create(new DlcsSettings { ApiUri = new Uri("https://dlcs.test") }));
 }

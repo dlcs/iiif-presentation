@@ -12,5 +12,6 @@ public enum ModifyCollectionType
     CannotValidateIIIF = 8,
     ParentMustBeStorageCollection = 9,
     CannotChangeCollectionType = 10,
+    ErrorCreatingSpace = 11,
     Unknown = 1000
 }
