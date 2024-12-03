@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using API.Converters;
 using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
@@ -9,6 +9,7 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
 using Core.Auth;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
@@ -114,6 +115,11 @@ public class ManifestService(
 
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
+        if (CheckForItemsAndPaintedResources(request.PresentationManifest))
+        {
+            return ErrorHelper.ItemsAndPaintedResourcesUsed<PresentationManifest>();
+        }
+        
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
@@ -138,6 +144,11 @@ public class ManifestService(
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
         
+        if (CheckForItemsAndPaintedResources(request.PresentationManifest))
+        {
+            return ErrorHelper.ItemsAndPaintedResourcesUsed<PresentationManifest>();
+        }
+        
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
@@ -153,6 +164,12 @@ public class ManifestService(
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
         }
+    }
+
+    private bool CheckForItemsAndPaintedResources(PresentationManifest presentationManifest)
+    {
+        return !presentationManifest.Items.IsNullOrEmpty() &&
+               !presentationManifest.PaintedResources.IsNullOrEmpty();
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(

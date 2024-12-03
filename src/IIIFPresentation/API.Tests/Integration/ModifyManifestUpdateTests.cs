@@ -5,17 +5,18 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Integration;
 
@@ -436,5 +437,52 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var tag = $"\"{dbManifest.Id}\"";
         etagManager.UpsertETag($"/{Customer}/manifests/{dbManifest.Id}", tag);
         requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Update_BadRequest_WhenItemsAndPaintedResourceFilled()
+    {
+        // Arrange
+        var createdDate = DateTime.UtcNow.AddDays(-1);
+        var dbManifest = (await dbContext.Manifests.AddTestManifest(createdDate: createdDate)).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}";
+        var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            Items = new List<Canvas>()
+            {
+                new ()
+                {
+                    Id = "https://iiif.example/manifest.json",
+                }
+            },
+            PaintedResources = new List<PaintedResource>()
+            {
+                new PaintedResource()
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "https://iiif.example/manifest.json"
+                    }
+                }
+            }
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        SetCorrectEtag(requestMessage, dbManifest);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ItemsAndPaintedResourcesUsedTogether");
     }
 }
