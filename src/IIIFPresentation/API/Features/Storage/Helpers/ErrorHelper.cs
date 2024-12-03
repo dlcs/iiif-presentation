@@ -52,6 +52,14 @@ public static class ErrorHelper
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ItemsAndPaintedResourcesUsed<TCollection>() 
+        where TCollection : class
+    {
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            "The properties \"items\" and \"paintedResource\" cannot be used at the same time",
+            ModifyCollectionType.ItemsAndPaintedResourcesUsedTogether, WriteResult.BadRequest);
+    }
+    
     public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
         where T : class
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(

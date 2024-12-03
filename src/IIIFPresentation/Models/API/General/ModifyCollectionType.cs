@@ -13,5 +13,6 @@ public enum ModifyCollectionType
     ParentMustBeStorageCollection = 9,
     CannotChangeCollectionType = 10,
     ErrorCreatingSpace = 11,
+    ItemsAndPaintedResourcesUsedTogether = 12,
     Unknown = 1000
 }
