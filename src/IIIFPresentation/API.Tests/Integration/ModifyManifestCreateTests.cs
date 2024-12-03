@@ -43,7 +43,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         dlcsApiClient = A.Fake<IDlcsApiClient>();
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
-            .Returns(new Space { Id = NewlyCreatedSpace });
+            .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => dlcsApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
             .ThrowsAsync(new DlcsException("err"));
         httpClient = factory

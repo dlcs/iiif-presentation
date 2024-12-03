@@ -17,5 +17,5 @@ public abstract class JsonldBase
 
     [JsonPropertyName("@type")]
     [JsonPropertyOrder(2)]
-    public string Type { get; set; }
+    public string? Type { get; set; }
 }
