@@ -4,12 +4,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Amazon.S3;
+using API.Infrastructure.Helpers;
 using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
 using Models.API.General;
 using Models.Database.Collections;
@@ -28,13 +30,10 @@ namespace API.Tests.Integration;
 public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-
     private readonly PresentationContext dbContext;
-
     private readonly IAmazonS3 amazonS3;
-
+    private readonly IETagManager etagManager;
     private const int Customer = 1;
-
     private readonly string parent;
 
     public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -44,6 +43,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+        
+        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
 
         parent = dbContext.Collections
             .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
@@ -99,10 +100,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+        
     }
 
     public static TheoryData<string> ProhibitedSlugProvider =>
@@ -188,6 +192,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -295,6 +301,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
     }
 
     [Fact]
@@ -406,6 +414,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.Homepage.Should().NotBeNull();
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         fromS3.Should().NotBeNull();
     }
     
@@ -719,13 +729,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
         
         var updatedCollection = new PresentationCollection()
         {
@@ -744,7 +747,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -769,6 +772,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -810,13 +815,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var slug = nameof(UpdateCollection_UpdatesCollection_WhenAllValuesProvidedAndParentIsFullUri);
         var updatedCollection = new PresentationCollection
         {
@@ -835,7 +833,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        updateRequestMessage.Headers.IfMatch.Add(new(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -860,6 +858,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
     }
     
     [Fact]
@@ -894,12 +894,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
-        
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-        
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
 
         var updatedCollection = 
 """
@@ -949,7 +943,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     },
     "value": {
       "en": [
-        "Winslow Homer (1836–1910)"
+        "Winslow Homer (1836-1910)"
       ]
     }
   }
@@ -961,7 +955,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1016,12 +1010,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-        
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-        
         var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
@@ -1039,7 +1027,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1088,12 +1076,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-        
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-        
         var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
@@ -1110,7 +1092,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1122,7 +1104,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.Detail.Should().Be("Cannot convert a IIIF collection to a Storage collection");
         responseCollection.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotChangeCollectionType");
     }
-    
 
     [Fact]
     public async Task UpdateCollection_CreatesCollection_WhenUnknownCollectionIdProvided()
@@ -1170,6 +1151,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -1243,13 +1226,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updatedCollection = new PresentationCollection()
         {
             Behavior =
@@ -1263,7 +1239,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1285,7 +1261,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
 
     [Fact]
-    public async Task UpdateCollection_UpdatesCollection_WhenConvertingToStorageCollection()
+    public async Task UpdateCollection_BadRequest_WhenConvertingToStorageCollection()
     {
         // Arrange
         var initialCollection = new Collection()
@@ -1318,13 +1294,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updatedCollection = new PresentationCollection
         {
             Behavior = new List<string>()
@@ -1338,7 +1307,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1382,13 +1351,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updatedCollection = new PresentationCollection()
         {
             Behavior = new List<string>()
@@ -1403,7 +1365,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1451,13 +1413,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        // TODO: remove this when better ETag support is implemented - this implementation requires GET to be called to retrieve the ETag
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updatedCollection = new PresentationCollection
         {
             Behavior = new()
@@ -1472,7 +1427,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        updateRequestMessage.Headers.IfMatch.Add(new(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1592,14 +1547,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = childCollection.Id
         };
 
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{parentCollection.Id}");
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"1/collections/{parentCollection.Id}", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, parentCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1678,12 +1628,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var getRequestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                $"{Customer}/collections/{initialCollection.Id}");
-        
-        var getResponse = await httpClient.AsCustomer().SendAsync(getRequestMessage);
-
         var updatedCollection = 
 """
 {
@@ -1716,7 +1660,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(getResponse.Headers.ETag!.Tag));
+        SetCorrectEtag(updateRequestMessage, initialCollection);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1983,5 +1927,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         s3Manifest.Id.Should().EndWith(fromDatabase.Id, "Stored Id is flat path");
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+    
+    private void SetCorrectEtag(HttpRequestMessage requestMessage, Collection dbCollection)
+    {
+        // This saves some boilerplate by correctly setting Etag in manager and request
+        var tag = $"\"{dbCollection.Id}\"";
+        etagManager.UpsertETag($"/{Customer}/collections/{dbCollection.Id}", tag);
+        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
     }
 }
