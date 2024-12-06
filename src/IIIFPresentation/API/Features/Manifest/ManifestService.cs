@@ -159,7 +159,7 @@ public class ManifestService(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var manifest = request.PresentationManifest;
-        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+        var parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         
         // Validation

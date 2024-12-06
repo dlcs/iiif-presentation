@@ -20,12 +20,13 @@ public static class PresentationCollectionX
     /// <param name="currentPage">The current page of items</param>
     /// <param name="totalItems">The total number of items</param>
     /// <param name="items">The list of items that use this collection as a </param>
+    /// <param name="parentCollection">The parent collection current collection is part of</param>
     /// <param name="pathGenerator">A collection path generator</param>
     /// <param name="orderQueryParam">Used to describe the type of ordering done</param>
     /// <returns>An enriched presentation collection</returns>
     public static PresentationCollection EnrichPresentationCollection(this PresentationCollection presentationCollection, 
     Collection collection, int pageSize, int currentPage, int totalItems, List<Hierarchy>? items, 
-    IPathGenerator pathGenerator, string? orderQueryParam = null)
+    Collection parentCollection, IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
         var totalPages = CollectionConverter.GenerateTotalPages(pageSize, totalItems);
 
@@ -43,7 +44,7 @@ public static class PresentationCollectionX
         presentationCollection.Id = pathGenerator.GenerateFlatCollectionId(collection);
         presentationCollection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(collection);
         presentationCollection.Parent = CollectionConverter.GeneratePresentationCollectionParent(pathGenerator, hierarchy);
-        presentationCollection.PartOf = CollectionConverter.GeneratePartOf(hierarchy, collection, pathGenerator);
+        presentationCollection.PartOf = CollectionConverter.GeneratePartOf(parentCollection, pathGenerator);
         presentationCollection.View = CollectionConverter.GenerateView(collection, pathGenerator, pageSize, currentPage,
             totalPages, orderQueryParamConverted);
         presentationCollection.SeeAlso = CollectionConverter.GenerateSeeAlso(collection, pathGenerator);

@@ -32,7 +32,12 @@ public class Hierarchy
     public string? Parent { get; set; }
     
     /// <summary>
-    /// Used to determine the order of the item when viewed in a collection
+    /// Navigation property for Parent collection
+    /// </summary>
+    public Collection? ParentCollection { get; set; }
+    
+    /// <summary>
+    /// Used to determine the order of the item when viewed in a Collection
     /// </summary>
     public int? ItemsOrder { get; set; }
     

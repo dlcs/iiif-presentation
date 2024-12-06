@@ -95,7 +95,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            collection.ToFlatCollection(pageSize, 1, 1, CreateTestItems(), pathGenerator);
+            collection.ToPresentationCollection(pageSize, 1, 1, CreateTestItems(), null, pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -115,6 +115,7 @@ public class CollectionConverterTests
         flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
         flatCollection.View.Next.Should().BeNull();
         flatCollection.View.Last.Should().BeNull();
+        flatCollection.PartOf.Should().BeNull("No parent provided");
     }
     
     [Fact]
@@ -125,7 +126,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(pageSize, 1, 0, CreateTestItems(), pathGenerator);
+            storageRoot.ToPresentationCollection(pageSize, 1, 0, CreateTestItems(), null, pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -147,6 +148,7 @@ public class CollectionConverterTests
         flatCollection.View.Last.Should().BeNull();
         flatCollection.View.First.Should().BeNull();
         flatCollection.View.Next.Should().BeNull();
+        flatCollection.PartOf.Should().BeNull("No parent provided");
     }
 
     [Fact]
@@ -157,7 +159,7 @@ public class CollectionConverterTests
 
         // Act
         var flatCollection =
-            storageRoot.ToFlatCollection(1, 2, 3, CreateTestItems(), pathGenerator, "orderBy=created");
+            storageRoot.ToPresentationCollection(1, 2, 3, CreateTestItems(), null, pathGenerator, "orderBy=created");
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -180,6 +182,43 @@ public class CollectionConverterTests
         flatCollection.View.First.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
         flatCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
         flatCollection.TotalItems.Should().Be(3);
+        flatCollection.PartOf.Should().BeNull("No parent provided");
+    }
+    
+    [Fact]
+    public void ToFlatCollection_ConvertsStorageCollection_IncludingPartOfForParent()
+    {
+        // Arrange
+        var storageRoot = CreateTestHierarchicalCollection();
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+
+        // Act
+        var flatCollection =
+            storageRoot.ToPresentationCollection(pageSize, 1, 0, CreateTestItems(), parentCollection, pathGenerator);
+
+        // Assert
+        flatCollection.Id.Should().Be("http://base/1/collections/some-id");
+        flatCollection.FlatId.Should().Be("some-id");
+        flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        flatCollection.Label!.Count.Should().Be(1);
+        flatCollection.Label["en"].Should().Contain("repository root");
+        flatCollection.Slug.Should().Be("root");
+        flatCollection.SeeAlso.Should().HaveCount(2);
+        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
+        flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
+        flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        flatCollection.Created.Should().Be(DateTime.MinValue);
+        flatCollection.Parent.Should().Be("http://base/1/collections/top");
+        flatCollection.Items!.Count.Should().Be(1);
+        flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
+        flatCollection.View.Next.Should().BeNull();
+        flatCollection.View.Last.Should().BeNull();
+        flatCollection.View.First.Should().BeNull();
+        flatCollection.View.Next.Should().BeNull();
+        var partOf = flatCollection.PartOf.Single();
+        partOf.Id.Should().Be("http://base/0/collections/theparent");
+        partOf.Label.Should().BeEquivalentTo(parentCollection.Label);
     }
 
     private static List<Hierarchy> CreateTestItems()

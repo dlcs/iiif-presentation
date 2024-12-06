@@ -28,13 +28,13 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
 {
     public int CustomerId { get; } = customerId;
 
-    public string CollectionId { get; set; } = collectionId;
+    public string CollectionId { get; } = collectionId;
 
     public PresentationCollection Collection { get; } = collection;
     
-    public string? ETag { get; set; } = eTag;
+    public string? ETag { get; } = eTag;
     
-    public string RawRequestBody { get; set; } = rawRequestBody;
+    public string RawRequestBody { get; } = rawRequestBody;
 }
 
 public class UpsertCollectionHandler(
@@ -61,17 +61,18 @@ public class UpsertCollectionHandler(
             if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         var databaseCollection =
-            await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
-        
-        Hierarchy hierarchy;
+            await dbContext.RetrieveFullCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
 
+        Collection parentCollection;
+        
         if (databaseCollection == null)
         {
+            // No existing collection = create
             if (!string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNotRequired<PresentationCollection>();
 
             var createdDate = DateTime.UtcNow;
             
-            var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+            parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
                 request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
@@ -91,23 +92,22 @@ public class UpsertCollectionHandler(
                 Label = request.Collection.Label,
                 Thumbnail = request.Collection.GetThumbnail(),
                 Tags = request.Collection.Tags,
-            };
-            
-            hierarchy = new Hierarchy
-            {
-                CollectionId = request.CollectionId,
-                Type = isStorageCollection
-                    ? ResourceType.StorageCollection
-                    : ResourceType.IIIFCollection,
-                Slug = request.Collection.Slug,
-                CustomerId = request.CustomerId,
-                Canonical = true,
-                ItemsOrder = request.Collection.ItemsOrder,
-                Parent = parentCollection.Id
+                Hierarchy =
+                [
+                    new Hierarchy
+                    {
+                        Type = isStorageCollection
+                            ? ResourceType.StorageCollection
+                            : ResourceType.IIIFCollection,
+                        Slug = request.Collection.Slug,
+                        Canonical = true,
+                        ItemsOrder = request.Collection.ItemsOrder,
+                        Parent = parentCollection.Id
+                    }
+                ]
             };
             
             await dbContext.AddAsync(databaseCollection, cancellationToken);
-            await dbContext.AddAsync(hierarchy, cancellationToken);
         }
         else
         {
@@ -123,13 +123,15 @@ public class UpsertCollectionHandler(
                 return ErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
             }
 
-            hierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
+            var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
-            var parentId = hierarchy.Parent;
-            if (hierarchy.Parent != request.Collection.Parent)
+            var parentId = existingHierarchy.Parent;
+            if (parentId != request.Collection.Parent)
             {
-                var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+                parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
+                logger.LogDebug("Collection {CollectionId} for Customer {CustomerId} is moving parent",
+                    request.CollectionId, request.CustomerId);
 
                 if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
@@ -138,6 +140,10 @@ public class UpsertCollectionHandler(
                     return ErrorHelper.NullParentResponse<PresentationCollection>();
 
                 parentId = parentCollection.Id;
+            }
+            else
+            {
+                parentCollection = existingHierarchy.ParentCollection!;
             }
 
             databaseCollection.Modified = DateTime.UtcNow;
@@ -148,10 +154,10 @@ public class UpsertCollectionHandler(
             databaseCollection.Thumbnail = request.Collection.GetThumbnail();
             databaseCollection.Tags = request.Collection.Tags;
 
-            hierarchy.Parent = parentId;
-            hierarchy.ItemsOrder = request.Collection.ItemsOrder;
-            hierarchy.Slug = request.Collection.Slug;
-            hierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
+            existingHierarchy.Parent = parentId;
+            existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
+            existingHierarchy.Slug = request.Collection.Slug;
+            existingHierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
         }
 
         await using var transaction = 
@@ -166,6 +172,7 @@ public class UpsertCollectionHandler(
             return saveErrors;
         }
 
+        var hierarchy = databaseCollection.Hierarchy.Single();
         if (hierarchy.Parent != null)
         {
             try
@@ -201,8 +208,8 @@ public class UpsertCollectionHandler(
             cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
-            settings.PageSize, DefaultCurrentPage, total,
-            await items.ToListAsync(cancellationToken: cancellationToken), pathGenerator);
+            settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
+            parentCollection, pathGenerator);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
     }

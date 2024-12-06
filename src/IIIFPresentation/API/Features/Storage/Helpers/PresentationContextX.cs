@@ -72,6 +72,24 @@ public static class PresentationContextX
 
         return dbContextManifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
     }
+    
+    /// <summary>
+    /// Retrieves a 'full' collection from the database, with the Hierarchy records (including Parent)
+    /// </summary>
+    /// <param name="dbContext">The context to pull records from</param>
+    /// <param name="customerId">Customer the record is attached to</param>
+    /// <param name="collectionId">The collection to retrieve</param>
+    /// <param name="tracked">Whether the resource should be tracked or not</param>
+    /// <param name="cancellationToken">A cancellation token</param>
+    /// <returns>The retrieved collection</returns>
+    public static Task<Collection?> RetrieveFullCollectionAsync(this PresentationContext dbContext, int customerId,
+        string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
+    {
+        var collections = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
+        return collections
+            .Include(e => e.Hierarchy)!.ThenInclude(h => h.ParentCollection)
+            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == collectionId, cancellationToken);
+    }
 
     /// <summary>
     /// Retrieves a collection from the database, with the Hierarchy records included
@@ -82,7 +100,7 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext, int customerId,
+    public static Task<Collection?> RetrieveCollectionOnlyAsync(this PresentationContext dbContext, int customerId,
         string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
         => dbContext.Collections.Retrieve(customerId, collectionId, tracked, cancellationToken);
 
