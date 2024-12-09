@@ -67,7 +67,7 @@ public class CollectionConverterTests
     }
     
     [Fact]
-    public void ToFlatCollection_ConvertsStorageCollection()
+    public void ToPresentationCollection_ConvertsStorageCollection()
     {
         // Arrange
         var collection = new Collection
@@ -119,7 +119,7 @@ public class CollectionConverterTests
     }
     
     [Fact]
-    public void ToFlatCollection_ConvertsStorageCollection_WithFullPath()
+    public void ToPresentationCollection_ConvertsStorageCollection_WithFullPath()
     {
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
@@ -152,7 +152,7 @@ public class CollectionConverterTests
     }
 
     [Fact]
-    public void ToFlatCollection_ConvertsStorageCollection_WithCorrectPaging()
+    public void ToPresentationCollection_ConvertsStorageCollection_WithCorrectPaging()
     {
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
@@ -186,7 +186,7 @@ public class CollectionConverterTests
     }
     
     [Fact]
-    public void ToFlatCollection_ConvertsStorageCollection_IncludingPartOfForParent()
+    public void ToPresentationCollection_ConvertsStorageCollection_IncludingPartOfForParent()
     {
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
