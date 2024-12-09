@@ -37,11 +37,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(TotalDatabaseChildItems);
+        collection.Items.Count.Should().Be(TotalDatabaseChildItems - 1, "One child item is non-public");
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
         firstItem.Behavior.Should().BeNull();
-        var secondItem = (Collection)collection.Items[2];
+        var secondItem = (Collection)collection.Items[1];
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
         secondItem.Behavior.Should().BeNull();
     }
@@ -94,6 +94,16 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Vary.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task Get_ChildHierarchical_ReturnsNotFound_IfNotPublic()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/non-public");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
     
     [Fact]

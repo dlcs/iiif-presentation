@@ -15,5 +15,8 @@ public class CollectionWithItems(
     public string? StoredCollection { get; } = storedCollection;
     public Collection? ParentCollection => Collection?.Hierarchy?.SingleOrDefault()?.ParentCollection;
 
+    /// <summary>
+    /// Returns an empty <see cref="CollectionWithItems"/> object
+    /// </summary>
     public static CollectionWithItems Empty { get; private set; } = new(null, null, 0);
 }
