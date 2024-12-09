@@ -61,7 +61,7 @@ public class UpsertCollectionHandler(
             if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         var databaseCollection =
-            await dbContext.RetrieveFullCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
+            await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
 
         Collection parentCollection;
         
@@ -72,7 +72,7 @@ public class UpsertCollectionHandler(
 
             var createdDate = DateTime.UtcNow;
             
-            parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
+            parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                 request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
             
             if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
@@ -128,7 +128,7 @@ public class UpsertCollectionHandler(
             var parentId = existingHierarchy.Parent;
             if (parentId != request.Collection.Parent)
             {
-                parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
+                parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                     request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
                 logger.LogDebug("Collection {CollectionId} for Customer {CustomerId} is moving parent",
                     request.CollectionId, request.CustomerId);

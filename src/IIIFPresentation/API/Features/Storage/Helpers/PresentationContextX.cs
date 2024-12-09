@@ -82,7 +82,7 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<Collection?> RetrieveFullCollectionAsync(this PresentationContext dbContext, int customerId,
+    public static Task<Collection?> RetrieveCollectionWithParentAsync(this PresentationContext dbContext, int customerId,
         string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
     {
         var collections = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
@@ -100,7 +100,7 @@ public static class PresentationContextX
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<Collection?> RetrieveCollectionOnlyAsync(this PresentationContext dbContext, int customerId,
+    public static Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext, int customerId,
         string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
         => dbContext.Collections.Retrieve(customerId, collectionId, tracked, cancellationToken);
 

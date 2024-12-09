@@ -58,7 +58,7 @@ public class CreateCollectionHandler(
         }
         
         // check parent exists
-        var parentCollection = await dbContext.RetrieveCollectionOnlyAsync(request.CustomerId,
+        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
             request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
