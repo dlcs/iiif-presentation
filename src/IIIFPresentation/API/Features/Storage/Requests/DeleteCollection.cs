@@ -38,16 +38,8 @@ public class DeleteCollectionHandler(
         
         if (collection is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
         
-        var hierarchy = collection.Hierarchy!.First(c => c.Canonical);
-        
-        if (hierarchy.Parent is null)
-        {
-            return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
-                DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
-        }
-
         var hasItems = await dbContext.Hierarchy.AnyAsync(
-            c => c.CustomerId == request.CustomerId && c.Parent == hierarchy.CollectionId,
+            c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
             cancellationToken: cancellationToken);
 
         if (hasItems)
