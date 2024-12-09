@@ -18,16 +18,18 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Collection = Models.Database.Collections.Collection;
-using IIdGenerator = API.Infrastructure.IdGenerator.IIdGenerator;
 
 namespace API.Features.Storage.Requests;
 
+/// <summary>
+/// Create a new Collection (storage or iiif) in DB and upload provided JSON to S3 if iiif-collection
+/// </summary>
 public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody)
     : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
-    public PresentationCollection? Collection { get; } = collection;
+    public PresentationCollection Collection { get; } = collection;
     
     public string RawRequestBody { get; } = rawRequestBody;
 }
@@ -57,7 +59,7 @@ public class CreateCollectionHandler(
         
         // check parent exists
         var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
-            request.Collection!.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
+            request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
 
@@ -90,23 +92,22 @@ public class CreateCollectionHandler(
             IsStorageCollection = isStorageCollection,
             Label = request.Collection.Label,
             Thumbnail = request.Collection.GetThumbnail(),
-        };
-
-        var hierarchy = new Hierarchy
-        {
-            CollectionId = id,
-            Type = isStorageCollection
-                ? ResourceType.StorageCollection
-                : ResourceType.IIIFCollection,
-            Slug = request.Collection.Slug,
-            CustomerId = request.CustomerId,
-            Canonical = true,
-            ItemsOrder = request.Collection.ItemsOrder,
-            Parent = parentCollection.Id
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Type = isStorageCollection
+                        ? ResourceType.StorageCollection
+                        : ResourceType.IIIFCollection,
+                    Slug = request.Collection.Slug,
+                    Canonical = true,
+                    ItemsOrder = request.Collection.ItemsOrder,
+                    Parent = parentCollection.Id
+                }
+            ]
         };
 
         dbContext.Collections.Add(collection);
-        dbContext.Hierarchy.Add(hierarchy);
 
         var saveErrors =
             await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
@@ -120,14 +121,11 @@ public class CreateCollectionHandler(
         await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, isStorageCollection,
             cancellationToken);
 
-        if (hierarchy.Parent != null)
-        {
-            collection.FullPath =
-                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
-        }
-        
-        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection, 
-            settings.PageSize, CurrentPage, 0, [], pathGenerator); // there can be no items attached to this, as it's just been created
+        collection.FullPath =
+            await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
+
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
+            settings.PageSize, CurrentPage, 0, [], parentCollection, pathGenerator); // there can be no items attached to this, as it's just been created
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,

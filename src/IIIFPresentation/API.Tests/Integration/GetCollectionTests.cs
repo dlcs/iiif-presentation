@@ -37,7 +37,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(TotalDatabaseChildItems);
+        collection.Items.Count.Should().Be(TotalDatabaseChildItems - 1, "One child item is non-public");
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
         firstItem.Behavior.Should().BeNull();
@@ -94,6 +94,16 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Vary.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task Get_ChildHierarchical_ReturnsNotFound_IfNotPublic()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1/non-public");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
     
     [Fact]
@@ -239,6 +249,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
+        collection.PartOf.Should().BeNull("Root has no parent");
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         firstItem.Behavior.Should().Contain("public-iiif");
@@ -276,6 +287,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
         collection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        collection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
     }
     
     [Fact]
@@ -300,6 +312,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection.Behavior.Should().Contain("storage-collection");
         flatCollection.Behavior.Should().NotContain("public-iiif");
         flatCollection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        flatCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 

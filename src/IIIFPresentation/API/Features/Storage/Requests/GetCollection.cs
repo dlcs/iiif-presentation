@@ -32,7 +32,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IPathGenerator 
     public async Task<CollectionWithItems> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        var collection = await dbContext.RetrieveCollectionAsync(request.CustomerId, request.Id, cancellationToken: cancellationToken);
+        var collection = await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.Id, cancellationToken: cancellationToken);
         
         if (collection is null) return CollectionWithItems.Empty;
 

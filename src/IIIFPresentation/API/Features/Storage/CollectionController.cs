@@ -40,11 +40,11 @@ public class CollectionController(
         if (page is null or <= 0) page = 1;
 
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
-        var storageRoot =
+        var collectionWithItems =
             await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderByField,
                 descending));
 
-        if (storageRoot.Collection == null) return this.PresentationNotFound();
+        if (collectionWithItems.Collection == null) return this.PresentationNotFound();
 
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
@@ -52,12 +52,13 @@ public class CollectionController(
                 ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}"
                 : null;
 
-            return Ok(storageRoot.Collection.ToFlatCollection( pageSize.Value, page.Value,
-                storageRoot.TotalItems, storageRoot.Items, pathGenerator, orderByParameter));
+            return Ok(collectionWithItems.Collection.ToPresentationCollection(pageSize.Value, page.Value,
+                collectionWithItems.TotalItems, collectionWithItems.Items, collectionWithItems.ParentCollection,
+                pathGenerator, orderByParameter));
         }
 
-        return storageRoot.Collection.IsPublic
-            ? SeeOther( pathGenerator.GenerateHierarchicalCollectionId(storageRoot.Collection))
+        return collectionWithItems.Collection.IsPublic
+            ? SeeOther(pathGenerator.GenerateHierarchicalCollectionId(collectionWithItems.Collection))
             : this.PresentationNotFound();
     }
 
