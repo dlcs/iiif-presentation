@@ -17,6 +17,12 @@ public interface IDlcsApiClient
     /// Create a new space with given name for customer
     /// </summary>
     Task<Space> CreateSpace(int customerId, string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ingest assets into the DLCS
+    /// </summary>
+    public Task<Batch> IngestAssets<T>(int customerId, HydraCollection<T> images,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -44,6 +50,16 @@ internal class DlcsApiClient(
         
         var space = await CallDlcsApi<Space>(HttpMethod.Post, spacePath, payload, cancellationToken);
         return space ?? throw new DlcsException("Failed to create space");
+    }
+    
+    public async Task<Batch> IngestAssets<T>(int customerId, HydraCollection<T> images, CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfImages} images", customerId,
+            images.Members.Count);
+        var queuePath = $"/customers/{customerId}/queue";
+        
+        var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, images, cancellationToken);
+        return batch ?? throw new DlcsException("Failed to create batch");
     }
 
     private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,

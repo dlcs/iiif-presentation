@@ -47,4 +47,21 @@ public static class StringX
     {
         return path.Split('/').Last();
     }
+    
+    /// <summary>
+    /// Gets the last path element of a string
+    /// </summary>
+    /// <param name="path">The path to check</param>
+    /// <returns>The last path element</returns>
+    public static int? GetLastPathElementAsInt(this string? path)
+    {
+        var last = path.GetLastPathElement();
+        if (string.IsNullOrWhiteSpace(last))
+        {
+            return null;
+        }
+
+        // We want this to throw if not an int
+        return int.Parse(last);
+    }
 } 

@@ -14,5 +14,7 @@ public enum ModifyCollectionType
     CannotChangeCollectionType = 10,
     ErrorCreatingSpace = 11,
     ItemsAndPaintedResourcesUsedTogether = 12,
+    RequiresSpace = 13,
+    CouldNotRetrieveAssetId = 14,
     Unknown = 1000
 }

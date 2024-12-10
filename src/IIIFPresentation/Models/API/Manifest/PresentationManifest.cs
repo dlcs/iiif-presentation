@@ -1,5 +1,7 @@
 ﻿using IIIF.Presentation.V3.Strings;
+using Models.API.Hydra;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Models.API.Manifest;
 
@@ -36,6 +38,9 @@ public class PaintedResource
     
     [JsonProperty(Order = 2)]
     public required CanvasPainting CanvasPainting { get; set; }
+    
+    [JsonProperty(Order = 3)]
+    public JObject? Asset { get; set; }
 }
 
 public class CanvasPainting

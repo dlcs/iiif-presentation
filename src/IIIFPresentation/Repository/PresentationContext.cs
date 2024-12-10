@@ -23,6 +23,8 @@ public class PresentationContext : DbContext
     public virtual DbSet<Hierarchy> Hierarchy { get; set; }
     
     public virtual DbSet<Manifest> Manifests { get; set; }
+    
+    public virtual DbSet<Asset> Assets { get; set; }
 
     public virtual DbSet<CanvasPainting> CanvasPaintings { get; set; }
 
@@ -116,6 +118,24 @@ public class PresentationContext : DbContext
                 .WithMany(m => m.CanvasPaintings)
                 .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity
+                .HasOne(a => a.Manifest)
+                .WithMany(m => m.Assets)
+                .HasForeignKey(a => new { a.ManifestId, a.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity
+                .HasOne(a => a.CanvasPainting)
+                .WithOne(m => m.Asset)
+                .HasForeignKey<CanvasPainting>(cp => cp.Id)
+                .OnDelete(DeleteBehavior.Cascade); // I think this is correct? we want to delete an asset record if the associated canvas painting is
         });
     }
 }

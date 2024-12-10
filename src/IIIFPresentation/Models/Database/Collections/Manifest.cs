@@ -45,6 +45,7 @@ public class Manifest : IHierarchyResource
     
     public List<Hierarchy>? Hierarchy { get; set; }
     public List<CanvasPainting>? CanvasPaintings { get; set; }
+    public List<Asset>? Assets { get; set; }
 }
 
 public static class ManifestX

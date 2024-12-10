@@ -10,15 +10,23 @@ using API.Infrastructure.Validation;
 using Core;
 using Core.Auth;
 using Core.Helpers;
+using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
+using DLCS.Models;
+using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
+using NuGet.ProjectModel;
 using Repository;
 using Repository.Helpers;
+using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -56,8 +64,11 @@ public class ManifestService(
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IDlcsApiClient dlcsApiClient,
+    IOptions<DlcsSettings> settings,
     ILogger<ManifestService> logger)
 {
+    private readonly DlcsSettings settings = settings.Value;
+    
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
@@ -124,18 +135,134 @@ public class ManifestService(
         if (parentErrors != null) return parentErrors;
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
+        await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
         {
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
+            
+            if (request.PresentationManifest.PaintedResources.HasAsset())
+            {
+                var batchError = await CreateBatchRequests(request.CustomerId, request.PresentationManifest,
+                    dbManifest!, cancellationToken);
+                
+                if (batchError != null) return batchError;
+            }
 
             await SaveToS3(dbManifest!, request, cancellationToken);
-
+            await transaction.CommitAsync(cancellationToken);
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
         }
     }
-    
+
+    private async Task<PresUpdateResult?> CreateBatchRequests(int customerId, PresentationManifest presentationManifest, 
+        DbManifest dbManifest, CancellationToken cancellationToken)
+    {
+        var chunkedAssets = presentationManifest.PaintedResources!.ToArray()
+            .Chunk(settings.MaxBatchSize);
+
+        var startingCanvasOrderNumber = 0;
+
+        foreach (var (paintedResources, index) in chunkedAssets.Select((asset, index) => (asset, index)))
+        {
+            startingCanvasOrderNumber++; // this will be 1, 101, 201, etc. if the MaxBatchSize is 100
+            Dictionary<string, PaintedResource> assetIdDictionary;
+
+            try
+            {
+                assetIdDictionary = ManipulateAssetsList(paintedResources, dbManifest.SpaceId!.Value);
+            }
+            catch (ArgumentException ex)
+            {
+                return PresUpdateResult.Failure("Could not retrieve an id from an attached asset",
+                    ModifyCollectionType.CouldNotRetrieveAssetId, WriteResult.BadRequest);
+            }
+
+            var chunkedBatchRequest = new HydraCollection<JObject>(paintedResources.Select(p => p.Asset).ToList());
+            
+            try
+            {
+                var batch =
+                    await dlcsApiClient.IngestAssets(customerId, chunkedBatchRequest, cancellationToken);
+
+                await SaveAssetsToDatabase(assetIdDictionary, batch.ResourceId!, customerId, startingCanvasOrderNumber,
+                    dbManifest, cancellationToken);
+            }
+            catch (DlcsException exception)
+            {
+                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", customerId);
+                return PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
+                    WriteResult.Error);
+            }
+            
+            startingCanvasOrderNumber = index * settings.MaxBatchSize;
+        }
+        
+        return null;
+    }
+
+    private Dictionary<string, PaintedResource> ManipulateAssetsList(PaintedResource[] paintedResources, int updatedSpace)
+    {
+        var assetIdDictionary = new Dictionary<string, PaintedResource>();
+        
+        foreach (var paintedResource in paintedResources)
+        {
+            if (paintedResource.Asset == null) continue;
+            
+            if (paintedResource.Asset.ContainsKey("space"))
+            {
+                paintedResource.Asset["space"] = updatedSpace;
+            }
+            else
+            {
+                paintedResource.Asset.Add("space", updatedSpace);
+            }
+
+            if (paintedResource.Asset.TryGetValue("id", out var id))
+            {
+                assetIdDictionary.Add(id.ToString(), paintedResource);
+            }
+            else
+            {
+                throw new ArgumentException("The \"id\" field cannot be found on the asset");
+            }
+        }
+        
+        return assetIdDictionary;
+    }
+
+    private async Task SaveAssetsToDatabase(Dictionary<string, PaintedResource> assetIdDictionary, string batchId, 
+        int customerId, int canvasOrder, DbManifest manifest, CancellationToken cancellationToken)
+    {
+        var assetsToAdd = new List<Asset>();
+        
+        foreach (var assetId in assetIdDictionary)
+        {
+            assetsToAdd.Add(new Asset
+            {
+                Id = assetId.Key,
+                ManifestId = manifest.Id,
+                BatchId = batchId,
+                CustomerId = customerId,
+                CanvasPainting = new CanvasPainting
+                {
+                    Label = assetId.Value.CanvasPainting.Label,
+                    Created = DateTime.UtcNow,
+                    CustomerId = customerId,
+                    CanvasOrder = canvasOrder,
+                    ManifestId = manifest.Id,
+                    ChoiceOrder = -1
+                }
+            });
+            
+            canvasOrder++;
+        }
+        
+        await dbContext.AddRangeAsync(assetsToAdd, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
@@ -192,6 +319,11 @@ public class ManifestService(
     {
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+
+        if (!request.CreateSpace && request.PresentationManifest.PaintedResources.HasAsset())
+        {
+            return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
+        }
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
 
