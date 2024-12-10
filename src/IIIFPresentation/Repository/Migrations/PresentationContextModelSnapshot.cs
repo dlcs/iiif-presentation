@@ -164,9 +164,6 @@ namespace Repository.Migrations
                     b.HasKey("Id", "CustomerId")
                         .HasName("pk_collections");
 
-                    b.HasAlternateKey("CustomerId", "Id")
-                        .HasName("ak_collections_customer_id_id");
-
                     b.ToTable("collections", (string)null);
                 });
 
@@ -259,8 +256,8 @@ namespace Repository.Migrations
                     b.HasKey("Id")
                         .HasName("pk_hierarchy");
 
-                    b.HasIndex("CustomerId", "Parent")
-                        .HasDatabaseName("ix_hierarchy_customer_id_parent");
+                    b.HasIndex("Parent", "CustomerId")
+                        .HasDatabaseName("ix_hierarchy_parent_customer_id");
 
                     b.HasIndex("CollectionId", "CustomerId", "Canonical")
                         .IsUnique()
@@ -302,18 +299,17 @@ namespace Repository.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_hierarchy_collections_collection_id_customer_id");
 
-                    b.HasOne("Models.Database.Collections.Collection", "ParentCollection")
-                        .WithMany("Children")
-                        .HasForeignKey("CustomerId", "Parent")
-                        .HasPrincipalKey("CustomerId", "Id")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .HasConstraintName("fk_hierarchy_collections_customer_id_parent");
-
                     b.HasOne("Models.Database.Collections.Manifest", "Manifest")
                         .WithMany("Hierarchy")
                         .HasForeignKey("ManifestId", "CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_hierarchy_manifests_manifest_id_customer_id");
+
+                    b.HasOne("Models.Database.Collections.Collection", "ParentCollection")
+                        .WithMany("Children")
+                        .HasForeignKey("Parent", "CustomerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_hierarchy_collections_parent_customer_id");
 
                     b.Navigation("Collection");
 

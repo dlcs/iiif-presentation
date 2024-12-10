@@ -10,38 +10,29 @@ namespace Repository.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddUniqueConstraint(
-                name: "ak_collections_customer_id_id",
-                table: "collections",
-                columns: new[] { "customer_id", "id" });
-
             migrationBuilder.CreateIndex(
-                name: "ix_hierarchy_customer_id_parent",
+                name: "ix_hierarchy_parent_customer_id",
                 table: "hierarchy",
-                columns: new[] { "customer_id", "parent" });
+                columns: new[] { "parent", "customer_id" });
 
             migrationBuilder.AddForeignKey(
-                name: "fk_hierarchy_collections_customer_id_parent",
+                name: "fk_hierarchy_collections_parent_customer_id",
                 table: "hierarchy",
-                columns: new[] { "customer_id", "parent" },
+                columns: new[] { "parent", "customer_id" },
                 principalTable: "collections",
-                principalColumns: new[] { "customer_id", "id" });
+                principalColumns: new[] { "id", "customer_id" });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "fk_hierarchy_collections_customer_id_parent",
+                name: "fk_hierarchy_collections_parent_customer_id",
                 table: "hierarchy");
 
             migrationBuilder.DropIndex(
-                name: "ix_hierarchy_customer_id_parent",
+                name: "ix_hierarchy_parent_customer_id",
                 table: "hierarchy");
-
-            migrationBuilder.DropUniqueConstraint(
-                name: "ak_collections_customer_id_id",
-                table: "collections");
         }
     }
 }

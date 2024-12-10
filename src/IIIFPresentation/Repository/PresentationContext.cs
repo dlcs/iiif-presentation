@@ -51,8 +51,8 @@ public class PresentationContext : DbContext
 
             entity.HasMany(e => e.Children)
                 .WithOne(e => e.ParentCollection)
-                .HasForeignKey(e => new { e.CustomerId, e.Parent })
-                .HasPrincipalKey(e => new { e.CustomerId, e.Id })
+                .HasForeignKey(e => new { e.Parent, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.NoAction);
         });
         
