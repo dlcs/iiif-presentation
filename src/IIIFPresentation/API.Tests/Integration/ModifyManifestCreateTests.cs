@@ -5,6 +5,7 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
+using IIIF.Presentation.V3;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -1224,5 +1225,46 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenItemsAndPaintedResourceFilled()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenItemsAndPaintedResourceFilled);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            Items = new List<Canvas>()
+            {
+                new ()
+                {
+                    Id = "https://iiif.example/manifest.json",
+                }
+            },
+            PaintedResources = new List<PaintedResource>()
+            {
+                new PaintedResource()
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "https://iiif.example/manifest.json"
+                    }
+                }
+            }
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ItemsAndPaintedResourcesUsedTogether");
     }
 }

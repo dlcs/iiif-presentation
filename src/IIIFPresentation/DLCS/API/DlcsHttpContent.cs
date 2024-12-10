@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Core.Helpers;
+using DLCS.Converters;
 using DLCS.Exceptions;
 using DLCS.Models;
 
@@ -12,7 +13,8 @@ internal static class DlcsHttpContent
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JTokenConverter() }
     };
         
     /// <summary>
@@ -38,6 +40,8 @@ internal static class DlcsHttpContent
 
         try
         {
+            var test = response.Content.ReadAsStringAsync().Result;
+            
             var error = await response.Content.ReadFromJsonAsync<DlcsError>(JsonSerializerOptions, cancellationToken);
 
             if (error != null)

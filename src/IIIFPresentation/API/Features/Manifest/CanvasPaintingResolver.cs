@@ -143,7 +143,7 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    private async Task<IList<string>?> GenerateUniqueCanvasPaintingIds(int count, int customerId,
+    public async Task<IList<string>?> GenerateUniqueCanvasPaintingIds(int count, int customerId,
         CancellationToken cancellationToken)
     {
         try

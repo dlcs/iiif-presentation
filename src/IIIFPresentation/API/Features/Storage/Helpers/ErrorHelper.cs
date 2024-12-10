@@ -52,10 +52,24 @@ public static class ErrorHelper
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ItemsAndPaintedResourcesUsed<TCollection>() 
+        where TCollection : class
+    {
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            "The properties \"items\" and \"paintedResource\" cannot be used at the same time",
+            ModifyCollectionType.ItemsAndPaintedResourcesUsedTogether, WriteResult.BadRequest);
+    }
+    
     public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
         where T : class
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "Error creating DLCS space", ModifyCollectionType.ErrorCreatingSpace, WriteResult.Error);
+
+    public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
+        where T : class
+        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "A request with assets requires the space header to be set", ModifyCollectionType.RequiresSpace,
+            WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {
