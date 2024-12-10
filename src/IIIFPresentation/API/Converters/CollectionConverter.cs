@@ -4,19 +4,18 @@ using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
-using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
-using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastucture;
 using Collection = IIIF.Presentation.V3.Collection;
 using Manifest = IIIF.Presentation.V3.Manifest;
+using DbCollection = Models.Database.Collections.Collection;
 
 namespace API.Converters;
 
 public static class CollectionConverter
 {
-    public static Collection ToHierarchicalCollection(this Models.Database.Collections.Collection dbAsset, 
+    public static Collection ToHierarchicalCollection(this DbCollection dbAsset,
         IPathGenerator pathGenerator, List<Hierarchy>? items)
     {
         var collection = new Collection
@@ -32,12 +31,12 @@ public static class CollectionConverter
 
         return collection;
     }
-    
-    public static PresentationCollection ToFlatCollection(this Models.Database.Collections.Collection dbAsset,
-        int pageSize, int currentPage, int totalItems,
-        IEnumerable<Hierarchy>? items, IPathGenerator pathGenerator, string? orderQueryParam = null)
+
+    public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
+        int pageSize, int currentPage, int totalItems, IEnumerable<Hierarchy>? items, DbCollection? parentCollection,
+        IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
-        var totalPages = (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
+        var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
         items ??= [];
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
@@ -55,7 +54,7 @@ public static class CollectionConverter
             Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy),
             ItemsOrder = hierarchy.ItemsOrder,
             Items = GenerateItems(pathGenerator, items),
-            PartOf = GeneratePartOf(hierarchy, dbAsset, pathGenerator),
+            PartOf = GeneratePartOf(parentCollection, pathGenerator),
             TotalItems = totalItems,
             View = GenerateView(dbAsset, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted),
             SeeAlso = GenerateSeeAlso(dbAsset, pathGenerator),
@@ -66,10 +65,11 @@ public static class CollectionConverter
         };
     }
 
-    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator, bool flatId)
+    private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator,
+        bool flatId)
     {
         var id = flatId ? pathGenerator.GenerateFlatId(hierarchy) : pathGenerator.GenerateHierarchicalId(hierarchy);
-        
+
         if (hierarchy.Type == ResourceType.IIIFManifest)
         {
             return new Manifest
@@ -86,7 +86,7 @@ public static class CollectionConverter
         };
 
         if (flatId) collection.Behavior = GenerateBehavior(hierarchy.Collection!);
-            
+
         return collection;
     }
 
@@ -98,9 +98,9 @@ public static class CollectionConverter
     /// <returns>total pages</returns>
     public static int GenerateTotalPages(int pageSize, int totalItems)
     {
-        return (int) Math.Ceiling(totalItems == 0 ? 1 : (double) totalItems / pageSize);
+        return (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
     }
-    
+
     /// <summary>
     /// Generates a parent id for a collection in the presentation collection form
     /// </summary>
@@ -132,36 +132,33 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="collection">The database collection to use</param>
     /// <returns>A list of behaviors</returns>
-    public static List<string>? GenerateBehavior(Models.Database.Collections.Collection collection)
+    public static List<string>? GenerateBehavior(DbCollection collection)
     {
         var behaviours = new List<string>()
             .AppendIf(collection.IsPublic, Behavior.IsPublic)
             .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
-        
-        return behaviours.Any() ? behaviours : null; 
+
+        return behaviours.Any() ? behaviours : null;
     }
 
     /// <summary>
     /// Generates the PartOf field for a collection
     /// </summary>
-    /// <param name="hierarchy">The hierarchy to use to generate</param>
     /// <param name="collection">The collection required</param>
     /// <param name="pathGenerator">Class used to generate paths for collections</param>
     /// <returns>A list of ResourceBase</returns>
-    public static List<ResourceBase>? GeneratePartOf(Hierarchy hierarchy, Models.Database.Collections.Collection collection, 
-        IPathGenerator pathGenerator)
-    {
-        return hierarchy.Parent != null
-            ? new List<ResourceBase>
-            {
-                new PartOf(nameof(PresentationType.Collection))
+    public static List<ResourceBase>? GeneratePartOf(DbCollection? collection,
+        IPathGenerator pathGenerator) =>
+        collection != null
+            ?
+            [
+                new ExternalResource(nameof(PresentationType.Collection))
                 {
-                    Id = pathGenerator.GenerateHierarchicalCollectionParent(collection, hierarchy),
-                    Label = collection.Label
+                    Id = pathGenerator.GenerateFlatCollectionId(collection),
+                    Label = collection!.Label
                 }
-            }
+            ]
             : null;
-    }
 
     /// <summary>
     /// Generates the SeeAlso part of a collection

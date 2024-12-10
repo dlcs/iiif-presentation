@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.AWS;
+﻿using API.Features.Storage.Helpers;
+using API.Infrastructure.AWS;
 using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -32,21 +33,13 @@ public class DeleteCollectionHandler(
                 DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
         }
 
-        var collection = await dbContext.Collections.Include(c => c.Hierarchy).FirstOrDefaultAsync(c =>
-            c.Id == request.CollectionId && c.CustomerId == request.CustomerId, cancellationToken);
+        var collection =
+            await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
         
         if (collection is null) return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.NotFound);
         
-        var hierarchy = collection.Hierarchy!.First(c => c.Canonical);
-        
-        if (hierarchy.Parent is null)
-        {
-            return new ResultMessage<DeleteResult, DeleteCollectionType>(DeleteResult.BadRequest,
-                DeleteCollectionType.CannotDeleteRootCollection, "Cannot delete a root collection");
-        }
-
         var hasItems = await dbContext.Hierarchy.AnyAsync(
-            c => c.CustomerId == request.CustomerId && c.Parent == hierarchy.CollectionId,
+            c => c.CustomerId == request.CustomerId && c.Parent == collection.Id,
             cancellationToken: cancellationToken);
 
         if (hasItems)

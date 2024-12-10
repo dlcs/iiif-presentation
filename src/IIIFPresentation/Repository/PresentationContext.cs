@@ -48,6 +48,12 @@ public class PresentationContext : DbContext
                 .HasForeignKey(e => new { e.CollectionId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Children)
+                .WithOne(e => e.ParentCollection)
+                .HasForeignKey(e => new { e.Parent, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.NoAction);
         });
         
         modelBuilder.Entity<Manifest>(entity =>

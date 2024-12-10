@@ -37,8 +37,7 @@ public class StorageController(
     [VaryHeader]
     public async Task<IActionResult> GetHierarchical(int customerId, string slug = "")
     {
-        var hierarchy =
-            await dbContext.RetrieveHierarchy(customerId, slug);
+        var hierarchy = await dbContext.RetrieveHierarchy(customerId, slug);
 
         switch (hierarchy?.Type)
         {
@@ -53,7 +52,7 @@ public class StorageController(
             case ResourceType.StorageCollection:
                 var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug));
 
-                if (storageRoot.Collection is not {IsPublic: true}) return this.PresentationNotFound();
+                if (storageRoot.Collection == null) return this.PresentationNotFound();
 
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                 {

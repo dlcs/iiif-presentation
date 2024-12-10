@@ -75,4 +75,9 @@ public class Collection : IHierarchyResource
     /// </summary>
     [NotMapped]
     public string? FullPath { get; set; }
+
+    /// <summary>
+    /// Navigation property for any children, when this Collection is the parent
+    /// </summary>
+    public IEnumerable<Hierarchy>? Children { get; set; }
 }
