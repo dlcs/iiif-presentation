@@ -179,8 +179,7 @@ public class ManifestService(
             
             try
             {
-                var batch =
-                    await dlcsApiClient.IngestAssets(customerId, chunkedBatchRequest, cancellationToken);
+                await dlcsApiClient.IngestAssets(customerId, chunkedBatchRequest, cancellationToken);
 
                 await SaveAssetsToDatabase(assetIdDictionary, customerId, startingCanvasOrderNumber,
                     dbManifest, cancellationToken);
