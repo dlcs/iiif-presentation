@@ -1,5 +1,4 @@
 ﻿using IIIF.Presentation.V3.Strings;
-using Models.API.Hydra;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

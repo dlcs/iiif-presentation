@@ -23,8 +23,6 @@ public class PresentationContext : DbContext
     public virtual DbSet<Hierarchy> Hierarchy { get; set; }
     
     public virtual DbSet<Manifest> Manifests { get; set; }
-    
-    public virtual DbSet<Asset> Assets { get; set; }
 
     public virtual DbSet<CanvasPainting> CanvasPaintings { get; set; }
 
@@ -38,13 +36,13 @@ public class PresentationContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
-        
+
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.CustomerId });
-            
+
             entity.Property(e => e.Label).HasColumnType("jsonb");
-            
+
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Collection)
                 .HasForeignKey(e => new { e.CollectionId, e.CustomerId })
@@ -57,11 +55,11 @@ public class PresentationContext : DbContext
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.NoAction);
         });
-        
+
         modelBuilder.Entity<Manifest>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.CustomerId });
-            
+
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Manifest)
                 .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
@@ -71,7 +69,7 @@ public class PresentationContext : DbContext
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
         });
-        
+
         modelBuilder.Entity<Hierarchy>(entity =>
         {
             // cannot have duplicate slugs with the same parent
@@ -83,7 +81,7 @@ public class PresentationContext : DbContext
 
             entity.ToTable(h => h.HasCheckConstraint("stop_collection_and_manifest_in_same_record",
                 "num_nonnulls(manifest_id, collection_id) = 1"));
-            
+
             entity.HasIndex(e => new { e.CollectionId, e.CustomerId, e.Canonical })
                 .IsUnique()
                 .HasFilter("canonical is true");
@@ -111,31 +109,19 @@ public class PresentationContext : DbContext
 
             entity.HasIndex(cp => new
                     { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("asset_id is null");
             
+            entity.HasIndex(cp => new
+                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.AssetId, cp.CanvasOrder, cp.ChoiceOrder })
+                .IsUnique()
+                .HasFilter("canvas_original_id is null");
+
             entity
                 .HasOne(cp => cp.Manifest)
                 .WithMany(m => m.CanvasPaintings)
                 .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
-        });
-        
-        modelBuilder.Entity<Asset>(entity =>
-        {
-            entity
-                .HasOne(a => a.Manifest)
-                .WithMany(m => m.Assets)
-                .HasForeignKey(a => new { a.ManifestId, a.CustomerId })
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-        
-        modelBuilder.Entity<Asset>(entity =>
-        {
-            entity
-                .HasOne(a => a.CanvasPainting)
-                .WithOne(m => m.Asset)
-                .HasForeignKey<CanvasPainting>(cp => cp.Id)
-                .OnDelete(DeleteBehavior.Cascade); // I think this is correct? we want to delete an asset record if the associated canvas painting is
         });
     }
 }

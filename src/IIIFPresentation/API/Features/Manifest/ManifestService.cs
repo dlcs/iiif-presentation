@@ -14,16 +14,13 @@ using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
-using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
-using NuGet.ProjectModel;
 using Repository;
 using Repository.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -162,12 +159,11 @@ public class ManifestService(
         var chunkedAssets = presentationManifest.PaintedResources!.ToArray()
             .Chunk(settings.MaxBatchSize);
 
-        var startingCanvasOrderNumber = 0;
+        var startingCanvasOrderNumber = 1;
 
         foreach (var (paintedResources, index) in chunkedAssets.Select((asset, index) => (asset, index)))
         {
-            startingCanvasOrderNumber++; // this will be 1, 101, 201, etc. if the MaxBatchSize is 100
-            Dictionary<string, PaintedResource> assetIdDictionary;
+            Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary;
 
             try
             {
@@ -186,7 +182,7 @@ public class ManifestService(
                 var batch =
                     await dlcsApiClient.IngestAssets(customerId, chunkedBatchRequest, cancellationToken);
 
-                await SaveAssetsToDatabase(assetIdDictionary, batch.ResourceId!, customerId, startingCanvasOrderNumber,
+                await SaveAssetsToDatabase(assetIdDictionary, customerId, startingCanvasOrderNumber,
                     dbManifest, cancellationToken);
             }
             catch (DlcsException exception)
@@ -196,32 +192,30 @@ public class ManifestService(
                     WriteResult.Error);
             }
             
-            startingCanvasOrderNumber = index * settings.MaxBatchSize;
+            startingCanvasOrderNumber += settings.MaxBatchSize; // this will be 1, 101, 201, etc. if the MaxBatchSize is 100
         }
         
         return null;
     }
 
-    private Dictionary<string, PaintedResource> ManipulateAssetsList(PaintedResource[] paintedResources, int updatedSpace)
+    private Dictionary<string, (PaintedResource PaintedResource, int Space)> ManipulateAssetsList(
+        PaintedResource[] paintedResources, int manifestSpace)
     {
-        var assetIdDictionary = new Dictionary<string, PaintedResource>();
+        var assetIdDictionary = new Dictionary<string, (PaintedResource paintedResource, int space)>();
         
         foreach (var paintedResource in paintedResources)
         {
             if (paintedResource.Asset == null) continue;
             
-            if (paintedResource.Asset.ContainsKey("space"))
+            if (!paintedResource.Asset.TryGetValue("space", out var space))
             {
-                paintedResource.Asset["space"] = updatedSpace;
-            }
-            else
-            {
-                paintedResource.Asset.Add("space", updatedSpace);
+                paintedResource.Asset.Add("space", manifestSpace);
+                space = manifestSpace;
             }
 
             if (paintedResource.Asset.TryGetValue("id", out var id))
             {
-                assetIdDictionary.Add(id.ToString(), paintedResource);
+                assetIdDictionary.Add(id.ToString(), (paintedResource, space.Value<int>()));
             }
             else
             {
@@ -232,34 +226,28 @@ public class ManifestService(
         return assetIdDictionary;
     }
 
-    private async Task SaveAssetsToDatabase(Dictionary<string, PaintedResource> assetIdDictionary, string batchId, 
+    private async Task SaveAssetsToDatabase(Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary, 
         int customerId, int canvasOrder, DbManifest manifest, CancellationToken cancellationToken)
     {
-        var assetsToAdd = new List<Asset>();
+        var canvasPaintingsToAdd = new List<CanvasPainting>();
         
         foreach (var assetId in assetIdDictionary)
         {
-            assetsToAdd.Add(new Asset
+            canvasPaintingsToAdd.Add(new CanvasPainting()
             {
-                Id = assetId.Key,
-                ManifestId = manifest.Id,
-                BatchId = batchId,
+                Label = assetId.Value.PaintedResource.CanvasPainting.Label,
+                Created = DateTime.UtcNow,
                 CustomerId = customerId,
-                CanvasPainting = new CanvasPainting
-                {
-                    Label = assetId.Value.CanvasPainting.Label,
-                    Created = DateTime.UtcNow,
-                    CustomerId = customerId,
-                    CanvasOrder = canvasOrder,
-                    ManifestId = manifest.Id,
-                    ChoiceOrder = -1
-                }
+                CanvasOrder = canvasOrder,
+                ManifestId = manifest.Id,
+                AssetId = $"{customerId}/{assetId.Value.Space}/{assetId.Key}",
+                ChoiceOrder = -1
             });
             
             canvasOrder++;
         }
         
-        await dbContext.AddRangeAsync(assetsToAdd, cancellationToken);
+        await dbContext.AddRangeAsync(canvasPaintingsToAdd, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
