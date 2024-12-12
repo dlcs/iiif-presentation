@@ -16,5 +16,6 @@ public enum ModifyCollectionType
     ItemsAndPaintedResourcesUsedTogether = 12,
     RequiresSpace = 13,
     CouldNotRetrieveAssetId = 14,
+    RequiresCanvasPainting,
     Unknown = 1000
 }

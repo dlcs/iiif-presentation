@@ -62,7 +62,7 @@ public static class ManifestConverter
                 Label = cp.Label,
                 CanvasOriginalId = cp.CanvasOriginalId?.ToString(),
                 CanvasLabel = cp.CanvasLabel,
-
+                AssetId = pathGenerator.GenerateAssetUri(cp)
             }
         }).ToList();
     }

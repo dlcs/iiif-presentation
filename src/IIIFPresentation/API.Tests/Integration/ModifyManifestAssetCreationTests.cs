@@ -267,6 +267,75 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
     }
     
+        [Fact]
+    public async Task? CreateManifest_BadRequest_WheCalledWithoutCanvasPainting()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WheCalledWithoutCanvasPainting);
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "behavior": [
+                                 "public-iiif"
+                             ],
+                             "label": {
+                                 "en": [
+                                     "post testing"
+                                 ]
+                             },
+                             "slug": "{{slug}}",
+                             "parent": "root",
+                             "thumbnail": [
+                                 {
+                                     "id": "https://example.org/img/thumb.jpg",
+                                     "type": "Image",
+                                     "format": "image/jpeg",
+                                     "width": 300,
+                                     "height": 200
+                                 }
+                             ],
+                             "paintedResources": [
+                                {
+                                     "asset": {
+                                         "id": "testAssetByPresentation",
+                                         "mediaType": "image/jpg",
+                                         "string1": "somestring",
+                                         "string2": "somestring2",
+                                         "string3": "somestring3",
+                                         "origin": "some/origin",
+                                         "deliveryChannels": [
+                                             {
+                                                 "channel": "iiif-img",
+                                                 "policy": "default"
+                                             },
+                                             {
+                                                 "channel": "thumbs",
+                                                 "policy": "default"
+                                             }
+                                         ]
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var responseError = await response.ReadAsPresentationResponseAsync<Error>();
+        responseError!.Detail.Should().Be("A canvas painting element is required in a painted resource block");
+        
+        var dbRecords = dbContext.Hierarchy.Where(x =>
+            x.Slug == slug);
+        dbRecords.Count().Should().Be(0);
+    }
+    
     [Fact]
     public async Task CreateManifest_BadRequest_WhenCalledWithEmptyAsset()
     {

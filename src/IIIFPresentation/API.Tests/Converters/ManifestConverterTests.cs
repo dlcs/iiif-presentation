@@ -167,7 +167,8 @@ public class ManifestConverterTests
                     CustomerId = 123,
                     Id = "the-canvas",
                     ChoiceOrder = 10,
-                    CanvasOrder = 100
+                    CanvasOrder = 100,
+                    AssetId = "1/2/assetId"
                 }
             ]
         };
@@ -181,6 +182,7 @@ public class ManifestConverterTests
         cp.ChoiceOrder.Should().Be(10);
         cp.CanvasOrder.Should().Be(100);
         cp.CanvasOriginalId.Should().Be("http://example.test/canvas1");
+        cp.AssetId.Should().Be("https://dlcs.test/customers/1/spaces/2/images/assetId");
     }
     
     [Fact]

@@ -89,4 +89,9 @@ public interface IPathGenerator
     /// Get URI for DLCS space for given asset 
     /// </summary>
     Uri? GenerateSpaceUri(Manifest manifest);
+
+    /// <summary>
+    /// Get URI of a DLCS asset
+    /// </summary>
+    Uri? GenerateAssetUri(CanvasPainting canvasPainting);
 }
