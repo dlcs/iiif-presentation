@@ -4,10 +4,6 @@ using API.Infrastructure.IdGenerator;
 using Core;
 using Core.Helpers;
 using DLCS;
-using DLCS.API;
-using DLCS.Exceptions;
-using DLCS.Models;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
@@ -173,9 +169,6 @@ public class CanvasPaintingResolver(
         }
     }
     
-    
-    
-    
     public async Task<(PresUpdateResult? upadteResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
         int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
     {
@@ -185,13 +178,12 @@ public class CanvasPaintingResolver(
             await GenerateUniqueCanvasPaintingIds(paintedResourceCount, customerId, cancellationToken);
         if (canvasPaintingIds == null)
             return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-        
-        List<CanvasPainting> canvasPaintings;
+
         try
         {
             var assetIdDictionary = ManipulateAssetsList(presentationManifest.PaintedResources!, manifestSpace);
             
-            canvasPaintings = GenerateCanvasPaintings(assetIdDictionary, customerId, canvasPaintingIds);
+            List<CanvasPainting> canvasPaintings = GenerateCanvasPaintings(assetIdDictionary, customerId, canvasPaintingIds);
             
             return (null, canvasPaintings);
         }

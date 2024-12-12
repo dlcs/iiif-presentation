@@ -15,9 +15,5 @@
     <ItemGroup>
       <None Remove="Properties\launchSettings.json" />
     </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\Core\Core.csproj" />
-    </ItemGroup>
     
 </Project>

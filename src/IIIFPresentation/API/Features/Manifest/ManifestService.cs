@@ -13,8 +13,6 @@ using Core.Helpers;
 using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
-using DLCS.Models;
-using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Options;
 using Models.API.General;
@@ -62,11 +60,8 @@ public class ManifestService(
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IDlcsApiClient dlcsApiClient,
-    IOptions<DlcsSettings> settings,
     ILogger<ManifestService> logger)
 {
-    private readonly DlcsSettings settings = settings.Value;
-    
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>

@@ -10,7 +10,6 @@ public static class StringX
     /// <param name="str">String to check</param>
     /// <returns>true if string contains content; else false</returns>
     public static bool HasText([NotNullWhen(true)] this string? str) => !string.IsNullOrWhiteSpace(str);
-
     
     /// <summary>
     /// Appends values to a list
@@ -46,22 +45,5 @@ public static class StringX
     public static string GetLastPathElement(this string path)
     {
         return path.Split('/').Last();
-    }
-    
-    /// <summary>
-    /// Gets the last path element of a string
-    /// </summary>
-    /// <param name="path">The path to check</param>
-    /// <returns>The last path element</returns>
-    public static int? GetLastPathElementAsInt(this string? path)
-    {
-        var last = path.GetLastPathElement();
-        if (string.IsNullOrWhiteSpace(last))
-        {
-            return null;
-        }
-
-        // We want this to throw if not an int
-        return int.Parse(last);
     }
 } 

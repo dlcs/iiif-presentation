@@ -1,9 +1,7 @@
 ﻿using System.Net;
-using System.Text.Json.Nodes;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
-using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
