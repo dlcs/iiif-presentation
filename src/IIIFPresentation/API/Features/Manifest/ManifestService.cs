@@ -22,6 +22,7 @@ using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
+using Batch = DLCS.Models.Batch;
 using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -138,9 +139,11 @@ public class ManifestService(
             {
                 try
                 {
-                    await dlcsApiClient.IngestAssets<JObject>(request.CustomerId,
+                    var batches = await dlcsApiClient.IngestAssets<JObject>(request.CustomerId,
                         request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
                         cancellationToken);
+                    
+                    await SaveBatchesInDlcs(batches, dbManifest!, cancellationToken);
                 }
                 catch (DlcsException exception)
                 {
@@ -155,6 +158,21 @@ public class ManifestService(
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
         }
+    }
+
+    private async Task SaveBatchesInDlcs(List<Batch> batches, DbManifest manifest, CancellationToken cancellationToken)
+    {
+        var dbBatches = batches.Select(b => new Models.Database.General.Batch
+        {
+            Id = b.ResourceId!,
+            CustomerId = manifest.CustomerId,
+            Submitted = b.Submitted.ToUniversalTime(),
+            Status = BatchStatus.Ingesting,
+            ManifestId = manifest.Id
+        });
+        
+        await dbContext.Batches.AddRangeAsync(dbBatches, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,

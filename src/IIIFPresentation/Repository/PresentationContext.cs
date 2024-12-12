@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using Core.Helpers;
+using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database;
 using Models.Database.Collections;
@@ -25,6 +26,8 @@ public class PresentationContext : DbContext
     public virtual DbSet<Manifest> Manifests { get; set; }
 
     public virtual DbSet<CanvasPainting> CanvasPaintings { get; set; }
+    
+    public virtual DbSet<Batch> Batches { get; set; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -122,6 +125,22 @@ public class PresentationContext : DbContext
                 .WithMany(m => m.CanvasPaintings)
                 .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Batch>(entity =>
+        {
+            entity
+                .HasOne(cp => cp.Manifest)
+                .WithMany(m => m.Batches)
+                .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(500)
+                .HasConversion(
+                    b => b.GetDescription(),
+                    b => b.GetEnumFromString<BatchStatus>(true));
         });
     }
 }

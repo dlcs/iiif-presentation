@@ -6,14 +6,17 @@ using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Serialisation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Batch = DLCS.Models.Batch;
 
 namespace API.Tests.Integration;
 
@@ -26,15 +29,23 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     private const int Customer = 1;
     private readonly IAmazonS3 amazonS3;
     private const int NewlyCreatedSpace = 999;
-    private const string BatchId = "https://api.dlcs.digirati.io/customers/1/queue/batches/572220";
+    private readonly IDlcsApiClient dlcsApiClient;
 
     public ModifyManifestAssetCreationTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        var dlcsApiClient = A.Fake<IDlcsApiClient>();
+        dlcsApiClient = A.Fake<IDlcsApiClient>();
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
+        
+        A.CallTo(() => dlcsApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+            .ReturnsLazily(x => Task.FromResult(
+                new List<Batch> { new ()
+                {
+                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("id").ToString(), 
+                    Submitted = DateTime.Now
+                }}));
         
         dbContext = storageFixture.DbFixture.DbContext;
 
@@ -86,6 +97,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithSpace);
         var space = 18;
+        var assetId = "testAssetByPresentation-withSpace";
+        var batchId = "batch1";
         var manifestWithSpace = $$"""
                          {
                              "type": "Manifest",
@@ -118,7 +131,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                         }
                                     },
                                      "asset": {
-                                         "id": "testAssetByPresentation",
+                                         "id": "{{assetId}}",
                                          "mediaType": "image/jpg",
                                          "space": {{space}},
                                          "string1": "somestring",
@@ -159,13 +172,19 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
 
-        var dbManifest = dbContext.Manifests.Include(m => m.CanvasPaintings).Include(m => m.CanvasPaintings).First(x =>
+        var dbManifest = dbContext.Manifests.Include(m => m.CanvasPaintings)
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x =>
             x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
         // space comes from the asset
-        dbManifest.CanvasPaintings!.First().AssetId.Should().Be($"{Customer}/{space}/testAssetByPresentation");
+        dbManifest.CanvasPaintings!.First().AssetId.Should().Be($"{Customer}/{space}/{assetId}");
+        dbManifest.Batches.Should().HaveCount(1);
+        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.First().Id.Should().Be(assetId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -180,6 +199,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         // Arrange
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithoutSpace);
+        var assetId = "testAssetByPresentation-withoutSpace";
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -212,7 +232,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                          }
                                     },
                                      "asset": {
-                                         "id": "testAssetByPresentation",
+                                         "id": "{{assetId}}",
                                          "mediaType": "image/jpg",
                                          "string1": "somestring",
                                          "string2": "somestring2",
@@ -252,14 +272,19 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
 
-        var dbManifest = dbContext.Manifests.Include(m => m.CanvasPaintings).First(x =>
-            x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
         // space added using the manifest space
         dbManifest.CanvasPaintings!.First().AssetId.Should()
-            .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation");
+            .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
+        dbManifest.Batches.Should().HaveCount(1);
+        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.First().Id.Should().Be(assetId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -398,6 +423,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
+         var firstAssetId = "testAssetByPresentation-multipleAssets-1";
+         
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
@@ -430,7 +457,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           }
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-1",
+                                          "id": "{{firstAssetId}}",
                                           "mediaType": "image/jpg",
                                           "string1": "somestring",
                                           "string2": "somestring2",
@@ -457,7 +484,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           }
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-2",
+                                          "id": "testAssetByPresentation-multipleAssets-2",
                                           "mediaType": "image/jpg",
                                           "string1": "somestring",
                                           "string2": "somestring2",
@@ -484,7 +511,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           }
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-3",
+                                          "id": "testAssetByPresentation-multipleAssets-3",
                                           "mediaType": "image/jpg",
                                           "string1": "somestring",
                                           "string2": "somestring2",
@@ -519,17 +546,22 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
          responseManifest!.Id.Should().NotBeNull();
          
-         var dbManifest = dbContext.Manifests.Include(m => m.CanvasPaintings).First(x =>
-             x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
          dbManifest.CanvasPaintings!.Count().Should().Be(3);
          var currentCanvasOrder = 1;
+         dbManifest.Batches.Should().HaveCount(1);
+         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.First().Id.Should().Be(firstAssetId);
          
          foreach (var canvasPainting in dbManifest.CanvasPaintings!)
          {
              canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
              canvasPainting.AssetId.Should()
-                 .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-{currentCanvasOrder}");
+                 .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-{currentCanvasOrder}");
              currentCanvasOrder++;
          }
      }
