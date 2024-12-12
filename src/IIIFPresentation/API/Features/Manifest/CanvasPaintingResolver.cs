@@ -1,9 +1,18 @@
 ﻿using System.Data;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.IdGenerator;
+using Core;
 using Core.Helpers;
+using DLCS;
+using DLCS.API;
+using DLCS.Exceptions;
+using DLCS.Models;
+using Microsoft.CodeAnalysis.Options;
+using Microsoft.Extensions.Options;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Newtonsoft.Json.Linq;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -15,13 +24,16 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
+    IOptions<DlcsSettings> dlcsOptions,
     ILogger<CanvasPaintingResolver> logger)
 {
+    private DlcsSettings settings = dlcsOptions.Value;
+    
     /// <summary>
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
-    public async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintings(
+    public async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintingsFromItems(
         int customerId, IIIFManifest presentationManifest, CancellationToken cancellationToken)
     {
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(presentationManifest).ToList();
@@ -143,7 +155,7 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    public async Task<IList<string>?> GenerateUniqueCanvasPaintingIds(int count, int customerId,
+    private async Task<IList<string>?> GenerateUniqueCanvasPaintingIds(int count, int customerId,
         CancellationToken cancellationToken)
     {
         try
@@ -159,5 +171,78 @@ public class CanvasPaintingResolver(
                 count, customerId);
             return null;
         }
+    }
+    
+    
+    
+    
+    public async Task<(PresUpdateResult? upadteResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
+        int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
+    {
+        var paintedResourceCount = presentationManifest.PaintedResources!.Count;
+
+        var canvasPaintingIds =
+            await GenerateUniqueCanvasPaintingIds(paintedResourceCount, customerId, cancellationToken);
+        if (canvasPaintingIds == null)
+            return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+        
+        List<CanvasPainting> canvasPaintings;
+        try
+        {
+            var assetIdDictionary = ManipulateAssetsList(presentationManifest.PaintedResources!, manifestSpace);
+            
+            canvasPaintings = GenerateCanvasPaintings(assetIdDictionary, customerId, canvasPaintingIds);
+            
+            return (null, canvasPaintings);
+        }
+        catch (ArgumentException)
+        {
+            return (PresUpdateResult.Failure("Could not retrieve an id from an attached asset",
+                ModifyCollectionType.CouldNotRetrieveAssetId, WriteResult.BadRequest), null);
+        }
+    }
+
+    private Dictionary<string, (PaintedResource PaintedResource, int Space)> ManipulateAssetsList(
+        List<PaintedResource> paintedResources, int manifestSpace)
+    {
+        var assetIdDictionary = new Dictionary<string, (PaintedResource paintedResource, int space)>();
+        
+        foreach (var paintedResource in paintedResources)
+        {
+            if (paintedResource.Asset == null) continue;
+            
+            if (!paintedResource.Asset.TryGetValue("space", out var space))
+            {
+                paintedResource.Asset.Add("space", manifestSpace);
+                space = manifestSpace;
+            }
+
+            if (paintedResource.Asset.TryGetValue("id", out var id))
+            {
+                assetIdDictionary.Add(id.ToString(), (paintedResource, space.Value<int>()));
+            }
+            else
+            {
+                throw new ArgumentException("The \"id\" field cannot be found on the asset");
+            }
+        }
+        
+        return assetIdDictionary;
+    }
+
+    private List<CanvasPainting> GenerateCanvasPaintings(Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary, 
+        int customerId, IList<string> canvasPaintingIds)
+    {
+        return assetIdDictionary.Select((paintedResource, i) => new CanvasPainting()
+            {
+                Id = canvasPaintingIds[i],
+                Label = paintedResource.Value.PaintedResource.CanvasPainting.Label,
+                Created = DateTime.UtcNow,
+                CustomerId = customerId,
+                CanvasOrder = i + 1, // 1 based index
+                AssetId = $"{customerId}/{paintedResource.Value.Space}/{paintedResource.Key}",
+                ChoiceOrder = -1
+            })
+            .ToList();
     }
 }

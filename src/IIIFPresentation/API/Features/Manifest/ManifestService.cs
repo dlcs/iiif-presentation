@@ -14,6 +14,7 @@ using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
+using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Options;
 using Models.API.General;
@@ -137,13 +138,21 @@ public class ManifestService(
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
-            
+
             if (request.PresentationManifest.PaintedResources.HasAsset())
             {
-                var batchError = await CreateBatchRequests(request.CustomerId, request.PresentationManifest,
-                    dbManifest!, cancellationToken);
-                
-                if (batchError != null) return batchError;
+                try
+                {
+                    await dlcsApiClient.IngestAssets<JObject>(request.CustomerId,
+                        request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
+                        cancellationToken);
+                }
+                catch (DlcsException exception)
+                {
+                    logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
+                    return PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
+                        WriteResult.Error);
+                }
             }
 
             await SaveToS3(dbManifest!, request, cancellationToken);
@@ -151,103 +160,6 @@ public class ManifestService(
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
         }
-    }
-
-    private async Task<PresUpdateResult?> CreateBatchRequests(int customerId, PresentationManifest presentationManifest, 
-        DbManifest dbManifest, CancellationToken cancellationToken)
-    {
-        var chunkedAssets = presentationManifest.PaintedResources!.ToArray()
-            .Chunk(settings.MaxBatchSize);
-
-        var startingCanvasOrderNumber = 1;
-
-        foreach (var (paintedResources, index) in chunkedAssets.Select((asset, index) => (asset, index)))
-        {
-            Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary;
-
-            try
-            {
-                assetIdDictionary = ManipulateAssetsList(paintedResources, dbManifest.SpaceId!.Value);
-            }
-            catch (ArgumentException ex)
-            {
-                return PresUpdateResult.Failure("Could not retrieve an id from an attached asset",
-                    ModifyCollectionType.CouldNotRetrieveAssetId, WriteResult.BadRequest);
-            }
-
-            var chunkedBatchRequest = new HydraCollection<JObject>(paintedResources.Select(p => p.Asset).ToList());
-            
-            try
-            {
-                await dlcsApiClient.IngestAssets(customerId, chunkedBatchRequest, cancellationToken);
-
-                await SaveAssetsToDatabase(assetIdDictionary, customerId, startingCanvasOrderNumber,
-                    dbManifest, cancellationToken);
-            }
-            catch (DlcsException exception)
-            {
-                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", customerId);
-                return PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
-                    WriteResult.Error);
-            }
-            
-            startingCanvasOrderNumber += settings.MaxBatchSize; // this will be 1, 101, 201, etc. if the MaxBatchSize is 100
-        }
-        
-        return null;
-    }
-
-    private Dictionary<string, (PaintedResource PaintedResource, int Space)> ManipulateAssetsList(
-        PaintedResource[] paintedResources, int manifestSpace)
-    {
-        var assetIdDictionary = new Dictionary<string, (PaintedResource paintedResource, int space)>();
-        
-        foreach (var paintedResource in paintedResources)
-        {
-            if (paintedResource.Asset == null) continue;
-            
-            if (!paintedResource.Asset.TryGetValue("space", out var space))
-            {
-                paintedResource.Asset.Add("space", manifestSpace);
-                space = manifestSpace;
-            }
-
-            if (paintedResource.Asset.TryGetValue("id", out var id))
-            {
-                assetIdDictionary.Add(id.ToString(), (paintedResource, space.Value<int>()));
-            }
-            else
-            {
-                throw new ArgumentException("The \"id\" field cannot be found on the asset");
-            }
-        }
-        
-        return assetIdDictionary;
-    }
-
-    private async Task SaveAssetsToDatabase(Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary, 
-        int customerId, int canvasOrder, DbManifest manifest, CancellationToken cancellationToken)
-    {
-        var canvasPaintingsToAdd = new List<CanvasPainting>();
-        
-        foreach (var assetId in assetIdDictionary)
-        {
-            canvasPaintingsToAdd.Add(new CanvasPainting()
-            {
-                Label = assetId.Value.PaintedResource.CanvasPainting.Label,
-                Created = DateTime.UtcNow,
-                CustomerId = customerId,
-                CanvasOrder = canvasOrder,
-                ManifestId = manifest.Id,
-                AssetId = $"{customerId}/{assetId.Value.Space}/{assetId.Key}",
-                ChoiceOrder = -1
-            });
-            
-            canvasOrder++;
-        }
-        
-        await dbContext.AddRangeAsync(canvasPaintingsToAdd, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -313,12 +225,25 @@ public class ManifestService(
         }
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
-
-        var (canvasPaintingsError, canvasPaintings) =
-            await canvasPaintingResolver.InsertCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                cancellationToken);
-        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
+        PresUpdateResult? canvasPaintingsError;
+        List<CanvasPainting>? canvasPaintings;
+
+        if (request.PresentationManifest.PaintedResources.HasAsset())
+        {
+            (canvasPaintingsError, canvasPaintings) = await canvasPaintingResolver.CreateCanvasPaintingsFromAssets(request.CustomerId,
+                request.PresentationManifest,
+                (await spaceIdTask)!.Value, cancellationToken);
+        }
+        else
+        {
+            (canvasPaintingsError, canvasPaintings) =
+                await canvasPaintingResolver.InsertCanvasPaintingsFromItems(request.CustomerId,
+                    request.PresentationManifest, cancellationToken);
+        }
+        
+        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
+
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {

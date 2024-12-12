@@ -3,6 +3,7 @@ using DLCS.Exceptions;
 using DLCS.Handlers;
 using DLCS.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DLCS.API;
 
@@ -21,7 +22,7 @@ public interface IDlcsApiClient
     /// <summary>
     /// Ingest assets into the DLCS
     /// </summary>
-    public Task<Batch> IngestAssets<T>(int customerId, HydraCollection<T> images,
+    public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
         CancellationToken cancellationToken = default);
 }
 
@@ -31,8 +32,11 @@ public interface IDlcsApiClient
 /// <remarks>Note that this required <see cref="AmbientAuthHandler"/> to work</remarks>
 internal class DlcsApiClient(
     HttpClient httpClient,
+    IOptions<DlcsSettings> dlcsOptions,
     ILogger<DlcsApiClient> logger) : IDlcsApiClient
 {
+    DlcsSettings settings = dlcsOptions.Value;
+    
     public async Task<bool> IsRequestAuthenticated(int customerId, CancellationToken cancellationToken = default)
     {
         var customerPath = $"/customers/{customerId}";
@@ -52,14 +56,25 @@ internal class DlcsApiClient(
         return space ?? throw new DlcsException("Failed to create space");
     }
     
-    public async Task<Batch> IngestAssets<T>(int customerId, HydraCollection<T> images, CancellationToken cancellationToken = default)
+    public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images, CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfImages} images", customerId,
-            images.Members.Count);
+            images.Count);
         var queuePath = $"/customers/{customerId}/queue";
         
-        var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, images, cancellationToken);
-        return batch ?? throw new DlcsException("Failed to create batch");
+        var chunkedImageList = images.Chunk(settings.MaxBatchSize);
+        var batches = new List<Batch>();
+
+        foreach (var chunkedImages in chunkedImageList)
+        {
+            var hydraImages = new HydraCollection<T>(chunkedImages);
+            
+            var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
+            if (batch == null) throw new DlcsException("Failed to create batch");
+            batches.Add(batch);
+        }
+        
+        return batches;
     }
 
     private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,

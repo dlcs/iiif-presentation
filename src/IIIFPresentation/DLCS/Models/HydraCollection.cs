@@ -5,12 +5,12 @@ namespace DLCS.Models;
 
 public class HydraCollection<T> : JsonLdBase
 {
-    public HydraCollection(List<T> members)
+    public HydraCollection(T[] members)
     {
         Members = members;
         Context = "Collection" ;
     }
 
     [JsonPropertyName("member")]
-    public List<T> Members { get; set; }
+    public T[] Members { get; set; }
 }

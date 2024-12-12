@@ -321,10 +321,10 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     }
     
      [Fact]
-     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleBatchRequestsMade()
+     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets()
      {
          // Arrange
-         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleBatchRequestsMade);
+         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",

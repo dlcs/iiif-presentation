@@ -40,8 +40,6 @@ internal static class DlcsHttpContent
 
         try
         {
-            var test = response.Content.ReadAsStringAsync().Result;
-            
             var error = await response.Content.ReadFromJsonAsync<DlcsError>(JsonSerializerOptions, cancellationToken);
 
             if (error != null)
