@@ -367,6 +367,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                              ],
                              "paintedResources": [
                                  {
+                                     "canvasPainting": {
+                                     },
                                      "asset": {
                                      }
                                  }
