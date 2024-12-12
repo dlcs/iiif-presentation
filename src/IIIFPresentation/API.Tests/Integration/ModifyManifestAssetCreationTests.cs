@@ -172,6 +172,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().BeNull();
     }
     
     [Fact]
@@ -265,6 +266,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().BeNull();
     }
     
         [Fact]
