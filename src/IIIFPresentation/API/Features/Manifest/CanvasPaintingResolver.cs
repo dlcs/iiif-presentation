@@ -194,7 +194,7 @@ public class CanvasPaintingResolver(
 
             if (!paintedResource.Asset.TryGetValue("id", out var id))
             {
-                throw new ArgumentException("The \"id\" field cannot be found on the asset");
+                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
             }
 
             var cp = new CanvasPainting

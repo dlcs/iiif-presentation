@@ -62,6 +62,12 @@ public static class ErrorHelper
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "A request with assets requires the space header to be set", ModifyCollectionType.RequiresSpace,
             WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<T, ModifyCollectionType> CouldNotRetrieveAssetId<T>()
+        where T : class
+        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "Could not retrieve an id from an attached asset", ModifyCollectionType.CouldNotRetrieveAssetId,
+            WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {
