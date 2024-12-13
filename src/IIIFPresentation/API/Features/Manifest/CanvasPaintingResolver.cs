@@ -170,7 +170,7 @@ public class CanvasPaintingResolver(
         }
     }
     
-    public async Task<(PresUpdateResult? upadteResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
+    public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
         int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;
@@ -179,69 +179,44 @@ public class CanvasPaintingResolver(
             await GenerateUniqueCanvasPaintingIds(paintedResourceCount, customerId, cancellationToken);
         if (canvasPaintingIds == null)
             return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
-        try
-        {
-            var assetIdDictionary = ManipulateAssetsList(presentationManifest.PaintedResources!, manifestSpace);
-            
-            List<CanvasPainting> canvasPaintings = GenerateCanvasPaintings(assetIdDictionary, customerId, canvasPaintingIds);
-            
-            return (null, canvasPaintings);
-        }
-        catch (ArgumentException)
-        {
-            return (PresUpdateResult.Failure("Could not retrieve an id from an attached asset",
-                ModifyCollectionType.CouldNotRetrieveAssetId, WriteResult.BadRequest), null);
-        }
-    }
-
-    private Dictionary<string, (PaintedResource PaintedResource, int Space)> ManipulateAssetsList(
-        List<PaintedResource> paintedResources, int manifestSpace)
-    {
-        var assetIdDictionary = new Dictionary<string, (PaintedResource paintedResource, int space)>();
         
-        foreach (var paintedResource in paintedResources)
+        var canvasPaintings = new List<CanvasPainting>();
+        int count = 0;
+        foreach (var paintedResource in presentationManifest.PaintedResources)
         {
-            if (paintedResource.Asset == null) continue;
-            
+            if (paintedResource.Asset == null) continue; // do we need to log this??
+    
             if (!paintedResource.Asset.TryGetValue("space", out var space))
             {
                 paintedResource.Asset.Add("space", manifestSpace);
                 space = manifestSpace;
             }
 
-            if (paintedResource.Asset.TryGetValue("id", out var id))
-            {
-                assetIdDictionary.Add(id.ToString(), (paintedResource, space.Value<int>()));
-            }
-            else
+            if (!paintedResource.Asset.TryGetValue("id", out var id))
             {
                 throw new ArgumentException("The \"id\" field cannot be found on the asset");
             }
-        }
-        
-        return assetIdDictionary;
-    }
 
-    private List<CanvasPainting> GenerateCanvasPaintings(Dictionary<string, (PaintedResource? PaintedResource, int Space)> assetIdDictionary, 
-        int customerId, IList<string> canvasPaintingIds)
-    {
-        return assetIdDictionary.Select((paintedResource, i) => new CanvasPainting()
+            var cp = new CanvasPainting
             {
-                Id = canvasPaintingIds[i],
-                Label = GetLabel(paintedResource),
+                Id = canvasPaintingIds[count],
+                Label = GetLabel(paintedResource.CanvasPainting),
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
-                CanvasOrder = i,
-                AssetId = $"{customerId}/{paintedResource.Value.Space}/{paintedResource.Key}",
+                CanvasOrder = count,
+                AssetId = $"{customerId}/{space}/{id}",
                 ChoiceOrder = -1
-            })
-            .ToList();
+            };
+
+            count++;
+            canvasPaintings.Add(cp);
+        }
+        return (null, canvasPaintings);
     }
 
-    private LanguageMap GetLabel(KeyValuePair<string, (PaintedResource? PaintedResource, int Space)> paintedResource)
+    private LanguageMap GetLabel(Models.API.Manifest.CanvasPainting canvasPainting)
     {
-        if (paintedResource.Value.PaintedResource?.CanvasPainting?.Label == null)
+        if (canvasPainting?.Label == null)
         {
             return new LanguageMap()
             {
@@ -249,6 +224,6 @@ public class CanvasPaintingResolver(
             };
         }
 
-        return paintedResource.Value.PaintedResource.CanvasPainting.Label;
+        return canvasPainting.Label;
     }
 }

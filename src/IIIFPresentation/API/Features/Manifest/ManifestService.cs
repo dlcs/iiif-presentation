@@ -135,21 +135,6 @@ public class ManifestService(
         }
     }
 
-    private async Task SaveBatchesInDlcs(List<Batch> batches, DbManifest manifest, CancellationToken cancellationToken)
-    {
-        var dbBatches = batches.Select(b => new Models.Database.General.Batch
-        {
-            Id = Convert.ToInt32(b.ResourceId!.Split('/').Last()),
-            CustomerId = manifest.CustomerId,
-            Submitted = b.Submitted.ToUniversalTime(),
-            Status = BatchStatus.Ingesting,
-            ManifestId = manifest.Id
-        });
-        
-        await dbContext.Batches.AddRangeAsync(dbBatches, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
@@ -199,13 +184,13 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
-        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
         if (!request.CreateSpace && request.PresentationManifest.PaintedResources.HasAsset())
         {
             return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
         }
+        
+        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
+        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
         
@@ -260,7 +245,7 @@ public class ManifestService(
                     request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
                     cancellationToken);
                     
-                await SaveBatchesInDlcs(batches, dbManifest!, cancellationToken);
+                await batches.SaveBatchesInDlcs(dbManifest, dbContext, cancellationToken);
             }
             catch (DlcsException exception)
             {
