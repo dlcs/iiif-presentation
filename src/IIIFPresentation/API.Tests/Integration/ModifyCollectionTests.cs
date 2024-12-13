@@ -1737,11 +1737,14 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [Fact]
     public async Task UpdateCollection_CreatesNonPublicIIIFCollection_WhenNoBehavior()
     {
+        var collectionId = "noBehavior";
+        var slug = nameof(UpdateCollection_CreatesNonPublicIIIFCollection_WhenNoBehavior);
+        
         // Arrange
         var updatedCollection = new PresentationCollection()
         {
             Label = new LanguageMap("en", ["test collection - create from update"]),
-            Slug = "create-from-update",
+            Slug = slug,
             Parent = parent,
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
@@ -1749,7 +1752,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/createFromUpdate", updatedCollection.AsJson());
+            $"{Customer}/collections/{collectionId}", updatedCollection.AsJson());
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1763,10 +1766,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        fromDatabase.Id.Should().Be("createFromUpdate");
+        fromDatabase.Id.Should().Be(collectionId);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
-        hierarchyFromDatabase.Slug.Should().Be("create-from-update");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Be("some, tags, 2");
