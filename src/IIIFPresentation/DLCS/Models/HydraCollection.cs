@@ -11,6 +11,7 @@ public class HydraCollection<T> : JsonLdBase
         Context = "Collection" ;
     }
 
+    [JsonPropertyOrder(3)]
     [JsonPropertyName("member")]
     public T[] Members { get; set; }
 }

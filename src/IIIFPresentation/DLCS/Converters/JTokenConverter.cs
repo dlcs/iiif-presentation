@@ -4,6 +4,9 @@ using Newtonsoft.Json.Linq;
 
 namespace DLCS.Converters;
 
+/// <summary>
+/// Converter class to convert JToken Newtonsoft objects into something STJ can understand
+/// </summary>
 public class JTokenConverter : JsonConverter<JToken>
 {
     public override bool CanConvert(Type typeToConvert) => typeof(JToken).IsAssignableFrom(typeToConvert);
