@@ -129,32 +129,12 @@ public class ManifestService(
         if (parentErrors != null) return parentErrors;
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
-        await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
         {
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
+                await CreateDatabaseRecordAndIiifCloudServicesInteractions(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
 
-            if (request.PresentationManifest.PaintedResources.HasAsset())
-            {
-                try
-                {
-                    var batches = await dlcsApiClient.IngestAssets<JObject>(request.CustomerId,
-                        request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
-                        cancellationToken);
-                    
-                    await SaveBatchesInDlcs(batches, dbManifest!, cancellationToken);
-                }
-                catch (DlcsException exception)
-                {
-                    logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
-                    return PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
-                        WriteResult.Error);
-                }
-            }
-
             await SaveToS3(dbManifest!, request, cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
         }
@@ -226,7 +206,7 @@ public class ManifestService(
         return (null, parentCollection);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
@@ -281,6 +261,24 @@ public class ManifestService(
         };
         
         await dbContext.AddAsync(dbManifest, cancellationToken);
+        
+        if (request.PresentationManifest.PaintedResources.HasAsset())
+        {
+            try
+            {
+                var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
+                    request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
+                    cancellationToken);
+                    
+                await SaveBatchesInDlcs(batches, dbManifest!, cancellationToken);
+            }
+            catch (DlcsException exception)
+            {
+                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
+                return (PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
+                    WriteResult.Error), null);
+            }
+        }
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);

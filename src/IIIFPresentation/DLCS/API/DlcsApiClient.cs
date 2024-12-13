@@ -58,13 +58,13 @@ internal class DlcsApiClient(
         return space ?? throw new DlcsException("Failed to create space");
     }
     
-    public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images, CancellationToken cancellationToken = default)
+    public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> assets, CancellationToken cancellationToken = default)
     {
-        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfImages} images", customerId,
-            images.Count);
+        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfAssets} assets", customerId,
+            assets.Count);
         var queuePath = $"/customers/{customerId}/queue";
         
-        var chunkedImageList = images.Chunk(settings.MaxBatchSize);
+        var chunkedImageList = assets.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
         var tasks = chunkedImageList.Select(async chunkedImages =>
