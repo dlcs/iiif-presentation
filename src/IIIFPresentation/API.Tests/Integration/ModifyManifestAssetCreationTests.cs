@@ -297,11 +297,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         s3Manifest.Items.Should().BeNull();
     }
     
-        [Fact]
-    public async Task? CreateManifest_BadRequest_WheCalledWithoutCanvasPainting()
+    [Fact]
+    public async Task? CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WheCalledWithoutCanvasPainting);
+        var slug = nameof(CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting);
+        var assetId = "assetWithoutCanvasPainting";
+        var batchId = 3;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -327,7 +329,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                              "paintedResources": [
                                 {
                                      "asset": {
-                                         "id": "testAssetByPresentation",
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
                                          "mediaType": "image/jpg",
                                          "string1": "somestring",
                                          "string2": "somestring2",
@@ -357,13 +360,36 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var responseError = await response.ReadAsPresentationResponseAsync<Error>();
-        responseError!.Detail.Should().Be("A canvas painting element is required in a painted resource block");
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
-        var dbRecords = dbContext.Hierarchy.Where(x =>
-            x.Slug == slug);
-        dbRecords.Count().Should().Be(0);
+        dbManifest.CanvasPaintings.Should().HaveCount(1);
+        dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("Created by the DLCS");
+        // space added using the manifest space
+        dbManifest.CanvasPaintings!.First().AssetId.Should()
+            .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
+        dbManifest.Batches.Should().HaveCount(1);
+        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.First().Id.Should().Be(batchId);
+        
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{dbManifest.Id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().BeNull();
     }
     
     [Fact]
@@ -426,7 +452,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
-         var batchId = 3;
+         var batchId = 4;
          
          var manifestWithoutSpace = $$"""
                           {
@@ -460,8 +486,35 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           }
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "id": "testAssetByPresentation-multipleAssets-0",
                                           "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          }
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-1",
                                           "mediaType": "image/jpg",
                                           "string1": "somestring",
                                           "string2": "somestring2",
@@ -505,33 +558,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                               }
                                           ]
                                       }
-                                  },
-                                  {
-                                     "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          }
-                                     },
-                                      "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-3",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
-                                      }
                                   }
                               ] 
                           }
@@ -556,7 +582,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
          dbManifest.CanvasPaintings!.Count().Should().Be(3);
-         var currentCanvasOrder = 1;
+         var currentCanvasOrder = 0;
          dbManifest.Batches.Should().HaveCount(1);
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);

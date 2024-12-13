@@ -4,6 +4,7 @@ using API.Infrastructure.IdGenerator;
 using Core;
 using Core.Helpers;
 using DLCS;
+using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
@@ -222,19 +223,32 @@ public class CanvasPaintingResolver(
         return assetIdDictionary;
     }
 
-    private List<CanvasPainting> GenerateCanvasPaintings(Dictionary<string, (PaintedResource PaintedResource, int Space)> assetIdDictionary, 
+    private List<CanvasPainting> GenerateCanvasPaintings(Dictionary<string, (PaintedResource? PaintedResource, int Space)> assetIdDictionary, 
         int customerId, IList<string> canvasPaintingIds)
     {
         return assetIdDictionary.Select((paintedResource, i) => new CanvasPainting()
             {
                 Id = canvasPaintingIds[i],
-                Label = paintedResource.Value.PaintedResource.CanvasPainting.Label,
+                Label = GetLabel(paintedResource),
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
-                CanvasOrder = i + 1, // 1 based index
+                CanvasOrder = i,
                 AssetId = $"{customerId}/{paintedResource.Value.Space}/{paintedResource.Key}",
                 ChoiceOrder = -1
             })
             .ToList();
+    }
+
+    private LanguageMap GetLabel(KeyValuePair<string, (PaintedResource? PaintedResource, int Space)> paintedResource)
+    {
+        if (paintedResource.Value.PaintedResource?.CanvasPainting?.Label == null)
+        {
+            return new LanguageMap()
+            {
+                {"en", new List<string>(){"Created by the DLCS"}}
+            };
+        }
+
+        return paintedResource.Value.PaintedResource.CanvasPainting.Label;
     }
 }

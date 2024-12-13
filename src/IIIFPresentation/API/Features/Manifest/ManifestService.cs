@@ -232,9 +232,10 @@ public class ManifestService(
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
-        var validationError =
-            ValidatePaintedResource(request.PresentationManifest.PaintedResources, request.CreateSpace);
-        if (validationError != null) return (validationError, null);
+        if (!request.CreateSpace && request.PresentationManifest.PaintedResources.HasAsset())
+        {
+            return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
+        }
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
         
@@ -283,22 +284,6 @@ public class ManifestService(
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
-    }
-
-    private PresUpdateResult? ValidatePaintedResource(List<PaintedResource>? paintedResources, bool createSpace)
-    {
-        if (paintedResources != null && paintedResources
-                .Any(p => p.CanvasPainting == null))
-        {
-            return ErrorHelper.CanvasPaintingRequired<PresentationManifest>();
-        }
-
-        if (!createSpace && paintedResources.HasAsset())
-        {
-            return ErrorHelper.SpaceRequired<PresentationManifest>();
-        }
-
-        return null;
     }
     
     private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
