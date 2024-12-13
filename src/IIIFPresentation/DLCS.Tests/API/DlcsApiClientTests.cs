@@ -103,7 +103,7 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task? IngestAssets_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
+    public async Task IngestAssets_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
