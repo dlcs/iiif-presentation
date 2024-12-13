@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
+using System.Text.Json;
 using DLCS.Exceptions;
 using DLCS.Handlers;
 using DLCS.Models;
@@ -63,18 +65,23 @@ internal class DlcsApiClient(
         var queuePath = $"/customers/{customerId}/queue";
         
         var chunkedImageList = images.Chunk(settings.MaxBatchSize);
-        var batches = new List<Batch>();
+        var batches = new ConcurrentBag<Batch>();
 
-        foreach (var chunkedImages in chunkedImageList)
+        var tasks = chunkedImageList.Select(async chunkedImages =>
         {
             var hydraImages = new HydraCollection<T>(chunkedImages);
-            
+
             var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
-            if (batch == null) throw new DlcsException("Failed to create batch");
+            if (batch == null)
+            {
+                logger.LogError("Could not understand the batch response for customer {CustomerId}", customerId);
+                throw new DlcsException("Failed to create batch");
+            }
             batches.Add(batch);
-        }
+        });
+        await Task.WhenAll(tasks);
         
-        return batches;
+        return batches.ToList();
     }
 
     private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,
