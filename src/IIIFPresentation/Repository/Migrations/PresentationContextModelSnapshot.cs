@@ -241,8 +241,7 @@ namespace Repository.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("Submitted")

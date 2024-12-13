@@ -15,7 +15,7 @@ public class Batch
     public int CustomerId { get; set; }
     
     /// <summary>
-    /// Status of the batch in comp[letion
+    /// Status of the batch
     /// </summary>
     public BatchStatus Status { get; set; }
     

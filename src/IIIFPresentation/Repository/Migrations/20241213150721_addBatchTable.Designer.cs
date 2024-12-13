@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20241213144924_addBatchTable")]
+    [Migration("20241213150721_addBatchTable")]
     partial class addBatchTable
     {
         /// <inheritdoc />
@@ -244,8 +244,7 @@ namespace Repository.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("Submitted")

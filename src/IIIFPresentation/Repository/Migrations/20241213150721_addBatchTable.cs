@@ -19,7 +19,7 @@ namespace Repository.Migrations
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     customer_id = table.Column<int>(type: "integer", nullable: false),
-                    status = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    status = table.Column<string>(type: "text", nullable: false),
                     submitted = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     manifest_id = table.Column<string>(type: "text", nullable: false)
                 },

@@ -137,7 +137,6 @@ public class PresentationContext : DbContext
             
             entity.Property(e => e.Status)
                 .IsRequired()
-                .HasMaxLength(500)
                 .HasConversion(
                     b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
