@@ -139,7 +139,7 @@ public class PresentationContext : DbContext
                 .IsRequired()
                 .HasMaxLength(500)
                 .HasConversion(
-                    b => b.GetDescription(),
+                    b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
         });
     }
