@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20241212161551_addBatchTable")]
+    [Migration("20241213144924_addBatchTable")]
     partial class addBatchTable
     {
         /// <inheritdoc />
@@ -226,9 +226,12 @@ namespace Repository.Migrations
 
             modelBuilder.Entity("Models.Database.General.Batch", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")

@@ -43,7 +43,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("id").ToString(), 
+                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
         
@@ -67,7 +67,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             Slug = slug,
             PaintedResources = new List<PaintedResource>()
             {
-                new PaintedResource()
+                new ()
                 {
                     CanvasPainting = new CanvasPainting()
                     {
@@ -98,7 +98,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithSpace);
         var space = 18;
         var assetId = "testAssetByPresentation-withSpace";
-        var batchId = "batch1";
+        var batchId = 1;
         var manifestWithSpace = $$"""
                          {
                              "type": "Manifest",
@@ -132,6 +132,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
                                          "mediaType": "image/jpg",
                                          "space": {{space}},
                                          "string1": "somestring",
@@ -184,7 +185,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.CanvasPaintings!.First().AssetId.Should().Be($"{Customer}/{space}/{assetId}");
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(assetId);
+        dbManifest.Batches!.First().Id.Should().Be(batchId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -200,6 +201,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithoutSpace);
         var assetId = "testAssetByPresentation-withoutSpace";
+        var batchId = 2;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -233,6 +235,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
                                          "mediaType": "image/jpg",
                                          "string1": "somestring",
                                          "string2": "somestring2",
@@ -284,7 +287,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(assetId);
+        dbManifest.Batches!.First().Id.Should().Be(batchId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -423,7 +426,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
-         var firstAssetId = "testAssetByPresentation-multipleAssets-1";
+         var batchId = 3;
          
          var manifestWithoutSpace = $$"""
                           {
@@ -457,7 +460,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           }
                                      },
                                       "asset": {
-                                          "id": "{{firstAssetId}}",
+                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
                                           "string1": "somestring",
                                           "string2": "somestring2",
@@ -555,7 +559,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          var currentCanvasOrder = 1;
          dbManifest.Batches.Should().HaveCount(1);
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-         dbManifest.Batches!.First().Id.Should().Be(firstAssetId);
+         dbManifest.Batches!.First().Id.Should().Be(batchId);
          
          foreach (var canvasPainting in dbManifest.CanvasPaintings!)
          {

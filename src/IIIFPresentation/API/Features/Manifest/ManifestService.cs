@@ -164,7 +164,7 @@ public class ManifestService(
     {
         var dbBatches = batches.Select(b => new Models.Database.General.Batch
         {
-            Id = b.ResourceId!,
+            Id = Convert.ToInt32(b.ResourceId!.Split('/').Last()),
             CustomerId = manifest.CustomerId,
             Submitted = b.Submitted.ToUniversalTime(),
             Status = BatchStatus.Ingesting,

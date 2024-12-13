@@ -7,7 +7,7 @@ public class Batch
     /// <summary>
     /// Id of the batch, coming from the DLCS
     /// </summary>
-    public required string Id { get; set; }
+    public required int Id { get; set; }
     
     /// <summary>
     /// Id of the customer
@@ -25,7 +25,7 @@ public class Batch
     public DateTime Submitted { get; set; }
     
     /// <summary>
-    /// Id of releated manifest
+    /// Id of related manifest
     /// </summary>
     public required string ManifestId { get; set; }
     
