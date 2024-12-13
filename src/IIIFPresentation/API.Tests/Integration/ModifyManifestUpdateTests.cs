@@ -483,6 +483,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ItemsAndPaintedResourcesUsedTogether");
+        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
     }
 }

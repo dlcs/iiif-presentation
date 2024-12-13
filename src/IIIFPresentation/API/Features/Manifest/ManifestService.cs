@@ -120,11 +120,6 @@ public class ManifestService(
 
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
-        if (CheckForItemsAndPaintedResources(request.PresentationManifest))
-        {
-            return ErrorHelper.ItemsAndPaintedResourcesUsed<PresentationManifest>();
-        }
-        
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
@@ -161,11 +156,6 @@ public class ManifestService(
         if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
-        }
-        
-        if (CheckForItemsAndPaintedResources(request.PresentationManifest))
-        {
-            return ErrorHelper.ItemsAndPaintedResourcesUsed<PresentationManifest>();
         }
         
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
