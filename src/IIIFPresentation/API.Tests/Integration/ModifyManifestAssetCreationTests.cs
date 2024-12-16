@@ -3,6 +3,7 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using DLCS.API;
+using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Serialisation;
@@ -46,6 +47,10 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                     ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
+
+        A.CallTo(() => dlcsApiClient.IngestAssets(Customer,
+            A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
+            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception"));
         
         dbContext = storageFixture.DbFixture.DbContext;
 
@@ -595,4 +600,70 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              currentCanvasOrder++;
          }
      }
+     
+     [Fact]
+    public async Task? CreateManifest_ReturnsError_WhenErrorFromDlcs()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting);
+        var assetId = "returnError";
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "behavior": [
+                                 "public-iiif"
+                             ],
+                             "label": {
+                                 "en": [
+                                     "post testing"
+                                 ]
+                             },
+                             "slug": "{{slug}}",
+                             "parent": "root",
+                             "thumbnail": [
+                                 {
+                                     "id": "https://example.org/img/thumb.jpg",
+                                     "type": "Image",
+                                     "format": "image/jpeg",
+                                     "width": 300,
+                                     "height": 200
+                                 }
+                             ],
+                             "paintedResources": [
+                                {
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "mediaType": "image/jpg",
+                                         "string1": "somestring",
+                                         "string2": "somestring2",
+                                         "string3": "somestring3",
+                                         "origin": "some/origin",
+                                         "deliveryChannels": [
+                                             {
+                                                 "channel": "iiif-img",
+                                                 "policy": "default"
+                                             },
+                                             {
+                                                 "channel": "thumbs",
+                                                 "policy": "default"
+                                             }
+                                         ]
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        errorResponse!.Detail.Should().Be("DLCS exception");
+    }
 }

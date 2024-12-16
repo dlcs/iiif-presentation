@@ -237,7 +237,7 @@ public class ManifestService(
             catch (DlcsException exception)
             {
                 logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
-                return (PresUpdateResult.Failure("Failed to upload assets into the DLCS", ModifyCollectionType.Unknown,
+                return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
                     WriteResult.Error), null);
             }
         }

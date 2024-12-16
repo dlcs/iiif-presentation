@@ -70,13 +70,14 @@ internal class DlcsApiClient(
         var tasks = chunkedImageList.Select(async chunkedImages =>
         {
             var hydraImages = new HydraCollection<T>(chunkedImages);
-
+            
             var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)
             {
                 logger.LogError("Could not understand the batch response for customer {CustomerId}", customerId);
                 throw new DlcsException("Failed to create batch");
             }
+            
             batches.Add(batch);
         });
         await Task.WhenAll(tasks);
