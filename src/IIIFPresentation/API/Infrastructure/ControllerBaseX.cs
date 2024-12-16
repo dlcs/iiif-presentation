@@ -90,7 +90,8 @@ public static class ControllerBaseX
     public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
     {
         var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
-        return controller.Problem(message, null, (int)HttpStatusCode.BadRequest, "Bad request");
+        return controller.PresentationProblem(message, null, (int)HttpStatusCode.BadRequest, "Bad request",
+            GetErrorType(controller, ModifyCollectionType.ValidationFailed));
     }
     
     /// <summary>

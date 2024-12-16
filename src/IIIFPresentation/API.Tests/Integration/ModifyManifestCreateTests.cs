@@ -338,7 +338,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be($"'slug' cannot be one of prohibited terms: '{slug}'");
-        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
     }
     
     [Fact]
@@ -1265,6 +1265,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-        error.ErrorTypeUri.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
     }
 }

@@ -16,5 +16,6 @@ public enum ModifyCollectionType
     RequiresSpace = 12,
     CouldNotRetrieveAssetId = 13,
     DlcsException = 14,
+    ValidationFailed = 15,
     Unknown = 1000
 }

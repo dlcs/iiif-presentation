@@ -34,21 +34,13 @@ public class CanvasPaintingResolver(
     public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
         int customerId, PresentationManifest presentationManifest, int? space, CancellationToken cancellationToken = default)
     {
-        PresUpdateResult? canvasPaintingsError;
-        List<CanvasPainting>? canvasPaintings;
-        
         if (presentationManifest.PaintedResources.HasAsset())
         {
-            (canvasPaintingsError, canvasPaintings) =
-                await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space!.Value, cancellationToken);
-        }
-        else
-        {
-            (canvasPaintingsError, canvasPaintings) =
-                await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space!.Value,
+                cancellationToken);
         }
         
-        return (canvasPaintingsError, canvasPaintings);
+        return await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
     }
     
     private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintingsFromItems(
