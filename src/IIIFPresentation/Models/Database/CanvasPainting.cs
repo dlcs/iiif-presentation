@@ -114,6 +114,11 @@ public class CanvasPainting : IIdentifiable
     /// Unique identifier for this CanvasPainting object
     /// </summary>
     public int CanvasPaintingId { get; set; }
+    
+    /// <summary>
+    /// An asset id showing this asset is an internal item
+    /// </summary>
+    public string? AssetId { get; set; }
 }
 
 public static class CanvasPaintingX

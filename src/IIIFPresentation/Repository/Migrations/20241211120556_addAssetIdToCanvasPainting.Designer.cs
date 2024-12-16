@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20241211120556_addAssetIdToCanvasPainting")]
+    partial class addAssetIdToCanvasPainting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -221,42 +224,6 @@ namespace Repository.Migrations
                     b.ToTable("manifests", (string)null);
                 });
 
-            modelBuilder.Entity("Models.Database.General.Batch", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("integer")
-                        .HasColumnName("customer_id");
-
-                    b.Property<string>("ManifestId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("manifest_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("Submitted")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted");
-
-                    b.HasKey("Id")
-                        .HasName("pk_batches");
-
-                    b.HasIndex("ManifestId", "CustomerId")
-                        .HasDatabaseName("ix_batches_manifest_id_customer_id");
-
-                    b.ToTable("batches", (string)null);
-                });
-
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
                 {
                     b.Property<int>("Id")
@@ -337,18 +304,6 @@ namespace Repository.Migrations
                     b.Navigation("Manifest");
                 });
 
-            modelBuilder.Entity("Models.Database.General.Batch", b =>
-                {
-                    b.HasOne("Models.Database.Collections.Manifest", "Manifest")
-                        .WithMany("Batches")
-                        .HasForeignKey("ManifestId", "CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_batches_manifests_manifest_id_customer_id");
-
-                    b.Navigation("Manifest");
-                });
-
             modelBuilder.Entity("Models.Database.General.Hierarchy", b =>
                 {
                     b.HasOne("Models.Database.Collections.Collection", "Collection")
@@ -385,8 +340,6 @@ namespace Repository.Migrations
 
             modelBuilder.Entity("Models.Database.Collections.Manifest", b =>
                 {
-                    b.Navigation("Batches");
-
                     b.Navigation("CanvasPaintings");
 
                     b.Navigation("Hierarchy");

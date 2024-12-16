@@ -5,7 +5,7 @@ namespace DLCS.Models;
 /// <summary>
 /// Base class for all JSON-LD objects.
 /// </summary>
-public abstract class JsonldBase
+public abstract class JsonLdBase
 {
     [JsonPropertyName("@context")]
     [JsonPropertyOrder(0)]

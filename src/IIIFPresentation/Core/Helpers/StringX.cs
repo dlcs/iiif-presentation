@@ -10,7 +10,6 @@ public static class StringX
     /// <param name="str">String to check</param>
     /// <returns>true if string contains content; else false</returns>
     public static bool HasText([NotNullWhen(true)] this string? str) => !string.IsNullOrWhiteSpace(str);
-
     
     /// <summary>
     /// Appends values to a list

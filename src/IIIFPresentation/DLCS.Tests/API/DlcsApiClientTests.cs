@@ -3,6 +3,8 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 using Stubbery;
 
 namespace DLCS.Tests.API;
@@ -80,6 +82,70 @@ public class DlcsApiClientTests
 
         createdSpace.Should().BeEquivalentTo(expected);
     }
+    
+    [Fact]
+    public async Task IngestAssets_ReturnsListOfSingleBatch_IfIngested()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/queue",
+                (_, _) => "{ \"@id\": \"customers/26/queue/batches/1234\" }")
+            .IfBody(body => body.Contains("{\"someObject\":\"someValue\"}"))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+        var expected = new List<Batch> { new() { ResourceId = "customers/26/queue/batches/1234" } }; 
+        
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someValue";
+        var batches = await sut.IngestAssets(customerId, new List<JObject>() { jsonObject }, CancellationToken.None);
+
+        batches.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public async Task IngestAssets_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/queue",
+                (_, _) => "{ \"@id\": \"customers/26/queue/batches/1234\" }")
+            .IfBody(body => body.Contains("{\"someObject\":\"someValue\"}"))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+        var expected = new List<Batch>
+        {
+            new() { ResourceId = "customers/26/queue/batches/1234" }, 
+            new() { ResourceId = "customers/26/queue/batches/1234" }
+        }; 
+        
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someValue";
+        
+        dynamic secondJsonObject = new JObject();
+        secondJsonObject.someObject = "someValue";
+
+        var batches = await sut.IngestAssets(customerId, new List<JObject> { jsonObject, secondJsonObject },
+            CancellationToken.None);
+
+        batches.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task IngestAssets_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Post($"/customers/{customerId}/queue", (_, _) => "{\"description\":\"I am broken\"}")
+            .IfBody(body => body.Contains("\"someString\""))
+            .StatusCode((int)httpStatusCode);
+        var sut = GetClient(stub);
+        
+        Func<Task> action = () => sut.IngestAssets(customerId, new List<string> {"someString"}, CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+    }
 
     private static DlcsApiClient GetClient(ApiStub stub)
     {
@@ -89,7 +155,13 @@ public class DlcsApiClientTests
         {
             BaseAddress = new Uri(stub.Address)
         };
+
+        var options = Options.Create(new DlcsSettings()
+        {
+            ApiUri = new Uri("https://localhost"),
+            MaxBatchSize = 1
+        });
         
-        return new DlcsApiClient(httpClient, new NullLogger<DlcsApiClient>());
+        return new DlcsApiClient(httpClient, options, new NullLogger<DlcsApiClient>());
     }
 }

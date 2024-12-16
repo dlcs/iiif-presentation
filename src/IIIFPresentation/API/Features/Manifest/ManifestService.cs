@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using API.Converters;
 using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
@@ -9,15 +9,21 @@ using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using Core;
 using Core.Auth;
+using Core.Helpers;
+using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
+using Batch = DLCS.Models.Batch;
+using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -120,16 +126,15 @@ public class ManifestService(
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parentCollection!, manifestId, cancellationToken);
+                await CreateDatabaseRecordAndIiifCloudServicesInteractions(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
 
             await SaveToS3(dbManifest!, request, cancellationToken);
-
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
         }
     }
-    
+
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
@@ -155,6 +160,12 @@ public class ManifestService(
         }
     }
 
+    private bool CheckForItemsAndPaintedResources(PresentationManifest presentationManifest)
+    {
+        return !presentationManifest.Items.IsNullOrEmpty() &&
+               !presentationManifest.PaintedResources.IsNullOrEmpty();
+    }
+
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {
@@ -170,19 +181,26 @@ public class ManifestService(
         return (null, parentCollection);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
+        var assets = request.PresentationManifest.PaintedResources?.Select(p => p.Asset).ToList();
+        
+        if (!request.CreateSpace && !assets.IsNullOrEmpty())
+        {
+            return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
+        }
+        
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
-
-        var (canvasPaintingsError, canvasPaintings) =
-            await canvasPaintingResolver.InsertCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                cancellationToken);
-        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
+        var (canvasPaintingsError, canvasPaintings) =
+            await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
+                await spaceIdTask, cancellationToken);
+        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
+
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
@@ -207,11 +225,29 @@ public class ManifestService(
         };
         
         await dbContext.AddAsync(dbManifest, cancellationToken);
+        
+        if (!assets.IsNullOrEmpty())
+        {
+            try
+            {
+                var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
+                    assets,
+                    cancellationToken);
+                    
+                await batches.AddBatchesToDatabase(dbManifest, dbContext, cancellationToken);
+            }
+            catch (DlcsException exception)
+            {
+                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
+                return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
+                    WriteResult.Error), null);
+            }
+        }
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
-
+    
     private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
         CancellationToken cancellationToken)
     {

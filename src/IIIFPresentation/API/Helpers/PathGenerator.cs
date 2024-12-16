@@ -88,6 +88,19 @@ public class PathGenerator : IPathGenerator
         };
         return uriBuilder.Uri;
     }
+    
+    public Uri? GenerateAssetUri(CanvasPainting canvasPainting)
+    {
+        if (string.IsNullOrEmpty(canvasPainting.AssetId)) return null;
+        var assetId = canvasPainting.AssetId.Split('/');
+        if (assetId.Length != 3) return null;
+
+        var uriBuilder = new UriBuilder(dlcsSettings.ApiUri)
+        {
+            Path = $"/customers/{assetId[0]}/spaces/{assetId[1]}/images/{assetId[2]}",
+        };
+        return uriBuilder.Uri;
+    }
 
     private string GetSlug(ResourceType resourceType) 
         => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;

@@ -1,9 +1,16 @@
 ﻿using System.Data;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using Core;
 using Core.Helpers;
+using DLCS;
+using IIIF.Presentation.V3.Strings;
+using Microsoft.Extensions.Options;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Newtonsoft.Json.Linq;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -15,13 +22,28 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
+    IOptions<DlcsSettings> dlcsOptions,
     ILogger<CanvasPaintingResolver> logger)
 {
+    private DlcsSettings settings = dlcsOptions.Value;
+    
     /// <summary>
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
-    public async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintings(
+    public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
+        int customerId, PresentationManifest presentationManifest, int? space, CancellationToken cancellationToken = default)
+    {
+        if (presentationManifest.PaintedResources.HasAsset())
+        {
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space!.Value,
+                cancellationToken);
+        }
+        
+        return await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
+    }
+    
+    private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintingsFromItems(
         int customerId, IIIFManifest presentationManifest, CancellationToken cancellationToken)
     {
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(presentationManifest).ToList();
@@ -159,5 +181,49 @@ public class CanvasPaintingResolver(
                 count, customerId);
             return null;
         }
+    }
+    
+    private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
+        int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
+    {
+        var paintedResourceCount = presentationManifest.PaintedResources!.Count;
+
+        var canvasPaintingIds =
+            await GenerateUniqueCanvasPaintingIds(paintedResourceCount, customerId, cancellationToken);
+        if (canvasPaintingIds == null)
+            return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+        
+        var canvasPaintings = new List<CanvasPainting>();
+        var count = 0;
+        foreach (var paintedResource in presentationManifest.PaintedResources)
+        {
+            if (paintedResource.Asset == null) continue;
+    
+            if (!paintedResource.Asset.TryGetValue("space", out var space))
+            {
+                paintedResource.Asset.Add("space", manifestSpace);
+                space = manifestSpace;
+            }
+
+            if (!paintedResource.Asset.TryGetValue("id", out var id))
+            {
+                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+            }
+
+            var cp = new CanvasPainting
+            {
+                Id = canvasPaintingIds[count],
+                Label = paintedResource.CanvasPainting?.Label,
+                Created = DateTime.UtcNow,
+                CustomerId = customerId,
+                CanvasOrder = count,
+                AssetId = $"{customerId}/{space}/{id}",
+                ChoiceOrder = -1
+            };
+
+            count++;
+            canvasPaintings.Add(cp);
+        }
+        return (null, canvasPaintings);
     }
 }

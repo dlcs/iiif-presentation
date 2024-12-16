@@ -1,4 +1,5 @@
 ﻿using API.Helpers;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -374,6 +375,46 @@ public class PathGeneratorTests
         var expected = new Uri("https://dlcs.test/customers/123/spaces/93");
 
         pathGenerator.GenerateSpaceUri(manifest).Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GenerateAssetUri_Correct_IfCanvasPaintingHasAssetWithThreeSlashes()
+    {
+        var manifest = new CanvasPainting()
+        {
+            Id = "hello",
+            CustomerId = 123,
+            AssetId = "5/4/12"
+        };
+
+        var expected = "https://dlcs.test/customers/5/spaces/4/images/12";
+
+        pathGenerator.GenerateAssetUri(manifest).Should().Be(expected);
+    }
+    
+    [Fact]
+    public void GenerateAssetUri_Null_IfCanvasPaintingHasAssetWithNotThreeSlashes()
+    {
+        var manifest = new CanvasPainting()
+        {
+            Id = "hello",
+            CustomerId = 123,
+            AssetId = "5/4"
+        };
+
+        pathGenerator.GenerateAssetUri(manifest).Should().BeNull();
+    }
+    
+    [Fact]
+    public void GenerateAssetUri_Null_IfCanvasPaintingDoesNotHaveAsset()
+    {
+        var manifest = new CanvasPainting()
+        {
+            Id = "hello",
+            CustomerId = 123,
+        };
+
+        pathGenerator.GenerateAssetUri(manifest).Should().BeNull();
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
