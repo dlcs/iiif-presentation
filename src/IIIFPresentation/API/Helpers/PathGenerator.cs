@@ -89,7 +89,7 @@ public class PathGenerator : IPathGenerator
         return uriBuilder.Uri;
     }
     
-    public string? GenerateAssetUri(CanvasPainting canvasPainting)
+    public Uri? GenerateAssetUri(CanvasPainting canvasPainting)
     {
         if (string.IsNullOrEmpty(canvasPainting.AssetId)) return null;
         var assetId = canvasPainting.AssetId.Split('/');
@@ -99,7 +99,7 @@ public class PathGenerator : IPathGenerator
         {
             Path = $"/customers/{assetId[0]}/spaces/{assetId[1]}/images/{assetId[2]}",
         };
-        return uriBuilder.Uri.ToString();
+        return uriBuilder.Uri;
     }
 
     private string GetSlug(ResourceType resourceType) 

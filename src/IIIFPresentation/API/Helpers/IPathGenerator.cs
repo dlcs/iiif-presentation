@@ -93,5 +93,5 @@ public interface IPathGenerator
     /// <summary>
     /// Get URI of a DLCS asset
     /// </summary>
-    string? GenerateAssetUri(CanvasPainting canvasPainting);
+    Uri? GenerateAssetUri(CanvasPainting canvasPainting);
 }

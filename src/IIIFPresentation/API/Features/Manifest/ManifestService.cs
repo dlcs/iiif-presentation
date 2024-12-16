@@ -184,7 +184,9 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        if (!request.CreateSpace && request.PresentationManifest.PaintedResources.HasAsset())
+        var assets = request.PresentationManifest.PaintedResources?.Select(p => p.Asset).ToList();
+        
+        if (!request.CreateSpace && !assets.IsNullOrEmpty())
         {
             return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
         }
@@ -224,12 +226,12 @@ public class ManifestService(
         
         await dbContext.AddAsync(dbManifest, cancellationToken);
         
-        if (request.PresentationManifest.PaintedResources.HasAsset())
+        if (!assets.IsNullOrEmpty())
         {
             try
             {
                 var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
-                    request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
+                    assets,
                     cancellationToken);
                     
                 await batches.AddBatchesToDatabase(dbManifest, dbContext, cancellationToken);
