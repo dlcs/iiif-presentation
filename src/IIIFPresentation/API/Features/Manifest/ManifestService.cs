@@ -232,7 +232,7 @@ public class ManifestService(
                     request.PresentationManifest.PaintedResources!.Select(p => p.Asset).ToList()!,
                     cancellationToken);
                     
-                await batches.SaveBatchesInDlcs(dbManifest, dbContext, cancellationToken);
+                await batches.AddBatchesToDatabase(dbManifest, dbContext, cancellationToken);
             }
             catch (DlcsException exception)
             {
