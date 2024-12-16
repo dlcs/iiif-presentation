@@ -213,7 +213,7 @@ public class CanvasPaintingResolver(
             var cp = new CanvasPainting
             {
                 Id = canvasPaintingIds[count],
-                Label = GetLabel(paintedResource.CanvasPainting),
+                Label = paintedResource.CanvasPainting?.Label,
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
                 CanvasOrder = count,
@@ -225,18 +225,5 @@ public class CanvasPaintingResolver(
             canvasPaintings.Add(cp);
         }
         return (null, canvasPaintings);
-    }
-
-    private LanguageMap GetLabel(Models.API.Manifest.CanvasPainting canvasPainting)
-    {
-        if (canvasPainting?.Label == null)
-        {
-            return new LanguageMap()
-            {
-                {"en", new List<string>(){"Created by the DLCS"}}
-            };
-        }
-
-        return canvasPainting.Label;
     }
 }

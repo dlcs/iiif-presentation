@@ -381,7 +381,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
         
         dbManifest.CanvasPaintings.Should().HaveCount(1);
-        dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("Created by the DLCS");
+        dbManifest.CanvasPaintings!.First().Label?.First().Should().BeNull();
         // space added using the manifest space
         dbManifest.CanvasPaintings!.First().AssetId.Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
