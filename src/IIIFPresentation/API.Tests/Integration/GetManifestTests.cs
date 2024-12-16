@@ -38,6 +38,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Vary.Should().HaveCount(2);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
@@ -68,6 +69,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Vary.Should().HaveCount(2);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/iiif-manifest", "requested by hierarchical URI");
