@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core;
 using Core.Helpers;
@@ -30,7 +31,27 @@ public class CanvasPaintingResolver(
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
-    public async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintingsFromItems(
+    public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
+        int customerId, PresentationManifest presentationManifest, int? space, CancellationToken cancellationToken = default)
+    {
+        PresUpdateResult? canvasPaintingsError;
+        List<CanvasPainting>? canvasPaintings;
+        
+        if (presentationManifest.PaintedResources.HasAsset())
+        {
+            (canvasPaintingsError, canvasPaintings) =
+                await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space!.Value, cancellationToken);
+        }
+        else
+        {
+            (canvasPaintingsError, canvasPaintings) =
+                await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
+        }
+        
+        return (canvasPaintingsError, canvasPaintings);
+    }
+    
+    private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> InsertCanvasPaintingsFromItems(
         int customerId, IIIFManifest presentationManifest, CancellationToken cancellationToken)
     {
         var canvasPaintings = manifestItemsParser.ParseItemsToCanvasPainting(presentationManifest).ToList();
@@ -170,7 +191,7 @@ public class CanvasPaintingResolver(
         }
     }
     
-    public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
+    private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
         int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;

@@ -194,22 +194,9 @@ public class ManifestService(
         
         var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
         
-        PresUpdateResult? canvasPaintingsError;
-        List<CanvasPainting>? canvasPaintings;
-
-        if (request.PresentationManifest.PaintedResources.HasAsset())
-        {
-            (canvasPaintingsError, canvasPaintings) = await canvasPaintingResolver.CreateCanvasPaintingsFromAssets(request.CustomerId,
-                request.PresentationManifest,
-                (await spaceIdTask)!.Value, cancellationToken);
-        }
-        else
-        {
-            (canvasPaintingsError, canvasPaintings) =
-                await canvasPaintingResolver.InsertCanvasPaintingsFromItems(request.CustomerId,
-                    request.PresentationManifest, cancellationToken);
-        }
-        
+        var (canvasPaintingsError, canvasPaintings) =
+            await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
+                await spaceIdTask, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
         var timeStamp = DateTime.UtcNow;

@@ -387,7 +387,7 @@ public class PathGeneratorTests
             AssetId = "5/4/12"
         };
 
-        var expected = new Uri("https://dlcs.test/customers/5/spaces/4/images/12");
+        var expected = "https://dlcs.test/customers/5/spaces/4/images/12";
 
         pathGenerator.GenerateAssetUri(manifest).Should().Be(expected);
     }
