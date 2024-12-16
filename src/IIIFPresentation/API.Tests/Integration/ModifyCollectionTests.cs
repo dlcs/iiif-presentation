@@ -2041,7 +2041,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         s3Manifest.Id.Should().EndWith(fromDatabase.Id, "Stored Id is flat path");
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
-    }  
+    }
     
     private void SetCorrectEtag(HttpRequestMessage requestMessage, Collection dbCollection)
     {
