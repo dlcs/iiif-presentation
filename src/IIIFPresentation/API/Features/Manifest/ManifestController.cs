@@ -4,6 +4,7 @@ using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Infrastructure;
+using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -23,6 +24,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
 {
     [HttpGet("manifests/{id}")]
     [ETagCaching]
+    [VaryHeader]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
         var pathOnly = !Request.HasShowExtraHeader() ||
