@@ -194,10 +194,10 @@ public class CanvasPaintingResolver(
             return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
         
         var canvasPaintings = new List<CanvasPainting>();
-        int count = 0;
+        var count = 0;
         foreach (var paintedResource in presentationManifest.PaintedResources)
         {
-            if (paintedResource.Asset == null) continue; // do we need to log this??
+            if (paintedResource.Asset == null) continue;
     
             if (!paintedResource.Asset.TryGetValue("space", out var space))
             {
