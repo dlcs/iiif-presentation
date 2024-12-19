@@ -6,6 +6,7 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -440,35 +441,52 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_WhenItemsAndPaintedResourceFilled()
+    public async Task PutFlatId_Update_IgnoresPaintedResources_WhenItemsAndPaintedResourceFilled()
     {
         // Arrange
         var createdDate = DateTime.UtcNow.AddDays(-1);
         var dbManifest = (await dbContext.Manifests.AddTestManifest(createdDate: createdDate)).Entity;
         await dbContext.SaveChangesAsync();
-        var parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}";
         var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
             Slug = slug,
-            Items = new List<Canvas>()
-            {
-                new ()
+            Items =
+            [
+                new Canvas
                 {
-                    Id = "https://iiif.example/manifest.json",
+                    Id = "https://iiif.example/manifestFromItems.json",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "https://iiif.example/manifestFromItemsAnnotationPage.json",
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "https://iiif.example/manifestFromItemsPaintingAnnotation.json",
+                                    Body = new Canvas
+                                    {
+                                        Id = "https://iiif.example/manifestFromItemsCanvasBody.json"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
                 }
-            },
-            PaintedResources = new List<PaintedResource>()
-            {
-                new PaintedResource()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "https://iiif.example/manifest.json"
                     }
                 }
-            }
+            ]
         };
         
         var requestMessage =
@@ -480,9 +498,12 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        presentationManifest.PaintedResources.Count.Should().Be(1);
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasOriginalId.Should()
+            .Be("https://iiif.example/manifestFromItems.json");
+        presentationManifest.Items.Count.Should().Be(1);
     }
 }
