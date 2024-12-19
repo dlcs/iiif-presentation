@@ -1,6 +1,7 @@
 ﻿using AWS.Configuration;
 using AWS.Settings;
 using AWS.SQS;
+using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.CustomerCreation;
 using BackgroundHandler.Listener;
 using Repository;
@@ -32,6 +33,14 @@ public static class ServiceCollectionX
                 .AddHostedService(sp => 
                     ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<CustomerCreatedMessageHandler>>(sp, aws.SQS.CustomerCreatedQueueName))
                 .AddScoped<CustomerCreatedMessageHandler>();
+        }
+        
+        if (!string.IsNullOrEmpty(aws.SQS.BatchCompletionQueueName))
+        {
+            services
+                .AddHostedService(sp => 
+                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<BatchCompletionMessageHandler>>(sp, aws.SQS.BatchCompletionQueueName))
+                .AddScoped<BatchCompletionMessageHandler>();
         }
 
         return services;

@@ -1,5 +1,6 @@
 ﻿using API.Infrastructure.Requests;
 using DLCS;
+using DLCS.Models;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -95,12 +96,21 @@ public class PathGenerator : IPathGenerator
     public Uri? GenerateAssetUri(CanvasPainting canvasPainting)
     {
         if (string.IsNullOrEmpty(canvasPainting.AssetId)) return null;
-        var assetId = canvasPainting.AssetId.Split('/');
-        if (assetId.Length != 3) return null;
+
+        AssetId assetId;
+
+        try
+        {
+            assetId = AssetId.FromString(canvasPainting.AssetId);
+        }
+        catch // swallow error as it's not needed
+        {
+            return null;
+        }
 
         var uriBuilder = new UriBuilder(dlcsSettings.ApiUri)
         {
-            Path = $"/customers/{assetId[0]}/spaces/{assetId[1]}/images/{assetId[2]}",
+            Path = $"/customers/{assetId.Customer}/spaces/{assetId.Space}/images/{assetId.Asset}",
         };
         return uriBuilder.Uri;
     }

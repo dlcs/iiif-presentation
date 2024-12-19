@@ -6,6 +6,7 @@ using DLCS.Handlers;
 using DLCS.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 
 namespace DLCS.API;
 
@@ -25,6 +26,12 @@ public interface IDlcsApiClient
     /// Ingest assets into the DLCS
     /// </summary>
     public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieve a list of assets from the DLCS
+    /// </summary>
+    public Task<HydraCollection<Asset>> RetrieveAllImages(int customerId, List<string> assets,
         CancellationToken cancellationToken = default);
 }
 
@@ -83,6 +90,20 @@ internal class DlcsApiClient(
         await Task.WhenAll(tasks);
         
         return batches.ToList();
+    }
+
+    public async Task<HydraCollection<Asset>> RetrieveAllImages(int customerId, List<string> assets,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("performing an all images call for customer {CustomerId}", customerId);
+        var allImagesPath = $"/customers/{customerId}/allImages";
+        
+        var allImagesRequest = new AllImages(assets);
+
+        var asset =
+            await CallDlcsApi<HydraCollection<Asset>>(HttpMethod.Post, allImagesPath, allImagesRequest, cancellationToken);
+        
+        return asset ?? throw new DlcsException("Failed to retrieve all images");
     }
 
     private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,

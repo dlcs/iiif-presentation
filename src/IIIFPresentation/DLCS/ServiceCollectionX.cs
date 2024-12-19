@@ -27,4 +27,23 @@ public static class ServiceCollectionX
         
         return services;
     }
+    
+    /// <summary>
+    /// Add <see cref="IDlcsApiClient"/> to services collection.
+    /// </summary>
+    public static IServiceCollection AddDlcsClientWithLocalAuth(this IServiceCollection services,
+        DlcsSettings dlcsSettings)
+    {
+        services
+            .AddScoped<AmbientAuthLocalHandler>()
+            .AddTransient<TimingHandler>()
+            .AddHttpClient<IDlcsApiClient, DlcsApiClient>(client =>
+            {
+                client.BaseAddress = dlcsSettings.ApiUri;
+                client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.DefaultTimeoutMs);
+            }).AddHttpMessageHandler<AmbientAuthLocalHandler>()
+            .AddHttpMessageHandler<TimingHandler>();
+        
+        return services;
+    }
 }
