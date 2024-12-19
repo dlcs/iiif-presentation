@@ -10,6 +10,7 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
+using Models.Infrastucture;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -1235,21 +1237,42 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
             Slug = slug,
-            Items = new List<Canvas>()
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://iiif.example/manifestFromItems.json",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "https://iiif.example/manifestFromItemsAnnotationPage.json",
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "https://iiif.example/manifestFromItemsPaintingAnnotation.json",
+                                    Body = new Canvas
+                                    {
+                                        Id = "https://iiif.example/manifestFromItemsCanvasBody.json"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            PaintedResources = new List<PaintedResource>()
             {
                 new ()
                 {
-                    Id = "https://iiif.example/manifest.json",
-                }
-            },
-            PaintedResources = new List<PaintedResource>()
-            {
-                new PaintedResource()
-                {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = "https://iiif.example/manifest.json"
+                        CanvasId = "https://iiif.example/manifestFromPainted.json"
                     }
                 }
             }
@@ -1262,9 +1285,12 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.Detail.Should().Be("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        presentationManifest.PaintedResources.Count.Should().Be(1);
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasOriginalId.Should()
+            .Be("https://iiif.example/manifestFromItems.json");
+        presentationManifest.Items.Count.Should().Be(1);
     }
 }

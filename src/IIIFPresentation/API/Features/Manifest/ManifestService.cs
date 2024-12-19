@@ -10,20 +10,15 @@ using API.Infrastructure.Validation;
 using Core;
 using Core.Auth;
 using Core.Helpers;
-using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
-using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
-using Batch = DLCS.Models.Batch;
-using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -122,6 +117,12 @@ public class ManifestService(
     {
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
+
+        if (!request.PresentationManifest.Items.IsNullOrEmpty() && 
+            !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
+        {
+            request.PresentationManifest.PaintedResources = null;
+        }
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
