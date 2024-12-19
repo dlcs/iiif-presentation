@@ -118,6 +118,7 @@ public class ManifestService(
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
+        // can't have both items and painted resources, so items takes precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty() && 
             !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
         {
