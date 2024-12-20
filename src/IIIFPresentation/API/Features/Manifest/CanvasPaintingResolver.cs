@@ -218,7 +218,8 @@ public class CanvasPaintingResolver(
                 CustomerId = customerId,
                 CanvasOrder = count,
                 AssetId = $"{customerId}/{space}/{id}",
-                ChoiceOrder = -1
+                ChoiceOrder = -1,
+                Ingesting = true
             };
 
             count++;

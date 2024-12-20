@@ -119,6 +119,11 @@ public class CanvasPainting : IIdentifiable
     /// An asset id showing this asset is an internal item
     /// </summary>
     public string? AssetId { get; set; }
+
+    /// <summary>
+    /// Whether the asset is currently being ingested into the DLCS
+    /// </summary>
+    public bool Ingesting { get; set; } = false;
 }
 
 public static class CanvasPaintingX

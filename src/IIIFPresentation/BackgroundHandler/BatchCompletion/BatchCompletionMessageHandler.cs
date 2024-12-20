@@ -76,7 +76,7 @@ public class BatchCompletionMessageHandler(
 
     private void CompleteBatch(Batch batch)
     {
-        batch.Finished = DateTime.UtcNow; //todo: change to actual batch completion time?
+        batch.Processed = DateTime.UtcNow;
         batch.Status = BatchStatus.Completed;
     }
 
@@ -86,7 +86,7 @@ public class BatchCompletionMessageHandler(
         
         foreach (var canvasPainting in batch.Manifest.CanvasPaintings)
         {
-            if (canvasPainting.CanvasOriginalId == null) // Trying to figure out an asset that hasn't been updated 
+            if (canvasPainting.Ingesting)
             {
                 var assetId = AssetId.FromString(canvasPainting.AssetId!);
                 
@@ -98,7 +98,8 @@ public class BatchCompletionMessageHandler(
                         $"{dlcsSettings.OrchestratorUri}/iiif-img/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/full/max/0/default.jpg"); //todo: do we need this? Supposed to be null for an asset really
                 canvasPainting.Thumbnail =
                     new Uri(
-                        $"{dlcsSettings.OrchestratorUri}/thumbs/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/100,/max/0/default.jpg"); //todo: move this to class
+                        $"{dlcsSettings.OrchestratorUri}/thumbs/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/100,/max/0/default.jpg"); //todo: how to get this?
+                canvasPainting.Ingesting = false;
                 canvasPainting.Modified = DateTime.UtcNow;
                 canvasPainting.StaticHeight = asset.Height;
                 canvasPainting.StaticWidth = asset.Width;
