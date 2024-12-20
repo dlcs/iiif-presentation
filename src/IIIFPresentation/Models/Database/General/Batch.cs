@@ -27,7 +27,7 @@ public class Batch
     /// <summary>
     /// When the batch was added to the DLCS
     /// </summary>
-    public DateTime? Finished { get; set; }
+    public DateTime? Processed { get; set; }
     
     /// <summary>
     /// Id of related manifest
