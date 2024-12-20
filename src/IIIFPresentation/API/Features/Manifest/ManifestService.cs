@@ -7,12 +7,14 @@ using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
+using API.Settings;
 using Core;
 using Core.Auth;
 using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
@@ -54,10 +56,13 @@ public class ManifestService(
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
+    IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
     IDlcsApiClient dlcsApiClient,
     ILogger<ManifestService> logger)
 {
+    private readonly ApiSettings settings = options.Value;
+    
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
@@ -119,7 +124,7 @@ public class ManifestService(
         if (parentErrors != null) return parentErrors;
 
         // can't have both items and painted resources, so items takes precedence
-        if (!request.PresentationManifest.Items.IsNullOrEmpty() && 
+        if (settings.IgnorePaintedResourcesWithItems && !request.PresentationManifest.Items.IsNullOrEmpty() && 
             !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
         {
             request.PresentationManifest.PaintedResources = null;
