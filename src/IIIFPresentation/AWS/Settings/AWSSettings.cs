@@ -2,6 +2,8 @@
 
 public class AWSSettings
 {
+    public const string SettingsName = "AWS";
+    
     /// <summary>
     /// If true, service will use LocalStack and custom ServiceUrl
     /// </summary>
