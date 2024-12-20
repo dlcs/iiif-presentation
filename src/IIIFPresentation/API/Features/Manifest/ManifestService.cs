@@ -7,10 +7,10 @@ using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
+using API.Settings;
 using Core;
 using Core.Auth;
 using Core.Helpers;
-using DLCS;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
@@ -19,11 +19,8 @@ using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
-using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
-using Batch = DLCS.Models.Batch;
-using CanvasPainting = Models.Database.CanvasPainting;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -59,10 +56,13 @@ public class ManifestService(
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
+    IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
     IDlcsApiClient dlcsApiClient,
     ILogger<ManifestService> logger)
 {
+    private readonly ApiSettings settings = options.Value;
+    
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
@@ -122,6 +122,13 @@ public class ManifestService(
     {
         var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
         if (parentErrors != null) return parentErrors;
+
+        // can't have both items and painted resources, so items takes precedence
+        if (settings.IgnorePaintedResourcesWithItems && !request.PresentationManifest.Items.IsNullOrEmpty() && 
+            !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
+        {
+            request.PresentationManifest.PaintedResources = null;
+        }
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
