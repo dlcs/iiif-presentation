@@ -10,9 +10,12 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
+Log.Information("Application starting...");
 
-builder.Services.AddSerilog(lc => lc
-    .ReadFrom.Configuration(builder.Configuration));
+builder.Host.UseSerilog((hostContext, loggerConfig) =>
+    loggerConfig
+        .ReadFrom.Configuration(hostContext.Configuration)
+        .Enrich.FromLogContext());
 
 builder.Services.AddOptions<BackgroundHandlerSettings>()
     .BindConfiguration(string.Empty);
@@ -23,7 +26,7 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddHttpContextAccessor()
-    .AddDlcsClientWithLocalAuth(dlcs)
+    .AddDlcsClientWithoutAuth(dlcs)
     .AddBackgroundServices(aws)
     .Configure<DlcsSettings>(dlcsSettings);
 

@@ -54,8 +54,9 @@ public class BatchCompletionMessageHandler(
         if (batch == null) return;
 
         // Other batches haven't completed, so no point populating items until all are complete
-        if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId && b.Status != BatchStatus.Completed,
-                cancellationToken))
+        if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId && 
+                                                  b.Status != BatchStatus.Completed && 
+                                                  b.Id != batch.Id, cancellationToken))
         {
             return;
         }
@@ -67,16 +68,16 @@ public class BatchCompletionMessageHandler(
         var assets = await RetrieveImages(batch, cancellationToken);
         
         UpdateCanvasPaintings(assets, batch);
-        CompleteBatch(batch);
+        CompleteBatch(batch, batchCompletionMessage.Finished);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         
         logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
     }
 
-    private void CompleteBatch(Batch batch)
+    private void CompleteBatch(Batch batch, DateTime finished)
     {
-        batch.Processed = DateTime.UtcNow;
+        batch.Processed = finished;
         batch.Status = BatchStatus.Completed;
     }
 
@@ -86,24 +87,18 @@ public class BatchCompletionMessageHandler(
         
         foreach (var canvasPainting in batch.Manifest.CanvasPaintings)
         {
-            if (canvasPainting.Ingesting)
-            {
-                var assetId = AssetId.FromString(canvasPainting.AssetId!);
-                
-                var asset = assets.Members.FirstOrDefault(a => a.ResourceId!.Contains($"{assetId.Space}/images/{assetId.Asset}"));
-                if (asset == null || asset.Ingesting) continue;
-                
-                canvasPainting.CanvasOriginalId =
-                    new Uri(
-                        $"{dlcsSettings.OrchestratorUri}/iiif-img/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/full/max/0/default.jpg"); //todo: do we need this? Supposed to be null for an asset really
-                canvasPainting.Thumbnail =
-                    new Uri(
-                        $"{dlcsSettings.OrchestratorUri}/thumbs/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/100,/max/0/default.jpg"); //todo: how to get this?
-                canvasPainting.Ingesting = false;
-                canvasPainting.Modified = DateTime.UtcNow;
-                canvasPainting.StaticHeight = asset.Height;
-                canvasPainting.StaticWidth = asset.Width;
-            }
+            var assetId = AssetId.FromString(canvasPainting.AssetId!);
+            
+            var asset = assets.Members.FirstOrDefault(a => a.ResourceId!.Contains($"{assetId.Space}/images/{assetId.Asset}"));
+            if (asset == null || asset.Ingesting || !string.IsNullOrEmpty(asset.Error)) continue;
+
+            canvasPainting.Thumbnail =
+                new Uri(
+                    $"{dlcsSettings.OrchestratorUri}/thumbs/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/100,/max/0/default.jpg"); //todo: how to get this?
+            canvasPainting.Ingesting = false;
+            canvasPainting.Modified = DateTime.UtcNow;
+            canvasPainting.StaticHeight = asset.Height;
+            canvasPainting.StaticWidth = asset.Width;
         }
     }
 

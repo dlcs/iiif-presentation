@@ -159,6 +159,7 @@ public class DlcsApiClientTests
         var options = Options.Create(new DlcsSettings()
         {
             ApiUri = new Uri("https://localhost"),
+            ApiJwtKey = "d29ycnl1bmtub3duc29udm9sdW1lZ3Jvd3RoYnVzbG8=",
             MaxBatchSize = 1
         });
         

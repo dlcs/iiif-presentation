@@ -32,7 +32,7 @@ public class Batch
     /// <summary>
     /// Id of related manifest
     /// </summary>
-    public required string ManifestId { get; set; }
+    public string? ManifestId { get; set; }
     
     public Manifest? Manifest { get; set; }
 }

@@ -123,7 +123,7 @@ public class CanvasPainting : IIdentifiable
     /// <summary>
     /// Whether the asset is currently being ingested into the DLCS
     /// </summary>
-    public bool Ingesting { get; set; } = false;
+    public bool Ingesting { get; set; }
 }
 
 public static class CanvasPaintingX

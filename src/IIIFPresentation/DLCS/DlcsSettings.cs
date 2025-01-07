@@ -27,5 +27,5 @@ public class DlcsSettings
     /// <summary>
     /// Used to authenticate requests that do not go via the HttpContextAccessor
     /// </summary>
-    public string? ApiLocalAuth { get; set; }
+    public required string ApiJwtKey { get; set; }
 }
