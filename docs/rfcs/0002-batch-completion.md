@@ -41,5 +41,5 @@ The DLCS requires authentication on the API side, and the Presentation API metho
 
 ## Questions
 
-There is future work around filling out details of an asset directly from thge  DLCS, if this is the case, do we need to call the API first as all these details can be filled out from the Orchestrator
+There is future work around filling out details of an asset directly from the DLCS (to fill out hings like errors), if this is the case, do we need to call the API first as all these details can be filled out from the Orchestrator, such as the width/height
 
