@@ -45,8 +45,7 @@ public class BatchCompletionMessageHandlerTests
         var options = Options.Create(new DlcsSettings
         {
             ApiUri = new Uri("https://localhost"),
-            OrchestratorUri = new Uri("https://dlcs.localhost"),
-            ApiJwtKey = "d29ycnl1bmtub3duc29udm9sdW1lZ3Jvd3RoYnVzbG8="
+            OrchestratorUri = new Uri("https://dlcs.localhost")
             
         });
         sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, options, iiifS3,

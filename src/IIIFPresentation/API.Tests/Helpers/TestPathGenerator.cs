@@ -20,5 +20,5 @@ public static class TestPathGenerator
                 }
             },
             Options.Create(new DlcsSettings
-                { ApiUri = new Uri("https://dlcs.test"), ApiJwtKey = "d29ycnl1bmtub3duc29udm9sdW1lZ3Jvd3RoYnVzbG8=" }));
+                { ApiUri = new Uri("https://dlcs.test") }));
 }

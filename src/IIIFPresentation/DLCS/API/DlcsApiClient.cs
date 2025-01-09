@@ -97,22 +97,4 @@ internal class DlcsApiClient(
         var response = await httpClient.SendAsync(request, cancellationToken);
         return await response.ReadAsDlcsResponse<T>(cancellationToken);
     }
-    
-    private string JwtCreate(int customer)
-    {
-        var descriptor = new SecurityTokenDescriptor
-        {
-            Issuer = "urn:presentation:default",
-            Subject = new ClaimsIdentity([new Claim(JwtRegisteredClaimNames.Sub, $"urn:dlcs:user:{customer}")]),
-            Expires = DateTime.UtcNow.AddMinutes(120),
-            
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Convert.FromBase64String(settings.ApiJwtKey)), SecurityAlgorithms.HmacSha256Signature),
-            IssuedAt = DateTime.UtcNow,
-            NotBefore = DateTime.UtcNow,
-        };
-
-        var handler = new JsonWebTokenHandler	{ SetDefaultTimesOnTokenCreation = false };
-	
-        return handler.CreateToken(descriptor);
-    }
 }
