@@ -2,6 +2,7 @@
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
+using AWS.Helpers;
 using AWS.S3;
 using AWS.S3.Models;
 using AWS.Settings;

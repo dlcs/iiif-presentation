@@ -1,18 +1,32 @@
-﻿using API.Helpers;
-using API.Settings;
-using AWS.S3;
+﻿using AWS.S3;
 using AWS.S3.Models;
+using AWS.Settings;
 using Core.Helpers;
 using Core.IIIF;
 using Core.Streams;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Infrastucture;
 
-namespace API.Infrastructure.AWS;
+namespace AWS.Helpers;
+
+public interface IIIIFS3Service
+{
+    public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
+        CancellationToken cancellationToken) where T : ResourceBase, new();
+
+    public Task<T?> ReadIIIFFromS3<T>(string bucketKey,
+        CancellationToken cancellationToken) where T : ResourceBase, new();
+
+    public Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
+        CancellationToken cancellationToken);
+
+    public Task DeleteIIIFFromS3(IHierarchyResource dbResource);
+}
 
 /// <summary>
 /// Class containing higher-level functions to aid interacting with S3
@@ -21,7 +35,7 @@ public class IIIFS3Service(
     IBucketWriter bucketWriter,
     IBucketReader bucketReader,
     ILogger<IIIFS3Service> logger,
-    IOptionsMonitor<ApiSettings> options)
+    IOptionsMonitor<AWSSettings> options) : IIIIFS3Service
 {
     public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
         CancellationToken cancellationToken) where T : ResourceBase, new() =>
@@ -31,7 +45,7 @@ public class IIIFS3Service(
         CancellationToken cancellationToken) where T : ResourceBase, new()
     {
         var objectFromBucket = await bucketReader.GetObjectFromBucket(
-            new(options.CurrentValue.AWS.S3.StorageBucket, bucketKey), cancellationToken);
+            new(options.CurrentValue.S3.StorageBucket, bucketKey), cancellationToken);
 
         if (objectFromBucket.Stream.IsNull())
             return null;
@@ -48,7 +62,7 @@ public class IIIFS3Service(
         logger.LogDebug("Uploading resource {Customer}:{ResourceId} file to S3", dbResource.CustomerId, dbResource.Id);
         EnsureIIIFValid(iiifResource, flatId);
         var iiifJson = iiifResource.AsJson();
-        var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
+        var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket, dbResource.GetResourceBucketKey());
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
     }
     
@@ -58,7 +72,7 @@ public class IIIFS3Service(
     public async Task DeleteIIIFFromS3(IHierarchyResource dbResource)
     {
         logger.LogDebug("Deleting resource {Customer}:{ResourceId} file from S3", dbResource.CustomerId, dbResource.Id);
-        var item = new ObjectInBucket(options.CurrentValue.AWS.S3.StorageBucket, dbResource.GetResourceBucketKey());
+        var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket, dbResource.GetResourceBucketKey());
         await bucketWriter.DeleteFromBucket(item);
     }
 

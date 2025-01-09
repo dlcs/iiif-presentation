@@ -8,13 +8,13 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using API.Settings;
+using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
@@ -235,6 +235,8 @@ public class ManifestService(
         
         if (!assets.IsNullOrEmpty())
         {
+            UpdateAssetWithManifestId(assets, manifestId);
+            
             try
             {
                 var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
@@ -254,7 +256,15 @@ public class ManifestService(
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
-    
+
+    private static void UpdateAssetWithManifestId(List<JObject?> assets, string manifestId)
+    {
+        foreach (var asset in assets.OfType<JObject>())
+        {
+            asset["string3"] = manifestId;
+        }
+    }
+
     private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
         CancellationToken cancellationToken)
     {

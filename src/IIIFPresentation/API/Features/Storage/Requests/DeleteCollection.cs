@@ -1,5 +1,5 @@
 ﻿using API.Features.Storage.Helpers;
-using API.Infrastructure.AWS;
+using AWS.Helpers;
 using Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

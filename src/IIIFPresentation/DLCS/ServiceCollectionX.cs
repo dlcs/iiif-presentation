@@ -12,7 +12,7 @@ public static class ServiceCollectionX
     /// <summary>
     /// Add <see cref="IDlcsApiClient"/> to services collection.
     /// </summary>
-    public static IServiceCollection AddDlcsClient(this IServiceCollection services,
+    public static IServiceCollection AddDlcsApiClient(this IServiceCollection services,
         DlcsSettings dlcsSettings)
     {
         services
@@ -29,16 +29,16 @@ public static class ServiceCollectionX
     }
     
     /// <summary>
-    /// Add <see cref="IDlcsApiClient"/> to services collection.
+    /// Add <see cref="IDlcsOrchestratorClient"/> to services collection.
     /// </summary>
-    public static IServiceCollection AddDlcsClientWithoutAuth(this IServiceCollection services,
+    public static IServiceCollection AddDlcsOrchestratorClient(this IServiceCollection services,
         DlcsSettings dlcsSettings)
     {
         services
             .AddTransient<TimingHandler>()
             .AddHttpClient<IDlcsApiClient, DlcsApiClient>(client =>
             {
-                client.BaseAddress = dlcsSettings.ApiUri;
+                client.BaseAddress = dlcsSettings.OrchestratorUri;
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.DefaultTimeoutMs);
             })
             .AddHttpMessageHandler<TimingHandler>();

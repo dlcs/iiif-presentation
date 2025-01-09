@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Security.Claims;
 using DLCS.Exceptions;
 using DLCS.Handlers;
@@ -29,12 +28,6 @@ public interface IDlcsApiClient
     /// Ingest assets into the DLCS
     /// </summary>
     public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Retrieve a list of assets from the DLCS
-    /// </summary>
-    public Task<HydraCollection<Asset>> RetrieveAllImages(int customerId, List<string> assets,
         CancellationToken cancellationToken = default);
 }
 
@@ -70,8 +63,6 @@ internal class DlcsApiClient(
     
     public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> assets, CancellationToken cancellationToken = default)
     {
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", JwtCreate(customerId));
-        
         logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfAssets} assets", customerId,
             assets.Count);
         var queuePath = $"/customers/{customerId}/queue";
@@ -95,20 +86,6 @@ internal class DlcsApiClient(
         await Task.WhenAll(tasks);
         
         return batches.ToList();
-    }
-
-    public async Task<HydraCollection<Asset>> RetrieveAllImages(int customerId, List<string> assets,
-        CancellationToken cancellationToken = default)
-    {
-        logger.LogTrace("performing an all images call for customer {CustomerId}", customerId);
-        var allImagesPath = $"/customers/{customerId}/allImages";
-        
-        var allImagesRequest = new AllImages(assets);
-
-        var asset =
-            await CallDlcsApi<HydraCollection<Asset>>(HttpMethod.Post, allImagesPath, allImagesRequest, cancellationToken);
-        
-        return asset ?? throw new DlcsException("Failed to retrieve all images");
     }
 
     private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,

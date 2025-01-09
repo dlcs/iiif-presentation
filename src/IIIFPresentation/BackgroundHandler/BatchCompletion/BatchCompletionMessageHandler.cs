@@ -1,10 +1,14 @@
 ﻿using System.Text.Json;
+using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
 using Core.Helpers;
+using Core.IIIF;
 using DLCS;
 using DLCS.API;
 using DLCS.Models;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
@@ -15,8 +19,9 @@ namespace BackgroundHandler.BatchCompletion;
 
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
-    IDlcsApiClient dlcsApiClient,
+    IDlcsOrchestratorClient dlcsOrchestratorClient,
     IOptions<DlcsSettings> dlcsOptions,
+    IIIIFS3Service iiifS3,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
@@ -65,14 +70,27 @@ public class BatchCompletionMessageHandler(
             "Attempting to complete assets in batch {BatchId} for customer {CustomerId} with the manifest {ManifestId}",
             batch.Id, batch.CustomerId, batch.ManifestId);
 
-        var assets = await RetrieveImages(batch, cancellationToken);
+        var generatedManifest =
+            await dlcsOrchestratorClient.RetrieveImagesForManifest(batch.CustomerId, batch.ManifestId!, cancellationToken);
         
-        UpdateCanvasPaintings(assets, batch);
+        UpdateCanvasPaintings(generatedManifest, batch);
         CompleteBatch(batch, batchCompletionMessage.Finished);
+        await UpdateManifestInS3(generatedManifest, batch, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         
         logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
+    }
+
+    private async Task UpdateManifestInS3(Manifest generatedManifest, Batch batch, 
+        CancellationToken cancellationToken = default)
+    {
+        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(batch.Manifest!, cancellationToken);
+        
+        var mergedManifest = ManifestMerger.Merge(manifest, generatedManifest);
+        manifest.ThrowIfNull("Failed to retrieve manifest");
+        
+        await iiifS3.SaveIIIFToS3(mergedManifest, batch.Manifest, "", cancellationToken);
     }
 
     private void CompleteBatch(Batch batch, DateTime finished)
@@ -81,34 +99,28 @@ public class BatchCompletionMessageHandler(
         batch.Status = BatchStatus.Completed;
     }
 
-    private void UpdateCanvasPaintings(HydraCollection<Asset> assets, Batch batch)
+    private void UpdateCanvasPaintings(Manifest generatedManifest, Batch batch)
     {
         if (batch.Manifest?.CanvasPaintings == null) return;
         
         foreach (var canvasPainting in batch.Manifest.CanvasPaintings)
         {
             var assetId = AssetId.FromString(canvasPainting.AssetId!);
-            
-            var asset = assets.Members.FirstOrDefault(a => a.ResourceId!.Contains($"{assetId.Space}/images/{assetId.Asset}"));
-            if (asset == null || asset.Ingesting || !string.IsNullOrEmpty(asset.Error)) continue;
 
-            canvasPainting.Thumbnail =
-                new Uri(
-                    $"{dlcsSettings.OrchestratorUri}/thumbs/{assetId.Customer}/{assetId.Space}/{assetId.Asset}/100,/max/0/default.jpg"); //todo: how to get this?
+            var item = generatedManifest.Items?.FirstOrDefault(i => i.Id!.Contains(assetId.ToString()));
+            
+            if (item == null) continue;
+
+            var thumbnailPath = item.Thumbnail?.OfType<Image>().GetThumbnailPath();
+            
+            canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
             canvasPainting.Ingesting = false;
             canvasPainting.Modified = DateTime.UtcNow;
-            canvasPainting.StaticHeight = asset.Height;
-            canvasPainting.StaticWidth = asset.Width;
+            canvasPainting.StaticHeight = item.Height;
+            canvasPainting.StaticWidth = item.Width;
         }
     }
-
-    private async Task<HydraCollection<Asset>> RetrieveImages(Batch batch, CancellationToken cancellationToken)
-    {
-        var assetsRequest =
-            batch.Manifest?.CanvasPaintings?.Where(c => c.AssetId != null).Select(c => c.AssetId!).ToList() ?? [];
-        
-        return await dlcsApiClient.RetrieveAllImages(batch.CustomerId, assetsRequest, cancellationToken);
-    }
+    
 
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message)
     {

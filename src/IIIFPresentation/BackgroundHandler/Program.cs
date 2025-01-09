@@ -26,7 +26,7 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddHttpContextAccessor()
-    .AddDlcsClientWithoutAuth(dlcs)
+    .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
     .Configure<DlcsSettings>(dlcsSettings);
 

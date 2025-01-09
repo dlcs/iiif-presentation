@@ -1,4 +1,6 @@
 ﻿using AWS.Configuration;
+using AWS.Helpers;
+using AWS.S3;
 using AWS.Settings;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
@@ -14,12 +16,16 @@ public static class ServiceCollectionX
         IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
     {
         services
+            .AddSingleton<IBucketReader, S3BucketReader>()
+            .AddSingleton<IBucketWriter, S3BucketWriter>()
             .AddSingleton<SqsListener>()
-            .AddSingleton<SqsQueueUtilities>();
+            .AddSingleton<SqsQueueUtilities>()
+            .AddSingleton<IIIIFS3Service, IIIFS3Service>();
         
         services
             .SetupAWS(configuration, webHostEnvironment)
-            .WithAmazonSQS();
+            .WithAmazonSQS()
+            .WithAmazonS3();
         
         return services;
     }

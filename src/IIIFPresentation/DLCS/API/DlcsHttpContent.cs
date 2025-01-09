@@ -6,6 +6,8 @@ using Core.Helpers;
 using DLCS.Converters;
 using DLCS.Exceptions;
 using DLCS.Models;
+using IIIF.Serialisation;
+using JsonLdBase = IIIF.JsonLdBase;
 
 namespace DLCS.API;
 
@@ -36,6 +38,31 @@ internal static class DlcsHttpContent
         if (response.IsSuccessStatusCode)
         {
             return await response.ReadDlcsModel<T>(true, cancellationToken);
+        }
+
+        try
+        {
+            var error = await response.Content.ReadFromJsonAsync<DlcsError>(JsonSerializerOptions, cancellationToken);
+
+            if (error != null)
+            {
+                throw new DlcsException(error.Description);
+            }
+
+            throw new DlcsException("Unable to process error condition");
+        }
+        catch (Exception ex) when (ex is not DlcsException)
+        {
+            throw new DlcsException("Could not find a DlcsError in response", ex);
+        }
+    }
+    
+    public static async Task<T?> ReadAsIiifResponse<T>(this HttpResponseMessage response,
+        CancellationToken cancellationToken = default) where T : JsonLdBase
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return (await response.Content.ReadAsStreamAsync(cancellationToken)).FromJsonStream<T>();
         }
 
         try

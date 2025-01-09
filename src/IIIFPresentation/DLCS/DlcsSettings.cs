@@ -28,4 +28,9 @@ public class DlcsSettings
     /// Used to authenticate requests that do not go via the HttpContextAccessor
     /// </summary>
     public required string ApiJwtKey { get; set; }
+
+    /// <summary>
+    /// The name of the query used for retrieving images
+    /// </summary>
+    public string ManifestNamedQueryName { get; set; } = "interim-presentation";
 }
