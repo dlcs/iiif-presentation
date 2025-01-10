@@ -93,7 +93,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.Detail.Should().Be("A request with assets requires the space header to be set");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/RequiresSpace");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/RequiresSpaceHeader");
     }
     
     [Fact]

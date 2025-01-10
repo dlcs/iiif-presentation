@@ -60,7 +60,7 @@ public static class ErrorHelper
     public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
         where T : class
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "A request with assets requires the space header to be set", ModifyCollectionType.RequiresSpace,
+            "A request with assets requires the space header to be set", ModifyCollectionType.RequiresSpaceHeader,
             WriteResult.BadRequest);
     
     public static ModifyEntityResult<T, ModifyCollectionType> CouldNotRetrieveAssetId<T>()
