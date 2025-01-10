@@ -635,6 +635,68 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesNonPublicIIIFCollection_WhenNullBehavior()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_CreatesNonPublicIIIFCollection_WhenNullBehavior);
+        var collection = $@"{{
+   ""type"": ""Collection"",
+   ""label"": {{
+       ""en"": [
+           ""iiif post""
+       ]
+   }},
+    ""slug"": ""{slug}"",
+    ""parent"": ""{parent}"",
+    ""tags"": ""some, tags"",
+    ""itemsOrder"": 1,
+    ""thumbnail"": [
+        {{
+          ""id"": ""https://example.org/img/thumb.jpg"",
+          ""type"": ""Image"",
+          ""format"": ""image/jpeg"",
+          ""width"": 300,
+          ""height"": 200
+        }}
+    ]
+}}";
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("iiif post");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
+        fromDatabase.IsPublic.Should().BeFalse();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Modified.Should().Be(fromDatabase.Created);
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+        
+    }
 
     [Fact]
     public async Task UpdateCollection_ReturnsUnauthorized_WhenCalledWithoutAuth()
@@ -1670,6 +1732,58 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error.Detail.Should().Be("Could not deserialize collection");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_CreatesNonPublicIIIFCollection_WhenNoBehavior()
+    {
+        var collectionId = "noBehavior";
+        var slug = nameof(UpdateCollection_CreatesNonPublicIIIFCollection_WhenNoBehavior);
+        
+        // Arrange
+        var updatedCollection = new PresentationCollection()
+        {
+            Label = new LanguageMap("en", ["test collection - create from update"]),
+            Slug = slug,
+            Parent = parent,
+            ItemsOrder = 1,
+            PresentationThumbnail = "some/location/2",
+            Tags = "some, tags, 2",
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{collectionId}", updatedCollection.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        fromDatabase.Id.Should().Be(collectionId);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+        hierarchyFromDatabase.ItemsOrder.Should().Be(1);
+        fromDatabase.Thumbnail.Should().Be("some/location/2");
+        fromDatabase.Tags.Should().Be("some, tags, 2");
+        fromDatabase.IsPublic.Should().BeFalse();
+        fromDatabase.IsStorageCollection.Should().BeFalse();
+        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection.View.Page.Should().Be(1);
+        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        
+        var context = (JArray)responseCollection.Context;
+        context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
+        context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
 
     [Fact]
