@@ -97,7 +97,8 @@ public class CollectionController(
 
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
-        var deserializedCollection = await rawRequestBody.TryDeserializePresentationCollection();
+        var deserializedCollection =
+            await rawRequestBody.TryDeserializePresentation<PresentationCollection>();
         if (deserializedCollection.Error)
         {
             return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());
