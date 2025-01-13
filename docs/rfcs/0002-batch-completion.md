@@ -29,6 +29,7 @@ sequenceDiagram
     P -> P: Check all batches are complete for the manifest
     P ->>+ DO: Named query projection on the batch
     DO -->>- P: Get batch details from named query
+    P --> P: Update manifest
     P -->> S: Update S3
     P --> P: Update database
 ```
