@@ -64,7 +64,7 @@ public class BatchCompletionMessageHandlerTests
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     
@@ -106,7 +106,7 @@ public class BatchCompletionMessageHandlerTests
         
         var message = GetMessage(batchMessage);
 
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(new IIIF.Presentation.V3.Manifest
             {
                 Items = new List<Canvas>
@@ -149,7 +149,7 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustHaveHappened();
         var batch = dbContext.Batches.Single(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
@@ -201,7 +201,7 @@ public class BatchCompletionMessageHandlerTests
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 

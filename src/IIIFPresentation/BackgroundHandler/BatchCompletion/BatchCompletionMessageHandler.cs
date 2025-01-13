@@ -68,8 +68,10 @@ public class BatchCompletionMessageHandler(
                     "Attempting to complete assets in batch {BatchId} for customer {CustomerId} with the manifest {ManifestId}",
                     batch.Id, batch.CustomerId, batch.ManifestId);
 
+                var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
+
                 var generatedManifest =
-                    await dlcsOrchestratorClient.RetrieveImagesForManifest(batch.CustomerId, batch.ManifestId!,
+                    await dlcsOrchestratorClient.RetrieveImagesForManifest(batch.CustomerId, batches,
                         cancellationToken);
 
                 UpdateCanvasPaintings(generatedManifest, batch);

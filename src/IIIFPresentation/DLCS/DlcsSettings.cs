@@ -27,5 +27,5 @@ public class DlcsSettings
     /// <summary>
     /// The name of the query used for retrieving images
     /// </summary>
-    public string ManifestNamedQueryName { get; set; } = "interim-presentation";
+    public string ManifestNamedQueryName { get; set; } = "batch-query";
 }
