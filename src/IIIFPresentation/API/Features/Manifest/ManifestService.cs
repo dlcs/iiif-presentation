@@ -236,8 +236,6 @@ public class ManifestService(
         
         if (!assets.IsNullOrEmpty())
         {
-            UpdateAssetWithManifestId(assets, manifestId);
-            
             try
             {
                 var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
@@ -256,14 +254,6 @@ public class ManifestService(
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
-    }
-
-    private static void UpdateAssetWithManifestId(List<JObject?> assets, string manifestId)
-    {
-        foreach (var asset in assets.OfType<JObject>())
-        {
-            asset["string3"] = manifestId;
-        }
     }
 
     private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
