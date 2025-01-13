@@ -20,14 +20,11 @@ namespace BackgroundHandler.BatchCompletion;
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IOptions<DlcsSettings> dlcsOptions,
     IIIIFS3Service iiifS3,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-    
-    private readonly DlcsSettings dlcsSettings = dlcsOptions.Value;
 
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
@@ -57,29 +54,31 @@ public class BatchCompletionMessageHandler(
         
         // batch isn't tracked by presentation, so nothing to do
         if (batch == null) return;
-
-        // Other batches haven't completed, so no point populating items until all are complete
-        if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId && 
-                                                  b.Status != BatchStatus.Completed && 
-                                                  b.Id != batch.Id, cancellationToken))
-        {
-            return;
-        }
-
-        logger.LogInformation(
-            "Attempting to complete assets in batch {BatchId} for customer {CustomerId} with the manifest {ManifestId}",
-            batch.Id, batch.CustomerId, batch.ManifestId);
-
-        var generatedManifest =
-            await dlcsOrchestratorClient.RetrieveImagesForManifest(batch.CustomerId, batch.ManifestId!, cancellationToken);
         
-        UpdateCanvasPaintings(generatedManifest, batch);
-        CompleteBatch(batch, batchCompletionMessage.Finished);
-        await UpdateManifestInS3(generatedManifest, batch, cancellationToken);
+            // Other batches haven't completed, so no point populating items until all are complete
+            if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId &&
+                                                      b.Status != BatchStatus.Completed &&
+                                                      b.Id != batch.Id, cancellationToken))
+            {
+                CompleteBatch(batch, batchCompletionMessage.Finished);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Attempting to complete assets in batch {BatchId} for customer {CustomerId} with the manifest {ManifestId}",
+                    batch.Id, batch.CustomerId, batch.ManifestId);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        
-        logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
+                var generatedManifest =
+                    await dlcsOrchestratorClient.RetrieveImagesForManifest(batch.CustomerId, batch.ManifestId!,
+                        cancellationToken);
+
+                UpdateCanvasPaintings(generatedManifest, batch);
+                CompleteBatch(batch, batchCompletionMessage.Finished);
+                await UpdateManifestInS3(generatedManifest, batch, cancellationToken);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
     }
 
     private async Task UpdateManifestInS3(Manifest generatedManifest, Batch batch, 
@@ -87,7 +86,7 @@ public class BatchCompletionMessageHandler(
     {
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(batch.Manifest!, cancellationToken);
         
-        var mergedManifest = ManifestMerger.Merge(manifest, generatedManifest);
+        var mergedManifest = ManifestMerger.Merge(manifest, generatedManifest, batch.Manifest?.CanvasPaintings);
         manifest.ThrowIfNull("Failed to retrieve manifest");
         
         await iiifS3.SaveIIIFToS3(mergedManifest, batch.Manifest, "", cancellationToken);
@@ -119,8 +118,8 @@ public class BatchCompletionMessageHandler(
             canvasPainting.StaticHeight = item.Height;
             canvasPainting.StaticWidth = item.Width;
         }
+        
     }
-    
 
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message)
     {

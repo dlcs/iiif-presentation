@@ -42,13 +42,7 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        var options = Options.Create(new DlcsSettings
-        {
-            ApiUri = new Uri("https://localhost"),
-            OrchestratorUri = new Uri("https://dlcs.localhost")
-            
-        });
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, options, iiifS3,
+        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 

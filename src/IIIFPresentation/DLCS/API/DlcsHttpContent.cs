@@ -57,7 +57,7 @@ internal static class DlcsHttpContent
         }
     }
     
-    public static async Task<T?> ReadAsIiifResponse<T>(this HttpResponseMessage response,
+    public static async Task<T?> ReadAsIIIFResponse<T>(this HttpResponseMessage response,
         CancellationToken cancellationToken = default) where T : JsonLdBase
     {
         if (response.IsSuccessStatusCode)

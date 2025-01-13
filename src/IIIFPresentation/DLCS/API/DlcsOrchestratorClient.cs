@@ -30,6 +30,6 @@ public class DlcsOrchestratorClient(
         var response =
             await httpClient.GetAsync($"/iiif-resource/{customerId}/{settings.ManifestNamedQueryName}/{manifestId}",
                 cancellationToken);
-        return await response.ReadAsIiifResponse<Manifest>(cancellationToken);
+        return await response.ReadAsIIIFResponse<Manifest>(cancellationToken);
     }
 }
