@@ -80,11 +80,7 @@ public class BatchCompletionMessageHandler(
             
             try
             {
-                itemDictionary = generatedManifest.Items.Select(i =>
-                        new KeyValuePair<AssetId, Canvas>(
-                            AssetId.FromString(i.Id!.Remove(i.Id.IndexOf("/canvas", StringComparison.Ordinal))
-                                .Remove(0, $"{dlcsSettings.OrchestratorUri!.ToString()}/iiif-img/".Length)), i))
-                    .ToDictionary();
+                itemDictionary = generatedManifest.Items.ToDictionary(i => GetAssetIdFromCanvasId(i.Id), i => i);
             }
             catch (Exception e)
             {
@@ -109,6 +105,12 @@ public class BatchCompletionMessageHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
     }
+
+    private static AssetId GetAssetIdFromCanvasId(string canvasId)
+    {
+        return AssetId.FromString(String.Join('/',
+            canvasId.Substring(0, canvasId.IndexOf("/canvas/c/")).Split("/")[^3..]));
+    } 
 
     private async Task UpdateManifestInS3(List<ExternalResource>? thumbnail, Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
         CancellationToken cancellationToken = default)
