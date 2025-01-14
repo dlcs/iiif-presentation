@@ -6,6 +6,8 @@ using Core;
 using Core.Helpers;
 using FluentValidation.Results;
 using IIIF;
+using IIIF.Presentation;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Microsoft.AspNetCore.Mvc;
 using Models.API.General;
@@ -175,12 +177,15 @@ public static class ControllerBaseX
     {
         if (value is JsonLdBase jsonLdBase)
         {
+            if (value is ResourceBase {Id: {Length: > 0} id})
+                uri = id;
+            
             controller.Response.Headers.Location = uri;
             
             return new ContentResult
             {
                 Content = jsonLdBase.AsJson(),
-                ContentType = IIIF.Presentation.ContentTypes.V3,
+                ContentType = ContentTypes.V3,
                 StatusCode = 201,
             };
         }
