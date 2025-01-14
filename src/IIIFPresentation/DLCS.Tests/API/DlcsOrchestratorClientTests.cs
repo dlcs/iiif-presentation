@@ -72,6 +72,6 @@ public class DlcsOrchestratorClientTests
             MaxBatchSize = 1
         });
         
-        return new DlcsOrchestratorClient(httpClient, options, new NullLogger<DlcsOrchestratorClient>());
+        return new DlcsOrchestratorClient(httpClient, options);
     }
 }

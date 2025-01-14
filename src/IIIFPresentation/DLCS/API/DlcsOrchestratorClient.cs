@@ -15,8 +15,7 @@ public interface IDlcsOrchestratorClient
 
 public class DlcsOrchestratorClient(
     HttpClient httpClient,
-    IOptions<DlcsSettings> dlcsOptions,
-    ILogger<DlcsOrchestratorClient> logger) : IDlcsOrchestratorClient
+    IOptions<DlcsSettings> dlcsOptions) : IDlcsOrchestratorClient
 {
     private readonly DlcsSettings settings = dlcsOptions.Value;
 
