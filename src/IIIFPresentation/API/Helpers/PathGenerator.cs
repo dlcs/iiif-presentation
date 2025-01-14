@@ -24,6 +24,9 @@ public class PathGenerator : IPathGenerator
     public string GenerateHierarchicalCollectionId(Collection collection) =>
         $"{baseUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
 
+    public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
+        $"{baseUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath}" : string.Empty)}";
+
     public string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy)
     {
         var parentPath = collection.FullPath![..^hierarchy.Slug.Length].TrimEnd('/');
@@ -36,7 +39,7 @@ public class PathGenerator : IPathGenerator
         $"{baseUrl}/{collection.CustomerId}/collections/{collection.Id}";
     
     public string GenerateHierarchicalId(Hierarchy hierarchy) =>
-        $"{baseUrl}/{hierarchy.CustomerId}{(string.IsNullOrEmpty(hierarchy.FullPath) ? string.Empty : $"/{hierarchy.FullPath}")}";
+        GenerateHierarchicalFromFullPath(hierarchy.CustomerId, hierarchy.FullPath);
     
     public string GenerateFlatId(Hierarchy hierarchy) =>
         $"{baseUrl}/{hierarchy.CustomerId}/{GetSlug(hierarchy.Type)}/{hierarchy.ResourceId}";
