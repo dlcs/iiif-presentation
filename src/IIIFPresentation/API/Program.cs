@@ -6,6 +6,7 @@ using API.Infrastructure;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
+using API.Infrastructure.Http.Redirect;
 using API.Settings;
 using DLCS;
 using FluentValidation;
@@ -92,7 +93,7 @@ app
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
 var rewriteOptions = new RewriteOptions()
-    .AddRedirect("(.*)/$", "$1");
+    .Add(new TrailingSlashRedirectRule());
 
 app
     .UseSwagger()
