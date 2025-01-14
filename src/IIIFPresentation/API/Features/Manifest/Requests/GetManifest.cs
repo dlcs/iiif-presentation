@@ -39,7 +39,7 @@ public class GetManifestHandler(
         if (request.PathOnly)
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
-                FullPath = await fetchFullPath
+                FullPath = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, await fetchFullPath)
             });
 
         var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);

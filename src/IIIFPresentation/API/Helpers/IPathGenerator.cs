@@ -94,4 +94,6 @@ public interface IPathGenerator
     /// Get URI of a DLCS asset
     /// </summary>
     Uri? GenerateAssetUri(CanvasPainting canvasPainting);
+
+    string GenerateHierarchicalFromFullPath(int customerId, string? fullPath);
 }
