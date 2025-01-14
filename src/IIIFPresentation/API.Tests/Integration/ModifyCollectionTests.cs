@@ -53,6 +53,31 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
 
     [Fact]
+    public async Task CreateCollection_CreatesCollection_Location_Returns_Created()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/collections",
+            TestContent.Bug_158.Collection);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        response.Headers.Location.Should().NotBeNull();
+        var getUrl = response.Headers.Location!.ToString();
+
+        requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, getUrl);
+
+        // Act
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        responseCollection.Should().NotBeNull();
+        responseCollection!.Slug.Should().Be(TestContent.Bug_158.CollectionName);
+    }
+    
+    [Fact]
     public async Task CreateCollection_CreatesCollection_WhenAllValuesProvided()
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
