@@ -24,6 +24,19 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         storageFixture.DbFixture.CleanUp();
     }
 
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsRedirect_WhenNoExtraHeaders()
+    {
+        // Arrange and Act
+        var requestMessage =
+            new HttpRequestMessage(HttpMethod.Get, "1/manifests/FirstChildManifest");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.AbsolutePath.Should().Be("/1/iiif-manifest");
+    }
 
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithDbValues()
