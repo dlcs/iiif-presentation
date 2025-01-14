@@ -93,6 +93,30 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
 
     [Fact]
+    public async Task DeleteCollection_DeletesCollection_TrailingSlash()
+    {
+        // Arrange
+        var dbCollection = (await dbContext.Collections.AddTestCollection()).Entity;
+
+        await dbContext.Collections.AddAsync(dbCollection);
+        await dbContext.SaveChangesAsync();
+
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/{dbCollection.Id}/");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(deleteRequestMessage);
+
+        var fromDatabase = dbContext.Collections.FirstOrDefault(c => c.Id == dbCollection.Id);
+        var fromDatabaseHierarchy = dbContext.Hierarchy.FirstOrDefault(c => c.CollectionId == dbCollection.Id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        fromDatabase.Should().BeNull();
+        fromDatabaseHierarchy.Should().BeNull();
+    }
+
+    [Fact]
     public async Task DeleteCollection_FailsToDeleteCollection_WhenNotFound()
     {
         // Arrange
