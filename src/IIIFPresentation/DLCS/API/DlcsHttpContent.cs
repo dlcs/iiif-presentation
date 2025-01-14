@@ -40,21 +40,7 @@ internal static class DlcsHttpContent
             return await response.ReadDlcsModel<T>(true, cancellationToken);
         }
 
-        try
-        {
-            var error = await response.Content.ReadFromJsonAsync<DlcsError>(JsonSerializerOptions, cancellationToken);
-
-            if (error != null)
-            {
-                throw new DlcsException(error.Description);
-            }
-
-            throw new DlcsException("Unable to process error condition");
-        }
-        catch (Exception ex) when (ex is not DlcsException)
-        {
-            throw new DlcsException("Could not find a DlcsError in response", ex);
-        }
+        throw await CheckAndThrowResponseError(response, cancellationToken);
     }
     
     public static async Task<T?> ReadAsIIIFResponse<T>(this HttpResponseMessage response,
@@ -65,20 +51,25 @@ internal static class DlcsHttpContent
             return (await response.Content.ReadAsStreamAsync(cancellationToken)).FromJsonStream<T>();
         }
 
+        throw await CheckAndThrowResponseError(response, cancellationToken);
+    }
+
+    private static async Task<DlcsException> CheckAndThrowResponseError(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
         try
         {
             var error = await response.Content.ReadFromJsonAsync<DlcsError>(JsonSerializerOptions, cancellationToken);
 
             if (error != null)
             {
-                throw new DlcsException(error.Description);
+                return new DlcsException(error.Description);
             }
 
             throw new DlcsException("Unable to process error condition");
         }
         catch (Exception ex) when (ex is not DlcsException)
         {
-            throw new DlcsException("Could not find a DlcsError in response", ex);
+            return new DlcsException("Could not find a DlcsError in response", ex);
         }
     }
 

@@ -3,7 +3,7 @@ using API.Helpers;
 using API.Tests.Helpers;
 using Models.API.Manifest;
 using Models.Database.General;
-using Newtonsoft.Json.Linq;
+using Models.DLCS;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
 
@@ -169,7 +169,7 @@ public class ManifestConverterTests
                     Id = "the-canvas",
                     ChoiceOrder = 10,
                     CanvasOrder = 100,
-                    AssetId = "1/2/assetId"
+                    AssetId = new AssetId(1, 2, "assetId")
                 }
             ]
         };
@@ -184,7 +184,7 @@ public class ManifestConverterTests
         paintedResource.CanvasPainting.CanvasOrder.Should().Be(100);
         paintedResource.CanvasPainting.CanvasOriginalId.Should().Be("http://example.test/canvas1");
 
-        paintedResource.Asset.GetValue("assetId").ToString().Should().Be("https://dlcs.test/customers/1/spaces/2/images/assetId");
+        paintedResource.Asset.GetValue("@id").ToString().Should().Be("https://dlcs.test/customers/1/spaces/2/images/assetId");
     }
     
     [Fact]

@@ -18,10 +18,10 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 3;
-        stub.Get($"/iiif-resource/{customerId}/batch-query/1,2", (_, _) => string.Empty).StatusCode((int)httpStatusCode);
+        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1,2", (_, _) => string.Empty).StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
         
-        Func<Task> action = () => sut.RetrieveImagesForManifest(customerId, [1, 2], CancellationToken.None);
+        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>().WithMessage("Could not find a DlcsError in response");
     }
     
@@ -33,11 +33,11 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 4;
-        stub.Get($"/iiif-resource/{customerId}/batch-query/1,2", (_, _) => "{\"description\":\"I am broken\"}")
+        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1,2", (_, _) => "{\"description\":\"I am broken\"}")
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
         
-        Func<Task> action = () => sut.RetrieveImagesForManifest(customerId, [1, 2], CancellationToken.None);
+        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
     }
     
@@ -46,13 +46,13 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 5;
-        stub.Get($"/iiif-resource/{customerId}/batch-query/1",
+        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
                 (_, _) => "{\"id\":\"some/id\", \"type\": \"Manifest\" }")
             .StatusCode(200);
         var sut = GetClient(stub);
         var expected = new Manifest() { Id = "some/id" }; 
         
-        var retrievedImages = await sut.RetrieveImagesForManifest(customerId, [1], CancellationToken.None);
+        var retrievedImages = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
 
         retrievedImages.Should().BeEquivalentTo(expected);
     }

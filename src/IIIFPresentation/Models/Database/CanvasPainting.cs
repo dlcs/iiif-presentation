@@ -1,5 +1,6 @@
 ﻿using IIIF.Presentation.V3.Strings;
 using Models.Database.Collections;
+using Models.DLCS;
 
 namespace Models.Database;
 
@@ -118,7 +119,7 @@ public class CanvasPainting : IIdentifiable
     /// <summary>
     /// An asset id showing this asset is an internal item
     /// </summary>
-    public string? AssetId { get; set; }
+    public AssetId? AssetId { get; set; }
 
     /// <summary>
     /// Whether the asset is currently being ingested into the DLCS

@@ -6,6 +6,7 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.Database;
+using Models.DLCS;
 using Canvas = IIIF.Presentation.V3.Canvas;
 using Manifest = IIIF.Presentation.V3.Manifest;
 
@@ -18,11 +19,15 @@ public class ManifestMergerTests
     {
         // Arrange
         var blankManifest = new Manifest();
-        var generatedManifest = GeneratedManifest(nameof(Merge_MergesBlankManifestWithGeneratedManifest));
+        var assetId = $"1/2/{nameof(Merge_MergesBlankManifestWithGeneratedManifest)}";
+        
+        var generatedManifest = GeneratedManifest(assetId);
+        var itemDictionary = generatedManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest, generatedManifest,
-            GenerateCanvasPaintings([nameof(Merge_MergesBlankManifestWithGeneratedManifest)]));
+        var mergedManifest = ManifestMerger.Merge(blankManifest,
+            GenerateCanvasPaintings([assetId]), itemDictionary,
+            generatedManifest.Thumbnail);
         
         // Assert
         mergedManifest.Items.Count.Should().Be(1);
@@ -38,14 +43,17 @@ public class ManifestMergerTests
     public void Merge_MergesFullManifestWithGeneratedManifest()
     {
         // Arrange
-        var blankManifest = GeneratedManifest(nameof(Merge_MergesFullManifestWithGeneratedManifest));
+        var assetId = $"1/2/{nameof(Merge_MergesFullManifestWithGeneratedManifest)}";
+        var blankManifest = GeneratedManifest(assetId);
         blankManifest.Items[0].Width = 200;
         blankManifest.Items[0].Height = 200;
-        var generatedManifest = GeneratedManifest(nameof(Merge_MergesFullManifestWithGeneratedManifest));
+        var generatedManifest = GeneratedManifest(assetId);
+        var itemDictionary = generatedManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest, generatedManifest,
-            GenerateCanvasPaintings([nameof(Merge_MergesFullManifestWithGeneratedManifest)]));
+        var mergedManifest = ManifestMerger.Merge(blankManifest,
+            GenerateCanvasPaintings([assetId]), itemDictionary,
+            generatedManifest.Thumbnail);
         
         // Assert
         mergedManifest.Items.Count.Should().Be(1);
@@ -58,16 +66,19 @@ public class ManifestMergerTests
     public void Merge_ShouldNotUpdateAttachedManifestThumbnail()
     {
         // Arrange
-        var blankManifest = GeneratedManifest(nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail));
+        var assetId = $"1/2/{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}";
+        var blankManifest = GeneratedManifest(assetId);
         blankManifest.Items[0].Width = 200;
         blankManifest.Items[0].Height = 200;
         blankManifest.Thumbnail.Add(GenerateImage());
         blankManifest.Thumbnail[0].Service[0].Id = "generatedId";
-        var generatedManifest = GeneratedManifest(nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail));
+        var generatedManifest = GeneratedManifest(assetId);
+        var itemDictionary = generatedManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest, generatedManifest,
-            GenerateCanvasPaintings([nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)]));
+        var mergedManifest = ManifestMerger.Merge(blankManifest,
+            GenerateCanvasPaintings([assetId]), itemDictionary,
+            generatedManifest.Thumbnail);
         
         // Assert
         mergedManifest.Items.Count.Should().Be(1);
@@ -82,34 +93,35 @@ public class ManifestMergerTests
     {
         // Arrange
         var blankManifest = new Manifest();
-        var generatedManifest = GeneratedManifest($"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_1");
-        generatedManifest.Items.Add(GenerateCanvas($"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_2"));
+        var generatedManifest = GeneratedManifest($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
+        generatedManifest.Items.Add(GenerateCanvas($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2"));
+        var itemDictionary = generatedManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         var canvasPaintings = GenerateCanvasPaintings([
-            $"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_1",
-            $"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_2"
+            $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1",
+            $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2"
         ]);
 
         canvasPaintings[0].CanvasOrder = 1;
         canvasPaintings[1].CanvasOrder = 0;
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest, generatedManifest,
-            canvasPaintings);
+        var mergedManifest =
+            ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary, generatedManifest.Thumbnail);
         
         // Assert
         mergedManifest.Items.Count.Should().Be(2);
         mergedManifest.Thumbnail[0].Service[0].Id.Should().Be("imageId");
         mergedManifest.Thumbnail.Count.Should().Be(1);
         // order flipped due to canvas order
-        mergedManifest.Items[0].Id.Should().Be($"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_2");
-        mergedManifest.Items[1].Id.Should().Be($"{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}_1");
+        mergedManifest.Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2");
+        mergedManifest.Items[1].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
     }
 
     private List<CanvasPainting> GenerateCanvasPaintings(List<string> idList)
     {
         var canvasOrder = 0;
-        return idList.Select(id => new CanvasPainting{Id = id, AssetId = id, CanvasOrder = canvasOrder++}).ToList();
+        return idList.Select(id => new CanvasPainting{Id = id, AssetId = AssetId.FromString(id), CanvasOrder = canvasOrder++}).ToList();
     }
 
     private Manifest GeneratedManifest(string id)

@@ -67,7 +67,7 @@ public static class ManifestConverter
             },
             Asset = cp.AssetId == null ? null : new JObject
             {
-                ["assetId"] = pathGenerator.GenerateAssetUri(cp)?.ToString()
+                ["@id"] = pathGenerator.GenerateAssetUri(cp)?.ToString()
             }
         }).ToList();
     }

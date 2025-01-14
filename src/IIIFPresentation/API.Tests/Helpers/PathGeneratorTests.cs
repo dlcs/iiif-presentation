@@ -3,6 +3,7 @@ using AWS.Helpers;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
+using Models.DLCS;
 
 namespace API.Tests.Helpers;
 
@@ -385,7 +386,7 @@ public class PathGeneratorTests
         {
             Id = "hello",
             CustomerId = 123,
-            AssetId = "5/4/12"
+            AssetId = new AssetId(5, 4, "12")
         };
 
         var expected = "https://dlcs.test/customers/5/spaces/4/images/12";
@@ -394,22 +395,9 @@ public class PathGeneratorTests
     }
     
     [Fact]
-    public void GenerateAssetUri_Null_IfCanvasPaintingHasAssetWithNotThreeSlashes()
-    {
-        var manifest = new CanvasPainting()
-        {
-            Id = "hello",
-            CustomerId = 123,
-            AssetId = "5/4"
-        };
-
-        pathGenerator.GenerateAssetUri(manifest).Should().BeNull();
-    }
-    
-    [Fact]
     public void GenerateAssetUri_Null_IfCanvasPaintingDoesNotHaveAsset()
     {
-        var manifest = new CanvasPainting()
+        var manifest = new CanvasPainting
         {
             Id = "hello",
             CustomerId = 123,

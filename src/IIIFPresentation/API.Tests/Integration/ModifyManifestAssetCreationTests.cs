@@ -187,7 +187,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
         // space comes from the asset
-        dbManifest.CanvasPaintings!.First().AssetId.Should().Be($"{Customer}/{space}/{assetId}");
+        dbManifest.CanvasPaintings!.First().AssetId.ToString().Should().Be($"{Customer}/{space}/{assetId}");
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
         dbManifest.Batches!.First().Id.Should().Be(batchId);
@@ -288,7 +288,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
         // space added using the manifest space
-        dbManifest.CanvasPaintings!.First().AssetId.Should()
+        dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
@@ -383,7 +383,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Label?.First().Should().BeNull();
         // space added using the manifest space
-        dbManifest.CanvasPaintings!.First().AssetId.Should()
+        dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
@@ -595,7 +595,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          foreach (var canvasPainting in dbManifest.CanvasPaintings!)
          {
              canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
-             canvasPainting.AssetId.Should()
+             canvasPainting.AssetId.ToString().Should()
                  .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-{currentCanvasOrder}");
              currentCanvasOrder++;
          }

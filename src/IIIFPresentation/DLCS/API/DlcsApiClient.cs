@@ -1,14 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
-using System.Security.Claims;
 using DLCS.Exceptions;
 using DLCS.Handlers;
 using DLCS.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
-using JwtRegisteredClaimNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames;
 
 namespace DLCS.API;
 

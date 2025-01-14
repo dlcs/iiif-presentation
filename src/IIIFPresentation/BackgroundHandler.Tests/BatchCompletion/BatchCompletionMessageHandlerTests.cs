@@ -4,7 +4,6 @@ using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Tests.infrastructure;
 using DLCS;
 using DLCS.API;
-using DLCS.Models;
 using FakeItEasy;
 using FluentAssertions;
 using IIIF;
@@ -17,6 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Database.General;
+using Models.DLCS;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -34,6 +34,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
+    private readonly DlcsSettings dlcsSettings;
     private readonly int customerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -42,7 +43,13 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3,
+        dlcsSettings = new DlcsSettings()
+        {
+            ApiUri = new Uri("https://localhost:5000"),
+            OrchestratorUri = new Uri("https://localhost:5000")
+        };
+        
+        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, Options.Create(dlcsSettings), iiifS3,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -64,7 +71,7 @@ public class BatchCompletionMessageHandlerTests
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     
@@ -106,14 +113,14 @@ public class BatchCompletionMessageHandlerTests
         
         var message = GetMessage(batchMessage);
 
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(new IIIF.Presentation.V3.Manifest
             {
                 Items = new List<Canvas>
                 {
                     new ()
                     {
-                        Id = fullAssetId.ToString(),
+                        Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/{fullAssetId}/canvas/c/1",
                         Width = 100,
                         Height = 100,
                         Annotations = new List<AnnotationPage>
@@ -149,16 +156,17 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustHaveHappened();
         var batch = dbContext.Batches.Single(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
-        batch.Processed.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
-        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == fullAssetId.ToString());
+        batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
+        batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
+        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == fullAssetId);
         canvasPainting.Ingesting.Should().BeFalse();
         canvasPainting.StaticWidth.Should().Be(100);
         canvasPainting.StaticHeight.Should().Be(100);
-        canvasPainting.AssetId.Should()
+        canvasPainting.AssetId.ToString().Should()
             .Be(fullAssetId.ToString());
     }
     
@@ -201,8 +209,10 @@ public class BatchCompletionMessageHandlerTests
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveImagesForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
+        var batch = await dbContext.Batches.SingleOrDefaultAsync(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Completed);
     }
 
     private Manifest CreateManifest(string manifestId, string slug, string assetId, int space, int batchId)
@@ -227,7 +237,7 @@ public class BatchCompletionMessageHandlerTests
             CanvasPaintings = [
                 new CanvasPainting
                 {
-                    AssetId = $"{customerId}/{space}/{assetId}",
+                    AssetId = new AssetId(customerId, space, assetId),
                     CanvasOrder = 0,
                     ChoiceOrder = 1,
                     CustomerId = customerId,
@@ -238,6 +248,7 @@ public class BatchCompletionMessageHandlerTests
                 new Batch
                 {
                     Id = batchId,
+                    ManifestId = manifestId,
                     CustomerId = customerId,
                     Submitted = DateTime.UtcNow,
                     Status = BatchStatus.Ingesting

@@ -1,5 +1,7 @@
 ﻿using Core.Helpers;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
+using Models.DLCS;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace BackgroundHandler.Helpers;
@@ -9,7 +11,8 @@ public static class ManifestMerger
     /// <summary>
     /// Merges a generated DLCS manifest with the current manifest in S3
     /// </summary>
-    public static Manifest Merge(Manifest baseManifest, Manifest generatedManifest, List<CanvasPainting>? canvasPaintings)
+    public static Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
+        Dictionary<AssetId, Canvas> itemDictionary, List<ExternalResource>? thumbnail)
     {
         if (baseManifest.Items == null) baseManifest.Items = [];
 
@@ -19,8 +22,7 @@ public static class ManifestMerger
         // We want to use the canvas order set when creating assets, rather than the 
         foreach (var canvasPainting in orderedCanvasPaintings)
         {
-            var generatedItem =
-                generatedManifest.Items?.SingleOrDefault(gm => gm.Id!.Contains(canvasPainting.AssetId!));
+            itemDictionary.TryGetValue(canvasPainting.AssetId!, out var generatedItem);
             
             if (generatedItem == null) continue;
             
@@ -41,7 +43,7 @@ public static class ManifestMerger
 
         if (baseManifest.Thumbnail.IsNullOrEmpty())
         {
-            baseManifest.Thumbnail = generatedManifest.Thumbnail;
+            baseManifest.Thumbnail = thumbnail;
         }
         
         return baseManifest;
