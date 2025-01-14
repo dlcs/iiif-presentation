@@ -83,18 +83,27 @@ public class BatchCompletionMessageHandler(
                 itemDictionary = generatedManifest.Items.Select(i =>
                         new KeyValuePair<AssetId, Canvas>(
                             AssetId.FromString(i.Id!.Remove(i.Id.IndexOf("/canvas", StringComparison.Ordinal))
-                                .Remove(0, $"{dlcsSettings.OrchestratorUri!.ToString()}/iii-img/".Length + 1)), i))
+                                .Remove(0, $"{dlcsSettings.OrchestratorUri!.ToString()}/iiif-img/".Length)), i))
                     .ToDictionary();
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error retrieving the canvas id from an item in {ManifestId}", generatedManifest?.Id);
+                logger.LogError(e, "Error retrieving the asset id from an item in {ManifestId}", generatedManifest?.Id);
                 throw;
             }
 
-            UpdateCanvasPaintings(generatedManifest, batch, itemDictionary!);
-            CompleteBatch(batch, batchCompletionMessage.Finished);
-            await UpdateManifestInS3(generatedManifest.Thumbnail, itemDictionary, batch, cancellationToken);
+            try
+            {
+                UpdateCanvasPaintings(generatedManifest, batch, itemDictionary);
+                CompleteBatch(batch, batchCompletionMessage.Finished);
+                await UpdateManifestInS3(generatedManifest.Thumbnail, itemDictionary, batch, cancellationToken);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error updating completing batch {BatchId} for manifest {ManifestId}", batch.Id,
+                    generatedManifest.Id);
+                throw;
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
