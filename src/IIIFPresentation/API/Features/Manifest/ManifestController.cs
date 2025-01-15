@@ -103,7 +103,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
 
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
         var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>();
-        
+
         if (presentationManifest.Error)
         {
             return this.PresentationProblem("Could not deserialize manifest", null, (int) HttpStatusCode.BadRequest,
