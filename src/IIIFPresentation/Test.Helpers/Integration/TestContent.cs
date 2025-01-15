@@ -902,4 +902,45 @@ public static class TestContent
           ]
         }
         """;
+
+    public static class Bug_158
+    {
+      public const string CollectionName = "my-collection";
+
+      public const string Collection =
+        """
+        {
+          "type": "Collection",
+          "slug": "my-collection",
+          "label": {
+            "en": [
+             "my-collection"
+            ]
+          },
+          "thumbnail": [
+            {
+              "id": "https://example.com/img/thumb.jpg",
+              "type": "Image",
+              "format": "image/jpeg",
+              "width": 512,
+              "height": 256
+            }
+          ],
+          "items": [
+            {
+              "id": "https://example.com/some-iiif-repo/basic_iiif_collection/collection_a",
+              "type": "Collection"
+            },
+            {
+              "id": "https://example.com/some-iiif-repo/basic_iiif_collection/collection_b",
+              "type": "Collection"
+            }
+          ],
+          "behavior": [
+            "public-iiif"
+          ],
+          "parent": "root"
+        }
+        """;
+    }
 }
