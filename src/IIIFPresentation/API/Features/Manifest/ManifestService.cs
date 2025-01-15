@@ -3,11 +3,11 @@ using API.Converters;
 using API.Features.Manifest.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
-using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
 using API.Settings;
+using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Helpers;
@@ -19,6 +19,7 @@ using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Collection = Models.Database.Collections.Collection;
@@ -254,7 +255,7 @@ public class ManifestService(
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
-    
+
     private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
         CancellationToken cancellationToken)
     {

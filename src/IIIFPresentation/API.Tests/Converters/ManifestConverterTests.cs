@@ -3,6 +3,7 @@ using API.Helpers;
 using API.Tests.Helpers;
 using Models.API.Manifest;
 using Models.Database.General;
+using Models.DLCS;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
 
@@ -168,7 +169,7 @@ public class ManifestConverterTests
                     Id = "the-canvas",
                     ChoiceOrder = 10,
                     CanvasOrder = 100,
-                    AssetId = "1/2/assetId"
+                    AssetId = new AssetId(1, 2, "assetId")
                 }
             ]
         };
@@ -177,12 +178,52 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
 
         // Assert
-        var cp = result.PaintedResources.Single().CanvasPainting;
-        cp.CanvasId.Should().Be("http://base/123/canvases/the-canvas");
-        cp.ChoiceOrder.Should().Be(10);
-        cp.CanvasOrder.Should().Be(100);
-        cp.CanvasOriginalId.Should().Be("http://example.test/canvas1");
-        cp.AssetId.Should().Be("https://dlcs.test/customers/1/spaces/2/images/assetId");
+        var paintedResource = result.PaintedResources.Single();
+        paintedResource.CanvasPainting.CanvasId.Should().Be("http://base/123/canvases/the-canvas");
+        paintedResource.CanvasPainting.ChoiceOrder.Should().Be(10);
+        paintedResource.CanvasPainting.CanvasOrder.Should().Be(100);
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be("http://example.test/canvas1");
+
+        paintedResource.Asset.GetValue("@id").ToString().Should().Be("https://dlcs.test/customers/1/spaces/2/images/assetId");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsCanvasPainting_WithoutAssetId()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow.AddDays(1),
+            CreatedBy = "creator",
+            ModifiedBy = "modifier",
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                {
+                    CanvasOriginalId = new Uri("http://example.test/canvas1"),
+                    CustomerId = 123,
+                    Id = "the-canvas",
+                    ChoiceOrder = 10,
+                    CanvasOrder = 100
+                }
+            ]
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+
+        // Assert
+        var paintedResource = result.PaintedResources.Single();
+        paintedResource.CanvasPainting.CanvasId.Should().Be("http://base/123/canvases/the-canvas");
+        paintedResource.CanvasPainting.ChoiceOrder.Should().Be(10);
+        paintedResource.CanvasPainting.CanvasOrder.Should().Be(100);
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be("http://example.test/canvas1");
+        paintedResource.Asset.Should().BeNull();
     }
     
     [Fact]

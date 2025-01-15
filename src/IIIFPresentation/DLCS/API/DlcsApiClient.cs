@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
-using System.Text.Json;
 using DLCS.Exceptions;
 using DLCS.Handlers;
 using DLCS.Models;
@@ -90,7 +89,7 @@ internal class DlcsApiClient(
     {
         var request = new HttpRequestMessage(httpMethod, path);
         request.Content = DlcsHttpContent.GenerateJsonContent(payload);
-        
+
         var response = await httpClient.SendAsync(request, cancellationToken);
         return await response.ReadAsDlcsResponse<T>(cancellationToken);
     }

@@ -52,7 +52,7 @@ var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
 builder.Services
-    .AddDlcsClient(dlcs)
+    .AddDlcsApiClient(dlcs)
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);

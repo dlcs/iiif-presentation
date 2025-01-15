@@ -1,11 +1,11 @@
 ﻿using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
-using API.Infrastructure.AWS;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using API.Settings;
+using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Exceptions;

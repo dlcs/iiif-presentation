@@ -1,11 +1,13 @@
 ﻿using API.Helpers;
 using Core.Helpers;
 using Core.IIIF;
+using DLCS.Models;
 using IIIF;
 using IIIF.Presentation;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 
 namespace API.Converters;
 
@@ -62,7 +64,10 @@ public static class ManifestConverter
                 Label = cp.Label,
                 CanvasOriginalId = cp.CanvasOriginalId?.ToString(),
                 CanvasLabel = cp.CanvasLabel,
-                AssetId = pathGenerator.GenerateAssetUri(cp)?.ToString()
+            },
+            Asset = cp.AssetId == null ? null : new JObject
+            {
+                ["@id"] = pathGenerator.GenerateAssetUri(cp)?.ToString()
             }
         }).ToList();
     }

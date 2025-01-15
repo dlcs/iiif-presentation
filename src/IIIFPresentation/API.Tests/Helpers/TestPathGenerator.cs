@@ -7,16 +7,18 @@ namespace API.Tests.Helpers;
 
 public static class TestPathGenerator
 {
-    public static PathGenerator CreatePathGenerator(string baseUrl, string scheme) 
+    public static PathGenerator CreatePathGenerator(string baseUrl, string scheme)
         => new(new HttpContextAccessor
-        {
-            HttpContext = new DefaultHttpContext
             {
-                Request =
+                HttpContext = new DefaultHttpContext
                 {
-                    Scheme = scheme,
-                    Host = new HostString(baseUrl)
+                    Request =
+                    {
+                        Scheme = scheme,
+                        Host = new HostString(baseUrl)
+                    }
                 }
-            }
-        }, Options.Create(new DlcsSettings { ApiUri = new Uri("https://dlcs.test") }));
+            },
+            Options.Create(new DlcsSettings
+                { ApiUri = new Uri("https://dlcs.test") }));
 }

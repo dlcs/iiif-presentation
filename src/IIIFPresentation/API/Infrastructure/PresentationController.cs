@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using API.Converters;
 using API.Exceptions;
 using API.Infrastructure.Requests;
 using API.Settings;

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20241217155051_addFinishedToBatch")]
+    partial class addFinishedToBatch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,10 +69,6 @@ namespace Repository.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text")
                         .HasColumnName("canvas_id");
-
-                    b.Property<bool>("Ingesting")
-                        .HasColumnType("boolean")
-                        .HasColumnName("ingesting");
 
                     b.Property<string>("Label")
                         .HasColumnType("jsonb")
@@ -246,10 +245,6 @@ namespace Repository.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("manifest_id");
-
-                    b.Property<DateTime?>("Processed")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed");
 
                     b.Property<string>("Status")
                         .IsRequired()

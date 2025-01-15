@@ -1,13 +1,11 @@
 ﻿using System.Reflection;
-using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Mediatr.Behaviours;
 using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
 using AWS.Configuration;
+using AWS.Helpers;
 using AWS.S3;
-using AWS.Settings;
-using AWS.SQS;
 using MediatR;
 using Repository;
 using Sqids;

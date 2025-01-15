@@ -25,6 +25,16 @@ public class Batch
     public DateTime Submitted { get; set; }
     
     /// <summary>
+    /// When the batch was finished by the DLCS
+    /// </summary>
+    public DateTime? Finished { get; set; }
+    
+    /// <summary>
+    /// When the batch was processed by presentation
+    /// </summary>
+    public DateTime? Processed { get; set; }
+    
+    /// <summary>
     /// Id of related manifest
     /// </summary>
     public required string ManifestId { get; set; }

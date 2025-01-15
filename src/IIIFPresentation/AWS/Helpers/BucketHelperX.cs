@@ -1,6 +1,6 @@
 ﻿using Models.Database.Collections;
 
-namespace API.Helpers;
+namespace AWS.Helpers;
 
 public static class BucketHelperX
 {

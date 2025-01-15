@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -217,8 +218,9 @@ public class CanvasPaintingResolver(
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
                 CanvasOrder = count,
-                AssetId = $"{customerId}/{space}/{id}",
-                ChoiceOrder = -1
+                AssetId = AssetId.FromString($"{customerId}/{space}/{id}"),
+                ChoiceOrder = -1,
+                Ingesting = true
             };
 
             count++;

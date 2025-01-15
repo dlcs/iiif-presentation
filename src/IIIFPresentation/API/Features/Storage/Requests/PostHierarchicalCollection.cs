@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using API.Features.Storage.Helpers;
 using API.Helpers;
-using API.Infrastructure.AWS;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
+using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.IIIF;

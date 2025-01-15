@@ -1,8 +1,8 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
-using API.Infrastructure.AWS;
 using API.Infrastructure.Requests;
+using AWS.Helpers;
 using MediatR;
 using Models.API.Manifest;
 using Repository;
