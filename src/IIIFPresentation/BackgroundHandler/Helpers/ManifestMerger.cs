@@ -22,9 +22,7 @@ public static class ManifestMerger
         // We want to use the canvas order set when creating assets, rather than the 
         foreach (var canvasPainting in orderedCanvasPaintings)
         {
-            itemDictionary.TryGetValue(canvasPainting.AssetId!, out var generatedItem);
-            
-            if (generatedItem == null) continue;
+            if (!itemDictionary.TryGetValue(canvasPainting.AssetId!, out var generatedItem)) continue;
             
             var existingItem = indexedBaseManifest.FirstOrDefault(bm => bm.item.Id == generatedItem.Id);
 
