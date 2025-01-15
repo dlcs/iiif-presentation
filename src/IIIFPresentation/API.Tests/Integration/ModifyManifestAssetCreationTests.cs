@@ -6,8 +6,8 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
@@ -78,7 +78,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                     {
                         CanvasId = "https://iiif.example/manifest.json"
                     },
-                    Asset = new JObject()
+                    Asset = new(new JProperty("id", "perhapsId"))
                 }
             }
         };
@@ -195,7 +195,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }
@@ -297,7 +297,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }
@@ -392,7 +392,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }

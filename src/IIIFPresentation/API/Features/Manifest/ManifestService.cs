@@ -192,24 +192,51 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
-        var assets = request.PresentationManifest.PaintedResources?.Select(p => p.Asset).ToList();
-        
-        if (!request.CreateSpace && !assets.IsNullOrEmpty())
+        var assets = request.PresentationManifest.PaintedResources?
+            .Select(p => p.Asset)
+            .OfType<JObject>()
+            .ToList();
+
+        var manifestSpace = request.PresentationManifest.Space;
+        if (!assets.IsNullOrEmpty())
         {
-            return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
+            if (assets.Any(a => !a.HasValues))
+                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+
+            if (!request.CreateSpace)
+                return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
         }
         
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
         if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
         
-        var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
+        var timeStamp = DateTime.UtcNow;
         
+        if (!assets.IsNullOrEmpty())
+        {
+            try
+            {
+                var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
+                    assets,
+                    cancellationToken);
+
+                await batches.AddBatchesToDatabase(request.CustomerId, manifestId, dbContext, cancellationToken);
+            }
+            catch (DlcsException exception)
+            {
+                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
+                return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
+                    WriteResult.Error), null);
+            }
+        }
+
+        var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
+
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 await spaceIdTask, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
-        var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
             Id = manifestId,
@@ -225,32 +252,14 @@ public class ManifestService(
                     Slug = request.PresentationManifest.Slug!,
                     Canonical = true,
                     Type = ResourceType.IIIFManifest,
-                    Parent = parentCollection.Id,
+                    Parent = parentCollection.Id
                 }
             ],
             CanvasPaintings = canvasPaintings,
             SpaceId = await spaceIdTask
         };
-        
+
         await dbContext.AddAsync(dbManifest, cancellationToken);
-        
-        if (!assets.IsNullOrEmpty())
-        {
-            try
-            {
-                var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
-                    assets,
-                    cancellationToken);
-                    
-                await batches.AddBatchesToDatabase(dbManifest, dbContext, cancellationToken);
-            }
-            catch (DlcsException exception)
-            {
-                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
-                return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
-                    WriteResult.Error), null);
-            }
-        }
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
