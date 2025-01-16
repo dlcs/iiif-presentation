@@ -37,6 +37,8 @@ sequenceDiagram
     loop Until message recieved
     P -->> SU: Listen for batch completion
     end
+    P -->>+ D: Retrieve asset details
+    D -->>- P: 
     P -->> S: Update stored manifest
     P --> P: Update database
     User ->>+ P: Request IIIF manifest
