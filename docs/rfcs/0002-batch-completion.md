@@ -10,6 +10,39 @@ This RFC outlines how the following will be accomplished:
 - Retrieve details from the DLCS Orchestrator
 - Update the manifest and database with details from the DLCS
 
+## Full process
+
+This is an example of how this batch completion process works end to end
+
+```mermaid
+---
+title: Batch completion process end to end
+---
+sequenceDiagram
+    actor User
+    participant P as Presentation
+    participant D as IIIF cloud services
+    participant PU as Publisher
+    participant SU as Subscriber
+    participant S as Manifest storage
+    User ->+ P: Presentation request wih assets
+    P -> P: Generate DLCS asset requests and initial manifest
+    P -->> S: Store manifest
+    P -->>+ D: Upload assets in batch request
+    D -->> P: Response
+    P ->>- User: Presentation request Response
+    D --> D: Complete images
+    D -->>- PU: Notify batch completion
+    PU -->> SU: Publish message
+    loop Until message recieved
+    P -->> SU: Listen for batch completion
+    end
+    P -->> S: Update stored manifest
+    P --> P: Update database
+    User ->>+ P: Request IIIF manifest
+    P ->>- User: Response
+```
+
 ## Proposal
 
 Updating the details of a batch requires a call to orchestrator to add the `Image-Service` and thumbnails.
