@@ -506,4 +506,43 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
             .Be("https://iiif.example/manifestFromItems.json");
         presentationManifest.Items.Count.Should().Be(1);
     }
+    
+    [Fact]
+    public async Task? CreateManifest_ReturnsNiceError_WhenDeserializationError()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_ReturnsNiceError_WhenDeserializationError);
+        var manifest = $$"""
+                         {
+                           "slug": "{{slug}}",
+                           "parent": "https://presentation-api.dlcs.digirati.io/52/collections/root",
+                           "type": "Manifest",
+                           "label": {
+                             "en": [
+                               "Example Manifest"
+                             ]
+                           },
+                           "behavior": [
+                             "paged"
+                           ],
+                           "items": [
+                             {
+                               "my_external_manifest": "https://digirati.io/resources/cheese.json"
+                             }
+                           ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/brokenManifest",
+                manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        errorResponse!.Detail.Should().Be("Could not deserialize manifest");
+    }
 }

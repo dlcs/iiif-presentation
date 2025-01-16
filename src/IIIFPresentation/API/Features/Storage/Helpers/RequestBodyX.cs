@@ -2,6 +2,7 @@
 using Core.IIIF;
 using IIIF;
 using IIIF.Serialisation;
+using Models.API;
 using Models.API.Collection;
 
 namespace API.Features.Storage.Helpers;
@@ -35,19 +36,20 @@ public static class RequestBodyX
     /// </summary>
     /// <param name="requestBody">The raw request body to convert</param>
     /// <returns>A result containing the deserialized collection, or a failure</returns>
-    public static async Task<TryConvertIIIFResult<PresentationCollection>> TryDeserializePresentationCollection(this string requestBody) 
+    public static async Task<TryConvertIIIFResult<T>> TryDeserializePresentation<T>(this string requestBody) 
+        where T : JsonLdBase, new()
     {
         try
         {
-            var collection = await requestBody.ToPresentation<PresentationCollection>();
+            var collection = await requestBody.ToPresentation<T>();
             
             return collection == null
-                ? TryConvertIIIFResult<PresentationCollection>.Failure()
-                : TryConvertIIIFResult<PresentationCollection>.Success(collection);
+                ? TryConvertIIIFResult<T>.Failure()
+                : TryConvertIIIFResult<T>.Success(collection);
         }
         catch (Exception)
         {
-            return TryConvertIIIFResult<PresentationCollection>.Failure();
+            return TryConvertIIIFResult<T>.Failure();
         }
     }
 }
