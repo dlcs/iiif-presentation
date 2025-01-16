@@ -25,10 +25,10 @@ The Linked Data Platform is complicated and we don't want to do it like that (Fe
 
 Suppose we create a IIIF Collection to represent a three volume printed edition of _The Lord of the Rings_ (LOTR). Each volume will be a separate Manifest. For both content management and URL design, these three Manifests are contained by the LOTR IIIF Collection:
 
-https://iiif.dlcs.io/99/fiction/lotr
-https://iiif.dlcs.io/99/fiction/lotr/fellowship
-https://iiif.dlcs.io/99/fiction/lotr/two-towers
-https://iiif.dlcs.io/99/fiction/lotr/return
+ - https://iiif.dlcs.io/99/fiction/lotr
+ - https://iiif.dlcs.io/99/fiction/lotr/fellowship
+ - https://iiif.dlcs.io/99/fiction/lotr/two-towers
+ - https://iiif.dlcs.io/99/fiction/lotr/return
 
 We have created these three Manifests and put them into the LOTR Collection.
 The platform generates an `items` property on the public collection for us.
