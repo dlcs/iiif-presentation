@@ -192,24 +192,37 @@ public class ManifestService(
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
+        const string spaceProperty = "space";
         var assets = request.PresentationManifest.PaintedResources?
             .Select(p => p.Asset)
             .OfType<JObject>()
-            .ToList();
-
+            .ToList() ?? [];
+        
         var manifestSpace = request.PresentationManifest.Space;
-        if (!assets.IsNullOrEmpty())
+
+        int? spaceId = null;
+
+        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
+        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+
+        if (request.CreateSpace || assets.Count > 0)
         {
             if (assets.Any(a => !a.HasValues))
                 return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
 
-            if (!request.CreateSpace)
-                return (ErrorHelper.SpaceRequired<PresentationManifest>(), null);
+            var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(spaceProperty, out _)).ToArray();
+            if (request.CreateSpace || (string.IsNullOrEmpty(manifestSpace) && assetsWithoutSpaces.Length > 0))
+            {
+                // Either you want a space or we detected you need a space regardless
+                spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
+                if (!spaceId.HasValue)
+                    return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+
+                foreach (var asset in assetsWithoutSpaces)
+                    asset.Add(spaceProperty, spaceId.Value);
+            }
         }
-        
-        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
-        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-        
+
         var timeStamp = DateTime.UtcNow;
         
         if (!assets.IsNullOrEmpty())
@@ -229,12 +242,10 @@ public class ManifestService(
                     WriteResult.Error), null);
             }
         }
-
-        var spaceIdTask = CreateSpaceIfRequired(request.CustomerId, manifestId, request.CreateSpace, cancellationToken);
-
+        
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                await spaceIdTask, cancellationToken);
+                spaceId, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
         var dbManifest = new DbManifest
@@ -256,7 +267,7 @@ public class ManifestService(
                 }
             ],
             CanvasPaintings = canvasPaintings,
-            SpaceId = await spaceIdTask
+            SpaceId = spaceId
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);
@@ -265,11 +276,9 @@ public class ManifestService(
         return (saveErrors, dbManifest);
     }
 
-    private async Task<int?> CreateSpaceIfRequired(int customerId, string manifestId, bool createSpace,
+    private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
     {
-        if (!createSpace) return null;
-        
         logger.LogDebug("Creating new space for customer {Customer}", customerId);
         var newSpace =
             await dlcsApiClient.CreateSpace(customerId, ManifestX.GetDefaultSpaceName(manifestId), cancellationToken);
