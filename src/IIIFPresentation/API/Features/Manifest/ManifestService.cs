@@ -216,7 +216,7 @@ public class ManifestService(
                 // Either you want a space or we detected you need a space regardless
                 spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
                 if (!spaceId.HasValue)
-                    return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+                    return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null);
 
                 foreach (var asset in assetsWithoutSpaces)
                     asset.Add(spaceProperty, spaceId.Value);
