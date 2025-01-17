@@ -6,8 +6,8 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
@@ -62,10 +62,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     }
     
     [Fact]
-    public async Task CreateManifest_BadRequest_WhenNoSpaceHeader()
+    public async Task CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader()
     {
+        const string postedAssetId = "theAssetId";
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenNoSpaceHeader);
+        var slug = nameof(CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader);
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -78,7 +79,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                     {
                         CanvasId = "https://iiif.example/manifest.json"
                     },
-                    Asset = new JObject()
+                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 123))
                 }
             }
         };
@@ -90,10 +91,22 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.Detail.Should().Be("A request with assets requires the space header to be set");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/RequiresSpaceHeader");
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+
+        requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Should().NotBeNull();
+        responseManifest!.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources!.Count.Should().Be(1);
+        responseManifest.PaintedResources.Single().Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
+        assetId!.Type.Should().Be(JTokenType.String);
+        assetId!.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
     
     [Fact]
@@ -195,7 +208,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }
@@ -297,7 +310,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }
@@ -392,7 +405,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
     }
