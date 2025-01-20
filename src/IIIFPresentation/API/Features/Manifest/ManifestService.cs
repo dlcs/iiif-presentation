@@ -165,14 +165,8 @@ public class ManifestService(
             await SaveToS3(dbManifest!, request, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, null), WriteResult.Updated);
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
         }
-    }
-
-    private bool CheckForItemsAndPaintedResources(PresentationManifest presentationManifest)
-    {
-        return !presentationManifest.Items.IsNullOrEmpty() &&
-               !presentationManifest.PaintedResources.IsNullOrEmpty();
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
