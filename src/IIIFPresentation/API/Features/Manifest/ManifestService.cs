@@ -296,6 +296,10 @@ public class ManifestService(
         {
             if (batch.ResourceId is not {Length: > 0} resourceId)
                 continue;
+
+            if (batch.ResourceId.All(char.IsDigit) && int.TryParse(batch.ResourceId, out var pureId))
+                yield return pureId;
+            
             if (!Uri.TryCreate(resourceId, UriKind.Absolute, out var uri))
                 continue;
             if (uri.Segments is not [.., {Length: > 0} last])
