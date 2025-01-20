@@ -51,6 +51,57 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         A.CallTo(() => dlcsApiClient.IngestAssets(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
             A<CancellationToken>._)).Throws(new DlcsException("DLCS exception"));
+
+        A.CallTo(() => dlcsApiClient.GetBatchAssets(Customer, 2137, A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse(
+                    """
+                    {
+                           "@context": "https://localhost/contexts/Image.jsonld",
+                           "@id": "https://localhost:7230/customers/1/spaces/999/images/2025_01_16_0758",
+                           "@type": "vocab:Image",
+                           "id": "2025_01_16_0758",
+                           "space": 15,
+                           "imageService": "https://localhost/iiif-img/1/15/2025_01_16_0758",
+                           "thumbnailImageService": "https://localhost/thumbs/1/15/2025_01_16_0758",
+                           "created": "2025-01-20T15:54:43.290925Z",
+                           "origin": "https://example.com/photos/example.jpg",
+                           "maxUnauthorised": -1,
+                           "duration": 0,
+                           "width": 0,
+                           "height": 0,
+                           "ingesting": true,
+                           "error": "",
+                           "tags": [],
+                           "string1": "",
+                           "string2": "",
+                           "string3": "",
+                           "number1": 0,
+                           "number2": 0,
+                           "number3": 0,
+                           "roles": [],
+                           "batch": "https://localhost/customers/1/queue/batches/2137",
+                           "metadata": "https://localhost/customers/1/spaces/15/images/2025_01_16_0758/metadata",
+                           "storage": "https://localhost/customers/1/spaces/15/images/2025_01_16_0758/storage",
+                           "mediaType": "image/jpeg",
+                           "family": "I",
+                           "deliveryChannels": [
+                             {
+                               "@type": "vocab:DeliveryChannel",
+                               "channel": "iiif-img",
+                               "policy": "default"
+                             },
+                             {
+                               "@type": "vocab:DeliveryChannel",
+                               "channel": "thumbs",
+                               "policy": "https://localhost/customers/1/deliveryChannelPolicies/thumbs/default"
+                             }
+                           ]
+                         }
+                    """
+                )
+            ]);
         
         dbContext = storageFixture.DbFixture.DbContext;
 
@@ -211,6 +262,64 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsAssetDetails_FromGetBatchAssets()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_ReturnsAssetDetails_FromGetBatchAssets);
+        var space = 15;
+        var assetId = "testAssetByPresentation-assetDetails";
+        var batchId = 2137;
+        var manifestWithSpace =
+            $$"""
+              {
+                  "type": "Manifest",
+                  "parent": "root",
+                  "slug": "{{slug}}",
+                  "rights": "https://creativecommons.org/licenses/by/4.0/",
+                  "label": {
+                      "en": [
+                          "I have assets"
+                      ]
+                  },
+                  "paintedResources": [
+                      {
+                          "asset": {
+                              "id": "2025_01_16_0758",
+                              "batch": 2137,
+                              "origin": "https://example.com/photos/example.jpg",
+                              "mediaType": "image/jpeg"
+                          }
+                      }
+                  ]
+              }
+              """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+
+        responseManifest.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources.Should().HaveCount(1);
+        responseManifest.PaintedResources!.Single().Asset.Should().NotBeNull();
+        responseManifest.PaintedResources!.Single().Asset!.GetValue("batch")!.Value<string>().Should()
+            .Be("https://localhost/customers/1/queue/batches/2137");
     }
     
     [Fact]

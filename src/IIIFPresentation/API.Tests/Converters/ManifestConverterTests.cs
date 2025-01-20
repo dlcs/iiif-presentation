@@ -139,7 +139,8 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, manifest => manifest.Hierarchy.Last());
+        var result =
+            iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, null, manifest => manifest.Hierarchy.Last());
 
         // Assert
         result.Slug.Should().Be("other-slug");

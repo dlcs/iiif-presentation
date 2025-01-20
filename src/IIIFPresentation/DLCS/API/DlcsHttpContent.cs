@@ -7,7 +7,10 @@ using DLCS.Converters;
 using DLCS.Exceptions;
 using DLCS.Models;
 using IIIF.Serialisation;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using JsonLdBase = IIIF.JsonLdBase;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace DLCS.API;
 
@@ -41,6 +44,22 @@ internal static class DlcsHttpContent
         }
 
         throw await CheckAndThrowResponseError(response, cancellationToken);
+    }
+
+    public static async Task<JObject?> ReadAsJsonResponse(this HttpResponseMessage response,
+        CancellationToken cancellationToken = default)
+    {
+        if (!response.IsSuccessStatusCode)
+            throw await CheckAndThrowResponseError(response, cancellationToken);
+
+        try
+        {
+            return JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+        catch (JsonReaderException jre)
+        {
+            throw new DlcsException("Error reading DLCS response", jre);
+        }
     }
     
     public static async Task<T?> ReadAsIIIFResponse<T>(this HttpResponseMessage response,

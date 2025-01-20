@@ -2,16 +2,12 @@
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
-using Core;
 using Core.Helpers;
 using DLCS;
-using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
-using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
 using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
