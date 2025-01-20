@@ -5,6 +5,7 @@ using DLCS.Handlers;
 using DLCS.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 
 namespace DLCS.API;
 
@@ -25,6 +26,9 @@ public interface IDlcsApiClient
     /// </summary>
     public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
         CancellationToken cancellationToken = default);
+
+    Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -52,8 +56,8 @@ internal class DlcsApiClient(
         logger.LogTrace("Creating new space for customer {CustomerId}, {SpaceName}", customerId, name);
         var spacePath = $"/customers/{customerId}/spaces";
         var payload = new Space { Name = name };
-        
-        var space = await CallDlcsApi<Space>(HttpMethod.Post, spacePath, payload, cancellationToken);
+
+        var space = await CallDlcsApiFor<Space>(HttpMethod.Post, spacePath, payload, cancellationToken);
         return space ?? throw new DlcsException("Failed to create space");
     }
     
@@ -69,8 +73,8 @@ internal class DlcsApiClient(
         var tasks = chunkedImageList.Select(async chunkedImages =>
         {
             var hydraImages = new HydraCollection<T>(chunkedImages);
-            
-            var batch = await CallDlcsApi<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
+
+            var batch = await CallDlcsApiFor<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)
             {
                 logger.LogError("Could not understand the batch response for customer {CustomerId}", customerId);
@@ -84,13 +88,45 @@ internal class DlcsApiClient(
         return batches.ToList();
     }
 
-    private async Task<T?> CallDlcsApi<T>(HttpMethod httpMethod, string path, object payload,
+    public async Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Requesting assets for batch {BatchId} for customer {CustomerId}", batchId, customerId);
+        var endpoint = $"/customers/{customerId}/queue/batches/{batchId}/assets";
+
+        var assets = await CallDlcsApiForJson(HttpMethod.Get, endpoint, null, cancellationToken);
+
+        return assets switch
+        {
+            null => [],
+            not null when assets.TryGetValue("member", out var member)
+                          && member.Type == JTokenType.Array => member.OfType<JObject>().ToList(),
+            _ => []
+        };
+    }
+
+    private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,
+        CancellationToken cancellationToken)
+    {
+        var response = await CallDlcsApi(httpMethod, path, payload, cancellationToken);
+        return await response.ReadAsJsonResponse(cancellationToken);
+    }
+
+    private async Task<T?> CallDlcsApiFor<T>(HttpMethod httpMethod, string path, object? payload,
+        CancellationToken cancellationToken)
+    {
+        var response = await CallDlcsApi(httpMethod, path, payload, cancellationToken);
+        return await response.ReadAsDlcsResponse<T>(cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage> CallDlcsApi(HttpMethod httpMethod, string path, object? payload,
         CancellationToken cancellationToken)
     {
         var request = new HttpRequestMessage(httpMethod, path);
-        request.Content = DlcsHttpContent.GenerateJsonContent(payload);
+        if (payload != null)
+            request.Content = DlcsHttpContent.GenerateJsonContent(payload);
 
         var response = await httpClient.SendAsync(request, cancellationToken);
-        return await response.ReadAsDlcsResponse<T>(cancellationToken);
+        return response;
     }
 }
