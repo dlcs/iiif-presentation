@@ -147,6 +147,70 @@ public class DlcsApiClientTests
         await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
     }
 
+    [Fact]
+    public async Task GetBatchAssets_ReturnsListOfAssets_WhenAssets()
+    {
+        const int batchId = 2137;
+
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Get($"/customers/{customerId}/queue/batches/{batchId}/assets",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                           "member": [
+                            { "someAssetProp": "someAssetValue-this can be arbitrary" }
+                           ]
+                           }
+                          """)
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetBatchAssets(customerId, batchId, CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetBatchAssets_ReturnsListOfAssets_WhenNoAssets()
+    {
+        const int batchId = 2137;
+
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Get($"/customers/{customerId}/queue/batches/{batchId}/assets",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                            "fnord": "I have no member prop even"
+                           }
+                          """)
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetBatchAssets(customerId, batchId, CancellationToken.None);
+
+        assets.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task GetBatchAssets_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        const int batchId = 2137;
+        stub.Get($"/customers/{customerId}/queue/batches/{batchId}/assets",
+                (_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.GetBatchAssets(customerId, batchId, CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+    }
+
     private static DlcsApiClient GetClient(ApiStub stub)
     {
         stub.EnsureStarted();
