@@ -126,7 +126,7 @@ Also, the Manifest Editor is not actually interested in containedItems, that's n
 
 ## Question
 
-After I've edited the items JSON and added the external reference to <last-ringbearer>, my containedItems and items have diverged.
+After I've edited the items JSON and added the external reference to `<last-ringbearer>`, my containedItems and items have diverged.
 if I then POST this for storage (containment) in the LOTR collection:
 
 ```
