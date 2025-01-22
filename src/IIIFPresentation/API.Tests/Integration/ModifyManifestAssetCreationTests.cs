@@ -52,6 +52,12 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
             A<CancellationToken>._)).Throws(new DlcsException("DLCS exception"));
 
+        A.CallTo(() => dlcsApiClient.GetBatchAssets(Customer, 404, A<CancellationToken>._))
+            .ReturnsLazily(() => []);
+
+        A.CallTo(() => dlcsApiClient.GetBatchAssets(Customer, 500, A<CancellationToken>._))
+            .Throws(new DlcsException("DLCS exception"));
+        
         A.CallTo(() => dlcsApiClient.GetBatchAssets(Customer, 2137, A<CancellationToken>._))
             .ReturnsLazily(() =>
             [
@@ -265,6 +271,122 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     }
 
     [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_IfGetBatchAssetsFails()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetBatchAssetsFails);
+        var space = 15;
+        var assetId = "testAssetByPresentation-assetDetailsFail";
+        var batchId = 500;
+        var manifestWithSpace =
+            $$"""
+              {
+                  "type": "Manifest",
+                  "parent": "root",
+                  "slug": "{{slug}}",
+                  "rights": "https://creativecommons.org/licenses/by/4.0/",
+                  "label": {
+                      "en": [
+                          "I have assets"
+                      ]
+                  },
+                  "paintedResources": [
+                      {
+                          "asset": {
+                              "id": "2025_01_16_0758",
+                              "batch": {{batchId}},
+                              "origin": "https://example.com/photos/example.jpg",
+                              "mediaType": "image/jpeg"
+                          }
+                      }
+                  ]
+              }
+              """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+
+        responseManifest.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources.Should().HaveCount(1);
+        responseManifest.PaintedResources!.Single().Asset.Should().NotBeNull();
+        responseManifest.PaintedResources!.Single().Asset!.GetValue("error")!.Value<string>().Should()
+            .Be("DLCS exception");
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_IfGetBatchAssetsMissing()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetBatchAssetsMissing);
+        var space = 15;
+        var assetId = "testAssetByPresentation-assetDetailsMissing";
+        var batchId = 404;
+        var manifestWithSpace =
+            $$"""
+              {
+                  "type": "Manifest",
+                  "parent": "root",
+                  "slug": "{{slug}}",
+                  "rights": "https://creativecommons.org/licenses/by/4.0/",
+                  "label": {
+                      "en": [
+                          "I have assets"
+                      ]
+                  },
+                  "paintedResources": [
+                      {
+                          "asset": {
+                              "id": "2025_01_16_0758",
+                              "batch": {{batchId}},
+                              "origin": "https://example.com/photos/example.jpg",
+                              "mediaType": "image/jpeg"
+                          }
+                      }
+                  ]
+              }
+              """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+
+        responseManifest.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources.Should().HaveCount(1);
+        responseManifest.PaintedResources!.Single().Asset.Should().NotBeNull();
+        responseManifest.PaintedResources!.Single().Asset!.GetValue("error")!.Value<string>().Should()
+            .Be("Asset not found");
+    }
+
+    [Fact]
     public async Task CreateManifest_ReturnsAssetDetails_FromGetBatchAssets()
     {
         // Arrange
@@ -288,7 +410,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                       {
                           "asset": {
                               "id": "2025_01_16_0758",
-                              "batch": 2137,
+                              "batch": {{batchId}},
                               "origin": "https://example.com/photos/example.jpg",
                               "mediaType": "image/jpeg"
                           }
