@@ -161,14 +161,20 @@ public class ManifestMergerTests
         mergedManifest.Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         mergedManifest.Items[1].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_4");
         mergedManifest.Items[2].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_5");
-        mergedManifest.Items[0].Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
-        mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
+        
+        var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotation(0);
+        
+        currentCanvasAnnotation.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
+        currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
 
-        var firstAnnotationBody = mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
+        var target = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Target as Canvas;
+        target.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
+
+        var firstAnnotationBody = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
         firstAnnotationBody.Items[0].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         firstAnnotationBody.Items[1].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_3");
         
-        var secondAnnotationBody = mergedManifest.Items[1].Items[0].Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
+        var secondAnnotationBody =  mergedManifest.GetCurrentCanvasAnnotation(1).Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
         secondAnnotationBody.Items[0].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_4");
         secondAnnotationBody.Items[1].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2");
     }
@@ -214,10 +220,16 @@ public class ManifestMergerTests
         // should be 1 + 3 then 4 + 2 then 5
         mergedManifest.Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         mergedManifest.Items[1].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_3");
-        mergedManifest.Items[0].Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
-        mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
+        
+        var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotation(0);
+        
+        currentCanvasAnnotation.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
+        currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
+        
+        var target = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Target as Canvas;
+        target.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
 
-        var firstAnnotationBody = mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
+        var firstAnnotationBody = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
         firstAnnotationBody.Items[0].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         firstAnnotationBody.Items[0].As<Image>().Label.Keys.Should().Contain("after_update");
         firstAnnotationBody.Items[1].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2");
@@ -262,9 +274,15 @@ public class ManifestMergerTests
         mergedManifest.Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         mergedManifest.Items[1].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_3");
 
-        mergedManifest.Items[0].Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
-        mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
-        var firstAnnotationBody = mergedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
+        var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotation(0);
+
+        currentCanvasAnnotation.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_AnnotationPage");
+        currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1_PaintingAnnotation");
+        
+        var target = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Target as Canvas;
+        target.Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
+        
+        var firstAnnotationBody = currentCanvasAnnotation.Items[0].As<PaintingAnnotation>().Body.As<PaintingChoice>();
         firstAnnotationBody.Items[0].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
         firstAnnotationBody.Items[0].As<Image>().Label.Keys.Should().Contain("after_update");
         firstAnnotationBody.Items[1].As<Image>().Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2");

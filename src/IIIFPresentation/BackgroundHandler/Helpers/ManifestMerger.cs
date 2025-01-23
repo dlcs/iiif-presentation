@@ -85,7 +85,9 @@ public static class ManifestMerger
                         Id = namedQueryItem.GetFirstAnnotationPage()?.Id,
                         Label = namedQueryItem.GetFirstAnnotationPage()?.Label,
                         Items = []
-                    }]
+                    }],
+                    Width = namedQueryItem.Width,
+                    Height = namedQueryItem.Height,
                 }
             ];
 
@@ -100,10 +102,12 @@ public static class ManifestMerger
             // update the identifier and label of the canvas based on the identifier and label of the first choice
             baseManifest.Items[index].Id = namedQueryItem.Id;
             baseManifest.Items[index].Label = namedQueryItem.Label;
-            paintingAnnotation.Target ??= baseManifest.Items[index];
             
             paintingAnnotation.Body = baseImage;
-            baseManifest.Items![index].Items![0].Items!.Add(paintingAnnotation);
+            paintingAnnotation.Id ??= namedQueryAnnotation.Id;
+            paintingAnnotation.Label ??= namedQueryAnnotation.Label;
+            paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
+            baseManifest.GetCurrentCanvasAnnotation(index).Items!.Add(paintingAnnotation);
         }
         else
         {
@@ -111,7 +115,7 @@ public static class ManifestMerger
             baseImage.Items![baseImageIndex.Value] = namedQueryImage;
             baseImage.Service ??= namedQueryAnnotation.Service;
             paintingAnnotation.Body = baseImage;
-            baseManifest.Items![index].Items![0].Items![0] = paintingAnnotation;
+            baseManifest.GetCurrentCanvasAnnotation(index).Items![0] = paintingAnnotation;
         }
     }
 
@@ -120,6 +124,8 @@ public static class ManifestMerger
     {
         List<AnnotationPage> baseManifestPaintingAnnotations;
         var namedQueryAnnotationPage = namedQueryItem.GetFirstAnnotationPage();
+        var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
+        var namedQueryImage = (Image)namedQueryAnnotation?.Body;
         
         // is this the first item in a new choice order?
         if (baseManifest.Items?.Count == index)
@@ -130,7 +136,9 @@ public static class ManifestMerger
             
             baseManifest.Items.Add(new Canvas
             {
-                Items = baseManifestPaintingAnnotations
+                Items = baseManifestPaintingAnnotations,
+                Height = namedQueryImage?.Height,
+                Width = namedQueryImage?.Width,
             });
             
             // set the identifier and label of the canvas based on the identifier and label of the first choice
@@ -145,15 +153,13 @@ public static class ManifestMerger
         
         // grab the painting annotations from both items
         var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-        var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
         
         // convert the namedQuery manifest image into a painting choice on the base manifest
         var baseImage = paintingAnnotation!.Body as PaintingChoice;
         // use the labels from the first choice as the annotation
         paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
         paintingAnnotation.Label ??= namedQueryAnnotation?.Label;
-        paintingAnnotation.Target ??= baseManifest.Items[index];
-        var namedQueryImage = (Image)namedQueryAnnotation?.Body;
+        paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
         
         // if no defaults are set for the base image, set them (this happens on the first choice order)
         if (baseImage == null)
@@ -168,7 +174,7 @@ public static class ManifestMerger
         baseImage.Items!.Add(namedQueryImage);
         baseImage.Service ??= namedQueryAnnotation?.Service;
         paintingAnnotation.Body = baseImage;
-        baseManifest.Items![index].Items![0].Items![0] = paintingAnnotation;
+        baseManifest.GetCurrentCanvasAnnotation(index).Items![0] = paintingAnnotation;
     }
 
     private static List<AnnotationPage> CreateEmptyPaintingAnnotations(AnnotationPage? paintingAnnotation)
