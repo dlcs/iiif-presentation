@@ -211,6 +211,69 @@ public class DlcsApiClientTests
         await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
     }
 
+    [Fact]
+    public async Task GetCustomerImages_ReturnsListOfAssets_WhenAssets()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                           "member": [
+                            { "someAssetProp": "someAssetValue-this can be arbitrary" }
+                           ]
+                           }
+                          """)
+            .IfBody(body => body.Contains("\"someString\""))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetCustomerImages_ReturnsListOfAssets_WhenNoAssets()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                            "fnord": "I have no member prop even"
+                           }
+                          """)
+            .IfBody(body => body.Contains("\"someString\""))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
+
+        assets.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task GetCustomerImages_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Post($"/customers/{customerId}/allImages",
+                (_, _) => "{\"description\":\"I am broken\"}")
+            .IfBody(body => body.Contains("\"someString\""))
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+    }
+
+
     private static DlcsApiClient GetClient(ApiStub stub)
     {
         stub.EnsureStarted();

@@ -29,6 +29,9 @@ public interface IDlcsApiClient
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
         CancellationToken cancellationToken);
+
+    Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -103,6 +106,24 @@ internal class DlcsApiClient(
                           && member.Type == JTokenType.Array => member.OfType<JObject>().ToList(),
             _ => []
         };
+    }
+
+    public async Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
+            string.Join(",", assetIds));
+
+        if (assetIds.Count == 0)
+            return [];
+
+        var endpoint = $"/customers/{customerId}/allImages";
+        var hydraImages = new HydraCollection<JObject>(assetIds.Select(id => new JObject {["id"] = id}).ToArray());
+
+        var result =
+            await CallDlcsApiFor<HydraCollection<JObject>>(HttpMethod.Post, endpoint, hydraImages, cancellationToken);
+
+        return result?.Members ?? [];
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,
