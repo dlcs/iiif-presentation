@@ -22,7 +22,6 @@ using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
-using Batch = DLCS.Models.Batch;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -134,13 +133,43 @@ public class ManifestService(
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
-            var (error, dbManifest, assets) =
+            var (error, dbManifest) =
                 await CreateDatabaseRecordAndIiifCloudServicesInteractions(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
-
+                
             await SaveToS3(dbManifest!, request, cancellationToken);
+            
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, assets), WriteResult.Created);
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
+                    await GetAssets(request.CustomerId, dbManifest)),
+                WriteResult.Created);
+        }
+    }
+
+    private async Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest)
+    {
+        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
+            .OfType<string>().ToArray();
+
+        if (assetIds == null) return null;
+
+        try
+        {
+            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds);
+
+            return assets.Select(a => (asset: a,
+                    id: a.TryGetValue("@id", out var value) && value.Type == JTokenType.String
+                        ? value.Value<string>()
+                        : null))
+                .Where(tuple => tuple.id is {Length: > 0})
+                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
+        }
+        catch (DlcsException dlcsException)
+        {
+            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
+                customerId);
+
+            return null;
         }
     }
 
@@ -184,8 +213,8 @@ public class ManifestService(
         return (null, parentCollection);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?, Dictionary<string, JObject>? assets)>
-        CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(
+        WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
         const string spaceProperty = "space";
@@ -199,12 +228,12 @@ public class ManifestService(
         int? spaceId = null;
 
         var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
-        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null, null);
+        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
 
         if (request.CreateSpace || assets.Count > 0)
         {
             if (assets.Any(a => !a.HasValues))
-                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null, null);
+                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
 
             var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(spaceProperty, out _)).ToArray();
             if (request.CreateSpace || (string.IsNullOrEmpty(manifestSpace) && assetsWithoutSpaces.Length > 0))
@@ -212,7 +241,7 @@ public class ManifestService(
                 // Either you want a space or we detected you need a space regardless
                 spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
                 if (!spaceId.HasValue)
-                    return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null, null);
+                    return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null);
 
                 foreach (var asset in assetsWithoutSpaces)
                     asset.Add(spaceProperty, spaceId.Value);
@@ -221,7 +250,6 @@ public class ManifestService(
 
         var timeStamp = DateTime.UtcNow;
 
-        IList<int>? batchIds = null;
         if (!assets.IsNullOrEmpty())
         {
             try
@@ -231,21 +259,19 @@ public class ManifestService(
                     cancellationToken);
 
                 await batches.AddBatchesToDatabase(request.CustomerId, manifestId, dbContext, cancellationToken);
-                batchIds = GetBatchesIds(batches).ToArray();
             }
             catch (DlcsException exception)
             {
                 logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
                 return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
-                    WriteResult.Error), null, null);
+                    WriteResult.Error), null);
             }
         }
-
-        var fetchBatchAssets = GetBatchAssets(request.CustomerId, batchIds, cancellationToken);
+        
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 spaceId, cancellationToken);
-        if (canvasPaintingsError != null) return (canvasPaintingsError, null, null);
+        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
         var dbManifest = new DbManifest
         {
@@ -272,45 +298,9 @@ public class ManifestService(
         await dbContext.AddAsync(dbManifest, cancellationToken);
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
-        return (saveErrors, dbManifest, await fetchBatchAssets);
+        return (saveErrors, dbManifest);
     }
-
-    private async Task<Dictionary<string, JObject>> GetBatchAssets(int customerId, IList<int>? batchIds,
-        CancellationToken cancellationToken)
-    {
-        if (batchIds == null) return new();
-        List<JObject> assets = [];
-        foreach (var batchId in batchIds)
-            assets.AddRange(await dlcsApiClient.GetBatchAssets(customerId, batchId, cancellationToken));
-
-        return assets.Select(a => (asset: a, id: a.TryGetValue("@id", out var value) && value.Type == JTokenType.String
-                ? value.Value<string>()
-                : null))
-            .Where(tuple => tuple.id is {Length: > 0})
-            .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
-    }
-
-    private static IEnumerable<int> GetBatchesIds(IEnumerable<Batch> batches)
-    {
-        foreach (var batch in batches)
-        {
-            if (batch.ResourceId is not {Length: > 0} resourceId)
-                continue;
-
-            if (batch.ResourceId.All(char.IsDigit) && int.TryParse(batch.ResourceId, out var pureId))
-                yield return pureId;
-            
-            if (!Uri.TryCreate(resourceId, UriKind.Absolute, out var uri))
-                continue;
-            if (uri.Segments is not [.., {Length: > 0} last])
-                continue;
-            if (!int.TryParse(last, out var batchId))
-                continue;
-
-            yield return batchId;
-        }
-    }
-
+    
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
     {

@@ -82,11 +82,19 @@ public static class ManifestConverter
         if (fullAssetId == null)
             return null;
 
-        return assets is not null && assets.TryGetValue(fullAssetId, out var asset)
+        if (assets is null)
+            return new()
+            {
+                ["@id"] = fullAssetId,
+                ["error"] = "Unable to retrieve asset details"
+            };
+
+        return assets.TryGetValue(fullAssetId, out var asset)
             ? asset
             : new()
             {
-                ["@id"] = fullAssetId
+                ["@id"] = fullAssetId,
+                ["error"] = "Asset not found"
             };
     }
 }
