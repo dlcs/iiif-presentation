@@ -30,6 +30,8 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
     public string? Tags { get; set; }
     
     public string? PresentationThumbnail { get; set; }
+    
+    public DescendantCounts? Totals { get; set; }
 
     public new object? Thumbnail
     {

@@ -2,7 +2,7 @@
 using API.Helpers;
 using API.Tests.Helpers;
 using IIIF.Presentation.V3.Strings;
-using Microsoft.AspNetCore.Http;
+using Models.API.Collection;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -12,7 +12,7 @@ namespace API.Tests.Converters;
 
 public class CollectionConverterTests
 {
-    private const int pageSize = 100;
+    private const int PageSize = 100;
     
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
 
@@ -30,8 +30,9 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
+            IsStorageCollection = true,
             Hierarchy = [
-                new Hierarchy()
+                new Hierarchy
                 {
                     Slug = "root"
                 }
@@ -80,8 +81,9 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
+            IsStorageCollection = true,
             Hierarchy = [
-                new Hierarchy()
+                new Hierarchy
                 {
                     CollectionId = "some-id",
                     Slug = "root",
@@ -90,12 +92,13 @@ public class CollectionConverterTests
                     Canonical = true
                 }
             ]
-            
         };
+
+        var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
         var flatCollection =
-            collection.ToPresentationCollection(pageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -116,6 +119,7 @@ public class CollectionConverterTests
         flatCollection.View.Next.Should().BeNull();
         flatCollection.View.Last.Should().BeNull();
         flatCollection.PartOf.Should().BeNull("No parent provided");
+        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Fact]
@@ -123,10 +127,11 @@ public class CollectionConverterTests
     {
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
+        var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
         var flatCollection =
-            storageRoot.ToPresentationCollection(pageSize, 1, 0, CreateTestItems(), null, pathGenerator);
+            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null, pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -149,6 +154,7 @@ public class CollectionConverterTests
         flatCollection.View.First.Should().BeNull();
         flatCollection.View.Next.Should().BeNull();
         flatCollection.PartOf.Should().BeNull("No parent provided");
+        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
 
     [Fact]
@@ -156,6 +162,7 @@ public class CollectionConverterTests
     {
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
+        var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
         var flatCollection =
@@ -183,6 +190,7 @@ public class CollectionConverterTests
         flatCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
         flatCollection.TotalItems.Should().Be(3);
         flatCollection.PartOf.Should().BeNull("No parent provided");
+        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Fact]
@@ -191,10 +199,11 @@ public class CollectionConverterTests
         // Arrange
         var storageRoot = CreateTestHierarchicalCollection();
         var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+        var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
         var flatCollection =
-            storageRoot.ToPresentationCollection(pageSize, 1, 0, CreateTestItems(), parentCollection, pathGenerator);
+            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), parentCollection, pathGenerator);
 
         // Assert
         flatCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -219,7 +228,116 @@ public class CollectionConverterTests
         var partOf = flatCollection.PartOf.Single();
         partOf.Id.Should().Be("http://base/0/collections/theparent");
         partOf.Label.Should().BeEquivalentTo(parentCollection.Label);
+        
+        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
+    
+    [Theory]
+    [MemberData(nameof(ItemsForTotals))]
+    public void ToPresentationCollection_StorageCollection_HasCorrectTotals(List<Hierarchy> items, DescendantCounts expectedCounts)
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "some-id",
+            CustomerId = 1,
+            Created = DateTime.MinValue,
+            Modified = DateTime.MinValue,
+            IsStorageCollection = true,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    CollectionId = "some-id",
+                    Slug = "root",
+                    CustomerId = 1,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        // Act
+        var flatCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
+
+        // Assert
+        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+    }
+    
+    [Theory]
+    [MemberData(nameof(ItemsForTotals))]
+    public void ToPresentationCollection_IIIFCollection_HasCorrectTotals(List<Hierarchy> items, DescendantCounts _)
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "some-id",
+            CustomerId = 1,
+            Created = DateTime.MinValue,
+            Modified = DateTime.MinValue,
+            IsStorageCollection = false,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    CollectionId = "some-id",
+                    Slug = "root",
+                    CustomerId = 1,
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        };
+
+        // Act
+        var flatCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
+
+        // Assert
+        flatCollection.Totals.Should().BeNull();
+    }
+
+    public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
+    {
+        new object[] { null, new DescendantCounts(0, 0, 0) },
+        new object[] { new List<Hierarchy>(), new DescendantCounts(0, 0, 0) },
+        new object[]
+        {
+            new List<Hierarchy>
+            {
+                new() { Slug = "1", Type = ResourceType.StorageCollection, Collection = new Collection { Id = "1" } },
+            },
+            new DescendantCounts(1, 0, 0)
+        },
+        new object[]
+        {
+            new List<Hierarchy>
+            {
+                new() { Slug = "1", Type = ResourceType.IIIFCollection, Collection = new Collection { Id = "1" } },
+            },
+            new DescendantCounts(0, 1, 0)
+        },
+        new object[]
+        {
+            new List<Hierarchy>
+            {
+                new() { Slug = "1", Type = ResourceType.IIIFManifest },
+            },
+            new DescendantCounts(0, 0, 1)
+        },
+        new object[]
+        {
+            new List<Hierarchy>
+            {
+                new() { Slug = "1", Type = ResourceType.IIIFManifest },
+                new() { Slug = "2", Type = ResourceType.StorageCollection, Collection = new Collection { Id = "d" } },
+                new() { Slug = "3", Type = ResourceType.IIIFCollection, Collection = new Collection { Id = "c" } },
+                new() { Slug = "4", Type = ResourceType.StorageCollection, Collection = new Collection { Id = "b" } },
+                new() { Slug = "5", Type = ResourceType.IIIFCollection, Collection = new Collection { Id = "a" } },
+                new() { Slug = "6", Type = ResourceType.IIIFManifest },
+            },
+            new DescendantCounts(2, 2, 2)
+        },
+    };
 
     private static List<Hierarchy> CreateTestItems()
     {
@@ -255,6 +373,7 @@ public class CollectionConverterTests
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
             FullPath = "top/some-id",
+            IsStorageCollection = true,
             Hierarchy = [
                 new Hierarchy()
                 {
@@ -283,7 +402,8 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            FullPath = "top/some-id"
+            FullPath = "top/some-id",
+            IsStorageCollection = true,
         };
         
         return collection;

@@ -33,7 +33,7 @@ public static class CollectionConverter
     }
 
     public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
-        int pageSize, int currentPage, int totalItems, IEnumerable<Hierarchy>? items, DbCollection? parentCollection,
+        int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items, DbCollection? parentCollection,
         IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
         var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
@@ -61,7 +61,8 @@ public static class CollectionConverter
             Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
             Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
             CreatedBy = dbAsset.CreatedBy,
-            ModifiedBy = dbAsset.ModifiedBy
+            ModifiedBy = dbAsset.ModifiedBy,
+            Totals = GetDescendantCounts(dbAsset, items)
         };
     }
 
@@ -233,5 +234,21 @@ public static class CollectionConverter
         }
 
         return view;
+    }
+    
+    private static DescendantCounts? GetDescendantCounts(DbCollection dbAsset, IList<Hierarchy>? items)
+    {
+        if (!dbAsset.IsStorageCollection) return null;
+        if (items.IsNullOrEmpty()) return DescendantCounts.Empty;
+
+        var grouping = items.GroupBy(k => k.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToList();
+
+        return new DescendantCounts(GetCountForType(ResourceType.StorageCollection),
+            GetCountForType(ResourceType.IIIFCollection),
+            GetCountForType(ResourceType.IIIFManifest));
+
+        int GetCountForType(ResourceType type) => grouping.SingleOrDefault(g => g.Type == type)?.Count ?? 0;
     }
 }
