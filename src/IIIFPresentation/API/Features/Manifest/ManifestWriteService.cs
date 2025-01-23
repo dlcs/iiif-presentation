@@ -184,7 +184,7 @@ public class ManifestWriteService(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
         }
     }
-
+    
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
         WriteManifestRequest request, CancellationToken cancellationToken)
     {

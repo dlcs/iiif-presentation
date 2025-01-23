@@ -64,9 +64,9 @@ public static class ManifestMerger
     {
         // grab the body of the selected image and base maniest to update
         var baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
-        var paintingAnnotation = baseManifestPaintingAnnotations[0].Items?[0] as PaintingAnnotation;
+        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
         var baseImage = paintingAnnotation!.Body as PaintingChoice; 
-        var namedQueryAnnotation = namedQueryItem.Items?[0].Items?[0] as PaintingAnnotation;
+        var namedQueryAnnotation = namedQueryItem.GetFirstPaintingAnnotation();
         var namedQueryImage = (Image)namedQueryAnnotation!.Body!;
         
         var baseImageIndex = baseImage?.Items?.OfType<Image>().ToList()
@@ -82,8 +82,8 @@ public static class ManifestMerger
                 {
                     Items = [new AnnotationPage
                     {
-                        Id = namedQueryItem.Items?[0].Id,
-                        Label = namedQueryItem.Items?[0].Label,
+                        Id = namedQueryItem.GetFirstAnnotationPage()?.Id,
+                        Label = namedQueryItem.GetFirstAnnotationPage()?.Label,
                         Items = []
                     }]
                 }
@@ -119,7 +119,7 @@ public static class ManifestMerger
         Canvas namedQueryItem)
     {
         List<AnnotationPage> baseManifestPaintingAnnotations;
-        var namedQueryAnnotationPage = namedQueryItem.Items?[0];
+        var namedQueryAnnotationPage = namedQueryItem.GetFirstAnnotationPage();
         
         // is this the first item in a new choice order?
         if (baseManifest.Items?.Count == index)
@@ -144,15 +144,15 @@ public static class ManifestMerger
         }
         
         // grab the painting annotations from both items
-        var paintingAnnotation = baseManifestPaintingAnnotations[0].Items?[0] as PaintingAnnotation;
-        var namedQueryAnnotation = namedQueryAnnotationPage?.Items?[0] as PaintingAnnotation;
+        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
+        var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
         
         // convert the namedQuery manifest image into a painting choice on the base manifest
         var baseImage = paintingAnnotation!.Body as PaintingChoice;
         // use the labels from the first choice as the annotation
         paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
         paintingAnnotation.Label ??= namedQueryAnnotation?.Label;
-       // paintingAnnotation.Target ??= baseManifest.Items[index];
+        paintingAnnotation.Target ??= baseManifest.Items[index];
         var namedQueryImage = (Image)namedQueryAnnotation?.Body;
         
         // if no defaults are set for the base image, set them (this happens on the first choice order)
