@@ -1011,8 +1011,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice()
      {
          // Arrange
-         var slug = nameof(CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder);
-         var batchId = 5;
+         var slug = nameof(CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice);
+         var batchId = 6;
          
          var manifestWithoutSpace = $$"""
                           {
