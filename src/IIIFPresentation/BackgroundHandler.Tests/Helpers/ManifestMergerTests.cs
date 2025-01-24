@@ -31,8 +31,8 @@ public class ManifestMergerTests
         
         // Assert
         mergedManifest.Items.Count.Should().Be(1);
-        mergedManifest.Items[0].Width.Should().Be(100);
-        mergedManifest.Items[0].Height.Should().Be(100);
+        mergedManifest.Items[0].Width.Should().Be(110);
+        mergedManifest.Items[0].Height.Should().Be(110);
         mergedManifest.Thumbnail.Count.Should().Be(1);
         mergedManifest.Metadata.Should().BeNull();
         mergedManifest.Label.Should().BeNull();
@@ -58,8 +58,8 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Items.Count.Should().Be(1);
         mergedManifest.Thumbnail.Count.Should().Be(1);
-        mergedManifest.Items[0].Width.Should().Be(100);
-        mergedManifest.Items[0].Height.Should().Be(100);
+        mergedManifest.Items[0].Width.Should().Be(110);
+        mergedManifest.Items[0].Height.Should().Be(110);
     }
     
     [Fact]
@@ -84,8 +84,8 @@ public class ManifestMergerTests
         mergedManifest.Items.Count.Should().Be(1);
         mergedManifest.Thumbnail[0].Service[0].Id.Should().Be("namedQueryId");
         mergedManifest.Thumbnail.Count.Should().Be(2);
-        mergedManifest.Items[0].Width.Should().Be(100);
-        mergedManifest.Items[0].Height.Should().Be(100);
+        mergedManifest.Items[0].Width.Should().Be(110);
+        mergedManifest.Items[0].Height.Should().Be(110);
     }
     
     [Fact]
@@ -317,8 +317,8 @@ public class ManifestMergerTests
         {
             Id = $"{id}",
             Label = new LanguageMap("en", $"{id}"),
-            Width = 100,
-            Height = 100,
+            Width = 110,
+            Height = 110,
             Metadata = GenerateMetadata(),
             Items =
             [
