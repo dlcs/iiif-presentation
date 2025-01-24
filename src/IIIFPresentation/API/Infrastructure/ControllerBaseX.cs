@@ -68,7 +68,8 @@ public static class ControllerBaseX
     entityResult.WriteResult switch
     {
         WriteResult.Updated => controller.Ok(entityResult.Entity),
-        WriteResult.Created => controller.PresentationCreated(controller.Request.GetDisplayUrl(), entityResult.Entity),
+        WriteResult.Accepted => controller.PresentationWithBodyResponse(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted),
+        WriteResult.Created => controller.PresentationWithBodyResponse(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created),
         WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
         WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
             (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
@@ -173,7 +174,7 @@ public static class ControllerBaseX
     /// Create a 201 result with standard serialized value or custom serialized IIIF object if value is
     /// <see cref="JsonLdBase"/> 
     /// </summary>
-    public static ActionResult PresentationCreated(this ControllerBase controller, string? uri, object? value)
+    public static ActionResult PresentationWithBodyResponse(this ControllerBase controller, string? uri, object? value, int statusCode)
     {
         if (value is JsonLdBase jsonLdBase)
         {
@@ -186,7 +187,7 @@ public static class ControllerBaseX
             {
                 Content = jsonLdBase.AsJson(),
                 ContentType = ContentTypes.V3,
-                StatusCode = 201,
+                StatusCode = statusCode,
             };
         }
 

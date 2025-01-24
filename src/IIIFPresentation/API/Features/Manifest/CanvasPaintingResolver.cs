@@ -108,7 +108,6 @@ public class CanvasPaintingResolver(
                 processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
             }
         }
-
         // Delete canvasPaintings from DB that are not in payload
         foreach (var toRemove in existingManifest.CanvasPaintings
                      .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
@@ -181,7 +180,7 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
+        int customerId, PresentationManifest presentationManifest, int? manifestSpace, CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;
 

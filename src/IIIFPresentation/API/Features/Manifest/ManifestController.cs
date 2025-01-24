@@ -4,17 +4,16 @@ using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using Core.IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.API.Collection;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest;
@@ -45,7 +44,10 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
 
-        return Ok(entityResult.Entity);
+        return entityResult.Entity!.PaintedResources.HasAsset()
+            ? this.PresentationWithBodyResponse(Request.GetDisplayUrl(), entityResult.Entity,
+                (int)HttpStatusCode.Accepted)
+            : Ok(entityResult.Entity);
     }
 
     /// <summary>

@@ -29,6 +29,11 @@ public enum WriteResult
     /// Request failed validation
     /// </summary>
     FailedValidation,
+    
+    /// <summary>
+    /// Request has been accepted for processing
+    /// </summary>
+    Accepted,
 
     /// <summary>
     /// Entity was successfully updated
