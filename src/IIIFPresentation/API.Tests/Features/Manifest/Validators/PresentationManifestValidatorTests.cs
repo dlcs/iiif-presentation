@@ -174,9 +174,6 @@ public class PresentationManifestValidatorTests
         var error = manifest.PaintedResources.GroupBy(pr => pr.CanvasPainting.CanvasOrder)
             .Any(s =>
             {
-
-                var test = s.Count(g => g.CanvasPainting.ChoiceOrder == null);
-                    
                 if (s.Any(g => g.CanvasPainting.ChoiceOrder == null))
                 {
                     return true;
@@ -216,16 +213,6 @@ public class PresentationManifestValidatorTests
                 }
             ],
         };
-
-        var stuff = manifest.PaintedResources.Where(pr => pr.CanvasPainting.CanvasOrder != 0);
-        
-        var test = manifest.PaintedResources.Where(pr => pr.CanvasPainting.CanvasOrder != 0).GroupBy(pr => pr.CanvasPainting.CanvasOrder)
-            .Count(s => s.Any(g =>
-            {
-                if (g.CanvasPainting.ChoiceOrder != null)
-                    return false;
-                return true;
-            })) == 0;
         
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
