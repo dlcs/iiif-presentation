@@ -137,8 +137,8 @@ public static class ManifestMerger
             baseManifest.Items.Add(new Canvas
             {
                 Items = baseManifestPaintingAnnotations,
-                Height = namedQueryImage?.Height,
-                Width = namedQueryImage?.Width,
+                Height = namedQueryItem.Height,
+                Width = namedQueryItem.Width,
             });
             
             // set the identifier and label of the canvas based on the identifier and label of the first choice
