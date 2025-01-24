@@ -34,38 +34,59 @@ public static class CollectionConverter
 
     public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
         int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items, DbCollection? parentCollection,
-        IPathGenerator pathGenerator, string? orderQueryParam = null)
+        IPathGenerator pathGenerator, string? orderQueryParam = null) =>
+        EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
+            parentCollection, pathGenerator, orderQueryParam);
+
+    /// <summary>
+    /// Enriches <see cref="PresentationCollection"/> with values from database.
+    /// Note that any values in <see cref="DbCollection"/> "win" and will overwrite those already in
+    /// <see cref="PresentationCollection"/>
+    /// </summary>
+    /// <param name="collection">The presentation collection to enrich</param>
+    /// <param name="dbCollection">The database collection to use for enrichment</param>
+    /// <param name="pageSize">Size of the page</param>
+    /// <param name="currentPage">The current page of items</param>
+    /// <param name="totalItems">The total number of items</param>
+    /// <param name="items">The list of items that use this collection as a </param>
+    /// <param name="parentCollection">The parent collection current collection is part of</param>
+    /// <param name="pathGenerator">A collection path generator</param>
+    /// <param name="orderQueryParam">Used to describe the type of ordering done</param>
+    /// <returns>An enriched presentation collection</returns>
+    public static PresentationCollection EnrichPresentationCollection(this PresentationCollection collection,
+        DbCollection dbCollection, int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items,
+        DbCollection? parentCollection, IPathGenerator pathGenerator, string? orderQueryParam = null)
     {
-        var totalPages = (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
         items ??= [];
+        
+        var totalPages = GenerateTotalPages(pageSize, totalItems);
 
         var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
-        var hierarchy = dbAsset.Hierarchy!.Single(h => h.Canonical);
-
-        return new()
-        {
-            Id = pathGenerator.GenerateFlatCollectionId(dbAsset),
-            Context = GenerateContext(),
-            Label = dbAsset.Label,
-            FlatId = dbAsset.Id,
-            PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbAsset),
-            Behavior = GenerateBehavior(dbAsset),
-            Slug = hierarchy.Slug,
-            Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy),
-            ItemsOrder = hierarchy.ItemsOrder,
-            Items = GenerateItems(pathGenerator, items),
-            PartOf = GeneratePartOf(parentCollection, pathGenerator),
-            TotalItems = totalItems,
-            View = GenerateView(dbAsset, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted),
-            SeeAlso = GenerateSeeAlso(dbAsset, pathGenerator),
-            Created = dbAsset.Created.Floor(DateTimeX.Precision.Second),
-            Modified = dbAsset.Modified.Floor(DateTimeX.Precision.Second),
-            CreatedBy = dbAsset.CreatedBy,
-            ModifiedBy = dbAsset.ModifiedBy,
-            Totals = GetDescendantCounts(dbAsset, items)
-        };
+        var hierarchy = dbCollection.Hierarchy!.Single(h => h.Canonical);
+        
+        collection.Id = pathGenerator.GenerateFlatCollectionId(dbCollection);
+        collection.Context = GenerateContext();
+        collection.FlatId = dbCollection.Id;
+        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
+        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
+        collection.TotalItems = totalItems;
+        collection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted);
+        collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
+        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
+        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
+        collection.CreatedBy = dbCollection.CreatedBy;
+        collection.ModifiedBy = dbCollection.ModifiedBy;
+        collection.Items = GenerateItems(pathGenerator, items);
+        collection.Behavior = GenerateBehavior(dbCollection);
+        collection.Slug = hierarchy.Slug;
+        collection.ItemsOrder = hierarchy.ItemsOrder;
+        collection.Label = dbCollection.Label;
+        collection.Totals = GetDescendantCounts(dbCollection, items);
+        
+        return collection;
     }
-
+    
     private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator,
         bool flatId)
     {
@@ -97,7 +118,7 @@ public static class CollectionConverter
     /// <param name="pageSize">The size of the page</param>
     /// <param name="totalItems">The total number of items</param>
     /// <returns>total pages</returns>
-    public static int GenerateTotalPages(int pageSize, int totalItems)
+    private static int GenerateTotalPages(int pageSize, int totalItems)
     {
         return (int)Math.Ceiling(totalItems == 0 ? 1 : (double)totalItems / pageSize);
     }
@@ -108,7 +129,7 @@ public static class CollectionConverter
     /// <param name="pathGenerator">The path generator</param>
     /// <param name="hierarchy">The hierarchy to get the parent from</param>
     /// <returns>An id of the parent, in the presentation collection form</returns>
-    public static string? GeneratePresentationCollectionParent(IPathGenerator pathGenerator, Hierarchy hierarchy)
+    private static string? GeneratePresentationCollectionParent(IPathGenerator pathGenerator, Hierarchy hierarchy)
     {
         return hierarchy.Parent != null
             ? pathGenerator.GenerateFlatParentId(hierarchy)
@@ -119,7 +140,7 @@ public static class CollectionConverter
     /// Generates a context for a collection
     /// </summary>
     /// <returns>A list of strings</returns>
-    public static List<string> GenerateContext()
+    private static List<string> GenerateContext()
     {
         return
         [
@@ -133,7 +154,7 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="collection">The database collection to use</param>
     /// <returns>A list of behaviors</returns>
-    public static List<string>? GenerateBehavior(DbCollection collection)
+    private static List<string>? GenerateBehavior(DbCollection collection)
     {
         var behaviours = new List<string>()
             .AppendIf(collection.IsPublic, Behavior.IsPublic)
@@ -148,7 +169,7 @@ public static class CollectionConverter
     /// <param name="collection">The collection required</param>
     /// <param name="pathGenerator">Class used to generate paths for collections</param>
     /// <returns>A list of ResourceBase</returns>
-    public static List<ResourceBase>? GeneratePartOf(DbCollection? collection,
+    private static List<ResourceBase>? GeneratePartOf(DbCollection? collection,
         IPathGenerator pathGenerator) =>
         collection != null
             ?
@@ -167,9 +188,10 @@ public static class CollectionConverter
     /// <param name="collection">The collection to use in generation</param>
     /// <param name="pathGenerator">Generates paths for collections</param>
     /// <returns>A list of external resources</returns>
-    public static List<ExternalResource> GenerateSeeAlso(Models.Database.Collections.Collection collection, 
+    private static List<ExternalResource> GenerateSeeAlso(Models.Database.Collections.Collection collection, 
         IPathGenerator pathGenerator)
     {
+        // TODO - do this at the same time maybe?? #168
         return [
             new(nameof(PresentationType.Collection))
             {
@@ -193,7 +215,7 @@ public static class CollectionConverter
     /// <param name="pathGenerator">Generates a path</param>
     /// <param name="items">The items to convert</param>
     /// <returns>A list of ICollectionItems</returns>
-    public static List<ICollectionItem> GenerateItems(IPathGenerator pathGenerator, IEnumerable<Hierarchy> items)
+    private static List<ICollectionItem> GenerateItems(IPathGenerator pathGenerator, IEnumerable<Hierarchy> items)
     {
         return items.Select(i => GenerateCollectionItem(i, pathGenerator, true)).ToList();
     }
@@ -208,7 +230,7 @@ public static class CollectionConverter
     /// <param name="totalPages">How many pages to generate the View for</param>
     /// <param name="orderQueryParam">What the View is being ordered by</param>
     /// <returns>A View</returns>
-    public static View GenerateView(Models.Database.Collections.Collection collection, IPathGenerator pathGenerator, int pageSize,
+    private static View GenerateView(Models.Database.Collections.Collection collection, IPathGenerator pathGenerator, int pageSize,
         int currentPage, int totalPages, string? orderQueryParam = null)
     {
         var view = new View()
