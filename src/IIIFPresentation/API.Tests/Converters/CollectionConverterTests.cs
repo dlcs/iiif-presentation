@@ -97,29 +97,29 @@ public class CollectionConverterTests
         var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
 
         // Assert
-        flatCollection.Id.Should().Be("http://base/1/collections/some-id");
-        flatCollection.FlatId.Should().Be("some-id");
-        flatCollection.PublicId.Should().Be("http://base/1");
-        flatCollection.Label!.Count.Should().Be(1);
-        flatCollection.Label["en"].Should().Contain("repository root");
-        flatCollection.Slug.Should().Be("root");
-        flatCollection.SeeAlso.Should().HaveCount(2);
-        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1");
-        flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/iiif");
-        flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
-        flatCollection.Created.Should().Be(DateTime.MinValue);
-        flatCollection.Parent.Should().BeNull();
-        flatCollection.Items!.Count.Should().Be(1);
-        flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
-        flatCollection.View.Next.Should().BeNull();
-        flatCollection.View.Last.Should().BeNull();
-        flatCollection.PartOf.Should().BeNull("No parent provided");
-        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollection.FlatId.Should().Be("some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1");
+        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label["en"].Should().Contain("repository root");
+        presentationCollection.Slug.Should().Be("root");
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1");
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/iiif");
+        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Parent.Should().BeNull();
+        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
+        presentationCollection.View.Next.Should().BeNull();
+        presentationCollection.View.Last.Should().BeNull();
+        presentationCollection.PartOf.Should().BeNull("No parent provided");
+        presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Fact]
@@ -130,31 +130,31 @@ public class CollectionConverterTests
         var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null, pathGenerator);
 
         // Assert
-        flatCollection.Id.Should().Be("http://base/1/collections/some-id");
-        flatCollection.FlatId.Should().Be("some-id");
-        flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        flatCollection.Label!.Count.Should().Be(1);
-        flatCollection.Label["en"].Should().Contain("repository root");
-        flatCollection.Slug.Should().Be("root");
-        flatCollection.SeeAlso.Should().HaveCount(2);
-        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
-        flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
-        flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
-        flatCollection.Created.Should().Be(DateTime.MinValue);
-        flatCollection.Parent.Should().Be("http://base/1/collections/top");
-        flatCollection.Items!.Count.Should().Be(1);
-        flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
-        flatCollection.View.Next.Should().BeNull();
-        flatCollection.View.Last.Should().BeNull();
-        flatCollection.View.First.Should().BeNull();
-        flatCollection.View.Next.Should().BeNull();
-        flatCollection.PartOf.Should().BeNull("No parent provided");
-        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollection.FlatId.Should().Be("some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label["en"].Should().Contain("repository root");
+        presentationCollection.Slug.Should().Be("root");
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
+        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
+        presentationCollection.View.Next.Should().BeNull();
+        presentationCollection.View.Last.Should().BeNull();
+        presentationCollection.View.First.Should().BeNull();
+        presentationCollection.View.Next.Should().BeNull();
+        presentationCollection.PartOf.Should().BeNull("No parent provided");
+        presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
 
     [Fact]
@@ -165,32 +165,32 @@ public class CollectionConverterTests
         var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             storageRoot.ToPresentationCollection(1, 2, 3, CreateTestItems(), null, pathGenerator, "orderBy=created");
 
         // Assert
-        flatCollection.Id.Should().Be("http://base/1/collections/some-id");
-        flatCollection.FlatId.Should().Be("some-id");
-        flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        flatCollection.Label!.Count.Should().Be(1);
-        flatCollection.Label["en"].Should().Contain("repository root");
-        flatCollection.Slug.Should().Be("root");
-        flatCollection.SeeAlso.Should().HaveCount(2);
-        flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
-        flatCollection.Created.Should().Be(DateTime.MinValue);
-        flatCollection.Parent.Should().Be("http://base/1/collections/top");
-        flatCollection.Items!.Count.Should().Be(1);
-        flatCollection.View!.TotalPages.Should().Be(3);
-        flatCollection.View.PageSize.Should().Be(1);
-        flatCollection.View.Id.Should().Be("http://base/1/collections/some-id?page=2&pageSize=1&orderBy=created");
-        flatCollection.View.Next.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
-        flatCollection.View.Previous.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
-        flatCollection.View.First.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
-        flatCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
-        flatCollection.TotalItems.Should().Be(3);
-        flatCollection.PartOf.Should().BeNull("No parent provided");
-        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollection.FlatId.Should().Be("some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label["en"].Should().Contain("repository root");
+        presentationCollection.Slug.Should().Be("root");
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.View!.TotalPages.Should().Be(3);
+        presentationCollection.View.PageSize.Should().Be(1);
+        presentationCollection.View.Id.Should().Be("http://base/1/collections/some-id?page=2&pageSize=1&orderBy=created");
+        presentationCollection.View.Next.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
+        presentationCollection.View.Previous.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
+        presentationCollection.View.First.Should().Be("http://base/1/collections/some-id?page=1&pageSize=1&orderBy=created");
+        presentationCollection.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=1&orderBy=created");
+        presentationCollection.TotalItems.Should().Be(3);
+        presentationCollection.PartOf.Should().BeNull("No parent provided");
+        presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Fact]
@@ -202,34 +202,34 @@ public class CollectionConverterTests
         var expectedCounts = new DescendantCounts(1, 0, 0);
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), parentCollection, pathGenerator);
 
         // Assert
-        flatCollection.Id.Should().Be("http://base/1/collections/some-id");
-        flatCollection.FlatId.Should().Be("some-id");
-        flatCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        flatCollection.Label!.Count.Should().Be(1);
-        flatCollection.Label["en"].Should().Contain("repository root");
-        flatCollection.Slug.Should().Be("root");
-        flatCollection.SeeAlso.Should().HaveCount(2);
-        flatCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
-        flatCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        flatCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
-        flatCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
-        flatCollection.Created.Should().Be(DateTime.MinValue);
-        flatCollection.Parent.Should().Be("http://base/1/collections/top");
-        flatCollection.Items!.Count.Should().Be(1);
-        flatCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
-        flatCollection.View.Next.Should().BeNull();
-        flatCollection.View.Last.Should().BeNull();
-        flatCollection.View.First.Should().BeNull();
-        flatCollection.View.Next.Should().BeNull();
-        var partOf = flatCollection.PartOf.Single();
+        presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollection.FlatId.Should().Be("some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label["en"].Should().Contain("repository root");
+        presentationCollection.Slug.Should().Be("root");
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
+        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
+        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
+        presentationCollection.View.Next.Should().BeNull();
+        presentationCollection.View.Last.Should().BeNull();
+        presentationCollection.View.First.Should().BeNull();
+        presentationCollection.View.Next.Should().BeNull();
+        var partOf = presentationCollection.PartOf.Single();
         partOf.Id.Should().Be("http://base/0/collections/theparent");
         partOf.Label.Should().BeEquivalentTo(parentCollection.Label);
         
-        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Theory]
@@ -257,11 +257,11 @@ public class CollectionConverterTests
         };
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
 
         // Assert
-        flatCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
     }
     
     [Theory]
@@ -289,11 +289,11 @@ public class CollectionConverterTests
         };
 
         // Act
-        var flatCollection =
+        var presentationCollection =
             collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
 
         // Assert
-        flatCollection.Totals.Should().BeNull();
+        presentationCollection.Totals.Should().BeNull();
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
