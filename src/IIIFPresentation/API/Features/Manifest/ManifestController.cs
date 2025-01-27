@@ -4,7 +4,6 @@ using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
-using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
@@ -44,7 +43,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
 
-        return entityResult.Entity!.PaintedResources.HasAsset()
+        return entityResult.Entity!.Ingesting
             ? this.PresentationWithBodyResponse(Request.GetDisplayUrl(), entityResult.Entity,
                 (int)HttpStatusCode.Accepted)
             : Ok(entityResult.Entity);

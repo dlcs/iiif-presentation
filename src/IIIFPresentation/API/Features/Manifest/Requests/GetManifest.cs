@@ -18,7 +18,9 @@ public class GetManifest(
 }
 
 public class GetManifestHandler(
-    IManifestRead manifestRead) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
+    PresentationContext dbContext,
+    IPathGenerator pathGenerator,
+    IIIFS3Service iiifS3) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
     public Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
         CancellationToken cancellationToken)

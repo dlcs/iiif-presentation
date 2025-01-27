@@ -15,6 +15,9 @@ using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
+using Models.Database.General;
+using Repository;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -24,6 +27,10 @@ namespace API.Tests.Integration;
 public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
+    
+    private readonly PresentationContext dbContext;
+    
+    private readonly IAmazonS3 amazonS3;
     private readonly PresentationContext dbContext;
     private readonly IDlcsApiClient dlcsApiClient;
     private readonly IAmazonS3 s3;
@@ -37,6 +44,9 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
             services => services.AddSingleton(dlcsApiClient));
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+
+        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
 
         storageFixture.DbFixture.CleanUp();
 
@@ -153,5 +163,65 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/iiif-manifest", "requested by hierarchical URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting()
+    {
+        // Arrange and Act
+        await dbContext.Manifests.AddAsync(new Models.Database.Collections.Manifest()
+        {
+            Id = "ManifestWithBatch",
+            CustomerId = 1,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "manifest-with-batch",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ],
+            Batches =
+            [
+                new Batch
+                {
+                    Id = 1,
+                    Submitted = DateTime.UtcNow,
+                    Status = BatchStatus.Ingesting,
+                    ManifestId = "ManifestWithBatch"
+                }
+            ]
+        });
+        
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = "1/manifests/ManifestWithBatch",
+            ContentBody = TestContent.ManifestJson
+        });
+        
+        await dbContext.SaveChangesAsync();
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/ManifestWithBatch");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Vary.Should().HaveCount(2);
+        manifest.Should().NotBeNull();
+        manifest!.Type.Should().Be("Manifest");
+        manifest.Id.Should().Be("http://localhost/1/manifests/ManifestWithBatch", "requested by flat URI");
+        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.FlatId.Should().Be("ManifestWithBatch");
+        manifest.PublicId.Should().Be("http://localhost/1/manifest-with-batch", "iiif-manifest is slug and under root");
     }
 }

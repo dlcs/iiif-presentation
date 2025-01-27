@@ -58,10 +58,11 @@ public static class PresentationContextX
     /// <param name="manifestId">The manifest to retrieve</param>
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="withCanvasPaintings">Whether the CanvasPaintings records should be included</param>
+    /// <param name="withBatches">Whether the Batches records should be included</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
     public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
-        string manifestId, bool tracked = false, bool withCanvasPaintings = true, CancellationToken cancellationToken = default)
+        string manifestId, bool tracked = false, bool withCanvasPaintings = true, bool withBatches = false, CancellationToken cancellationToken = default)
     {
         IQueryable<DbManifest> dbContextManifests = dbContext.Manifests;
 
@@ -70,6 +71,11 @@ public static class PresentationContextX
             dbContextManifests = dbContextManifests.Include(m => m.CanvasPaintings).AsSplitQuery();
         }
 
+        if (withBatches)
+        {
+            dbContextManifests = dbContextManifests.Include(m => m.Batches);
+        }
+        
         return dbContextManifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
     }
     

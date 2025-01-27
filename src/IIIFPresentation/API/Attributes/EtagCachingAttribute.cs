@@ -37,7 +37,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
         await next();
         memoryStream.Position = 0;
 
-        if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created)
+        if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created or StatusCodes.Status202Accepted)
         {
             var responseHeaders = response.GetTypedHeaders();
 
