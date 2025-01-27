@@ -891,6 +891,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                                   "canvas testing"
                                               ]
                                           },
+                                          "canvasLabel": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
                                         "canvasOrder": 2
                                      },
                                       "asset": {
@@ -997,6 +1002,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().Id.Should().Be(batchId);
          
          dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(2);
+         dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
+         dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);

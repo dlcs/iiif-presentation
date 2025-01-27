@@ -211,6 +211,7 @@ public class CanvasPaintingResolver(
             {
                 Id = canvasPaintingIds[count],
                 Label = paintedResource.CanvasPainting?.Label,
+                CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
                 CanvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count,

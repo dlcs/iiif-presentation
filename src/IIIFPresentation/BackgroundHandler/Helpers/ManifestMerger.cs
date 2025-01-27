@@ -36,17 +36,17 @@ public static class ManifestMerger
 
                 if (totalGroupedItems == 1)
                 {
-                    AddOrUpdateIndividualCanvas(baseManifest, existingCanvas, namedQueryItem);
+                    AddOrUpdateIndividualCanvas(baseManifest, existingCanvas, namedQueryItem, canvasPainting);
                 }
                 else
                 {
                     if (existingCanvas.canvas?.Id != null)
                     {
-                        UpdateChoiceOrder(baseManifest, groupedCanvasPaintings.index, namedQueryItem);
+                        UpdateChoiceOrder(baseManifest, groupedCanvasPaintings.index, namedQueryItem, canvasPainting);
                     }
                     else
                     {
-                        AddChoiceOrder(baseManifest, groupedCanvasPaintings.index, namedQueryItem);
+                        AddChoiceOrder(baseManifest, groupedCanvasPaintings.index, namedQueryItem, canvasPainting);
                     }
                 }
             }
@@ -60,7 +60,8 @@ public static class ManifestMerger
         return baseManifest;
     }
 
-    private static void UpdateChoiceOrder(Manifest baseManifest, int index, Canvas namedQueryCanvas)
+    private static void UpdateChoiceOrder(Manifest baseManifest, int index, Canvas namedQueryCanvas, 
+        CanvasPainting canvasPainting)
     {
         // grab the body of the selected image and base maniest to update
         var baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
@@ -68,6 +69,8 @@ public static class ManifestMerger
         var baseImage = paintingAnnotation!.Body as PaintingChoice; 
         var namedQueryAnnotation = namedQueryCanvas.GetFirstPaintingAnnotation();
         var namedQueryImage = (Image)namedQueryAnnotation!.Body!;
+        
+        SetChoiceLabel(canvasPainting, namedQueryImage);
         
         var baseImageIndex = baseImage?.Items?.OfType<Image>().ToList()
             .FindIndex(pa => pa.Id == namedQueryCanvas.Id);
@@ -100,6 +103,7 @@ public static class ManifestMerger
             };
             
             // update the identifier and label of the canvas based on the identifier and label of the first choice
+            SetCanvasLabel(namedQueryCanvas, canvasPainting);
             baseManifest.Items[index].Id = namedQueryCanvas.Id;
             baseManifest.Items[index].Label = namedQueryCanvas.Label;
             
@@ -120,12 +124,15 @@ public static class ManifestMerger
     }
 
     private static void AddChoiceOrder(Manifest baseManifest, int index,
-        Canvas namedQueryCanvas)
+        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
     {
         List<AnnotationPage> baseManifestPaintingAnnotations;
         var namedQueryAnnotationPage = namedQueryCanvas.GetFirstAnnotationPage();
         var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
+        
         var namedQueryImage = (Image)namedQueryAnnotation?.Body;
+        
+        SetChoiceLabel(canvasPainting, namedQueryImage);
         
         // is this the first item in a new choice order?
         if (baseManifest.Items?.Count == index)
@@ -142,6 +149,7 @@ public static class ManifestMerger
             });
             
             // set the identifier and label of the canvas based on the identifier and label of the first choice
+            SetCanvasLabel(namedQueryCanvas, canvasPainting);
             baseManifest.Items[index].Id ??= namedQueryCanvas.Id;
             baseManifest.Items[index].Label ??= namedQueryCanvas.Label;
         }
@@ -177,6 +185,14 @@ public static class ManifestMerger
         baseManifest.GetCurrentCanvasAnnotation(index).Items![0] = paintingAnnotation;
     }
 
+    private static void SetChoiceLabel(CanvasPainting canvasPainting, Image? image)
+    {
+        if (canvasPainting.Label != null)
+        {
+            image.Label = canvasPainting.Label;
+        }
+    }
+
     private static List<AnnotationPage> CreateEmptyPaintingAnnotations(AnnotationPage? paintingAnnotation)
     {
         List<AnnotationPage> baseManifestPaintingAnnotations;
@@ -193,8 +209,11 @@ public static class ManifestMerger
     }
 
     private static void AddOrUpdateIndividualCanvas(Manifest baseManifest, (Canvas? canvas, int index) existingCanvas,
-        Canvas namedQueryCanvas)
+        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
     {
+        // set the label to the correct canvas label
+        SetCanvasLabel(namedQueryCanvas, canvasPainting);
+
         if (existingCanvas.canvas != null)
         {
             baseManifest.Items![existingCanvas.index] = namedQueryCanvas;
@@ -202,6 +221,18 @@ public static class ManifestMerger
         else
         {
             baseManifest.Items!.Add(namedQueryCanvas);
+        }
+    }
+
+    private static void SetCanvasLabel(Canvas namedQueryCanvas, CanvasPainting canvasPainting)
+    {
+        if (canvasPainting.CanvasLabel != null)
+        {
+            namedQueryCanvas.Label = canvasPainting.CanvasLabel;
+        }
+        else if (canvasPainting.Label != null)
+        {
+            namedQueryCanvas.Label = canvasPainting.Label;
         }
     }
 }
