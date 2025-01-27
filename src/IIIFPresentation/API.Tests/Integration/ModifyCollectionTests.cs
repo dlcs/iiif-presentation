@@ -127,6 +127,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty, "Storage collections have empty counts");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -219,6 +220,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -273,6 +275,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -328,6 +331,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
     }
 
     [Fact]
@@ -442,6 +446,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         fromS3.Should().NotBeNull();
+        responseCollection.Totals.Should().BeNull();
     }
     
     [Fact]
@@ -716,6 +721,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeNull();
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -861,6 +867,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -947,6 +954,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
     }
     
     [Fact]
@@ -1058,6 +1066,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - updated"); 
         fromDatabase.Thumbnail.Should().Be("https://iiif.io/api/image/3.0/example/reference/someRef");
         fromDatabase.Hierarchy![0].Slug.Should().Be("iiif-programmatic-child");
+        collection.Totals.Should().BeNull();
         
         var context = (JArray)collection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -1131,7 +1140,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF()
     {
         var id = nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
-        var slug =  nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
+        var slug = nameof(UpdateCollection_FailsToUpdateCollection_WhenMovingStorageCollectionToIIIF);
         
         // Arrange
         var initialCollection = new Collection()
@@ -1240,6 +1249,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
@@ -1345,6 +1355,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label.Should().BeNull();
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+        responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
     }
 
     [Fact]
@@ -1646,7 +1657,82 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/PossibleCircularReference");
     }
+    
+    [Fact]
+    public async Task UpdateCollection_ReturnsCorrectTitles_IfUpdatingStorageCollectionWithDescendants()
+    {
+        // Arrange
+        var parentIdentifier = nameof(UpdateCollection_ReturnsCorrectTitles_IfUpdatingStorageCollectionWithDescendants);
+        var childIdentifier = $"c{parentIdentifier}";
 
+        var expectedCounts = new DescendantCounts(1, 0, 1);
+        
+        // Create a parent with 2 children: 1 storage + 1 manifest 
+        var parentCollection = await dbContext.Collections.AddTestCollection(parentIdentifier);
+        await dbContext.Collections.AddTestCollection(childIdentifier, parent: parentIdentifier);
+        await dbContext.Manifests.AddTestManifest(childIdentifier, parent: parentIdentifier);
+        await dbContext.SaveChangesAsync();
+
+        // doesn't matter what we update - just that we do
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["updated"]),
+            Slug = parentCollection.Entity.Hierarchy!.Single(h => h.Canonical).Slug,
+            Parent = RootCollection.Id,
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
+        SetCorrectEtag(updateRequestMessage, parentCollection.Entity);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var returnedCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        returnedCollection.Totals.Should().BeEquivalentTo(expectedCounts);
+        returnedCollection.Items.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_RemovesErroneousBehaviors()
+    {
+        // Arrange
+        var parentIdentifier = nameof(UpdateCollection_RemovesErroneousBehaviors);
+        var childIdentifier = $"c{parentIdentifier}";
+
+        // Create a parent with 2 children: 1 storage + 1 manifest 
+        var parentCollection = await dbContext.Collections.AddTestCollection(parentIdentifier);
+        await dbContext.Collections.AddTestCollection(childIdentifier, parent: parentIdentifier);
+        await dbContext.Manifests.AddTestManifest(childIdentifier, parent: parentIdentifier);
+        await dbContext.SaveChangesAsync();
+
+        // doesn't matter what we update - just that we do
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection, "I'm fake and will be removed"],
+            Label = new LanguageMap("en", ["updated"]),
+            Slug = parentCollection.Entity.Hierarchy!.Single(h => h.Canonical).Slug,
+            Parent = RootCollection.Id,
+        };
+
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
+        SetCorrectEtag(updateRequestMessage, parentCollection.Entity);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var returnedCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        returnedCollection.Behavior.Should()
+            .HaveCount(2)
+            .And.ContainInOrder(Behavior.IsPublic, Behavior.IsStorageCollection);
+    }
+    
     [Fact]
     public async Task UpdateCollection_FailsToUpdateCollection_WhenCalledWithoutNeededHeaders()
     {
@@ -1805,6 +1891,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
+        responseCollection.Totals.Should().BeNull();
         
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");

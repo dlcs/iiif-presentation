@@ -233,6 +233,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+        var expectedTotals = new DescendantCounts(2, 1, 1); 
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -250,6 +251,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.CreatedBy.Should().Be("admin");
         collection.Behavior.Should().Contain("public-iiif");
         collection.PartOf.Should().BeNull("Root has no parent");
+        collection.Totals.Should().BeEquivalentTo(expectedTotals);
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         firstItem.Behavior.Should().Contain("public-iiif");
@@ -262,6 +264,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         thirdItem.Id.Should().Be("http://localhost/1/collections/IiifCollection");
         thirdItem.Behavior.Should().Contain("public-iiif");
         thirdItem.Behavior.Should().NotContain("storage-collection");
+        var fourthItem = (Manifest)collection.Items[3];
+        fourthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
     }
     
     [Fact]
@@ -270,6 +274,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
+        var expectedTotals = new DescendantCounts(1, 0, 0); 
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -288,18 +293,17 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Behavior.Should().Contain("public-iiif");
         collection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+        collection.Totals.Should().BeEquivalentTo(expectedTotals);
     }
     
     [Fact]
-    public async Task Get_PrivateChild_ReturnsCorrectlyFlatAndHierarchical()
+    public async Task Get_PrivateChild_ReturnsCorrectlyFlat()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/NonPublic");
 
         // Act
         var flatResponse = await httpClient.AsCustomer().SendAsync(requestMessage);
-        var hierarchicalResponse = await httpClient.AsCustomer().GetAsync("1/non-public");
-
         var flatCollection = await flatResponse.ReadAsPresentationJsonAsync<PresentationCollection>();
 
         // Assert
@@ -313,6 +317,15 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection.Behavior.Should().NotContain("public-iiif");
         flatCollection.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         flatCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
+    }
+    
+    [Fact]
+    public async Task Get_PrivateChild_Returns404Hierarchical()
+    {
+        // Act
+        var hierarchicalResponse = await httpClient.AsCustomer().GetAsync("1/non-public");
+
+        // Assert
         hierarchicalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -379,7 +392,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/FirstChildCollection");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -529,7 +542,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
-    public async Task Get_ChildFlat_CorrectTotalItems_WhenPageOutOfBOunds()
+    public async Task Get_ChildFlat_CorrectTotalItems_WhenPageOutOfBounds()
     {
         // Arrange
         var requestMessage =
@@ -566,7 +579,26 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_IiifCollection_ReturnsCollectionFromS3()
+    public async Task Get_FlatIIIFCollection_ReturnsNullTotals()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                "1/collections/IiifCollection");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Totals.Should().BeNull("IIIF Collections have no children");
+        collection.Items.Should().BeEmpty();
+    }
+    
+    [Fact]
+    public async Task Get_HierarchicalIIIFCollection_ReturnsCollectionFromS3()
     {
         // Arrange and Act
         var response = await httpClient.GetAsync("1/iiif-collection");

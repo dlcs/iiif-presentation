@@ -19,7 +19,7 @@ public class Collection : IHierarchyResource
     public LanguageMap? Label { get; set; }
 
     /// <summary>
-    /// Not the IIIF JSON, just a single path or URI to 100px, for rapid query results
+    /// Not the IIIF JSON, just a single path or URI, for rapid query results
     /// </summary>
     public string? Thumbnail { get; set; }
 
@@ -54,12 +54,12 @@ public class Collection : IHierarchyResource
     public string? Tags { get; set; }
 
     /// <summary>
-    /// Is proper IIIF collection; will have JSON in S3
+    /// Marks whether this is "folder" IIIF collection; there is no JSON stored - everything DB driven
     /// </summary>
     public bool IsStorageCollection { get; set; }
 
     /// <summary>
-    /// Whether the collection is available at Presentation.io/iiif/
+    /// Whether the collection is publicly available
     /// </summary>
     public bool IsPublic { get; set; }
 
