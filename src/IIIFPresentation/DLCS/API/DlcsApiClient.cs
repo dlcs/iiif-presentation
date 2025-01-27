@@ -118,12 +118,20 @@ internal class DlcsApiClient(
             return [];
 
         var endpoint = $"/customers/{customerId}/allImages";
-        var hydraImages = new HydraCollection<JObject>(assetIds.Select(id => new JObject {["id"] = id}).ToArray());
+        var results = new List<JObject>();
+        foreach (var idBatch in assetIds.Chunk(settings.MaxImageListSize))
+        {
+            var hydraImages = new HydraCollection<JObject>(idBatch.Select(id => new JObject {["id"] = id}).ToArray());
 
-        var result =
-            await CallDlcsApiFor<HydraCollection<JObject>>(HttpMethod.Post, endpoint, hydraImages, cancellationToken);
+            var result =
+                await CallDlcsApiFor<HydraCollection<JObject>>(HttpMethod.Post, endpoint, hydraImages,
+                    cancellationToken);
 
-        return result?.Members ?? [];
+            if (result?.Members is {Length: > 0} batchResults)
+                results.AddRange(batchResults);
+        }
+
+        return results;
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,
