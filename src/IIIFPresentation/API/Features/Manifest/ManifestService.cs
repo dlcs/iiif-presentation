@@ -136,10 +136,40 @@ public class ManifestService(
             var (error, dbManifest) =
                 await CreateDatabaseRecordAndIiifCloudServicesInteractions(request, parentCollection!, manifestId, cancellationToken);
             if (error != null) return error;
-
+                
             await SaveToS3(dbManifest!, request, cancellationToken);
+            
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Created);
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
+                    await GetAssets(request.CustomerId, dbManifest)),
+                WriteResult.Created);
+        }
+    }
+
+    private async Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest)
+    {
+        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
+            .OfType<string>().ToArray();
+
+        if (assetIds == null) return null;
+
+        try
+        {
+            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds);
+
+            return assets.Select(a => (asset: a,
+                    id: a.TryGetValue("@id", out var value) && value.Type == JTokenType.String
+                        ? value.Value<string>()
+                        : null))
+                .Where(tuple => tuple.id is {Length: > 0})
+                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
+        }
+        catch (DlcsException dlcsException)
+        {
+            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
+                customerId);
+
+            return null;
         }
     }
 
@@ -164,14 +194,8 @@ public class ManifestService(
             await SaveToS3(dbManifest!, request, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator), WriteResult.Updated);
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
         }
-    }
-
-    private bool CheckForItemsAndPaintedResources(PresentationManifest presentationManifest)
-    {
-        return !presentationManifest.Items.IsNullOrEmpty() &&
-               !presentationManifest.PaintedResources.IsNullOrEmpty();
     }
 
     private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
@@ -189,7 +213,8 @@ public class ManifestService(
         return (null, parentCollection);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(WriteManifestRequest request,
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(
+        WriteManifestRequest request,
         Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
     {
         const string spaceProperty = "space";
@@ -224,7 +249,7 @@ public class ManifestService(
         }
 
         var timeStamp = DateTime.UtcNow;
-        
+
         if (!assets.IsNullOrEmpty())
         {
             try
@@ -275,7 +300,7 @@ public class ManifestService(
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
     }
-
+    
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
     {

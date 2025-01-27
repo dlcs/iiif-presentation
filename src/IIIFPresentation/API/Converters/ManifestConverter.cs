@@ -1,13 +1,13 @@
 ﻿using API.Helpers;
 using Core.Helpers;
 using Core.IIIF;
-using DLCS.Models;
 using IIIF;
 using IIIF.Presentation;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Converters;
 
@@ -19,11 +19,13 @@ public static class ManifestConverter
     /// <param name="iiifManifest">Presentation Manifest to update</param>
     /// <param name="dbManifest">Database Manifest</param>
     /// <param name="pathGenerator">used to generate paths</param>
+    /// <param name="assets"></param>
     /// <param name="hierarchyFactory">
-    /// Optional factory to specify <see cref="Hierarchy"/> to use to get Parent and Slug. Defaults to using .Single()
+    ///     Optional factory to specify <see cref="Hierarchy"/> to use to get Parent and Slug. Defaults to using .Single()
     /// </param>
     public static PresentationManifest SetGeneratedFields(this PresentationManifest iiifManifest,
-        Manifest dbManifest, IPathGenerator pathGenerator, Func<Manifest, Hierarchy>? hierarchyFactory = null)
+        Manifest dbManifest, IPathGenerator pathGenerator, Dictionary<string, JObject>? assets = null,
+        Func<Manifest, Hierarchy>? hierarchyFactory = null)
     {
         hierarchyFactory ??= manifest => manifest.Hierarchy.ThrowIfNull(nameof(manifest.Hierarchy)).Single();
         
@@ -38,7 +40,7 @@ public static class ManifestConverter
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
-        iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator);
+        iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator, assets);
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
@@ -46,13 +48,14 @@ public static class ManifestConverter
         return iiifManifest;
     }
 
-    private static List<PaintedResource>? GetPaintedResources(this Manifest dbManifest, IPathGenerator pathGenerator)
+    private static List<PaintedResource>? GetPaintedResources(this Manifest dbManifest, IPathGenerator pathGenerator,
+        Dictionary<string, JObject>? assets)
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
         return dbManifest.CanvasPaintings.Select(cp => new PaintedResource
         {
-            CanvasPainting = new CanvasPainting
+            CanvasPainting = new Models.API.Manifest.CanvasPainting
             {
                 CanvasId = pathGenerator.GenerateCanvasId(cp),
                 Thumbnail = cp.Thumbnail?.ToString(),
@@ -65,10 +68,33 @@ public static class ManifestConverter
                 CanvasOriginalId = cp.CanvasOriginalId?.ToString(),
                 CanvasLabel = cp.CanvasLabel,
             },
-            Asset = cp.AssetId == null ? null : new JObject
-            {
-                ["@id"] = pathGenerator.GenerateAssetUri(cp)?.ToString()
-            }
+            Asset = GetAsset(cp, pathGenerator, assets)
         }).ToList();
+    }
+
+    private static JObject? GetAsset(CanvasPainting cp, IPathGenerator pathGenerator,
+        Dictionary<string, JObject>? assets)
+    {
+        if (cp.AssetId == null)
+            return null;
+
+        var fullAssetId = pathGenerator.GenerateAssetUri(cp)?.ToString();
+        if (fullAssetId == null)
+            return null;
+
+        if (assets is null)
+            return new()
+            {
+                ["@id"] = fullAssetId,
+                ["error"] = "Unable to retrieve asset details"
+            };
+
+        return assets.TryGetValue(fullAssetId, out var asset)
+            ? asset
+            : new()
+            {
+                ["@id"] = fullAssetId,
+                ["error"] = "Asset not found"
+            };
     }
 }

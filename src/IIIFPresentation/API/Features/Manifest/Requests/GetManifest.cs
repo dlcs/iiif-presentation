@@ -50,7 +50,7 @@ public class GetManifestHandler(
             return FetchEntityResult<PresentationManifest>.Failure(
                 "Unable to read and deserialize manifest from storage");
 
-        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator,
+        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, null,
             m => m.Hierarchy!.Single(h => h.Canonical));
 
         return FetchEntityResult<PresentationManifest>.Success(manifest);
