@@ -53,7 +53,10 @@ public static class ManifestConverter
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
-        return dbManifest.CanvasPaintings.Select(cp => new PaintedResource
+        return dbManifest.CanvasPaintings
+            .OrderBy(cp => cp.CanvasOrder)
+            .ThenBy(cp => cp.ChoiceOrder)
+            .Select(cp => new PaintedResource
         {
             CanvasPainting = new Models.API.Manifest.CanvasPainting
             {
