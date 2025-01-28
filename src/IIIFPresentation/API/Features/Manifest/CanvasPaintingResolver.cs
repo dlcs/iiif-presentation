@@ -19,11 +19,8 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
-    IOptions<DlcsSettings> dlcsOptions,
     ILogger<CanvasPaintingResolver> logger)
 {
-    private DlcsSettings settings = dlcsOptions.Value;
-    
     /// <summary>
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>

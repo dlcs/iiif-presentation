@@ -168,47 +168,22 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting()
     {
+        var id = nameof(Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting);
+        
         // Arrange and Act
-        await dbContext.Manifests.AddAsync(new Models.Database.Collections.Manifest()
-        {
-            Id = "ManifestWithBatch",
-            CustomerId = 1,
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Hierarchy =
-            [
-                new Hierarchy
-                {
-                    Slug = "manifest-with-batch",
-                    Parent = RootCollection.Id,
-                    Type = ResourceType.IIIFManifest,
-                    Canonical = true
-                }
-            ],
-            Batches =
-            [
-                new Batch
-                {
-                    Id = 1,
-                    Submitted = DateTime.UtcNow,
-                    Status = BatchStatus.Ingesting,
-                    ManifestId = "ManifestWithBatch"
-                }
-            ]
-        });
+        await dbContext.Manifests.AddAsync(GenerateManifestRecord(id, 1));
         
         await amazonS3.PutObjectAsync(new()
         {
             BucketName = LocalStackFixture.StorageBucketName,
-            Key = "1/manifests/ManifestWithBatch",
+            Key = $"1/manifests/{id}",
             ContentBody = TestContent.ManifestJson
         });
         
         await dbContext.SaveChangesAsync();
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/ManifestWithBatch");
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
@@ -219,9 +194,98 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.Headers.Vary.Should().HaveCount(2);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
-        manifest.Id.Should().Be("http://localhost/1/manifests/ManifestWithBatch", "requested by flat URI");
+        manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
-        manifest.FlatId.Should().Be("ManifestWithBatch");
-        manifest.PublicId.Should().Be("http://localhost/1/manifest-with-batch", "iiif-manifest is slug and under root");
+        manifest.FlatId.Should().Be(id);
+        manifest.PublicId.Should().Be($"http://localhost/1/{id}", "iiif-manifest is slug and under root");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting()
+    {
+        // Arrange and Act
+        var id = nameof(Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting);
+        
+        // Arrange and Act
+        await dbContext.Manifests.AddAsync(GenerateManifestRecord(id, 2));
+        
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+        
+        await dbContext.SaveChangesAsync();
+        
+        var response = await httpClient.GetAsync($"1/{id}");
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Headers.Vary.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore()
+    {
+        // Arrange and Act
+        var id = nameof(Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore);
+        
+        // Arrange and Act
+        await dbContext.Manifests.AddAsync(GenerateManifestRecord(id, 3, true));
+        
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+        
+        await dbContext.SaveChangesAsync();
+        
+        var response = await httpClient.GetAsync($"1/{id}");
+        
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Vary.Should().HaveCount(2);
+        manifest.Should().NotBeNull();
+        manifest!.Type.Should().Be("Manifest");
+        manifest.Id.Should().Be($"http://localhost/1/{id}", "requested by hierarchical URI");
+        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+    }
+
+    private static Models.Database.Collections.Manifest GenerateManifestRecord(string id, int batchId, bool ingested = false)
+    {
+        return new Models.Database.Collections.Manifest
+        {
+            Id = id,
+            CustomerId = 1,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Ingested = ingested,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = id,
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ],
+            Batches =
+            [
+                new Batch
+                {
+                    Id = batchId,
+                    Submitted = DateTime.UtcNow,
+                    Status = BatchStatus.Ingesting,
+                    ManifestId = id
+                }
+            ]
+        };
     }
 }

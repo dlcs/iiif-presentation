@@ -6,6 +6,7 @@ using AWS.Settings;
 using Core.Streams;
 using MediatR;
 using Microsoft.Extensions.Options;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
@@ -41,8 +42,12 @@ public class GetManifestHierarchicalHandler(
             new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
             cancellationToken);
 
-        if (objectFromS3.Stream.IsNull())
+        if (objectFromS3.Stream.IsNull() ||
+            (request.Hierarchy.Manifest.IsIngesting() &&
+             !request.Hierarchy.Manifest.HasIngestedPreviously()))
+        {
             return null;
+        }
 
         request.Hierarchy.FullPath = await fetchFullPath;
 

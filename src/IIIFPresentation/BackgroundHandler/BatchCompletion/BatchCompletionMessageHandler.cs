@@ -134,6 +134,7 @@ public class BatchCompletionMessageHandler(
         batch.Processed = DateTime.UtcNow;
         batch.Finished = finished;
         batch.Status = BatchStatus.Completed;
+        batch.Manifest!.Ingested = true;
     }
 
     private void UpdateCanvasPaintings(Manifest generatedManifest, Batch batch, Dictionary<AssetId, Canvas> itemDictionary)
