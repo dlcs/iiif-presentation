@@ -6,7 +6,7 @@ using Core.Response;
 using IIIF.Serialisation;
 using Models.API.Collection;
 using Models.API.General;
-using Models.Infrastucture;
+using Models.Infrastructure;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;

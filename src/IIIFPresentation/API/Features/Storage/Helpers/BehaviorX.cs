@@ -1,4 +1,4 @@
-﻿using Models.Infrastucture;
+﻿using Models.Infrastructure;
 
 namespace API.Features.Storage.Helpers;
 
