@@ -1,6 +1,8 @@
 ﻿using AWS.Helpers;
+using AWS.Settings;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
+using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.infrastructure;
 using DLCS;
 using DLCS.API;
@@ -34,7 +36,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
-    private readonly DlcsSettings dlcsSettings;
+    private readonly BackgroundHandlerSettings backgroundHandlerSettings;
     private readonly int customerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -43,13 +45,13 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        dlcsSettings = new DlcsSettings()
+        backgroundHandlerSettings = new BackgroundHandlerSettings()
         {
-            ApiUri = new Uri("https://localhost:5000"),
-            OrchestratorUri = new Uri("https://localhost:5000")
+            PresentationApiUrl = "https://localhost:5000",
+            AWS = new AWSSettings()
         };
         
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, Options.Create(dlcsSettings), iiifS3,
+        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, Options.Create(backgroundHandlerSettings), iiifS3,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -120,7 +122,7 @@ public class BatchCompletionMessageHandlerTests
                 {
                     new ()
                     {
-                        Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/{fullAssetId}/canvas/c/1",
+                        Id = $"{backgroundHandlerSettings.PresentationApiUrl}/iiif-img/{fullAssetId}/canvas/c/1",
                         Width = 100,
                         Height = 100,
                         Annotations = new List<AnnotationPage>

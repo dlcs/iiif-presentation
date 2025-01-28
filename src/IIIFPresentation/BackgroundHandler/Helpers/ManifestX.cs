@@ -25,7 +25,7 @@ public static class ManifestX
         return canvas.Items?[0];
     }
     
-    public static AnnotationPage GetCurrentCanvasAnnotation(this Manifest manifest, int index)
+    public static AnnotationPage GetCurrentCanvasAnnotationPage(this Manifest manifest, int index)
     {
         return manifest.Items![index].Items![0];
     }

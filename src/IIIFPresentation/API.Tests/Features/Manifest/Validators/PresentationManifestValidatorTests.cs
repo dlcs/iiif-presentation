@@ -109,7 +109,7 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenDuplicateChoiceWithCanvasOrder()
+    public void PaintedResource_Manifest_ErrorWhenDuplicateChoiceWithCanvasOrder()
     {
         var manifest = new PresentationManifest
         {
@@ -117,7 +117,7 @@ public class PresentationManifestValidatorTests
             [
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
                         CanvasOrder = 1,
@@ -127,7 +127,7 @@ public class PresentationManifestValidatorTests
 
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
                         CanvasOrder = 1,
@@ -143,7 +143,7 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
+    public void PaintedResource_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
     {
         var manifest = new PresentationManifest
         {
@@ -151,7 +151,7 @@ public class PresentationManifestValidatorTests
             [
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
                         CanvasOrder = 1,
@@ -161,7 +161,7 @@ public class PresentationManifestValidatorTests
 
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
                         CanvasOrder = 2,
@@ -171,23 +171,12 @@ public class PresentationManifestValidatorTests
             ],
         };
         
-        var error = manifest.PaintedResources.GroupBy(pr => pr.CanvasPainting.CanvasOrder)
-            .Any(s =>
-            {
-                if (s.Any(g => g.CanvasPainting.ChoiceOrder == null))
-                {
-                    return true;
-                }
-
-                return false;
-            });
-        
         var result = sut.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenNoChoiceWithCanvasOrder()
+    public void PaintedResource_Manifest_ErrorWhenNoChoiceWithCanvasOrder()
     {
         var manifest = new PresentationManifest
         {
@@ -195,7 +184,7 @@ public class PresentationManifestValidatorTests
             [
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
                         CanvasOrder = 1,
@@ -205,7 +194,7 @@ public class PresentationManifestValidatorTests
 
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
                         CanvasOrder = 1
@@ -271,6 +260,38 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting()
                     {
                         CanvasId = "someCanvasId-2",
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_NoErrorWhenChoiceOfOne()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 2,
+                        ChoiceOrder = 1
                     }
                 }
             ],

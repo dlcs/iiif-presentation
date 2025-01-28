@@ -2,6 +2,7 @@
 using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
+using BackgroundHandler.Settings;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
+using Repository.Helpers;
 using Batch = Models.Database.General.Batch;
 
 namespace BackgroundHandler.BatchCompletion;
@@ -20,13 +22,13 @@ namespace BackgroundHandler.BatchCompletion;
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IOptions<DlcsSettings> dlcsOptions,
+    IOptions<BackgroundHandlerSettings> backgroundHandlerOptions,
     IIIIFS3Service iiifS3,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-    private readonly DlcsSettings dlcsSettings = dlcsOptions.Value;
+    private readonly BackgroundHandlerSettings dlcsSettings = backgroundHandlerOptions.Value;
 
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
@@ -120,7 +122,11 @@ public class BatchCompletionMessageHandler(
         var mergedManifest = ManifestMerger.Merge(manifest.ThrowIfNull(nameof(manifest)),
             batch.Manifest?.CanvasPaintings, itemDictionary, thumbnail);
         
-        await iiifS3.SaveIIIFToS3(mergedManifest, batch.Manifest!, "", cancellationToken);
+        var fullPath = await ManifestRetrieval.RetrieveFullPathForManifest(batch.Manifest.Id, batch.Manifest.CustomerId,
+            dbContext, cancellationToken);
+
+        await iiifS3.SaveIIIFToS3(mergedManifest, batch.Manifest!, $"{dlcsSettings.PresentationApiUrl}{batch.Manifest.CustomerId}/{fullPath}",
+            cancellationToken);
     }
 
     private void CompleteBatch(Batch batch, DateTime finished)
