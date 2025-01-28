@@ -189,6 +189,51 @@ public class ManifestConverterTests
     }
     
     [Fact]
+    public void SetGeneratedFields_SetsCanvasPaintings_InCanvasThenChoiceOrder()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow.AddDays(1),
+            CreatedBy = "creator",
+            ModifiedBy = "modifier",
+            Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                {
+                    ChoiceOrder = 1,
+                    CanvasOrder = 2,
+                    AssetId = new AssetId(1, 2, "assetId1")
+                },
+                new CanvasPainting
+                {
+                    ChoiceOrder = 2,
+                    CanvasOrder = 2,
+                    AssetId = new AssetId(1, 2, "assetId2")
+                },
+                new CanvasPainting
+                {
+                    CanvasOrder = 1,
+                    AssetId = new AssetId(1, 2, "assetId3")
+                }
+            ]
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+
+        // Assert
+        result.PaintedResources.Should()
+            .BeInAscendingOrder(pr => pr.CanvasPainting.CanvasOrder)
+            .And.ThenBeInAscendingOrder(pr => pr.CanvasPainting.ChoiceOrder);
+    }
+    
+    [Fact]
     public void SetGeneratedFields_SetsCanvasPainting_WithoutAssetId()
     {
         // Arrange
