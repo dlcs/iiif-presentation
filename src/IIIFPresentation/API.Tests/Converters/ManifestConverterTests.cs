@@ -206,27 +206,18 @@ public class ManifestConverterTests
             [
                 new CanvasPainting
                 {
-                    CanvasOriginalId = new Uri("http://example.test/canvas1"),
-                    CustomerId = 123,
-                    Id = "the-canvas",
                     ChoiceOrder = 1,
                     CanvasOrder = 2,
                     AssetId = new AssetId(1, 2, "assetId1")
                 },
                 new CanvasPainting
                 {
-                    CanvasOriginalId = new Uri("http://example.test/canvas1"),
-                    CustomerId = 123,
-                    Id = "the-canvas",
                     ChoiceOrder = 2,
                     CanvasOrder = 2,
                     AssetId = new AssetId(1, 2, "assetId2")
                 },
                 new CanvasPainting
                 {
-                    CanvasOriginalId = new Uri("http://example.test/canvas1"),
-                    CustomerId = 123,
-                    Id = "the-canvas",
                     CanvasOrder = 1,
                     AssetId = new AssetId(1, 2, "assetId3")
                 }
