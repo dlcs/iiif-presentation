@@ -6,7 +6,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Database.General;
-using Models.Infrastucture;
+using Models.Infrastructure;
 using Collection = IIIF.Presentation.V3.Collection;
 using Manifest = IIIF.Presentation.V3.Manifest;
 using DbCollection = Models.Database.Collections.Collection;
@@ -188,25 +188,32 @@ public static class CollectionConverter
     /// <param name="collection">The collection to use in generation</param>
     /// <param name="pathGenerator">Generates paths for collections</param>
     /// <returns>A list of external resources</returns>
-    private static List<ExternalResource> GenerateSeeAlso(Models.Database.Collections.Collection collection, 
+    private static List<ExternalResource>? GenerateSeeAlso(DbCollection collection, 
         IPathGenerator pathGenerator)
     {
-        // TODO - do this at the same time maybe?? #168
-        return [
-            new(nameof(PresentationType.Collection))
+        if (!collection.IsStorageCollection) return null;
+        
+        var seeAlso = new List<ExternalResource>();
+
+        if (collection.IsPublic)
+        {
+            // if the collection is public, include the canonical path
+            // NOTE that this will need changed when we implement canonical paths
+            AddSeeAlso(Behavior.IsPublic);
+        }
+        
+        // always include hierarchical form
+        AddSeeAlso(Behavior.ApiHierarchical);
+        
+        return seeAlso;
+
+        void AddSeeAlso(string profile) =>
+            seeAlso.Add(new ExternalResource(nameof(PresentationType.Collection))
             {
                 Id = pathGenerator.GenerateHierarchicalCollectionId(collection),
                 Label = collection.Label,
-                Profile = "Public"
-            },
-
-            new(nameof(PresentationType.Collection))
-            {
-                Id = $"{pathGenerator.GenerateHierarchicalCollectionId(collection)}/iiif",
-                Label = collection.Label,
-                Profile = "api-hierarchical"
-            }
-        ];
+                Profile = profile,
+            });
     }
 
     /// <summary>

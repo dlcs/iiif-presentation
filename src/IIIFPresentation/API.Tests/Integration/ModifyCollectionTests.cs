@@ -16,7 +16,7 @@ using Models.API.Collection;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
-using Models.Infrastucture;
+using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;

@@ -44,9 +44,9 @@ public class CollectionConverterTests
             storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1");
-        hierarchicalCollection.Label!.Count.Should().Be(1);
+        hierarchicalCollection.Label!.Should().HaveCount(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
-        hierarchicalCollection.Items!.Count.Should().Be(1);
+        hierarchicalCollection.Items!.Should().HaveCount(1);
         hierarchicalCollection.Context!.Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
     
@@ -61,10 +61,42 @@ public class CollectionConverterTests
             storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
         // Assert
         hierarchicalCollection.Id.Should().Be("http://base/1/top/some-id");
-        hierarchicalCollection.Label!.Count.Should().Be(1);
+        hierarchicalCollection.Label!.Should().HaveCount(1);
         hierarchicalCollection.Label["en"].Should().Contain("repository root");
-        hierarchicalCollection.Items!.Count.Should().Be(1);
+        hierarchicalCollection.Items!.Should().HaveCount(1);
         hierarchicalCollection.Context!.Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_NoSeeAlso_IfIIIFCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(false, true);
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+
+        // Assert
+        presentationCollection.SeeAlso.Should().BeNull();
+    }
+    
+    [Fact]
+    public void ToPresentationCollection_PublicAndApiSeeAlso_IfPublicStorageCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+
+        // Assert
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
+        presentationCollection.SeeAlso[0].Profile.Should().Be("public-iiif");
+        presentationCollection.SeeAlso[1].Id.Should().Be("http://base/1/top/some-id");
+        presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
     
     [Fact]
@@ -104,17 +136,15 @@ public class CollectionConverterTests
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
         presentationCollection.PublicId.Should().Be("http://base/1");
-        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
-        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso.Should().HaveCount(1);
         presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1");
-        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/iiif");
-        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.SeeAlso[0].Profile.Should().Contain("api-hierarchical");
         presentationCollection.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Parent.Should().BeNull();
-        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.Items!.Should().HaveCount(1);
         presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
         presentationCollection.View.Next.Should().BeNull();
         presentationCollection.View.Last.Should().BeNull();
@@ -137,17 +167,15 @@ public class CollectionConverterTests
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
         presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
-        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso.Should().HaveCount(1);
         presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
-        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
-        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("api-hierarchical");
         presentationCollection.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Parent.Should().Be("http://base/1/collections/top");
-        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.Items!.Should().HaveCount(1);
         presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
         presentationCollection.View.Next.Should().BeNull();
         presentationCollection.View.Last.Should().BeNull();
@@ -172,15 +200,14 @@ public class CollectionConverterTests
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
         presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
-        presentationCollection.SeeAlso.Should().HaveCount(2);
-        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.SeeAlso.Should().HaveCount(1);
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("api-hierarchical");
         presentationCollection.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Parent.Should().Be("http://base/1/collections/top");
-        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.Items!.Should().HaveCount(1);
         presentationCollection.View!.TotalPages.Should().Be(3);
         presentationCollection.View.PageSize.Should().Be(1);
         presentationCollection.View.Id.Should().Be("http://base/1/collections/some-id?page=2&pageSize=1&orderBy=created");
@@ -209,17 +236,15 @@ public class CollectionConverterTests
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
         presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
-        presentationCollection.Label!.Count.Should().Be(1);
+        presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
-        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso.Should().HaveCount(1);
         presentationCollection.SeeAlso![0].Id.Should().Be("http://base/1/top/some-id");
-        presentationCollection.SeeAlso![0].Profile.Should().Contain("Public");
-        presentationCollection.SeeAlso![1].Id.Should().Be("http://base/1/top/some-id/iiif");
-        presentationCollection.SeeAlso[1].Profile.Should().Contain("api-hierarchical");
+        presentationCollection.SeeAlso![0].Profile.Should().Contain("api-hierarchical");
         presentationCollection.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Parent.Should().Be("http://base/1/collections/top");
-        presentationCollection.Items!.Count.Should().Be(1);
+        presentationCollection.Items!.Should().HaveCount(1);
         presentationCollection.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
         presentationCollection.View.Next.Should().BeNull();
         presentationCollection.View.Last.Should().BeNull();
@@ -359,8 +384,8 @@ public class CollectionConverterTests
         
         return items;
     }
-    
-    private static Collection CreateTestHierarchicalCollection()
+
+    private static Collection CreateTestHierarchicalCollection(bool isStorageCollection = true, bool isPublic = false)
     {
         var collection = new Collection
         {
@@ -373,23 +398,25 @@ public class CollectionConverterTests
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
             FullPath = "top/some-id",
-            IsStorageCollection = true,
-            Hierarchy = [
-                new Hierarchy()
+            IsStorageCollection = isStorageCollection,
+            IsPublic = isPublic,
+            Hierarchy =
+            [
+                new Hierarchy
                 {
                     CollectionId = "some-id",
                     Slug = "root",
                     Parent = "top",
                     CustomerId = 1,
-                    Type = ResourceType.StorageCollection,
+                    Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
                     Canonical = true
                 }
             ]
         };
-        
+
         return collection;
     }
-    
+
     private static Collection CreateTestCollection()
     {
         var collection = new Collection

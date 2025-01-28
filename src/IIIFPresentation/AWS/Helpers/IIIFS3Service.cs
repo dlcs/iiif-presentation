@@ -10,7 +10,7 @@ using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
-using Models.Infrastucture;
+using Models.Infrastructure;
 
 namespace AWS.Helpers;
 

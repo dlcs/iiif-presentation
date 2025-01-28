@@ -18,7 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
-using Models.Infrastucture;
+using Models.Infrastructure;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
