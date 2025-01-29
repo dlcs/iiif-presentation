@@ -1,11 +1,20 @@
 ﻿#nullable disable
 
 using System.Net;
+using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using DLCS.API;
+using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Strings;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
+using Repository;
+using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -15,13 +24,38 @@ namespace API.Tests.Integration;
 public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
+    private readonly PresentationContext dbContext;
+    private readonly IDlcsApiClient dlcsApiClient;
+    private readonly IAmazonS3 s3;
+    private readonly JObject sampleAsset;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
+        s3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
+        dbContext = storageFixture.DbFixture.DbContext;
+        dlcsApiClient = A.Fake<IDlcsApiClient>();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
+            services => services.AddSingleton(dlcsApiClient));
 
         storageFixture.DbFixture.CleanUp();
+
+        sampleAsset = JObject.Parse(
+            """
+            {
+                   "@context": "https://localhost/contexts/Image.jsonld",
+                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@type": "vocab:Image",
+                   "id": "foo-paintedResource",
+                   "space": 1
+                 }
+            """
+        );
+        A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+                A<IList<string>>.That.Matches(l =>
+                    l.Any(x => "1/2/foo-paintedResource".Equals(x))),
+                A<CancellationToken>._))
+            .ReturnsLazily(() => [sampleAsset]);
     }
 
     [Fact]
@@ -58,6 +92,38 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be("FirstChildManifest");
         manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources()
+    {
+        // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
+        var id = nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources);
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
+        var assetId = new AssetId(1, 2, "foo-paintedResource");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
+            assetId: assetId);
+        await dbContext.SaveChangesAsync();
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson,
+        });
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Act
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        manifest.Should().NotBeNull();
+        manifest.PaintedResources.Should().HaveCount(1);
+        var paintedResource = manifest.PaintedResources.Single();
+        paintedResource.CanvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "foo"));
+        paintedResource.Asset.Should().BeEquivalentTo(sampleAsset);
     }
 
     [Fact]
