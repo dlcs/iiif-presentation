@@ -1,5 +1,4 @@
-﻿using API.Converters;
-using API.Infrastructure.Requests;
+﻿using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
 using Models.API.General;
@@ -26,7 +25,7 @@ public class UpsertManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class UpsertManifestHandler(ManifestService manifestService)
+public class UpsertManifestHandler(IManifestWrite manifestService)
     : IRequestHandler<UpsertManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(UpsertManifest request,

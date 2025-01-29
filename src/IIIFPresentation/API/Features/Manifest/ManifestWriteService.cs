@@ -48,10 +48,23 @@ public record WriteManifestRequest(
     string RawRequestBody,
     bool CreateSpace);
 
+public interface IManifestWrite
+{
+    /// <summary>
+    /// Create or update full manifest, using details provided in request object
+    /// </summary>
+    Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Create new manifest, using details provided in request object
+    /// </summary>
+    Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// Service to help with creation of manifests
 /// </summary>
-public class ManifestService(
+public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
     IIIFS3Service iiifS3,
@@ -60,7 +73,8 @@ public class ManifestService(
     IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
     IDlcsApiClient dlcsApiClient,
-    ILogger<ManifestService> logger)
+    IManifestRead manifestRead,
+    ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     private readonly ApiSettings settings = options.Value;
     
@@ -141,35 +155,8 @@ public class ManifestService(
             
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                    await GetAssets(request.CustomerId, dbManifest)),
+                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
                 WriteResult.Created);
-        }
-    }
-
-    private async Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest)
-    {
-        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
-            .OfType<string>().ToArray();
-
-        if (assetIds == null) return null;
-
-        try
-        {
-            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds);
-
-            return assets.Select(a => (asset: a,
-                    id: a.TryGetValue("@id", out var value) && value.Type == JTokenType.String
-                        ? value.Value<string>()
-                        : null))
-                .Where(tuple => tuple.id is {Length: > 0})
-                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
-        }
-        catch (DlcsException dlcsException)
-        {
-            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
-                customerId);
-
-            return null;
         }
     }
 
