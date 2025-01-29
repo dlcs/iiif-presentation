@@ -22,7 +22,7 @@ public class CreateManifest(
 }
 
 public class CreateManifestHandler(
-    ManifestService manifestService) : IRequestHandler<CreateManifest,
+    IManifestWrite manifestService) : IRequestHandler<CreateManifest,
     ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(CreateManifest request,

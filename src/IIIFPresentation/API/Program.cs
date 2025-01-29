@@ -59,7 +59,8 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
-    .AddScoped<ManifestService>()
+    .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, PathGenerator>()
