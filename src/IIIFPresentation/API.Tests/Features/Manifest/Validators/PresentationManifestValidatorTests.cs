@@ -107,4 +107,228 @@ public class PresentationManifestValidatorTests
         var result = sutAllowedItemsAndPaintedResource.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.Items);
     }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenDuplicateChoiceWithCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 2,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenNoChoiceWithCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_NoErrorWhenNoChoiceWithIndividualCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 2
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_NoErrorWhenNoChoiceNoCanvasMultiple()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-1"
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-2",
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_NoErrorWhenChoiceOfOne()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 2,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "someCanvasId-2",
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
+    }
 }

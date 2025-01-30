@@ -1,7 +1,6 @@
 using API.Infrastructure.Validation;
 using API.Settings;
 using Core.Helpers;
-using DLCS;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
@@ -24,5 +23,30 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 .When(f => !f.PaintedResources.IsNullOrEmpty())
                 .WithMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
         }
+        
+        RuleFor(f => f.PaintedResources)
+            .Must(lpr => lpr.Any(pr => pr.CanvasPainting.CanvasOrder != null) 
+                         != lpr.Any(pr => pr.CanvasPainting.CanvasOrder == null))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("'canvasOrder' is required on all resources when used in at least one");
+        
+        RuleFor(f => f.PaintedResources)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
+                .GroupBy(pr => pr.CanvasPainting.CanvasOrder).Where(g => g.Count() > 1)
+                .Any(s => s.Any(g => g.CanvasPainting.ChoiceOrder == null)))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
+        
+        RuleFor(f => f.PaintedResources)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
+                .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
+                .Any(s =>
+                {
+                    var distinctChoiceOrder = s.Select(pr => pr.CanvasPainting.ChoiceOrder).Distinct().Count();
+
+                    return distinctChoiceOrder != s.Count();
+                }))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
     }
 }

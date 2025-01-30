@@ -211,11 +211,12 @@ public class CanvasPaintingResolver(
             {
                 Id = canvasPaintingIds[count],
                 Label = paintedResource.CanvasPainting?.Label,
+                CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
-                CanvasOrder = count,
+                CanvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count,
                 AssetId = AssetId.FromString($"{customerId}/{space}/{id}"),
-                ChoiceOrder = -1,
+                ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
                 Ingesting = true
             };
 

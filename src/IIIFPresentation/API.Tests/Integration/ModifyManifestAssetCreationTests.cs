@@ -855,6 +855,323 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      }
      
      [Fact]
+     public async Task CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
+     {
+         // Arrange
+         var slug = nameof(CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder);
+         var batchId = 5;
+         
+         var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "behavior": [
+                                  "public-iiif"
+                              ],
+                              "label": {
+                                  "en": [
+                                      "post testing"
+                                  ]
+                              },
+                              "slug": "{{slug}}",
+                              "parent": "root",
+                              "thumbnail": [
+                                  {
+                                      "id": "https://example.org/img/thumb.jpg",
+                                      "type": "Image",
+                                      "format": "image/jpeg",
+                                      "width": 300,
+                                      "height": 200
+                                  }
+                              ],
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                          "canvasLabel": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                        "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-0",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                          "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                          "canvasOrder": 0
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-2",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         responseManifest!.Id.Should().NotBeNull();
+         
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+         dbManifest.CanvasPaintings!.Count().Should().Be(3);
+         dbManifest.Batches.Should().HaveCount(1);
+         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(2);
+         dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
+         dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
+         dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
+         dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
+     }
+     
+     [Fact]
+     public async Task CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice()
+     {
+         // Arrange
+         var slug = nameof(CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice);
+         var batchId = 6;
+         
+         var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "behavior": [
+                                  "public-iiif"
+                              ],
+                              "label": {
+                                  "en": [
+                                      "post testing"
+                                  ]
+                              },
+                              "slug": "{{slug}}",
+                              "parent": "root",
+                              "thumbnail": [
+                                  {
+                                      "id": "https://example.org/img/thumb.jpg",
+                                      "type": "Image",
+                                      "format": "image/jpeg",
+                                      "width": 300,
+                                      "height": 200
+                                  }
+                              ],
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                        "canvasOrder": 1,
+                                        "choiceOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-0",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                          "canvasOrder": 1,
+                                          "choiceOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                         "label": {
+                                              "en": [
+                                                  "canvas testing"
+                                              ]
+                                          },
+                                          "canvasOrder": 0
+                                     },
+                                      "asset": {
+                                          "id": "testAssetByPresentation-multipleAssets-2",
+                                          "mediaType": "image/jpg",
+                                          "string1": "somestring",
+                                          "string2": "somestring2",
+                                          "string3": "somestring3",
+                                          "origin": "some/origin",
+                                          "deliveryChannels": [
+                                              {
+                                                  "channel": "iiif-img",
+                                                  "policy": "default"
+                                              },
+                                              {
+                                                  "channel": "thumbs",
+                                                  "policy": "default"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         responseManifest!.Id.Should().NotBeNull();
+         
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+         dbManifest.CanvasPaintings!.Count().Should().Be(3);
+         dbManifest.Batches.Should().HaveCount(1);
+         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
+         dbManifest.CanvasPaintings[0].ChoiceOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
+         dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(2);
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
+     }
+     
+     [Fact]
     public async Task? CreateManifest_ReturnsError_WhenErrorFromDlcs()
     {
         // Arrange

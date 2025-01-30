@@ -46,7 +46,7 @@ public class CanvasPainting
 {
     public required string CanvasId { get; set; }
     public string? CanvasOriginalId { get; set; }
-    public int CanvasOrder { get; set; }
+    public int? CanvasOrder { get; set; }
     public int? ChoiceOrder { get; set; }
     public string? Thumbnail { get; set; }
     public LanguageMap? Label { get; set; }
