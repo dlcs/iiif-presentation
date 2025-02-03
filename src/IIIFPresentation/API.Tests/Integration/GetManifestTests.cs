@@ -203,10 +203,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting()
     {
-        // Arrange and Act
+        // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting);
-        
-        // Arrange and Act
         await dbContext.Manifests.AddAsync(GenerateManifestRecord(id, 2));
         
         await amazonS3.PutObjectAsync(new()
@@ -218,7 +216,9 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         
         await dbContext.SaveChangesAsync();
         
+        // Act
         var response = await httpClient.GetAsync($"1/{id}");
+        
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Headers.Vary.Should().HaveCount(2);
@@ -227,10 +227,9 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore()
     {
-        // Arrange and Act
+        // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore);
         
-        // Arrange and Act
         await dbContext.Manifests.AddAsync(GenerateManifestRecord(id, 3, true));
         
         await amazonS3.PutObjectAsync(new()
@@ -242,6 +241,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         
         await dbContext.SaveChangesAsync();
         
+        // Act
         var response = await httpClient.GetAsync($"1/{id}");
         
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();

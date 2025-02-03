@@ -25,8 +25,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 
     [JsonIgnore] public string? FullPath { get; set; }
     
-    [JsonIgnore] 
-    public bool Ingesting { get; set; }
+    [JsonIgnore] public bool Ingesting { get; set; }
 }
 
 /// <summary>
