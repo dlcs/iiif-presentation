@@ -46,7 +46,10 @@ public static class ManifestConverter
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator, assets);
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
-        iiifManifest.Items = GenerateProvisionalItems(iiifManifest.PaintedResources);
+
+        // Note ??= - this is only if we don't yet have Items set by background process
+        iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
+        
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
         
