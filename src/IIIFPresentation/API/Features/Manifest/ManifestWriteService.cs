@@ -128,7 +128,8 @@ public class ManifestWriteService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating manifest for customer {CustomerId}", request.CustomerId);
+            logger.LogError(ex, "Error creating manifest with slug '{Slug}' for customer {CustomerId}",
+                request.PresentationManifest.Slug, request.CustomerId);
             return PresUpdateResult.Failure("Unexpected error creating manifest", ModifyCollectionType.Unknown,
                 WriteResult.Error);
         }

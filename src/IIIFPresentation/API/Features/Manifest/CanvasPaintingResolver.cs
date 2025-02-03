@@ -30,7 +30,7 @@ public class CanvasPaintingResolver(
     {
         if (presentationManifest.PaintedResources.HasAsset())
         {
-            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space!.Value,
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space,
                 cancellationToken);
         }
         
@@ -177,7 +177,8 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
+        int customerId, PresentationManifest presentationManifest, int? manifestSpace,
+        CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;
 
@@ -191,11 +192,12 @@ public class CanvasPaintingResolver(
         foreach (var paintedResource in presentationManifest.PaintedResources)
         {
             if (paintedResource.Asset == null) continue;
-    
-            if (!paintedResource.Asset.TryGetValue("space", out var space))
+
+            if (!paintedResource.Asset.TryGetValue("space", out var space)
+                && manifestSpace.HasValue)
             {
-                paintedResource.Asset.Add("space", manifestSpace);
-                space = manifestSpace;
+                paintedResource.Asset.Add("space", manifestSpace.Value);
+                space = manifestSpace.Value;
             }
 
             if (!paintedResource.Asset.TryGetValue("id", out var id))
