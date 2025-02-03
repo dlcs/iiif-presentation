@@ -16,7 +16,8 @@ public static class ManifestMerger
     public static Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
         Dictionary<AssetId, Canvas> canvasDictionary, List<ExternalResource>? thumbnail)
     {
-        if (baseManifest.Items == null) baseManifest.Items = [];
+        // Ensure collection non-null
+        baseManifest.Items ??= [];
 
         List<(Canvas? canvas, int index)> indexBasedManifest = baseManifest.Items.Select((Canvas, Index) => (Canvas, Index)).ToList();
         // get everything in the right order, then group by so we can tell where one choice ends and the next begins
@@ -24,9 +25,10 @@ public static class ManifestMerger
             .GroupBy(cp => cp.CanvasOrder).ToList() ?? [];
         
         // We want to use the canvas order set from painted resource, rather than the order set from the named query
-        foreach (var groupedCanvasPaintings in orderedCanvasPaintings.Select((Item, Index) => (Item, Index)))
+        foreach (var groupedCanvasPaintings in
+                 orderedCanvasPaintings.Select((Item, Index) => (Item, Index)))
         {
-            groupedCanvasPaintings.Item.TryGetNonEnumeratedCount(out var totalGroupedItems);
+            _ = groupedCanvasPaintings.Item.TryGetNonEnumeratedCount(out var totalGroupedItems);
             foreach (var canvasPainting in groupedCanvasPaintings.Item)
             {
                 if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryItem)) continue;
