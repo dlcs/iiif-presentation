@@ -51,7 +51,7 @@ public class Manifest : IHierarchyResource
     /// <summary>
     /// Whether the manifest has been ingested with assets at some point
     /// </summary>
-    public bool Ingested { get; set; }
+    public DateTime? LastProcessed { get; set; }
 }
 
 public static class ManifestX
@@ -66,5 +66,5 @@ public static class ManifestX
         => manifest?.Batches?.Any(m => m.Status == BatchStatus.Ingesting) ?? false;
     
     public static bool HasIngestedPreviously(this Manifest? manifest)
-        => manifest?.Ingested ?? false;
+        => manifest?.LastProcessed != null;
 }

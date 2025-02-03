@@ -131,10 +131,12 @@ public class BatchCompletionMessageHandler(
 
     private void CompleteBatch(Batch batch, DateTime finished)
     {
-        batch.Processed = DateTime.UtcNow;
+        var processed = DateTime.UtcNow;
+        
+        batch.Processed = processed;
         batch.Finished = finished;
         batch.Status = BatchStatus.Completed;
-        batch.Manifest!.Ingested = true;
+        batch.Manifest!.LastProcessed = processed;
     }
 
     private void UpdateCanvasPaintings(Manifest generatedManifest, Batch batch, Dictionary<AssetId, Canvas> itemDictionary)

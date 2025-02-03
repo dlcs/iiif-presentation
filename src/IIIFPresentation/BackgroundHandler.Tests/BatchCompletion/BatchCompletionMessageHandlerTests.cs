@@ -164,7 +164,7 @@ public class BatchCompletionMessageHandlerTests
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
         batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-        batch.Manifest!.Ingested.Should().BeTrue();
+        batch.Manifest!.LastProcessed.Should().NotBeNull();
         var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == fullAssetId);
         canvasPainting.Ingesting.Should().BeFalse();
         canvasPainting.StaticWidth.Should().Be(100);

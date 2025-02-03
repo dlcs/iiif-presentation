@@ -265,7 +265,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Ingested = ingested,
+            LastProcessed = ingested ? DateTime.UtcNow : null,
             Hierarchy =
             [
                 new Hierarchy
