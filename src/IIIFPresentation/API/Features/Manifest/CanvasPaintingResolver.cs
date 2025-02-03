@@ -177,7 +177,7 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, int? manifestSpace, CancellationToken cancellationToken)
+        int customerId, PresentationManifest presentationManifest, int manifestSpace, CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;
 
