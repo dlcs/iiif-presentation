@@ -48,10 +48,7 @@ public class GetManifestHierarchicalHandler(
             new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
             cancellationToken);
 
-        if (objectFromS3.Stream.IsNull())
-        {
-            return null;
-        }
+        if (objectFromS3.Stream.IsNull()) return null;
 
         request.Hierarchy.FullPath = await fetchFullPath;
 
