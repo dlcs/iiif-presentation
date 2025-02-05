@@ -33,6 +33,12 @@ public class GetManifestHierarchicalHandler(
         var flatId = request.Hierarchy.ManifestId ??
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
+        
+        if (request.Hierarchy.Manifest.IsIngesting() &&
+         !request.Hierarchy.Manifest.HasIngestedPreviously())
+        {
+            return null;
+        }
 
         // So db can respond while we talk to S3
         var fetchFullPath =
@@ -42,9 +48,7 @@ public class GetManifestHierarchicalHandler(
             new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
             cancellationToken);
 
-        if (objectFromS3.Stream.IsNull() ||
-            (request.Hierarchy.Manifest.IsIngesting() &&
-             !request.Hierarchy.Manifest.HasIngestedPreviously()))
+        if (objectFromS3.Stream.IsNull())
         {
             return null;
         }
