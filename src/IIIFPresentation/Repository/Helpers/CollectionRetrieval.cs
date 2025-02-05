@@ -151,6 +151,7 @@ WHERE
   AND tree_path.slug = slug_array[max_level]
   AND tree_path.customer_id = {customerId}";
 
+        // no need to include the batch as this is only hit for the root collection
         if (slug.Equals(string.Empty))
         {
             return await dbContext.Hierarchy

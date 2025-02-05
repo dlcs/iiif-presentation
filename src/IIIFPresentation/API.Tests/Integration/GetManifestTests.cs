@@ -16,8 +16,6 @@ using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Models.Database.General;
-using Repository;
-using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;
@@ -31,7 +29,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly PresentationContext dbContext;
     
     private readonly IAmazonS3 amazonS3;
-    private readonly PresentationContext dbContext;
     private readonly IDlcsApiClient dlcsApiClient;
     private readonly IAmazonS3 s3;
     private readonly JObject sampleAsset;
@@ -44,7 +41,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
             services => services.AddSingleton(dlcsApiClient));
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
 
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
 

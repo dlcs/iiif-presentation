@@ -17,12 +17,10 @@ public class GetManifest(
     public bool PathOnly { get; } = pathOnly;
 }
 
-public class GetManifestHandler(
-    PresentationContext dbContext,
-    IPathGenerator pathGenerator,
-    IIIFS3Service iiifS3) : IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
+public class GetManifestHandler(IManifestRead manifestRead) : 
+    IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
     public Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
         CancellationToken cancellationToken)
-        => manifestRead.GetManifest(request.CustomerId, request.Id, request.PathOnly, cancellationToken);
+            => manifestRead.GetManifest(request.CustomerId, request.Id, request.PathOnly, cancellationToken);
 }
