@@ -34,8 +34,7 @@ public class GetManifestHierarchicalHandler(
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
         
-        if (request.Hierarchy.Manifest.IsIngesting() &&
-         !request.Hierarchy.Manifest.HasIngestedPreviously())
+        if (!request.Hierarchy.Manifest!.LastProcessed.HasValue)
         {
             return null;
         }

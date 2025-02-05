@@ -207,7 +207,8 @@ public class PresentationContextFixture : IAsyncLifetime
                     Type = ResourceType.IIIFManifest,
                     Canonical = true
                 }
-            ]
+            ],
+            LastProcessed = DateTime.UtcNow
         });
         
         await DbContext.SaveChangesAsync();

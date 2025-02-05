@@ -15,7 +15,6 @@ using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
-using Models.Database.General;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Integration;

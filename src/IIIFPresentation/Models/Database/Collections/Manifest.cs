@@ -64,7 +64,4 @@ public static class ManifestX
     
     public static bool IsIngesting(this Manifest? manifest)
         => manifest?.Batches?.Any(m => m.Status == BatchStatus.Ingesting) ?? false;
-    
-    public static bool HasIngestedPreviously(this Manifest? manifest)
-        => manifest?.LastProcessed != null;
 }

@@ -280,7 +280,8 @@ public class ManifestWriteService(
                 }
             ],
             CanvasPaintings = canvasPaintings,
-            SpaceId = spaceId
+            SpaceId = spaceId,
+            LastProcessed = canvasPaintings?.Any(cp => cp.AssetId != null) ?? false ? null : DateTime.UtcNow
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);
