@@ -164,7 +164,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
         response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         responseManifest.Should().NotBeNull();
         responseManifest!.PaintedResources.Should().NotBeNull();

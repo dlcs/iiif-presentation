@@ -16,7 +16,7 @@ public static class DatabaseTestDataPopulation
 {
     public static ValueTask<EntityEntry<Manifest>> AddTestManifest(this DbSet<Manifest> manifests,
         [CallerMemberName] string id = "", int customer = 1, DateTime? createdDate = null, string? slug = null,
-        string parent = "root", LanguageMap? label = null)
+        string parent = "root", LanguageMap? label = null, int? batchId = null, bool ingested = false)
     {
         createdDate ??= DateTime.UtcNow;
         return manifests.AddAsync(new Manifest
@@ -27,6 +27,7 @@ public static class DatabaseTestDataPopulation
             Created = createdDate.Value,
             Modified = createdDate.Value,
             Label = label,
+            LastProcessed = ingested ? DateTime.UtcNow : null,
             Hierarchy =
             [
                 new Hierarchy
@@ -36,7 +37,17 @@ public static class DatabaseTestDataPopulation
                     Parent = parent,
                     Type = ResourceType.IIIFManifest
                 }
-            ]
+            ],
+            Batches = batchId != null ?
+            [
+                new Batch
+                {
+                    Id = batchId.Value,
+                    Submitted = DateTime.UtcNow,
+                    Status = BatchStatus.Ingesting,
+                    ManifestId = id
+                }
+            ] : null,
         });
     }
     
