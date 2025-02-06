@@ -160,15 +160,16 @@ public class BatchCompletionMessageHandlerTests
         handleMessage.Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustHaveHappened();
-        var batch = dbContext.Batches.Single(b => b.Id == batchId);
+        var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
         batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
+        batch.Manifest!.LastProcessed.Should().NotBeNull();
         var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == fullAssetId);
         canvasPainting.Ingesting.Should().BeFalse();
         canvasPainting.StaticWidth.Should().Be(100);
         canvasPainting.StaticHeight.Should().Be(100);
-        canvasPainting.AssetId.ToString().Should()
+        canvasPainting.AssetId!.ToString().Should()
             .Be(fullAssetId.ToString());
     }
     
@@ -213,8 +214,9 @@ public class BatchCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        var batch = await dbContext.Batches.SingleOrDefaultAsync(b => b.Id == batchId);
+        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleOrDefaultAsync(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
+        batch.Manifest!.LastProcessed.Should().BeNull();
     }
 
     private Manifest CreateManifest(string manifestId, string slug, string assetId, int space, int batchId)

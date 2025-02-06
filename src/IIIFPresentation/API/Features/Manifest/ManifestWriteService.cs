@@ -86,7 +86,8 @@ public class ManifestWriteService(
         try
         {
             var existingManifest =
-                await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, true, cancellationToken);
+                await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
+                    withCanvasPaintings: true, cancellationToken: cancellationToken);
 
             if (existingManifest == null)
             {
@@ -279,7 +280,8 @@ public class ManifestWriteService(
                 }
             ],
             CanvasPaintings = canvasPaintings,
-            SpaceId = spaceId
+            SpaceId = spaceId,
+            LastProcessed = canvasPaintings?.Any(cp => cp.AssetId != null) ?? false ? null : timeStamp
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);

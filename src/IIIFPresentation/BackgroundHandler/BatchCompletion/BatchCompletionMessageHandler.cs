@@ -64,7 +64,7 @@ public class BatchCompletionMessageHandler(
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))
         {
-            CompleteBatch(batch, batchCompletionMessage.Finished);
+            CompleteBatch(batch, batchCompletionMessage.Finished, false);
         }
         else
         {
@@ -93,7 +93,7 @@ public class BatchCompletionMessageHandler(
             try
             {
                 UpdateCanvasPaintings(generatedManifest, batch, itemDictionary);
-                CompleteBatch(batch, batchCompletionMessage.Finished);
+                CompleteBatch(batch, batchCompletionMessage.Finished, true);
                 await UpdateManifestInS3(generatedManifest.Thumbnail, itemDictionary, batch, cancellationToken);
             }
             catch (Exception e)
@@ -129,11 +129,18 @@ public class BatchCompletionMessageHandler(
             cancellationToken);
     }
 
-    private void CompleteBatch(Batch batch, DateTime finished)
+    private void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
     {
-        batch.Processed = DateTime.UtcNow;
+        var processed = DateTime.UtcNow;
+        
+        batch.Processed = processed;
         batch.Finished = finished;
         batch.Status = BatchStatus.Completed;
+
+        if (finalBatch)
+        {
+            batch.Manifest!.LastProcessed = processed;
+        }
     }
 
     private void UpdateCanvasPaintings(Manifest generatedManifest, Batch batch, Dictionary<AssetId, Canvas> itemDictionary)

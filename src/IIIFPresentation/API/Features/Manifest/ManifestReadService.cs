@@ -6,6 +6,7 @@ using AWS.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using Models.API.Manifest;
+using Models.Database.Collections;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
@@ -67,8 +68,8 @@ public class ManifestReadService(
 
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId, bool pathOnly, CancellationToken cancellationToken)
     {
-        var dbManifest =
-            await dbContext.RetrieveManifestAsync(customerId, manifestId, cancellationToken: cancellationToken);
+        var dbManifest = await dbContext.RetrieveManifestAsync(customerId, manifestId, withBatches: true,
+            cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
 
@@ -95,6 +96,11 @@ public class ManifestReadService(
         var assets = await getAssets;
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, assets,
             m => Enumerable.Single<Hierarchy>(m.Hierarchy!, h => h.Canonical));
+
+        if (dbManifest.IsIngesting())
+        {
+            manifest.Ingesting = true;
+        }
 
         return FetchEntityResult<PresentationManifest>.Success(manifest);
     }

@@ -47,6 +47,11 @@ public class Manifest : IHierarchyResource
     public List<CanvasPainting>? CanvasPaintings { get; set; }
     
     public List<Batch>? Batches { get; set; }
+    
+    /// <summary>
+    /// A timestamp denoting when this batch was last processed into a user viewable format
+    /// </summary>
+    public DateTime? LastProcessed { get; set; }
 }
 
 public static class ManifestX
@@ -56,4 +61,7 @@ public static class ManifestX
     /// </summary>
     public static string GetDefaultSpaceName(string manifestId)
         => $"For manifest {manifestId} - {DateTime.UtcNow.ToString("s", CultureInfo.InvariantCulture)}";
+    
+    public static bool IsIngesting(this Manifest? manifest)
+        => manifest?.Batches?.Any(m => m.Status == BatchStatus.Ingesting) ?? false;
 }

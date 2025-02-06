@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20250128103132_addIngestedToManifest")]
+    partial class addIngestedToManifest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -201,13 +204,13 @@ namespace Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("Ingested")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ingested");
+
                     b.Property<string>("Label")
                         .HasColumnType("text")
                         .HasColumnName("label");
-
-                    b.Property<DateTime?>("LastProcessed")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_processed");
 
                     b.Property<DateTime>("Modified")
                         .ValueGeneratedOnAdd()

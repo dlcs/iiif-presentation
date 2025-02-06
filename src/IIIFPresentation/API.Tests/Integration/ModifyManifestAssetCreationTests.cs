@@ -164,7 +164,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
         response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         responseManifest.Should().NotBeNull();
         responseManifest!.PaintedResources.Should().NotBeNull();
@@ -270,6 +270,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
         dbManifest.Batches!.First().Id.Should().Be(batchId);
+        dbManifest.LastProcessed.Should().BeNull();
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,

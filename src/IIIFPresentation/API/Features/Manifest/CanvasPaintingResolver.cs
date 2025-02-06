@@ -19,11 +19,8 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
-    IOptions<DlcsSettings> dlcsOptions,
     ILogger<CanvasPaintingResolver> logger)
 {
-    private DlcsSettings settings = dlcsOptions.Value;
-    
     /// <summary>
     /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
     /// </summary>
@@ -108,7 +105,6 @@ public class CanvasPaintingResolver(
                 processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
             }
         }
-
         // Delete canvasPaintings from DB that are not in payload
         foreach (var toRemove in existingManifest.CanvasPaintings
                      .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())

@@ -467,6 +467,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         fromDatabase.Should().NotBeNull();
         fromDatabase.SpaceId.Should().BeNull("No space was requested");
+        fromDatabase.LastProcessed.Should().NotBeNull();
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
     }

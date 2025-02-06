@@ -28,7 +28,8 @@ public class DeleteManifestHandler(
             request.CustomerId);
 
         var manifest =
-            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true, false, cancellationToken);
+            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
+                withCanvasPaintings: false, cancellationToken: cancellationToken);
         
         if (manifest is null) return new(DeleteResult.NotFound);
 
