@@ -49,7 +49,7 @@ public class Manifest : IHierarchyResource
     public List<Batch>? Batches { get; set; }
     
     /// <summary>
-    /// Whether the manifest has been ingested with assets at some point
+    /// A timestamp denoting when this batch was last processed into a user viewable format
     /// </summary>
     public DateTime? LastProcessed { get; set; }
 }

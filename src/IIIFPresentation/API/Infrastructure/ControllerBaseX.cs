@@ -171,9 +171,8 @@ public static class ControllerBaseX
         => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
     
     /// <summary>
-    /// Creates either a 201 or 202 result with standard serialized value or custom serialized IIIF object if value is
-    /// based on whether the asset is ingesting (202)
-    /// <see cref="JsonLdBase"/> 
+    /// Creates a result with standard serialized value or custom serialized IIIF object, with a specified status code
+    /// <see cref="JsonLdBase"/>
     /// </summary>
     public static ActionResult PresentationWithBodyResponse(this ControllerBase controller, string? uri, object? value, int statusCode)
     {

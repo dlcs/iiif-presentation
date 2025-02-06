@@ -281,7 +281,7 @@ public class ManifestWriteService(
             ],
             CanvasPaintings = canvasPaintings,
             SpaceId = spaceId,
-            LastProcessed = canvasPaintings?.Any(cp => cp.AssetId != null) ?? false ? null : DateTime.UtcNow
+            LastProcessed = canvasPaintings?.Any(cp => cp.AssetId != null) ?? false ? null : timeStamp
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);

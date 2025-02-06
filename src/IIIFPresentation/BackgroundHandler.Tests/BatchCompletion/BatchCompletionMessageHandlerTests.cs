@@ -214,8 +214,9 @@ public class BatchCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        var batch = await dbContext.Batches.SingleOrDefaultAsync(b => b.Id == batchId);
+        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleOrDefaultAsync(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
+        batch.Manifest!.LastProcessed.Should().BeNull();
     }
 
     private Manifest CreateManifest(string manifestId, string slug, string assetId, int space, int batchId)
