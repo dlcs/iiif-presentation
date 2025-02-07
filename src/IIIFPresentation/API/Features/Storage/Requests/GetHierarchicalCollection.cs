@@ -1,7 +1,6 @@
 ﻿using API.Converters.Streaming;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
-using API.Helpers;
 using AWS.Helpers;
 using AWS.S3;
 using AWS.S3.Models;
@@ -12,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
 using Repository;
+using Repository.Paths;
 
 namespace API.Features.Storage.Requests;
 

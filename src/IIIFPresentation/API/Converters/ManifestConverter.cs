@@ -7,6 +7,8 @@ using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
+using Repository;
+using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Converters;

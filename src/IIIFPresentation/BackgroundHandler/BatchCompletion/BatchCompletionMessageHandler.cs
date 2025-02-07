@@ -2,19 +2,16 @@
 using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
-using BackgroundHandler.Settings;
 using Core.Helpers;
 using Core.IIIF;
-using DLCS;
 using DLCS.API;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
-using Repository.Helpers;
+using Repository.Paths;
 using Batch = Models.Database.General.Batch;
 
 namespace BackgroundHandler.BatchCompletion;
@@ -22,13 +19,12 @@ namespace BackgroundHandler.BatchCompletion;
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IOptions<BackgroundHandlerSettings> backgroundHandlerOptions,
     IIIIFS3Service iiifS3,
+    IPathGenerator pathGenerator,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-    private readonly BackgroundHandlerSettings dlcsSettings = backgroundHandlerOptions.Value;
 
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
@@ -117,19 +113,17 @@ public class BatchCompletionMessageHandler(
     private async Task UpdateManifestInS3(Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
         CancellationToken cancellationToken = default)
     {
-        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(batch.Manifest!, cancellationToken);
+        var dbManifest = batch.Manifest!;
+        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, cancellationToken);
 
         var mergedManifest = ManifestMerger.Merge(manifest.ThrowIfNull(nameof(manifest)),
             batch.Manifest?.CanvasPaintings, itemDictionary);
-        
-        var fullPath = await ManifestRetrieval.RetrieveFullPathForManifest(batch.Manifest.Id, batch.Manifest.CustomerId,
-            dbContext, cancellationToken);
 
-        await iiifS3.SaveIIIFToS3(mergedManifest, batch.Manifest!, $"{dlcsSettings.PresentationApiUrl}{batch.Manifest.CustomerId}/{fullPath}",
+        await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             cancellationToken);
     }
 
-    private void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
+    private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
     {
         var processed = DateTime.UtcNow;
         

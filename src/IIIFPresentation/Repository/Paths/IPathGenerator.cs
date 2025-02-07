@@ -2,7 +2,7 @@
 using Models.Database.Collections;
 using Models.Database.General;
 
-namespace API.Helpers;
+namespace Repository.Paths;
 
 public interface IPathGenerator
 {

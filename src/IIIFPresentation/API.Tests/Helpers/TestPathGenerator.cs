@@ -7,7 +7,7 @@ namespace API.Tests.Helpers;
 
 public static class TestPathGenerator
 {
-    public static PathGenerator CreatePathGenerator(string baseUrl, string scheme)
+    public static HttpRequestBasedPathGenerator CreatePathGenerator(string baseUrl, string scheme)
         => new(new HttpContextAccessor
             {
                 HttpContext = new DefaultHttpContext
