@@ -25,17 +25,15 @@ public class ManifestMergerTests
         var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest,
-            GenerateCanvasPaintings([assetId]), itemDictionary,
-            namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(blankManifest, GenerateCanvasPaintings([assetId]), itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(1);
         mergedManifest.Items[0].Width.Should().Be(110);
         mergedManifest.Items[0].Height.Should().Be(110);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
         mergedManifest.Metadata.Should().BeNull();
-        mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingLabel");;
+        mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingLabel");
         mergedManifest.Items[0].Metadata.Should().BeNull();
     }
     
@@ -54,17 +52,15 @@ public class ManifestMergerTests
             new LanguageMap("canvasPaintingCanvasLabel", "generated canvas painting label");
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest,
-            canvasPaintings, itemDictionary,
-            namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(1);
         mergedManifest.Items[0].Width.Should().Be(110);
         mergedManifest.Items[0].Height.Should().Be(110);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Thumbnail.Should().BeNull();
         mergedManifest.Metadata.Should().BeNull();
-        mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingCanvasLabel");;
+        mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingCanvasLabel");
         mergedManifest.Items[0].Metadata.Should().BeNull();
     }
     
@@ -80,13 +76,10 @@ public class ManifestMergerTests
         var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest,
-            GenerateCanvasPaintings([assetId]), itemDictionary,
-            namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(blankManifest, GenerateCanvasPaintings([assetId]), itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(1);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(1);
         mergedManifest.Items[0].Width.Should().Be(110);
         mergedManifest.Items[0].Height.Should().Be(110);
     }
@@ -96,25 +89,21 @@ public class ManifestMergerTests
     {
         // Arrange
         var assetId = $"1/2/{nameof(Merge_ShouldNotUpdateAttachedManifestThumbnail)}";
-        var blankManifest = GenerateManifest(assetId);
-        blankManifest.Items[0].Width = 200;
-        blankManifest.Items[0].Height = 200;
-        blankManifest.Thumbnail.Add(GenerateImageService(assetId));
-        blankManifest.Thumbnail[0].Service[0].Id = "namedQueryId";
+        var secondThumbId = "sample_id";
+        var baseManifest = GenerateManifest(assetId);
+        baseManifest.Thumbnail.Add(GenerateImageService(secondThumbId));
+        
         var namedQueryManifest = GenerateManifest(assetId);
         var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
         
         // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest,
-            GenerateCanvasPaintings([assetId]), itemDictionary,
-            namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(baseManifest, GenerateCanvasPaintings([assetId]), itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(1);
-        mergedManifest.Thumbnail[0].Service[0].Id.Should().Be("namedQueryId");
+        mergedManifest.Items.Should().HaveCount(1);
         mergedManifest.Thumbnail.Count.Should().Be(2);
-        mergedManifest.Items[0].Width.Should().Be(110);
-        mergedManifest.Items[0].Height.Should().Be(110);
+        mergedManifest.Thumbnail[0].Service[0].Id.Should().Be(assetId, "GenerateManifest() adds service with provided assetId");
+        mergedManifest.Thumbnail[1].Service[0].Id.Should().Be(secondThumbId);
     }
     
     [Fact]
@@ -122,29 +111,25 @@ public class ManifestMergerTests
     {
         // Arrange
         var blankManifest = new Manifest();
-        var namedQueryManifest = GenerateManifest($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
-        namedQueryManifest.Items.Add(GenerateCanvas($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2"));
-        var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
+        var assetIdOne = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1";
+        var assetIdTwo = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2";
         
-        var canvasPaintings = GenerateCanvasPaintings([
-            $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1",
-            $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2"
-        ]);
+        var namedQueryManifest = GenerateManifest(assetIdOne);
+        namedQueryManifest.Items.Add(GenerateCanvas(assetIdTwo));
+        var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
 
+        var canvasPaintings = GenerateCanvasPaintings([assetIdOne, assetIdTwo]);
         canvasPaintings[0].CanvasOrder = 1;
         canvasPaintings[1].CanvasOrder = 0;
         
         // Act
-        var mergedManifest =
-            ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary, namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(2);
-        mergedManifest.Thumbnail[0].Service[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
-        mergedManifest.Thumbnail.Count.Should().Be(1);
-        // order flipped due to canvas order
-        mergedManifest.Items[0].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2");
-        mergedManifest.Items[1].Id.Should().Be($"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1");
+        mergedManifest.Items.Should().HaveCount(2);
+        mergedManifest.Thumbnail.Should().BeNull();
+        mergedManifest.Items[0].Id.Should().Be(assetIdTwo, "order flipped due to canvas order");
+        mergedManifest.Items[1].Id.Should().Be(assetIdOne, "order flipped due to canvas order");
     }
     
     [Fact]
@@ -199,13 +184,12 @@ public class ManifestMergerTests
         canvasPaintings[4].Label = null;
         
         // Act
-        var mergedManifest =
-            ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary, namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(3);
-        mergedManifest.Thumbnail[0].Service[0].Id.Should().Be(canvas0Choice0);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(3);
+        mergedManifest.Thumbnail.Should().BeNull();
+        
         // should be 1 + 3 then 4 + 2 then 5
         mergedManifest.Items[0].Id.Should().Be(canvas0Choice0);
         mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingCanvasLabel");
@@ -269,14 +253,11 @@ public class ManifestMergerTests
         canvasPaintings[0].Label = null;
         
         // Act
-        var mergedManifest =
-            ManifestMerger.Merge(minimalManifest, canvasPaintings, itemDictionary, namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(minimalManifest, canvasPaintings, itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(2);
-        mergedManifest.Thumbnail[0].Service[0].Id.Should()
-            .Be(existingItemBecomingCanvas0Choice0);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(2);
+        mergedManifest.Thumbnail.Should().ContainSingle(t => t.Service[0].Id == existingItemBecomingCanvas0Choice0);
 
         mergedManifest.Items[0].Id.Should().Be(existingItemBecomingCanvas0Choice0);
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
@@ -331,13 +312,10 @@ public class ManifestMergerTests
         canvasPaintings[0].Label = null;
         
         // Act
-        var mergedManifest =
-            ManifestMerger.Merge(existingManifest, canvasPaintings, itemDictionary, namedQueryManifest.Thumbnail);
+        var mergedManifest = ManifestMerger.Merge(existingManifest, canvasPaintings, itemDictionary);
         
         // Assert
-        mergedManifest.Items.Count.Should().Be(2);
-        mergedManifest.Thumbnail[0].Service[0].Id.Should().Be(existingCanvas0Choice0);
-        mergedManifest.Thumbnail.Count.Should().Be(1);
+        mergedManifest.Items.Should().HaveCount(2);
         mergedManifest.Items[0].Id.Should().Be(existingCanvas0Choice0);
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
 

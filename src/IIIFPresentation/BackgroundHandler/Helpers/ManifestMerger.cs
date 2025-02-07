@@ -1,5 +1,4 @@
-﻿using Core.Helpers;
-using IIIF.Presentation.V3;
+﻿using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
@@ -14,7 +13,7 @@ public static class ManifestMerger
     /// Merges a generated DLCS manifest with the current manifest in S3
     /// </summary>
     public static Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
-        Dictionary<AssetId, Canvas> canvasDictionary, List<ExternalResource>? thumbnail)
+        Dictionary<AssetId, Canvas> canvasDictionary)
     {
         if (baseManifest.Items == null) baseManifest.Items = [];
 
@@ -52,11 +51,6 @@ public static class ManifestMerger
                     }
                 }
             }
-        }
-
-        if (baseManifest.Thumbnail.IsNullOrEmpty())
-        {
-            baseManifest.Thumbnail = thumbnail;
         }
         
         return baseManifest;

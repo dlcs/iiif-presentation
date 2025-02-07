@@ -30,7 +30,7 @@ public class AssetId
     /// <summary>
     /// Create a new AssetId from string in format customer/space/image
     /// </summary>
-    public static AssetId? FromString(string assetImageId)
+    public static AssetId FromString(string assetImageId)
     {
         var parts = assetImageId.Split("/", StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 3)
