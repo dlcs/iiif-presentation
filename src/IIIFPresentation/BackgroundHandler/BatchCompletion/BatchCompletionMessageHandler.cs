@@ -74,7 +74,7 @@ public class BatchCompletionMessageHandler(
 
             var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
 
-            var generatedManifest =
+            var namedQueryManifest =
                 await dlcsOrchestratorClient.RetrieveAssetsForManifest(batch.CustomerId, batches,
                     cancellationToken);
             
@@ -82,24 +82,24 @@ public class BatchCompletionMessageHandler(
             
             try
             {
-                itemDictionary = generatedManifest.Items.ToDictionary(i => GetAssetIdFromCanvasId(i.Id), i => i);
+                itemDictionary = namedQueryManifest.Items.ToDictionary(i => GetAssetIdFromCanvasId(i.Id), i => i);
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error retrieving the asset id from an item in {ManifestId}", generatedManifest?.Id);
+                logger.LogError(e, "Error retrieving the asset id from an item in {ManifestId}", namedQueryManifest?.Id);
                 throw;
             }
 
             try
             {
-                UpdateCanvasPaintings(generatedManifest, batch, itemDictionary);
+                UpdateCanvasPaintings(batch, itemDictionary);
                 CompleteBatch(batch, batchCompletionMessage.Finished, true);
-                await UpdateManifestInS3(generatedManifest.Thumbnail, itemDictionary, batch, cancellationToken);
+                await UpdateManifestInS3(itemDictionary, batch, cancellationToken);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error updating completing batch {BatchId} for manifest {ManifestId}", batch.Id,
-                    generatedManifest.Id);
+                    namedQueryManifest.Id);
                 throw;
             }
         }
@@ -110,17 +110,17 @@ public class BatchCompletionMessageHandler(
 
     private static AssetId GetAssetIdFromCanvasId(string canvasId)
     {
-        return AssetId.FromString(String.Join('/',
+        return AssetId.FromString(string.Join('/',
             canvasId.Substring(0, canvasId.IndexOf("/canvas/c/")).Split("/")[^3..]));
     } 
 
-    private async Task UpdateManifestInS3(List<ExternalResource>? thumbnail, Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
+    private async Task UpdateManifestInS3(Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
         CancellationToken cancellationToken = default)
     {
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(batch.Manifest!, cancellationToken);
 
         var mergedManifest = ManifestMerger.Merge(manifest.ThrowIfNull(nameof(manifest)),
-            batch.Manifest?.CanvasPaintings, itemDictionary, thumbnail);
+            batch.Manifest?.CanvasPaintings, itemDictionary);
         
         var fullPath = await ManifestRetrieval.RetrieveFullPathForManifest(batch.Manifest.Id, batch.Manifest.CustomerId,
             dbContext, cancellationToken);
@@ -143,7 +143,7 @@ public class BatchCompletionMessageHandler(
         }
     }
 
-    private void UpdateCanvasPaintings(Manifest generatedManifest, Batch batch, Dictionary<AssetId, Canvas> itemDictionary)
+    private void UpdateCanvasPaintings(Batch batch, Dictionary<AssetId, Canvas> itemDictionary)
     {
         if (batch.Manifest?.CanvasPaintings == null)
         {
