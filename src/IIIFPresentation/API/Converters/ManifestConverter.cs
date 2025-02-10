@@ -76,12 +76,12 @@ public static class ManifestConverter
                 [
                     new()
                     {
-                        Id = $"{canvasId}/page",
+                        Id = $"{canvasId}/annopages/{canvasPaintings.Key}",
                         Items =
                         [
                             new PaintingAnnotation
                             {
-                                Id = $"{canvasId}/page/image",
+                                Id = $"{canvasId}/annotations/{canvasPaintings.Key}",
                                 Behavior = [Behavior.Processing],
                                 Target = new Canvas {Id = canvasId},
                                 Body = GetBody(canvasPaintings)
