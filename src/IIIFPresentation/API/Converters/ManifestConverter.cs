@@ -3,11 +3,15 @@ using Core.Helpers;
 using Core.IIIF;
 using IIIF;
 using IIIF.Presentation;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
+using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
 using CanvasPainting = Models.Database.CanvasPainting;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace API.Converters;
 
@@ -42,10 +46,69 @@ public static class ManifestConverter
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator, assets);
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
+
+        // Note ??= - this is only if we don't yet have Items set by background process
+        iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
+        
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
         
         return iiifManifest;
+    }
+
+    private static List<Canvas>? GenerateProvisionalItems(List<PaintedResource>? paintedResources)
+    {
+        if (paintedResources is not {Count: > 0})
+            return null;
+
+        return paintedResources
+            .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
+            .Select(GenerateProvisionalCanvas)
+            .ToList();
+
+        Canvas GenerateProvisionalCanvas(IGrouping<int?, PaintedResource> canvasPaintings)
+        {
+            var canvasId = canvasPaintings.First().CanvasPainting.CanvasId;
+            var c = new Canvas
+            {
+                Id = canvasId,
+                Items =
+                [
+                    new()
+                    {
+                        Id = $"{canvasId}/annopages/{canvasPaintings.Key}",
+                        Items =
+                        [
+                            new PaintingAnnotation
+                            {
+                                Id = $"{canvasId}/annotations/{canvasPaintings.Key}",
+                                Behavior = [Behavior.Processing],
+                                Target = new Canvas {Id = canvasId},
+                                Body = GetBody(canvasPaintings)
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            return c;
+        }
+
+        IPaintable? GetBody(IGrouping<int?, PaintedResource> paintings)
+        {
+            if (paintings.Count() > 1)
+                return new PaintingChoice
+                {
+                    Items = paintings.OrderBy(p => p.CanvasPainting.ChoiceOrder ?? -1).Select(GetImage).ToList()
+                };
+
+            return GetImage(paintings.Single());
+        }
+
+        IPaintable GetImage(PaintedResource paintedResource)
+        {
+            return new Image();
+        }
     }
 
     private static List<PaintedResource>? GetPaintedResources(this Manifest dbManifest, IPathGenerator pathGenerator,

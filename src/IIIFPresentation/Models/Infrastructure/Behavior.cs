@@ -2,9 +2,10 @@
 
 public static class Behavior
 {
-    public static readonly string IsPublic = "public-iiif";
+    public const string IsPublic = "public-iiif";
 
-    public static readonly string IsStorageCollection = "storage-collection";
-    
-    public static readonly string ApiHierarchical = "api-hierarchical";
+    public const string IsStorageCollection = "storage-collection";
+
+    public const string ApiHierarchical = "api-hierarchical";
+    public const string Processing = "processing";
 }

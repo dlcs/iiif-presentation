@@ -5,11 +5,11 @@ using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
-using IIIF.Presentation.V3;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
@@ -23,6 +23,7 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Xunit.Abstractions;
 using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
 
@@ -40,7 +41,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private const int InvalidSpaceCustomer = 34512;
     private const int NewlyCreatedSpace = 999;
 
-    public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
+    public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory,
+        ITestOutputHelper testOutputHelper)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
@@ -407,14 +409,17 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var slug = nameof(CreateManifest_ReturnsManifest);
-        var manifest = $@"
-{{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.example/manifest.json"",
-    ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
-    ""slug"": ""{slug}""
-}}";
+        var manifest =
+            $$"""
+
+              {
+                  "@context": "http://iiif.io/api/presentation/3/context.json",
+                  "id": "https://iiif.example/manifest.json",
+                  "type": "Manifest",
+                  "parent": "{{RootCollection.Id}}",
+                  "slug": "{{slug}}"
+              }
+              """;
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
@@ -477,14 +482,16 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var slug = nameof(CreateManifest_IfSpaceRequested_ReturnsManifest);
-        var manifest = $@"
-{{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.example/manifest.json"",
-    ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
-    ""slug"": ""{slug}""
-}}";
+        var manifest =
+            $$"""
+              {
+                  "@context": "http://iiif.io/api/presentation/3/context.json",
+                  "id": "https://iiif.example/manifest.json",
+                  "type": "Manifest",
+                  "parent": "{{RootCollection.Id}}",
+                  "slug": "{{slug}}"
+              }
+              """;
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
@@ -625,6 +632,127 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsManifest_WithProvisionalItems()
+    {
+        const string slug = nameof(CreateManifest_ReturnsManifest_WithProvisionalItems);
+
+        #region ManifestJson
+
+        var manifestJson =
+            $$"""
+                  {
+                  "type": "Manifest",
+                  "behavior": [
+                      "public-iiif"
+                  ],
+                  "label": {
+                      "en": [
+                          "Testing"
+                      ]
+                  },
+                  "slug": "{{slug}}",
+                  "parent": "root",
+                  "paintedResources": [
+                      {
+                          "canvasPainting":{
+                              "canvasOrder": 1,
+                              "choiceOrder": 1
+                          },
+                          "asset": {
+                              "id": "test-AssetByPresentation-multiple-1",
+                              "mediaType": "image/png",
+                              "space": {{NewlyCreatedSpace}},
+                              "origin": "https://example.com/customers/34/space/22/1.png",
+                              "deliveryChannels": [
+                                  {
+                                      "channel": "iiif-img",
+                                      "policy": "default"
+                                  },
+                                  {
+                                      "channel": "thumbs",
+                                      "policy": "default"
+                                  }
+                              ]
+                          }
+                      },
+                      {
+                          "canvasPainting":{
+                              "canvasOrder": 1,
+                              "choiceOrder": 2
+                          },
+                          "asset": {
+                              "id": "test-AssetByPresentation-multiple-2",
+                              "mediaType": "image/png",
+                              "space": {{NewlyCreatedSpace}},
+                              "origin": "https://example.com/customers/34/space/22/2.png",
+                              "deliveryChannels": [
+                                  {
+                                      "channel": "iiif-img",
+                                      "policy": "default"
+                                  },
+                                  {
+                                      "channel": "thumbs",
+                                      "policy": "default"
+                                  }
+                              ]
+                          }
+                      },
+                      {
+                          "canvasPainting":{
+                              "canvasOrder": 2
+                          },
+                          "asset": {
+                              "id": "test-AssetByPresentation-multiple-3",
+                              "mediaType": "image/png",
+                              "space": {{NewlyCreatedSpace}},
+                              "origin": "https://example.com/customers/34/space/22/3.png",
+                              "deliveryChannels": [
+                                  {
+                                      "channel": "iiif-img",
+                                      "policy": "default"
+                                  },
+                                  {
+                                      "channel": "thumbs",
+                                      "policy": "default"
+                                  }
+                              ]
+                          }
+                      }
+                  ] 
+              }             
+              """;
+
+        #endregion
+        
+            var requestMessage =
+                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestJson);
+
+            // Act
+            var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+            responseCollection.Should().NotBeNull("valid manifest is expected");
+            responseCollection!.Slug.Should().Be(slug, "it should remain unchanged");
+            responseCollection.Items.Should().NotBeNull("we expect provisional items to be filled");
+            responseCollection.Items!.Should()
+                .HaveCount(2, "there are 3 images, but two of them are choices under one canvas");
+            var firstCanvas = responseCollection.Items!.First();
+            firstCanvas.Type.Should().Be("Canvas");
+            firstCanvas.Items.Should().NotBeNull("Canvas should have AnnotationPage");
+            var firstAnnotationPage = firstCanvas.Items!.First();
+            firstAnnotationPage.Type.Should().Be("AnnotationPage");
+            firstAnnotationPage.Items.Should().NotBeNull("AnnotationPage should have Annotation");
+            var firstAnnotation = firstAnnotationPage.Items!.First();
+            firstAnnotation.Should().BeOfType<PaintingAnnotation>();
+            var firstBody = (firstAnnotation as PaintingAnnotation)!.Body;
+            firstBody.Should().BeOfType<PaintingChoice>();
+            (firstBody as PaintingChoice)!.Items.Should().HaveCount(2);
     }
     
     [Fact]
