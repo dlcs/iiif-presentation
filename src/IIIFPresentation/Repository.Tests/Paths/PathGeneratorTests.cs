@@ -1,15 +1,14 @@
-﻿using API.Helpers;
-using AWS.Helpers;
-using Models.Database;
+﻿using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
+using Repository.Paths;
 
-namespace API.Tests.Helpers;
+namespace Repository.Tests.Paths;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
+    private readonly IPathGenerator pathGenerator = new TestPathGenerator();
 
     [Fact]
     public void GenerateHierarchicalCollectionId_CreatesIdWhenNoFullPath()
@@ -228,34 +227,6 @@ public class PathGeneratorTests
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");
     }
 
-    [Fact]
-    public void GetResourceBucketKey_Collection_Correct()
-    {
-        // Arrange
-        var collection = new Collection { CustomerId = 99, Id = "parting-ways" };
-        const string expected = "99/collections/parting-ways";
-        
-        // Act
-        var actual = collection.GetResourceBucketKey();
-        
-        // Assert
-        actual.Should().Be(expected);
-    }
-    
-    [Fact]
-    public void GetResourceBucketKey_Manifest_Correct()
-    {
-        // Arrange
-        var collection = new Manifest { CustomerId = 99, Id = "parting-ways" };
-        const string expected = "99/manifests/parting-ways";
-        
-        // Act
-        var actual = collection.GetResourceBucketKey();
-        
-        // Assert
-        actual.Should().Be(expected);
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData(null)]
@@ -407,4 +378,10 @@ public class PathGeneratorTests
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
+}
+
+public class TestPathGenerator : PathGeneratorBase
+{
+    protected override string PresentationUrl => "http://base";
+    protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

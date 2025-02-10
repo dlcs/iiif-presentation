@@ -1,6 +1,5 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
 using DLCS.API;
@@ -11,6 +10,7 @@ using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
+using Repository.Paths;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Manifest;

@@ -1,10 +1,8 @@
-﻿using API.Converters;
-using API.Helpers;
-using API.Infrastructure.Validation;
+﻿using API.Infrastructure.Validation;
 using API.Tests.Helpers;
-using Microsoft.AspNetCore.Http;
 using Models.API;
 using Models.Database.Collections;
+using Repository.Paths;
 
 namespace API.Tests.Infrastructure.Validation;
 

@@ -1,7 +1,9 @@
 ﻿using AWS.Settings;
+using BackgroundHandler.Helpers;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
 using DLCS;
+using Repository.Paths;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,9 +27,9 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
     
 builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
-    .AddHttpContextAccessor()
     .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
+    .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();

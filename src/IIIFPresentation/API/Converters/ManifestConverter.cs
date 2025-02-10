@@ -10,6 +10,8 @@ using Models.API.Manifest;
 using Models.Database.General;
 using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
+using Repository;
+using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 using Manifest = Models.Database.Collections.Manifest;
 

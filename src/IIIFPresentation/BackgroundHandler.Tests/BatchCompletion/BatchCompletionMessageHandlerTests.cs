@@ -20,6 +20,7 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
+using Repository.Paths;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Batch = Models.Database.General.Batch;
@@ -38,6 +39,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly IIIIFS3Service iiifS3;
     private readonly BackgroundHandlerSettings backgroundHandlerSettings;
     private readonly int customerId = 1;
+    private readonly IPathGenerator pathGenerator;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
     {
@@ -45,13 +47,14 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
+        pathGenerator = A.Fake<IPathGenerator>();
         backgroundHandlerSettings = new BackgroundHandlerSettings()
         {
             PresentationApiUrl = "https://localhost:5000",
             AWS = new AWSSettings()
         };
-        
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, Options.Create(backgroundHandlerSettings), iiifS3,
+
+        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3, pathGenerator,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -116,42 +119,7 @@ public class BatchCompletionMessageHandlerTests
         var message = GetMessage(batchMessage);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
-            .Returns(new IIIF.Presentation.V3.Manifest
-            {
-                Items = new List<Canvas>
-                {
-                    new ()
-                    {
-                        Id = $"{backgroundHandlerSettings.PresentationApiUrl}/iiif-img/{fullAssetId}/canvas/c/1",
-                        Width = 100,
-                        Height = 100,
-                        Annotations = new List<AnnotationPage>
-                        {
-                            new ()
-                            {
-                                Items = new List<IAnnotation>()
-                                {
-                                    new PaintingAnnotation()
-                                    {
-                                        Body = new Image()
-                                        {
-                                            Width = 100,
-                                            Height = 100,
-                                        },
-                                        Service = new List<IService>()
-                                        {
-                                            new ImageService3()
-                                            {
-                                                Profile = "level2"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            .Returns(GenerateMinimalNamedQueryManifest(fullAssetId));
         
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
@@ -219,6 +187,59 @@ public class BatchCompletionMessageHandlerTests
         batch.Manifest!.LastProcessed.Should().BeNull();
     }
 
+    [Fact]
+    public async Task HandleMessage_SavesResultingManifest_ToS3()
+    {
+        // Arrange
+        var batchId = -1;
+        var manifestId = nameof(HandleMessage_SavesResultingManifest_ToS3);
+        var slug = $"slug_{manifestId}";
+        var assetId = $"asset_id_{manifestId}";
+        var space = 2;
+        var fullAssetId = new AssetId(customerId, space, assetId);
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIF.Presentation.V3.Manifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIF.Presentation.V3.Manifest
+        {
+            Id = manifestId
+        });
+        
+        var manifest = CreateManifest(manifestId, slug, assetId, space, batchId);
+        
+        await dbContext.Manifests.AddAsync(manifest);
+        await dbContext.SaveChangesAsync();
+
+        var finished = DateTime.UtcNow.AddHours(-1);
+
+        var batchMessage = $@"
+{{
+    ""id"":{batchId},
+    ""customerId"": {customerId},
+    ""total"":1,
+    ""success"":1,
+    ""errors"":0,
+    ""superseded"":false,
+    ""started"":""2024-12-19T21:03:31.57Z"",
+    ""finished"":""{finished:yyyy-MM-ddTHH:mm:ssK}""
+}}";
+        
+        var message = GetMessage(batchMessage);
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .Returns(GenerateMinimalNamedQueryManifest(fullAssetId));
+
+        const string flatManifestId = "http://test.result/manifest";
+        A.CallTo(() => pathGenerator.GenerateFlatManifestId(A<Manifest>._)).Returns(flatManifestId);
+        
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue("Message successfully handled");
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatManifestId, A<CancellationToken>._))
+            .MustHaveHappened();
+    }
+
     private Manifest CreateManifest(string manifestId, string slug, string assetId, int space, int batchId)
     {
         var manifest = new Manifest
@@ -260,6 +281,46 @@ public class BatchCompletionMessageHandlerTests
             ]
         };
         return manifest;
+    }
+    
+    private IIIF.Presentation.V3.Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId)
+    {
+        return new IIIF.Presentation.V3.Manifest
+        {
+            Items = new List<Canvas>
+            {
+                new ()
+                {
+                    Id = $"{backgroundHandlerSettings.PresentationApiUrl}/iiif-img/{fullAssetId}/canvas/c/1",
+                    Width = 100,
+                    Height = 100,
+                    Annotations = new List<AnnotationPage>
+                    {
+                        new ()
+                        {
+                            Items = new List<IAnnotation>
+                            {
+                                new PaintingAnnotation
+                                {
+                                    Body = new Image
+                                    {
+                                        Width = 100,
+                                        Height = 100,
+                                    },
+                                    Service = new List<IService>
+                                    {
+                                        new ImageService3
+                                        {
+                                            Profile = "level2"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
     }
 
     private static QueueMessage GetMessage(string body) => new(body, new Dictionary<string, string>(), "foo");

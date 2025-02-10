@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
 using Repository.Manifests;
+using Repository.Paths;
 using Serilog;
 
 const string corsPolicyName = "CorsPolicy";
@@ -63,7 +64,7 @@ builder.Services
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
-    .AddSingleton<IPathGenerator, PathGenerator>()
+    .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();

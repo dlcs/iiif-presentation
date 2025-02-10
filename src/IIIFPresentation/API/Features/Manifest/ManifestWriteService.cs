@@ -22,6 +22,7 @@ using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
+using Repository.Paths;
 using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;

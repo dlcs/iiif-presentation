@@ -1,9 +1,9 @@
 ﻿using API.Converters;
-using API.Helpers;
 using API.Tests.Helpers;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
+using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
 
