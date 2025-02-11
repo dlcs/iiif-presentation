@@ -51,6 +51,8 @@ public static class ManifestConverter
 
         // Note ??= - this is only if we don't yet have Items set by background process
         iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
+
+        iiifManifest.Ingesting = GenerateIngesting(assets);
         
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
@@ -164,5 +166,28 @@ public static class ManifestConverter
                 ["@id"] = fullAssetId,
                 ["error"] = "Asset not found"
             };
+    }
+    
+    private static Ingesting? GenerateIngesting(Dictionary<string, JObject>? assets)
+    {
+        if (assets == null) return null;
+        
+        var ingesting = new Ingesting();
+
+        foreach (var asset in assets)
+        {
+            ingesting.Total++;
+            
+            if (asset.Value.TryGetValue("finished", out _)) ingesting.Finished++;
+            if (asset.Value.TryGetValue("error", out var error))
+            {
+                if (!string.IsNullOrEmpty(error.Value<string>()))
+                {
+                    ingesting.Errors++;
+                }
+            }
+        }
+        
+        return ingesting;
     }
 }

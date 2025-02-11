@@ -22,10 +22,12 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     public List<PaintedResource>? PaintedResources { get; set; }
 
     [JsonProperty(Order = 13)] public string? Space { get; set; }
+    
+    [JsonProperty(Order = 14)] public Ingesting? Ingesting { get; set; }
 
     [JsonIgnore] public string? FullPath { get; set; }
     
-    [JsonIgnore] public bool Ingesting { get; set; }
+    [JsonIgnore] public bool CurrentlyIngesting { get; set; }
 }
 
 /// <summary>
@@ -56,4 +58,11 @@ public class CanvasPainting
     public string? Target { get; set; }
     public int? StaticWidth { get; set; }
     public int? StaticHeight { get; set; }
+}
+
+public class Ingesting
+{
+    public int Total { get; set; }
+    public int Finished { get; set; }
+    public int Errors { get; set; }
 }

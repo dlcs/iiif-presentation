@@ -43,7 +43,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
 
-        return entityResult.Entity!.Ingesting
+        return entityResult.Entity!.CurrentlyIngesting
             ? this.PresentationWithBodyResponse(Request.GetDisplayUrl(), entityResult.Entity,
                 (int)HttpStatusCode.Accepted)
             : Ok(entityResult.Entity);
