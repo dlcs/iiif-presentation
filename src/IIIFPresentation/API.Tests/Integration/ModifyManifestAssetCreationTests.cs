@@ -446,6 +446,12 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.Ingesting.Should().BeEquivalentTo(new Ingesting
+        {
+            Total = 1,
+            Errors = 0,
+            Finished = 0
+        });
 
         responseManifest.PaintedResources.Should().NotBeNull();
         responseManifest.PaintedResources.Should().HaveCount(1);

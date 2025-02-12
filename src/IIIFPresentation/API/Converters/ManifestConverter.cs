@@ -177,14 +177,19 @@ public static class ManifestConverter
         foreach (var asset in assets)
         {
             ingesting.Total++;
-            
-            if (asset.Value.TryGetValue("finished", out _)) ingesting.Finished++;
-            if (asset.Value.TryGetValue("error", out var error))
+
+            if (asset.Value.TryGetValue("ingesting", out var currentlyIngesting))
             {
-                if (!string.IsNullOrEmpty(error.Value<string>()))
+                if (!currentlyIngesting.Value<bool>())
                 {
-                    ingesting.Errors++;
+                    ingesting.Finished++;
                 }
+            }
+
+            if (!asset.Value.TryGetValue("error", out var error)) continue;
+            if (!string.IsNullOrEmpty(error.Value<string>()))
+            {
+                ingesting.Errors++;
             }
         }
         
