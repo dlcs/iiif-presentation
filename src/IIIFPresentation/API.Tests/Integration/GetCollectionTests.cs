@@ -594,7 +594,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Totals.Should().BeNull("IIIF Collections have no children");
-        collection.Items.Should().BeEmpty();
+        collection.Items.Should().BeNull();
     }
     
     [Fact]
