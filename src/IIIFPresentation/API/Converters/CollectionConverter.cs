@@ -77,13 +77,18 @@ public static class CollectionConverter
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;
         collection.ModifiedBy = dbCollection.ModifiedBy;
-        collection.Items = GenerateItems(pathGenerator, items);
         collection.Behavior = GenerateBehavior(dbCollection);
         collection.Slug = hierarchy.Slug;
         collection.ItemsOrder = hierarchy.ItemsOrder;
         collection.Label = dbCollection.Label;
         collection.Totals = GetDescendantCounts(dbCollection, items);
         
+        // this is to stop IIIF collection items being overwritten by the hierarchy
+        if (dbCollection.IsStorageCollection)
+        {
+            collection.Items = GenerateItems(pathGenerator, items);
+        }
+
         return collection;
     }
     
