@@ -136,8 +136,7 @@ public class ManifestWriteService(
         if (parentErrors != null) return parentErrors;
 
         // can't have both items and painted resources, so items takes precedence
-        if (!request.PresentationManifest.Items.IsNullOrEmpty() && 
-            !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
+        if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
             request.PresentationManifest.PaintedResources = null;
         }
@@ -148,8 +147,9 @@ public class ManifestWriteService(
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
             
-            // 
-            var (dlcsError, spaceId) = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
+            // Carry out any DLCS interactions (for paintedResources with items) 
+            var (dlcsError, spaceId) =
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
             if (dlcsError != null) return dlcsError;
 
             var (error, dbManifest) =
@@ -210,7 +210,7 @@ public class ManifestWriteService(
     {
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                spaceId, cancellationToken);
+                cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
         var timeStamp = DateTime.UtcNow;

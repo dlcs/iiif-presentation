@@ -26,12 +26,11 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest, int? space, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
     {
         if (presentationManifest.PaintedResources.HasAsset())
         {
-            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, space,
-                cancellationToken);
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, cancellationToken);
         }
         
         return await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
@@ -177,8 +176,7 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, int? manifestSpace,
-        CancellationToken cancellationToken)
+        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken)
     {
         var paintedResourceCount = presentationManifest.PaintedResources!.Count;
 
@@ -193,18 +191,9 @@ public class CanvasPaintingResolver(
         {
             if (paintedResource.Asset == null) continue;
 
-            if (!paintedResource.Asset.TryGetValue("space", out var space)
-                && manifestSpace.HasValue)
-            {
-                paintedResource.Asset.Add("space", manifestSpace.Value);
-                space = manifestSpace.Value;
-            }
-
-            if (!paintedResource.Asset.TryGetValue("id", out var id))
-            {
-                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
-            }
-
+            var space = paintedResource.Asset.GetValue("space");
+            var id = paintedResource.Asset.GetValue("id");
+            
             var cp = new CanvasPainting
             {
                 Id = canvasPaintingIds[count],
