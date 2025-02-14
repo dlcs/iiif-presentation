@@ -139,9 +139,10 @@ sequenceDiagram
     U->>+P: GET /2/path/to/the-manifest
 
     DB-->>P: Load manifest
-    alt manifest never processed
+    alt manifest never processed OR ingesting
         P-->>U: HTTP 404
     end
+
     S-->>P: GET /manifests/2/{manifest-id}
     alt manifest not found
         P-->>U: HTTP 404
@@ -183,8 +184,3 @@ sequenceDiagram
         P-->>U: HTTP 200, Manifest
     end
 ```
-
-## Questions
-
-* Is "staged" appropriate name for prefix? Do we need more than a 'simple' prefix - could there be multiple in-flight? (I don't think so).
-* Will this concept of "staged" and not help with eventual lock/unlock?
