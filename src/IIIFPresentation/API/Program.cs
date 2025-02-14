@@ -61,6 +61,7 @@ builder.Services.AddCaching(cacheSettings);
 builder.Services
     .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
