@@ -3,11 +3,11 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Helpers;
-using DLCS;
-using Microsoft.Extensions.Options;
+using DLCS.Models;
 using Models.API.Manifest;
 using Models.Database;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -190,10 +190,9 @@ public class CanvasPaintingResolver(
         foreach (var paintedResource in presentationManifest.PaintedResources)
         {
             if (paintedResource.Asset == null) continue;
-
-            var space = paintedResource.Asset.GetValue("space");
-            var id = paintedResource.Asset.GetValue("id");
             
+            var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
+
             var cp = new CanvasPainting
             {
                 Id = canvasPaintingIds[count],
@@ -202,7 +201,7 @@ public class CanvasPaintingResolver(
                 Created = DateTime.UtcNow,
                 CustomerId = customerId,
                 CanvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count,
-                AssetId = AssetId.FromString($"{customerId}/{space}/{id}"),
+                AssetId = assetId,
                 ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
                 Ingesting = true
             };
@@ -211,5 +210,13 @@ public class CanvasPaintingResolver(
             canvasPaintings.Add(cp);
         }
         return (null, canvasPaintings);
+    }
+
+    private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
+    {
+        // Read props from Asset - these must be there. If not, throw an exception
+        var space = asset.GetRequiredValue(AssetProperties.Space);
+        var id = asset.GetRequiredValue(AssetProperties.Id);
+        return AssetId.FromString($"{customerId}/{space}/{id}");
     }
 }

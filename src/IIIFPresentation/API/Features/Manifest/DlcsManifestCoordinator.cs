@@ -25,6 +25,7 @@ public class DlcsManifestCoordinator(
     public async Task<(ModifyEntityResult<PresentationManifest, ModifyCollectionType>? error, int? space)> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId, CancellationToken cancellationToken)
     {
+        // NOTE - this must always happen before handing off to canvasPaintingResolve
         const string spaceProperty = "space";
         var assets = GetAssetJObjectList(request);
 
@@ -48,7 +49,7 @@ public class DlcsManifestCoordinator(
             foreach (var asset in assetsWithoutSpaces)
                 asset.Add(spaceProperty, spaceId.Value);
         }
-        
+
         var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);
         return (batchError, spaceId);
     }

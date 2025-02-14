@@ -1,5 +1,4 @@
-﻿using API.Helpers;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using IIIF;
 using IIIF.Presentation;
@@ -11,7 +10,6 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
-using Repository;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 using Manifest = Models.Database.Collections.Manifest;
@@ -50,7 +48,7 @@ public static class ManifestConverter
         iiifManifest.PaintedResources = dbManifest.GetPaintedResources(pathGenerator, assets);
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
 
-        // Note ??= - this is only if we don't yet have Items set by background process
+        //// Note ??= - this is only if we don't yet have Items set by background process
         iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
 
         if (dbManifest.IsIngesting())
@@ -64,7 +62,12 @@ public static class ManifestConverter
         return iiifManifest;
     }
 
-    private static List<Canvas>? GenerateProvisionalItems(List<PaintedResource>? paintedResources)
+    /// <summary>
+    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="PaintedResource"/> collection. These
+    /// provisional canvases have the structure of the final canvases without the full details.  
+    /// </summary>
+    /// <returns></returns>
+    public static List<Canvas>? GenerateProvisionalItems(this List<PaintedResource>? paintedResources)
     {
         if (paintedResources is not {Count: > 0})
             return null;
@@ -102,7 +105,7 @@ public static class ManifestConverter
             return c;
         }
 
-        IPaintable? GetBody(IGrouping<int?, PaintedResource> paintings)
+        IPaintable GetBody(IGrouping<int?, PaintedResource> paintings)
         {
             if (paintings.Count() > 1)
                 return new PaintingChoice
