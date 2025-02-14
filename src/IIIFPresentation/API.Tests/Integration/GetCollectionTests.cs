@@ -1,6 +1,7 @@
 ﻿#nullable disable
 
 using System.Net;
+using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
@@ -16,9 +17,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private const int TotalDatabaseChildItems = 4;
+    private readonly IAmazonS3 amazonS3;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
+        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         
@@ -579,7 +582,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_FlatIIIFCollection_ReturnsNullTotals()
+    public async Task Get_FlatIIIFCollection_ReturnsNullTotalsWithNullItems()
     {
         // Arrange
         var requestMessage =
@@ -595,6 +598,40 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Totals.Should().BeNull("IIIF Collections have no children");
         collection.Items.Should().BeNull();
+        collection.View.Should().BeNull();
+        collection.TotalItems.Should().Be(0);
+        collection.PublicId.Should().Be("http://localhost/1/iiif-collection");
+        collection.Id.Should().Be("http://localhost/1/collections/IiifCollection");
+    }
+    
+    [Fact]
+    public async Task Get_FlatIIIFCollection_ReturnsTotalsWithItems()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                "1/collections/IiifCollection");
+        
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = "1/collections/IiifCollection",
+            ContentBody = TestContent.CollectionJson
+        });
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Totals.Should().BeNull("IIIF Collections have no children");
+        collection.Items.Should().NotBeNull();
+        collection.View.Id.Should().Be("http://localhost/1/collections/IiifCollection?page=1&pageSize=20");
+        collection.TotalItems.Should().Be(2);
+        collection.PublicId.Should().Be("http://localhost/1/iiif-collection");
+        collection.Id.Should().Be("http://localhost/1/collections/IiifCollection");
     }
     
     [Fact]

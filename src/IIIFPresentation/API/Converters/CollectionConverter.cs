@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using API.Features.Storage.Models;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
@@ -38,6 +39,41 @@ public static class CollectionConverter
         EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
             parentCollection, pathGenerator, orderQueryParam);
 
+    public static PresentationCollection SetGeneratedFields(this PresentationCollection iiifCollection, 
+        DbCollection dbCollection, int pageSize, int currentPage, IPathGenerator pathGenerator, string? orderQueryParam = null) =>
+        EnrichPresentationCollectionFromCollection(iiifCollection, dbCollection, pageSize, currentPage, pathGenerator,
+            orderQueryParam);
+
+    private static PresentationCollection EnrichPresentationCollectionFromCollection(PresentationCollection iiifCollection, DbCollection dbCollection, int pageSize, 
+        int currentPage, IPathGenerator pathGenerator, string? orderQueryParam)
+    {
+        var hierarchy = RetrieveHierarchy(dbCollection);
+        var totalItems = iiifCollection.Items?.Count ?? 0;
+
+        iiifCollection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
+        iiifCollection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
+        iiifCollection.CreatedBy = dbCollection.CreatedBy;
+        iiifCollection.ModifiedBy = dbCollection.ModifiedBy;
+        iiifCollection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
+        iiifCollection.Id = pathGenerator.GenerateFlatId(hierarchy);
+        iiifCollection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        iiifCollection.ItemsOrder = hierarchy.ItemsOrder;
+        iiifCollection.Tags = dbCollection.Tags;
+        iiifCollection.Slug = hierarchy.Slug;
+        iiifCollection.TotalItems = totalItems;
+        
+        if (iiifCollection.Items != null)
+        {
+            iiifCollection.Items = iiifCollection.Items.Skip(pageSize * (currentPage - 1)).Take(pageSize).ToList();
+            var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
+            var totalPages = GenerateTotalPages(pageSize, totalItems);
+            iiifCollection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages,
+                orderQueryParamConverted);
+        }
+
+        return iiifCollection;
+    }
+
     /// <summary>
     /// Enriches <see cref="PresentationCollection"/> with values from database.
     /// Note that any values in <see cref="DbCollection"/> "win" and will overwrite those already in
@@ -61,8 +97,8 @@ public static class CollectionConverter
         
         var totalPages = GenerateTotalPages(pageSize, totalItems);
 
-        var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
-        var hierarchy = dbCollection.Hierarchy!.Single(h => h.Canonical);
+        var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
+        var hierarchy = RetrieveHierarchy(dbCollection);
         
         collection.Id = pathGenerator.GenerateFlatCollectionId(dbCollection);
         collection.Context = GenerateContext();
@@ -92,6 +128,12 @@ public static class CollectionConverter
         return collection;
     }
     
+    private static Hierarchy RetrieveHierarchy(DbCollection dbCollection) =>
+        dbCollection.Hierarchy!.Single(h => h.Canonical);
+
+    private static string GenerateOrderQueryParamConverted(string? orderQueryParam) =>
+        string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+
     private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator,
         bool flatId)
     {

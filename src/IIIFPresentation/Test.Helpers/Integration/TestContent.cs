@@ -903,6 +903,30 @@ public static class TestContent
         }
         """;
 
+    public const string CollectionJson = """
+       {
+           "type": "Collection",
+           "behavior": [
+               "public-iiif"
+           ],
+           "label": {
+               "en": [
+                   "item check"
+               ]
+           },
+           "items": [
+               {
+                   "id": "https://digirati.io/some-iiif-repo/basic_iiif_collection/collection_a",
+                   "type": "Collection"
+               },
+               {
+                   "id": "https://digirati.io/some-iiif-repo/basic_iiif_collection/collection_b",
+                   "type": "Collection"
+               }
+           ]
+       }
+       """;
+
     public static class Bug_158
     {
       public const string CollectionName = "my-collection";
