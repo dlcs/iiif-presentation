@@ -21,9 +21,9 @@ public class PresentationContextXTests
     public void RetrieveCollectionItems_ReturnsCanonicalOnlyManifestAndCollection()
     {
         var result = dbContext.RetrieveCollectionItems(1, "root");
-        var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-manifest", "non-public" };
+        var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-collection-with-items", "iiif-manifest", "non-public" };
 
-        result.Count().Should().Be(4);
+        result.Count().Should().Be(5);
         result.Select(h => h.Slug).Should().BeEquivalentTo(expectedSlugs);
     }
     
@@ -31,9 +31,9 @@ public class PresentationContextXTests
     public void RetrieveCollectionItems_CanExcludeNonPublicCollections()
     {
         var result = dbContext.RetrieveCollectionItems(1, "root", true);
-        var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-manifest" };
+        var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-collection-with-items", "iiif-manifest" };
 
-        result.Count().Should().Be(3);
+        result.Count().Should().Be(4);
         result.Select(h => h.Slug).Should().BeEquivalentTo(expectedSlugs);
     }
 
@@ -42,7 +42,7 @@ public class PresentationContextXTests
     {
         var result = dbContext.RetrieveCollectionItems(1, "root").ToList();
 
-        result.Where(r => r.Collection != null).Should().HaveCount(3);
+        result.Where(r => r.Collection != null).Should().HaveCount(4);
         result.Where(r => r.Manifest != null).Should().HaveCount(1);
         result.Should().AllSatisfy(h => h.ResourceId.Should().NotBeNullOrEmpty());
     }
