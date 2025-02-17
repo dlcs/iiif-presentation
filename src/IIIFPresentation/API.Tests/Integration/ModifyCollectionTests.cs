@@ -786,6 +786,69 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+    
+    [Fact]
+    public async Task UpdateCollection_PreConditionFailed_IfEtagNotProvided()
+    {
+        // Arrange
+        var slug = nameof(UpdateCollection_PreConditionFailed_IfEtagNotProvided);
+
+        var initialCollection = new Collection()
+        {
+            Id = slug,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", new() {"update testing"}}
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = false,
+            CustomerId = 1
+        };
+
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = RootCollection.Id,
+            Type = ResourceType.StorageCollection,
+            CustomerId = 1,
+            Canonical = true
+        });
+
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+        
+        var updatedCollection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection - updated"]),
+            Slug = slug,
+            Parent = parent,
+            ItemsOrder = 1,
+            PresentationThumbnail = "some/location/2",
+            Tags = "some, tags, 2"
+        };
+
+        // No Etag
+        var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+    }
 
     [Fact]
     public async Task UpdateCollection_UpdatesCollection_WhenAllValuesProvided()
