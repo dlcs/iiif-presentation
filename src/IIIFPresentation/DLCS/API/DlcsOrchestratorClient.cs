@@ -7,7 +7,7 @@ namespace DLCS.API;
 public interface IDlcsOrchestratorClient
 {
     /// <summary>
-    /// Retrieves a DLCS generated manifest of images for a given presentation manifest id
+    /// Retrieves a DLCS generated manifest containing assets in given batch ids
     /// </summary>
     public Task<Manifest?> RetrieveAssetsForManifest(int customerId, List<int> batches,
         CancellationToken cancellationToken = default);
@@ -23,11 +23,11 @@ public class DlcsOrchestratorClient(
         CancellationToken cancellationToken = default)
     {
         var batchString = string.Join(',', batches);
+
+        var requestUri =
+            $"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{batchString}?cacheBust={DateTime.UtcNow.Ticks}";
         
-        var response =
-            await httpClient.GetAsync($"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{batchString}",
-                cancellationToken);
-            
+        var response = await httpClient.GetAsync(requestUri, cancellationToken);
         return await response.ReadAsIIIFResponse<Manifest>(cancellationToken);
     }
 }

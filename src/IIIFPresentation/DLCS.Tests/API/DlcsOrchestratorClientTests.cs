@@ -14,7 +14,7 @@ public class DlcsOrchestratorClientTests
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.Conflict)]
     [InlineData(HttpStatusCode.BadRequest)]
-    public async Task RetrieveImagesForManifest_Throws_IfDownstreamNon200_NoReturnedError(HttpStatusCode httpStatusCode)
+    public async Task RetrieveAssetsForManifest_Throws_IfDownstreamNon200_NoReturnedError(HttpStatusCode httpStatusCode)
     {
         using var stub = new ApiStub();
         const int customerId = 3;
@@ -29,7 +29,7 @@ public class DlcsOrchestratorClientTests
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.Conflict)]
     [InlineData(HttpStatusCode.BadRequest)]
-    public async Task RetrieveImagesForManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    public async Task RetrieveAssetsForManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
     {
         using var stub = new ApiStub();
         const int customerId = 4;
@@ -42,7 +42,7 @@ public class DlcsOrchestratorClientTests
     }
     
     [Fact]
-    public async Task RetrieveImagesForManifest_ReturnsManifest()
+    public async Task RetrieveAssetsForManifest_ReturnsManifest()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
@@ -52,9 +52,29 @@ public class DlcsOrchestratorClientTests
         var sut = GetClient(stub);
         var expected = new Manifest() { Id = "some/id" }; 
         
-        var retrievedImages = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
 
-        retrievedImages.Should().BeEquivalentTo(expected);
+        retrievedManifest.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public async Task RetrieveAssetsForManifest_PassesCacheBustParam()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 6;
+        string? passedQueryParam = null;
+        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
+                (req, _) =>
+                {
+                    passedQueryParam = req.Query["cacheBust"];
+                    return "{\"id\":\"some/id\", \"type\": \"Manifest\" }";
+                })
+            .StatusCode(200);
+        var sut = GetClient(stub);
+        
+        await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+
+        passedQueryParam.Should().NotBeNull("?cacheBust query param passed to avoid caching issues");
     }
     
     private static DlcsOrchestratorClient GetClient(ApiStub stub)
