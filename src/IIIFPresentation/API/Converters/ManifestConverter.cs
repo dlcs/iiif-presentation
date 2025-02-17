@@ -7,6 +7,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
+using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
@@ -52,7 +53,10 @@ public static class ManifestConverter
         // Note ??= - this is only if we don't yet have Items set by background process
         iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
 
-        iiifManifest.Ingesting = GenerateIngesting(assets);
+        if (dbManifest.IsIngesting())
+        {
+            iiifManifest.Ingesting = GenerateIngesting(assets);
+        }
         
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
@@ -168,11 +172,11 @@ public static class ManifestConverter
             };
     }
     
-    private static Ingesting? GenerateIngesting(Dictionary<string, JObject>? assets)
+    private static IngestingAssets? GenerateIngesting(Dictionary<string, JObject>? assets)
     {
         if (assets == null) return null;
         
-        var ingesting = new Ingesting();
+        var ingesting = new IngestingAssets();
 
         foreach (var asset in assets)
         {

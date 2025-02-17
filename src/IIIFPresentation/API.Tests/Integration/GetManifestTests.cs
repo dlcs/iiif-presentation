@@ -31,7 +31,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly IDlcsApiClient dlcsApiClient;
     private readonly IAmazonS3 s3;
     private readonly JObject sampleAsset;
-    private const string ErrorPaintedResource = "errorPaintedResource";
     private const string PaintedResource = "foo-paintedResource";
     private const string IngestingPaintedResource = "ingestingPaintedResource";
 
@@ -95,15 +94,9 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
                 A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"1/2/{ErrorPaintedResource}".Equals(x))),
-                A<CancellationToken>._))
-            .ReturnsLazily(() => [errorAsset]);
-        
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
-                A<IList<string>>.That.Matches(l =>
                     l.Any(x => $"1/2/{IngestingPaintedResource}".Equals(x))),
                 A<CancellationToken>._))
-            .ReturnsLazily(() => [ingestingAsset]);
+            .ReturnsLazily(() => [ingestingAsset, errorAsset]);
     }
 
     [Fact]
@@ -172,49 +165,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var paintedResource = manifest.PaintedResources.Single();
         paintedResource.CanvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "foo"));
         paintedResource.Asset.Should().BeEquivalentTo(sampleAsset);
-        manifest.Ingesting.Should().BeEquivalentTo(new Ingesting
-        {
-            Total = 1,
-            Finished = 1,
-            Errors = 0
-        });
-    }
-    
-    [Fact]
-    public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResourcesWithErrorIngesting()
-    {
-        // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
-        var id = nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResourcesWithErrorIngesting);
-        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
-        var assetId = new AssetId(1, 2, ErrorPaintedResource);
-        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
-            assetId: assetId);
-        await dbContext.SaveChangesAsync();
-        await s3.PutObjectAsync(new()
-        {
-            BucketName = LocalStackFixture.StorageBucketName,
-            Key = $"1/manifests/{id}",
-            ContentBody = TestContent.ManifestJson,
-        });
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Act
-        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
-
-        // Assert
-        manifest.Should().NotBeNull();
-        manifest.PaintedResources.Should().HaveCount(1);
-        var paintedResource = manifest.PaintedResources.Single();
-        paintedResource.CanvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "foo"));
-        manifest.Ingesting.Should().BeEquivalentTo(new Ingesting
-        {
-            Total = 1,
-            Finished = 0,
-            Errors = 1
-        });
+        manifest.Ingesting.Should().BeNull();
     }
 
     [Fact]
@@ -289,11 +240,11 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be(id);
         manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
-        manifest.Ingesting.Should().BeEquivalentTo(new Ingesting
+        manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
         {
-            Total = 1,
+            Total = 2,
             Finished = 0,
-            Errors = 0
+            Errors = 1
         });
     }
 

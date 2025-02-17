@@ -23,10 +23,16 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 
     [JsonProperty(Order = 13)] public string? Space { get; set; }
     
-    [JsonProperty(Order = 14)] public Ingesting? Ingesting { get; set; }
+    /// <summary>
+    /// Contains details of the ingestion progress
+    /// </summary>
+    [JsonProperty(Order = 14)] public IngestingAssets? Ingesting { get; set; }
 
     [JsonIgnore] public string? FullPath { get; set; }
     
+    /// <summary>
+    /// Whether this manifest contains items that are currently being ingested
+    /// </summary>
     [JsonIgnore] public bool CurrentlyIngesting { get; set; }
 }
 
@@ -60,7 +66,7 @@ public class CanvasPainting
     public int? StaticHeight { get; set; }
 }
 
-public class Ingesting
+public class IngestingAssets
 {
     public int Total { get; set; }
     public int Finished { get; set; }
