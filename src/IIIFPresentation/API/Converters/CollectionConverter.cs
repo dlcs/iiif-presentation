@@ -39,27 +39,34 @@ public static class CollectionConverter
         EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
             parentCollection, pathGenerator, orderQueryParam);
 
-    public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection iiifCollection, 
+    /// <summary>
+    /// Sets generated fields on a IIIF collection
+    /// </summary>
+    /// <param name="collection">The collection to set fields on</param>
+    /// <param name="dbCollection">The database record used to set fields</param>
+    /// <param name="pathGenerator">A collection path generator</param>
+    /// <returns>A IIIF collection with fields set specific to presentation collection</returns>
+    public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection collection, 
         DbCollection dbCollection, IPathGenerator pathGenerator) =>
-        EnrichIIIFCollection(iiifCollection, dbCollection, pathGenerator);
+        EnrichIIIFCollection(collection, dbCollection, pathGenerator);
 
-    private static PresentationCollection EnrichIIIFCollection(PresentationCollection iiifCollection, 
+    private static PresentationCollection EnrichIIIFCollection(PresentationCollection collection, 
         DbCollection dbCollection,  IPathGenerator pathGenerator)
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
 
-        iiifCollection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
-        iiifCollection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
-        iiifCollection.CreatedBy = dbCollection.CreatedBy;
-        iiifCollection.ModifiedBy = dbCollection.ModifiedBy;
-        iiifCollection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
-        iiifCollection.Id = pathGenerator.GenerateFlatId(hierarchy);
-        iiifCollection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
-        iiifCollection.ItemsOrder = hierarchy.ItemsOrder;
-        iiifCollection.Tags = dbCollection.Tags;
-        iiifCollection.Slug = hierarchy.Slug;
+        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
+        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
+        collection.CreatedBy = dbCollection.CreatedBy;
+        collection.ModifiedBy = dbCollection.ModifiedBy;
+        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
+        collection.Id = pathGenerator.GenerateFlatId(hierarchy);
+        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        collection.ItemsOrder = hierarchy.ItemsOrder;
+        collection.Tags = dbCollection.Tags;
+        collection.Slug = hierarchy.Slug;
 
-        return iiifCollection;
+        return collection;
     }
 
     /// <summary>
