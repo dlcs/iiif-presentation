@@ -3,16 +3,17 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.DLCS;
+using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace BackgroundHandler.Helpers;
 
-public static class ManifestMerger
+public class ManifestMerger(IPathGenerator pathGenerator)
 {
     /// <summary>
     /// Merges a generated DLCS manifest with the current manifest in S3
     /// </summary>
-    public static Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
+    public Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
         Dictionary<AssetId, Canvas> canvasDictionary)
     {
         // Ensure collection non-null

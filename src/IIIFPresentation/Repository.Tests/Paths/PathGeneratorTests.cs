@@ -310,7 +310,7 @@ public class PathGeneratorTests
     public void GenerateCanvasId_Correct()
     {
         // Arrange
-        var canvasPainting = new Models.Database.CanvasPainting
+        var canvasPainting = new CanvasPainting
         {
             Id = "test",
             CustomerId = 123
@@ -321,6 +321,42 @@ public class PathGeneratorTests
 
         // Assert
         id.Should().Be("http://base/123/canvases/test");
+    }
+    
+    [Fact]
+    public void GenerateAnnotationPagesId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            CanvasOrder = 7564,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateAnnotationPagesId(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test/annopages/7564");
+    }
+    
+    [Fact]
+    public void GeneratePaintingAnnotationId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            CanvasOrder = 7564,
+        };
+
+        // Act
+        var id = pathGenerator.GeneratePaintingAnnotationId(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test/annotations/7564");
     }
 
     [Fact]

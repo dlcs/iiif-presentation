@@ -1,8 +1,12 @@
 ﻿using API.Converters;
 using API.Tests.Helpers;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
@@ -290,5 +294,184 @@ public class ManifestConverterTests
 
         // Assert
         result.Space.Should().Be("https://dlcs.test/customers/123/spaces/321");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsItems_IfNotSet()
+    {
+        var iiifManifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                    CanvasPainting = new Models.API.Manifest.CanvasPainting
+                    {
+                        CanvasOrder = 1, ChoiceOrder = 2, CanvasId = "foo"
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1a",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                    CanvasPainting = new Models.API.Manifest.CanvasPainting
+                    {
+                        CanvasOrder = 1, ChoiceOrder = 1, CanvasId = "foo"
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "2",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                    CanvasPainting = new Models.API.Manifest.CanvasPainting
+                    {
+                        CanvasOrder = 2, CanvasId = "foo"
+                    }
+                },
+            ]
+        };
+
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Id = "test-manifest",
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                    { AssetId = new AssetId(1, 2, "1b"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                new CanvasPainting
+                    { AssetId = new AssetId(1, 2, "1a"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                new CanvasPainting { AssetId = new AssetId(1, 2, "2"), CanvasOrder = 2, Id = "second" },
+            ],
+            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
+        };
+
+        var expectedItems = new List<Canvas>
+        {
+            new()
+            {
+                Id = "http://base/0/canvases/first",
+                Items =
+                [
+                    new AnnotationPage
+                    {
+                        Id = "http://base/0/canvases/first/annopages/1",
+                        Items =
+                        [
+                            new PaintingAnnotation
+                            {
+                                Id = "http://base/0/canvases/first/annotations/1",
+                                Behavior = [Models.Infrastructure.Behavior.Processing],
+                                Target = new Canvas { Id = "http://base/0/canvases/first" },
+                                Body = new PaintingChoice
+                                {
+                                    Items =
+                                    [
+                                        new Image(), new Image()
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            new()
+            {
+                Id = "http://base/0/canvases/second",
+                Items =
+                [
+                    new AnnotationPage
+                    {
+                        Id = "http://base/0/canvases/second/annopages/2",
+                        Items =
+                        [
+                            new PaintingAnnotation
+                            {
+                                Id = "http://base/0/canvases/second/annotations/2",
+                                Behavior = [Models.Infrastructure.Behavior.Processing],
+                                Target = new Canvas { Id = "http://base/0/canvases/second" },
+                                Body = new Image()
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        
+        // Assert
+        result.Items.Should().BeEquivalentTo(expectedItems);
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_DoesNotUpdateItems_IfSet()
+    {
+        var iiifManifest = new PresentationManifest
+        {
+            Items = new List<Canvas>
+            {
+                new()
+                {
+                    Id = "http://base/0/canvases/first",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "http://base/0/canvases/first/annopages/1",
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "http://base/0/canvases/first/annotations/1",
+                                    Behavior = [Models.Infrastructure.Behavior.Processing],
+                                    Target = new Canvas { Id = "http://base/0/canvases/first" },
+                                    Body = new PaintingChoice
+                                    {
+                                        Items =
+                                        [
+                                            new Image(), new Image()
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+            }
+        };
+
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Id = "test-manifest",
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                new CanvasPainting
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+            ],
+            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
+        };
+
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        
+        // Assert
+        result.Items.Should().BeEquivalentTo(iiifManifest.Items, "Items untouched as already present");
     }
 }

@@ -81,9 +81,19 @@ public interface IPathGenerator
     string GenerateFlatManifestId(Manifest manifest);
     
     /// <summary>
-    /// Get id for specified <see cref="CanvasPainting"/>
+    /// Get canvas id for specified <see cref="CanvasPainting"/>
     /// </summary>
     string GenerateCanvasId(CanvasPainting canvasPainting);
+    
+    /// <summary>
+    /// Get AnnotationPage id for specified <see cref="CanvasPainting"/>
+    /// </summary>
+    string GenerateAnnotationPagesId(CanvasPainting canvasPainting);
+    
+    /// <summary>
+    /// Get PaintingAnnotation id for specified <see cref="CanvasPainting"/>
+    /// </summary>
+    string GeneratePaintingAnnotationId(CanvasPainting canvasPainting);
 
     /// <summary>
     /// Get URI for DLCS space for given asset 
