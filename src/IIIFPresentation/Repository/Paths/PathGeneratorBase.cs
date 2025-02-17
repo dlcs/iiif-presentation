@@ -24,7 +24,7 @@ public abstract class PathGeneratorBase : IPathGenerator
         $"{PresentationUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
-        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath}" : string.Empty)}";
+        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath.TrimStart('/')}" : string.Empty)}";
 
     public string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy)
     {

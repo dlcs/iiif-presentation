@@ -5,7 +5,7 @@ using Models.Database.General;
 
 namespace Repository.Helpers;
 
-public class ManifestRetrieval
+public static class ManifestRetrieval
 {
     /// <summary>
     ///     For given manifest, return the full hierarchical path for it, delimited by `/`

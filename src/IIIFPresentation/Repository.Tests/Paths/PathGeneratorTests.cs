@@ -377,6 +377,26 @@ public class PathGeneratorTests
         pathGenerator.GenerateAssetUri(manifest).Should().BeNull();
     }
     
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GenerateHierarchicalFromFullPath_Correct_IfNullOrEmptyFullPath(string? fullPath)
+    {
+        const string expected = "http://base/5";
+        pathGenerator.GenerateHierarchicalFromFullPath(5, fullPath)
+            .Should().Be(expected, "Full path ignored if empty (which would be for root)");
+    }
+    
+    [Theory]
+    [InlineData("path/to/resource")]
+    [InlineData("/path/to/resource")]
+    public void GenerateHierarchicalFromFullPath_Correct_FullPathProvided(string? fullPath)
+    {
+        const string expected = "http://base/5/path/to/resource";
+        pathGenerator.GenerateHierarchicalFromFullPath(5, fullPath)
+            .Should().Be(expected, "full path appended to customer");
+    }
+    
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
 }
 
