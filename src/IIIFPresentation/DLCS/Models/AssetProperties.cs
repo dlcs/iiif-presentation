@@ -8,4 +8,6 @@ public static class AssetProperties
 {
     public const string Space = "space";
     public const string Id = "id";
+    public const string Error = "error";
+    public const string FullId = "@id";
 }

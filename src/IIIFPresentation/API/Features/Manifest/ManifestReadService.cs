@@ -4,6 +4,7 @@ using API.Infrastructure.Requests;
 using AWS.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
+using DLCS.Models;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -51,7 +52,7 @@ public class ManifestReadService(
             var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds, cancellationToken);
 
             return assets.Select(a => (asset: a,
-                    id: a.TryGetValue("@id", out var value) && value.Type == JTokenType.String
+                    id: a.TryGetValue(AssetProperties.FullId, out var value) && value.Type == JTokenType.String
                         ? value.Value<string>()
                         : null))
                 .Where(tuple => tuple.id is { Length: > 0 })
