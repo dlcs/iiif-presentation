@@ -55,21 +55,11 @@ public static class CollectionConverter
         DbCollection dbCollection, DbCollection? parentCollection,  IPathGenerator pathGenerator)
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
-
-        collection.FlatId = dbCollection.Id;
-        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
-        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
-        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
-        collection.CreatedBy = dbCollection.CreatedBy;
-        collection.ModifiedBy = dbCollection.ModifiedBy;
-        collection.Id = pathGenerator.GenerateFlatId(hierarchy);
-        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
-        collection.ItemsOrder = hierarchy.ItemsOrder;
-        collection.Tags = dbCollection.Tags;
-        collection.Slug = hierarchy.Slug;
         
-        // only set PartOf if it hasn't been set by the IIIF
-        collection.PartOf ??= GeneratePartOf(parentCollection, pathGenerator);
+        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+
+        collection.Behavior ??= [];
+        collection.Behavior.AddRange(GenerateBehavior(dbCollection) ?? []);
 
         return collection;
     }
@@ -100,22 +90,13 @@ public static class CollectionConverter
         var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
         var hierarchy = RetrieveHierarchy(dbCollection);
         
-        collection.Id = pathGenerator.GenerateFlatCollectionId(dbCollection);
-        collection.Context = GenerateContext();
-        collection.FlatId = dbCollection.Id;
-        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
-        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+        
         collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
         collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
-        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
-        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
-        collection.CreatedBy = dbCollection.CreatedBy;
-        collection.ModifiedBy = dbCollection.ModifiedBy;
         collection.Behavior = GenerateBehavior(dbCollection);
-        collection.Slug = hierarchy.Slug;
-        collection.ItemsOrder = hierarchy.ItemsOrder;
-        collection.Label = dbCollection.Label;
         collection.Totals = GetDescendantCounts(dbCollection, items);
+        collection.Label = dbCollection.Label;
         
         // this is to stop IIIF collections having storage collection only fields
         if (dbCollection.IsStorageCollection)
@@ -126,6 +107,23 @@ public static class CollectionConverter
         }
 
         return collection;
+    }
+    
+    private static void GenerateCommonFields(PresentationCollection collection, DbCollection dbCollection, 
+        Hierarchy hierarchy, IPathGenerator pathGenerator)
+    {
+        collection.FlatId = dbCollection.Id;
+        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
+        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
+        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
+        collection.CreatedBy = dbCollection.CreatedBy;
+        collection.ModifiedBy = dbCollection.ModifiedBy;
+        collection.Context = GenerateContext();
+        collection.Id = pathGenerator.GenerateFlatId(hierarchy);
+        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
+        collection.ItemsOrder = hierarchy.ItemsOrder;
+        collection.Tags = dbCollection.Tags;
+        collection.Slug = hierarchy.Slug;
     }
     
     private static Hierarchy RetrieveHierarchy(DbCollection dbCollection) =>

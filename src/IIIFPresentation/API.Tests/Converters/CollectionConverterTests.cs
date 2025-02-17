@@ -1,4 +1,5 @@
 ﻿using API.Converters;
+using API.Features.Storage.Helpers;
 using API.Tests.Helpers;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
@@ -339,7 +340,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false),
                 parentCollection, pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
@@ -351,7 +352,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.Items.Should().BeNull();
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
-        presentationCollectionWithFields.PartOf[0].Id.Should().Be("some-id");
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeFalse();
     }
     
     [Fact]
@@ -375,7 +376,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.TotalItems.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
-        presentationCollectionWithFields.PartOf[0].Id.Should().Be("http://base/0/collections/theparent");
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
     }
     
     [Fact]
@@ -399,7 +400,9 @@ public class CollectionConverterTests
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.TotalItems.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
-        presentationCollectionWithFields.PartOf[0].Id.Should().Be("http://base/0/collections/theparent");
+        presentationCollectionWithFields.SeeAlso.Should().BeNull();
+        presentationCollectionWithFields.PartOf.Should().BeNull();
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
