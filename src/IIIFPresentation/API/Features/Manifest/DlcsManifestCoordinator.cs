@@ -4,6 +4,7 @@ using API.Infrastructure.Requests;
 using Core;
 using DLCS.API;
 using DLCS.Exceptions;
+using DLCS.Models;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
@@ -26,7 +27,6 @@ public class DlcsManifestCoordinator(
         string manifestId, CancellationToken cancellationToken)
     {
         // NOTE - this must always happen before handing off to canvasPaintingResolve
-        const string spaceProperty = "space";
         var assets = GetAssetJObjectList(request);
 
         if (!request.CreateSpace && assets.Count <= 0)
@@ -35,11 +35,10 @@ public class DlcsManifestCoordinator(
             return (null, null);
         }
 
-        if (assets.Any(a => !a.HasValues)) 
-            return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+        if (assets.Any(a => !a.HasValues)) return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
 
         int? spaceId = null;
-        var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(spaceProperty, out _)).ToArray();
+        var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(AssetProperties.Space, out _)).ToArray();
         if (request.CreateSpace || assetsWithoutSpaces.Length > 0)
         {
             // Either you want a space or we detected you need a space regardless
@@ -47,7 +46,7 @@ public class DlcsManifestCoordinator(
             if (!spaceId.HasValue) return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null);
 
             foreach (var asset in assetsWithoutSpaces)
-                asset.Add(spaceProperty, spaceId.Value);
+                asset.Add(AssetProperties.Space, spaceId.Value);
         }
 
         var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);
