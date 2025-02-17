@@ -16,7 +16,7 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    private const int TotalDatabaseChildItems = 4;
+    private const int TotalDatabaseChildItems = 5;
     private readonly IAmazonS3 amazonS3;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -236,7 +236,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
-        var expectedTotals = new DescendantCounts(2, 1, 1); 
+        var expectedTotals = new DescendantCounts(2, 2, 1); 
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -267,8 +267,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         thirdItem.Id.Should().Be("http://localhost/1/collections/IiifCollection");
         thirdItem.Behavior.Should().Contain("public-iiif");
         thirdItem.Behavior.Should().NotContain("storage-collection");
-        var fourthItem = (Manifest)collection.Items[3];
-        fourthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
+        var fifthItem = (Manifest)collection.Items[4];
+        fifthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
     }
     
     [Fact]
@@ -582,7 +582,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_FlatIIIFCollection_ReturnsNullTotalsWithNullItems()
+    public async Task Get_FlatIIIFCollection_ReturnsNullItemsWhenNoBackingCollection()
     {
         // Arrange
         var requestMessage =
@@ -599,25 +599,21 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection!.Totals.Should().BeNull("IIIF Collections have no children");
         collection.Items.Should().BeNull();
         collection.View.Should().BeNull();
-        collection.TotalItems.Should().Be(0);
+        collection.TotalItems.Should().BeNull();
+        collection.Totals.Should().BeNull();
         collection.PublicId.Should().Be("http://localhost/1/iiif-collection");
         collection.Id.Should().Be("http://localhost/1/collections/IiifCollection");
+        collection.Items.Should().BeNull();
     }
     
     [Fact]
-    public async Task Get_FlatIIIFCollection_ReturnsTotalsWithItems()
+    public async Task Get_FlatIIIFCollectionWithItems_ReturnsItemsCorrectly()
     {
         // Arrange
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
-                "1/collections/IiifCollection");
+        var url = "1/collections/IiifCollectionWithItems";
         
-        await amazonS3.PutObjectAsync(new()
-        {
-            BucketName = LocalStackFixture.StorageBucketName,
-            Key = "1/collections/IiifCollection",
-            ContentBody = TestContent.CollectionJson
-        });
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, url);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -627,11 +623,11 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Totals.Should().BeNull("IIIF Collections have no children");
-        collection.Items.Should().NotBeNull();
-        collection.View.Id.Should().Be("http://localhost/1/collections/IiifCollection?page=1&pageSize=20");
-        collection.TotalItems.Should().Be(2);
-        collection.PublicId.Should().Be("http://localhost/1/iiif-collection");
-        collection.Id.Should().Be("http://localhost/1/collections/IiifCollection");
+        collection.Items.Should().HaveCount(2);
+        collection.View.Should().BeNull();
+        collection.TotalItems.Should().BeNull();
+        collection.PublicId.Should().Be("http://localhost/1/iiif-collection-with-items");
+        collection.Id.Should().Be($"http://localhost/{url}");
     }
     
     [Fact]

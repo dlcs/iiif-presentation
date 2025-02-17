@@ -39,16 +39,14 @@ public static class CollectionConverter
         EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
             parentCollection, pathGenerator, orderQueryParam);
 
-    public static PresentationCollection SetGeneratedFields(this PresentationCollection iiifCollection, 
-        DbCollection dbCollection, int pageSize, int currentPage, IPathGenerator pathGenerator, string? orderQueryParam = null) =>
-        EnrichPresentationCollectionFromCollection(iiifCollection, dbCollection, pageSize, currentPage, pathGenerator,
-            orderQueryParam);
+    public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection iiifCollection, 
+        DbCollection dbCollection, IPathGenerator pathGenerator) =>
+        EnrichIIIFCollection(iiifCollection, dbCollection, pathGenerator);
 
-    private static PresentationCollection EnrichPresentationCollectionFromCollection(PresentationCollection iiifCollection, DbCollection dbCollection, int pageSize, 
-        int currentPage, IPathGenerator pathGenerator, string? orderQueryParam)
+    private static PresentationCollection EnrichIIIFCollection(PresentationCollection iiifCollection, 
+        DbCollection dbCollection,  IPathGenerator pathGenerator)
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
-        var totalItems = iiifCollection.Items?.Count ?? 0;
 
         iiifCollection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         iiifCollection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
@@ -60,16 +58,6 @@ public static class CollectionConverter
         iiifCollection.ItemsOrder = hierarchy.ItemsOrder;
         iiifCollection.Tags = dbCollection.Tags;
         iiifCollection.Slug = hierarchy.Slug;
-        iiifCollection.TotalItems = totalItems;
-        
-        if (iiifCollection.Items != null)
-        {
-            iiifCollection.Items = iiifCollection.Items.Skip(pageSize * (currentPage - 1)).Take(pageSize).ToList();
-            var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
-            var totalPages = GenerateTotalPages(pageSize, totalItems);
-            iiifCollection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages,
-                orderQueryParamConverted);
-        }
 
         return iiifCollection;
     }

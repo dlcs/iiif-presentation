@@ -330,8 +330,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetGeneratedFields(CreateTestHierarchicalCollection(false, true), PageSize, 1,
-                pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -341,7 +340,7 @@ public class CollectionConverterTests
         presentationCollection.Modified.Should().Be(DateTime.MinValue);
         presentationCollectionWithFields.Items.Should().BeNull();
         presentationCollectionWithFields.View.Should().BeNull();
-        presentationCollectionWithFields.TotalItems.Should().Be(0);
+        presentationCollectionWithFields.Totals.Should().BeNull();
     }
     
     [Fact]
@@ -352,8 +351,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetGeneratedFields(CreateTestHierarchicalCollection(false, true), PageSize, 1,
-                pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -362,8 +360,9 @@ public class CollectionConverterTests
         presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Modified.Should().Be(DateTime.MinValue);
         presentationCollectionWithFields.Items.Should().BeEmpty();
-        presentationCollectionWithFields.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
-        presentationCollectionWithFields.TotalItems.Should().Be(0);
+        presentationCollectionWithFields.View.Should().BeNull();
+        presentationCollectionWithFields.TotalItems.Should().BeNull();
+        presentationCollectionWithFields.Totals.Should().BeNull();
     }
     
     [Fact]
@@ -374,8 +373,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetGeneratedFields(CreateTestHierarchicalCollection(false, true), PageSize, 1,
-                pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -384,35 +382,9 @@ public class CollectionConverterTests
         presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
         presentationCollection.Modified.Should().Be(DateTime.MinValue);
         presentationCollectionWithFields.Items.Should().HaveCount(5);
-        presentationCollectionWithFields.View!.Id.Should().Be("http://base/1/collections/some-id?page=1&pageSize=100");
-        presentationCollectionWithFields.TotalItems.Should().Be(5);
-    }
-    
-    [Fact]
-    public void SetGeneratedFields_SetsCorrectFields_WhenItemsOnAnotherPage()
-    {
-        // Arrange
-        var  presentationCollection = CreateTestPresentationCollection(5);
-
-        // Act
-        var presentationCollectionWithFields =
-            presentationCollection.SetGeneratedFields(CreateTestHierarchicalCollection(false, true), 2, 2,
-                pathGenerator);
-
-        presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
-        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
-        presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
-        presentationCollectionWithFields.Label!.Should().HaveCount(1);
-        presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
-        presentationCollection.Modified.Should().Be(DateTime.MinValue);
-        presentationCollectionWithFields.Items.Should().HaveCount(2);
-        presentationCollectionWithFields.View.Id.Should().Be("http://base/1/collections/some-id?page=2&pageSize=2");
-        presentationCollectionWithFields.View.First.Should().Be("http://base/1/collections/some-id?page=1&pageSize=2");
-        presentationCollectionWithFields.View.Last.Should().Be("http://base/1/collections/some-id?page=3&pageSize=2");
-        presentationCollectionWithFields.View.Previous.Should().Be("http://base/1/collections/some-id?page=1&pageSize=2");
-        presentationCollectionWithFields.View.Next.Should().Be("http://base/1/collections/some-id?page=3&pageSize=2");
-        presentationCollectionWithFields.View.TotalPages.Should().Be(3);
-        presentationCollectionWithFields.TotalItems.Should().Be(5);
+        presentationCollectionWithFields.View.Should().BeNull();
+        presentationCollectionWithFields.TotalItems.Should().BeNull();
+        presentationCollectionWithFields.Totals.Should().BeNull();
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>

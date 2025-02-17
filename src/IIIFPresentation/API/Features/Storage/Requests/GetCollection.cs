@@ -85,8 +85,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
         
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
-        var s3PresentationCollection = s3Collection.SetGeneratedFields(collection, request.RequestModifiers.PageSize,
-            request.RequestModifiers.Page, pathGenerator, orderByParameter);
+        var s3PresentationCollection = s3Collection.SetIIIFGeneratedFields(collection, pathGenerator);
         
         return FetchEntityResult<PresentationCollection>.Success(s3PresentationCollection);
     }
