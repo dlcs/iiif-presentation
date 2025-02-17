@@ -327,10 +327,20 @@ public class CollectionConverterTests
     {
         // Arrange
         var  presentationCollection = CreateTestPresentationCollection();
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+
+        presentationCollection.PartOf =
+        [
+            new Canvas
+            {
+                Id = "some-id",
+            }
+        ];
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),
+                parentCollection, pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -341,6 +351,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.Items.Should().BeNull();
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.PartOf[0].Id.Should().Be("some-id");
     }
     
     [Fact]
@@ -348,10 +359,11 @@ public class CollectionConverterTests
     {
         // Arrange
         var  presentationCollection = CreateTestPresentationCollection(0);
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), parentCollection, pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -363,6 +375,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.TotalItems.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.PartOf[0].Id.Should().Be("http://base/0/collections/theparent");
     }
     
     [Fact]
@@ -370,10 +383,11 @@ public class CollectionConverterTests
     {
         // Arrange
         var  presentationCollection = CreateTestPresentationCollection(5);
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),  parentCollection, pathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
@@ -385,6 +399,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.View.Should().BeNull();
         presentationCollectionWithFields.TotalItems.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.PartOf[0].Id.Should().Be("http://base/0/collections/theparent");
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>

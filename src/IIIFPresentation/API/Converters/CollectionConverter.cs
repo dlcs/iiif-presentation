@@ -44,27 +44,32 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="collection">The collection to set fields on</param>
     /// <param name="dbCollection">The database record used to set fields</param>
+    /// <param name="parentCollection">The parent collection</param>
     /// <param name="pathGenerator">A collection path generator</param>
     /// <returns>A IIIF collection with fields set specific to presentation collection</returns>
     public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection collection, 
-        DbCollection dbCollection, IPathGenerator pathGenerator) =>
-        EnrichIIIFCollection(collection, dbCollection, pathGenerator);
+        DbCollection dbCollection, DbCollection? parentCollection, IPathGenerator pathGenerator) =>
+        EnrichIIIFCollection(collection, dbCollection, parentCollection, pathGenerator);
 
     private static PresentationCollection EnrichIIIFCollection(PresentationCollection collection, 
-        DbCollection dbCollection,  IPathGenerator pathGenerator)
+        DbCollection dbCollection, DbCollection? parentCollection,  IPathGenerator pathGenerator)
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
 
+        collection.FlatId = dbCollection.Id;
+        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;
         collection.ModifiedBy = dbCollection.ModifiedBy;
-        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
         collection.Id = pathGenerator.GenerateFlatId(hierarchy);
         collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
         collection.ItemsOrder = hierarchy.ItemsOrder;
         collection.Tags = dbCollection.Tags;
         collection.Slug = hierarchy.Slug;
+        
+        // only set PartOf if it hasn't been set by the IIIF
+        collection.PartOf ??= GeneratePartOf(parentCollection, pathGenerator);
 
         return collection;
     }
@@ -101,8 +106,6 @@ public static class CollectionConverter
         collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
         collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
         collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
-        collection.TotalItems = totalItems;
-        collection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted);
         collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
@@ -114,10 +117,12 @@ public static class CollectionConverter
         collection.Label = dbCollection.Label;
         collection.Totals = GetDescendantCounts(dbCollection, items);
         
-        // this is to stop IIIF collection items being overwritten by the hierarchy
+        // this is to stop IIIF collections having storage collection only fields
         if (dbCollection.IsStorageCollection)
         {
             collection.Items = GenerateItems(pathGenerator, items);
+            collection.TotalItems = totalItems;
+            collection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted);
         }
 
         return collection;
