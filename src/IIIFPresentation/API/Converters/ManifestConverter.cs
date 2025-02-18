@@ -7,6 +7,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
+using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
@@ -51,6 +52,11 @@ public static class ManifestConverter
 
         // Note ??= - this is only if we don't yet have Items set by background process
         iiifManifest.Items ??= GenerateProvisionalItems(iiifManifest.PaintedResources);
+
+        if (dbManifest.IsIngesting())
+        {
+            iiifManifest.Ingesting = GenerateIngesting(assets);
+        }
         
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
@@ -164,5 +170,33 @@ public static class ManifestConverter
                 ["@id"] = fullAssetId,
                 ["error"] = "Asset not found"
             };
+    }
+    
+    private static IngestingAssets? GenerateIngesting(Dictionary<string, JObject>? assets)
+    {
+        if (assets == null) return null;
+        
+        var ingesting = new IngestingAssets();
+
+        foreach (var asset in assets)
+        {
+            ingesting.Total++;
+
+            if (asset.Value.TryGetValue("ingesting", out var currentlyIngesting))
+            {
+                if (!currentlyIngesting.Value<bool>())
+                {
+                    ingesting.Finished++;
+                }
+            }
+
+            if (!asset.Value.TryGetValue("error", out var error)) continue;
+            if (!string.IsNullOrEmpty(error.Value<string>()))
+            {
+                ingesting.Errors++;
+            }
+        }
+        
+        return ingesting;
     }
 }

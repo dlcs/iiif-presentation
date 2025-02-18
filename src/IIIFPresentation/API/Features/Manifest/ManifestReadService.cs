@@ -99,7 +99,7 @@ public class ManifestReadService(
 
         if (dbManifest.IsIngesting())
         {
-            manifest.Ingesting = true;
+            manifest.CurrentlyIngesting = true;
         }
 
         return FetchEntityResult<PresentationManifest>.Success(manifest);

@@ -31,6 +31,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly IDlcsApiClient dlcsApiClient;
     private readonly IAmazonS3 s3;
     private readonly JObject sampleAsset;
+    private const string PaintedResource = "foo-paintedResource";
+    private const string IngestingPaintedResource = "ingestingPaintedResource";
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -52,15 +54,49 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
                    "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "foo-paintedResource",
+                   "ingesting": false,
                    "space": 1
                  }
             """
         );
+        
+        var errorAsset = JObject.Parse(
+            """
+            {
+                   "@context": "https://localhost/contexts/Image.jsonld",
+                   "@id": "https://localhost:7230/customers/1/spaces/2/images/errorPaintedResource",
+                   "@type": "vocab:Image",
+                   "id": "errorPaintedResource",
+                   "error": "random error",
+                   "space": 1
+                 }
+            """
+        );
+        
+        var ingestingAsset = JObject.Parse(
+            """
+            {
+                   "@context": "https://localhost/contexts/Image.jsonld",
+                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@type": "vocab:Image",
+                   "id": "ingestingPaintedResource",
+                   "ingesting": true,
+                   "space": 1
+                 }
+            """
+        );
+        
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
                 A<IList<string>>.That.Matches(l =>
-                    l.Any(x => "1/2/foo-paintedResource".Equals(x))),
+                    l.Any(x => $"1/2/{PaintedResource}".Equals(x))),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [sampleAsset]);
+        
+        A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+                A<IList<string>>.That.Matches(l =>
+                    l.Any(x => $"1/2/{IngestingPaintedResource}".Equals(x))),
+                A<CancellationToken>._))
+            .ReturnsLazily(() => [ingestingAsset, errorAsset]);
     }
 
     [Fact]
@@ -105,7 +141,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
         var id = nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources);
         var dbManifest = await dbContext.Manifests.AddTestManifest(id);
-        var assetId = new AssetId(1, 2, "foo-paintedResource");
+        var assetId = new AssetId(1, 2, PaintedResource);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
             assetId: assetId);
         await dbContext.SaveChangesAsync();
@@ -129,6 +165,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var paintedResource = manifest.PaintedResources.Single();
         paintedResource.CanvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "foo"));
         paintedResource.Asset.Should().BeEquivalentTo(sampleAsset);
+        manifest.Ingesting.Should().BeNull();
     }
 
     [Fact]
@@ -166,7 +203,17 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var id = nameof(Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting);
 
         // Arrange and Act
-        await dbContext.Manifests.AddTestManifest(id, batchId: 1);
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: 1);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
+            createdDate: DateTime.UtcNow.AddDays(-1),
+            assetId: new AssetId(1, 2, PaintedResource),
+            height: 1800, width: 1200,
+            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
+            createdDate: DateTime.UtcNow.AddDays(-1),
+            assetId: new AssetId(1, 2, IngestingPaintedResource),
+            height: 1800, width: 1200,
+            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
 
         await amazonS3.PutObjectAsync(new()
         {
@@ -193,6 +240,12 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be(id);
         manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
+        manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
+        {
+            Total = 2,
+            Finished = 0,
+            Errors = 1
+        });
     }
 
     [Fact]
