@@ -37,6 +37,7 @@ sequenceDiagram
     loop Until message recieved
     P -->> SU: Listen for batch completion
     end
+    SU -->> P: Get batch completion
     P -->>+ D: Retrieve asset details
     D -->>- P: 
     P -->> S: Update stored manifest
@@ -45,9 +46,9 @@ sequenceDiagram
     P ->>- User: Response
 ```
 
-## Proposal
+## Batch completion process
 
-Updating the details of a batch requires a call to orchestrator to add the `Image-Service` and thumbnails.
+Updating the details of a batch requires a call to orchestrator to add the `Image-Service` and thumbnails.  Additionally, details are retrieved from an initial S3 staging location, which includes details of the manifest that are not saved in the database or are not returned by the DLCS (such as `homepage`)
 
 This process can be demonstrated below:
 
@@ -57,14 +58,21 @@ title: Batch completion process
 ---
 sequenceDiagram
     participant NH as Notification Handler 
-    participant P as Presentation API
+    participant P as Background Handler
+    participant SS as S3 Staging
     participant DO as DLCS Orchestrator
-    participant S as S3
+    participant SL as S3 live
     NH ->> P: Notify batch completion
     P -> P: Check all batches are complete for the manifest
+    P ->> SS: retrieve skeleton manifest 
     P ->>+ DO: Named query projection on the batch
     DO -->>- P: Get batch details from named query
     P --> P: Update manifest
-    P -->> S: Update S3
+    P -->> SL: Update S3
     P --> P: Update database
+    P -->> SS: delete skeleton manifest
 ```
+
+Addditional processing within batch completion is to generate IIIF multiple choice constructs from painted resources and merging thumbnails.
+
+see [this protagonist RFC](https://github.com/dlcs/protagonist/blob/main/docs/rfcs/019-presentation-dlcs.md) for details of how the querying assets work in protagonist
