@@ -191,7 +191,7 @@ public static class ManifestConverter
         {
             ingesting.Total++;
 
-            if (asset.Value.TryGetValue("ingesting", out var currentlyIngesting))
+            if (asset.Value.TryGetValue(AssetProperties.Ingesting, out var currentlyIngesting))
             {
                 if (!currentlyIngesting.Value<bool>())
                 {
@@ -199,7 +199,7 @@ public static class ManifestConverter
                 }
             }
 
-            if (!asset.Value.TryGetValue("error", out var error)) continue;
+            if (!asset.Value.TryGetValue(AssetProperties.Error, out var error)) continue;
             if (!string.IsNullOrEmpty(error.Value<string>()))
             {
                 ingesting.Errors++;
