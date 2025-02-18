@@ -18,7 +18,7 @@ public class CanvasPainting : IIdentifiable
     /// Unique identifier for canvas on a manifest.
     /// </summary>
     /// <remarks>
-    /// There can be multiple rows with the same CanvasId and ManifestId (e.g. if there are multiple choices_
+    /// There can be multiple rows with the same CanvasId and ManifestId (e.g. if there are multiple choices)
     /// </remarks>
     public string Id { get; set; } = null!;
     
