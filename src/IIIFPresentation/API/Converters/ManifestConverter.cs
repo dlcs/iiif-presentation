@@ -53,7 +53,7 @@ public static class ManifestConverter
             iiifManifest.Ingesting = GenerateIngesting(assets);
         }
         
-        var canvasPaintings = dbManifest.GetCanvasPaintings();
+        var canvasPaintings = dbManifest.GetOrderedCanvasPaintings();
         if (canvasPaintings is not null)
         {
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
@@ -70,10 +70,9 @@ public static class ManifestConverter
     }
 
     /// <summary>
-    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="PaintedResource"/> collection. These
-    /// provisional canvases have the structure of the final canvases without the full details.  
+    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These
+    /// provisional canvases have the structure of the final canvases without the full content-resource details
     /// </summary>
-    /// <returns></returns>
     private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
         IPathGenerator pathGenerator)
     {
@@ -125,7 +124,7 @@ public static class ManifestConverter
         IPaintable GetImage() => new Image();
     }
 
-    private static IOrderedEnumerable<CanvasPainting>? GetCanvasPaintings(this Manifest dbManifest)
+    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
