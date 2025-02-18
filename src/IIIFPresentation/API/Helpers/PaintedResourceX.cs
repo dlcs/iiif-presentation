@@ -9,4 +9,17 @@ public static class PaintedResourceX
     {
         return paintedResources != null && paintedResources.Any(p => p.Asset != null);
     }
+    
+    /// <summary>
+    /// For the provided paintedResources, calculate how many canvases will be generated when processing. A canvas is
+    /// required for each unique CanvasOrder value, or 1 for each null CanvasOrder
+    /// </summary>
+    public static int GetRequiredNumberOfCanvases(this List<PaintedResource>? paintedResources)
+    {
+        if (paintedResources.IsNullOrEmpty()) return 0;
+
+        // Random number that counts down for each null CanvasOrder to treat it as unique
+        int counter = -10000;
+        return paintedResources.DistinctBy(pr => pr.CanvasPainting?.CanvasOrder ?? --counter).Count();
+    }
 }
