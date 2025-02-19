@@ -8,8 +8,6 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using IIIF.Presentation;
-using IIIF.Serialisation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -48,7 +46,7 @@ public class StorageController(
                         : SeeOther($"manifests/{hierarchy.ManifestId}");
                 
                 var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
-                return storedManifest == null ? this.PresentationNotFound() : Content(storedManifest, ContentTypes.V3);
+                return storedManifest == null ? this.PresentationNotFound() : this.PresentationContent(storedManifest);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
@@ -64,10 +62,8 @@ public class StorageController(
                 }
 
                 return storageRoot.StoredCollection == null
-                    ? Content(
-                        storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items).AsJson(),
-                        ContentTypes.V3)
-                    : Content(storageRoot.StoredCollection, ContentTypes.V3);
+                    ? this.PresentationContent(storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items))
+                    : this.PresentationContent(storageRoot.StoredCollection);
 
             default:
                 return this.PresentationNotFound();

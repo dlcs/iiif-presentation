@@ -63,13 +63,13 @@ public static class ControllerBaseX
     ModifyEntityResult<T, TEnum> entityResult, 
     string? instance,
     string? errorTitle)
-    where T : class 
+    where T : JsonLdBase 
     where TEnum : Enum =>
     entityResult.WriteResult switch
     {
-        WriteResult.Updated => controller.Ok(entityResult.Entity),
-        WriteResult.Accepted => controller.PresentationWithBodyResponse(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted),
-        WriteResult.Created => controller.PresentationWithBodyResponse(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created),
+        WriteResult.Updated => controller.PresentationContent(entityResult.Entity),
+        WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted),
+        WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created),
         WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
         WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
             (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
@@ -165,32 +165,34 @@ public static class ControllerBaseX
     }
 
     /// <summary>
+    /// Creates a result with serialised <see cref="JsonLdBase"/> body, correct IIIF ContentType and specified
+    /// statuscode 
+    /// </summary>
+    public static ContentResult PresentationContent(this ControllerBase _, JsonLdBase descriptionResource,
+        int statusCode = 200)
+        => new()
+        {
+            Content = descriptionResource.AsJson(),
+            ContentType = ContentTypes.V3,
+            StatusCode = statusCode,
+        };
+
+    /// <summary>
     /// Create an <see cref="ObjectResult"/> that produced a 403 response
     /// </summary>
     public static ObjectResult Forbidden(this ControllerBase controller)
         => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-    
-    /// <summary>
-    /// Creates a result with standard serialized value or custom serialized IIIF object, with a specified status code
-    /// <see cref="JsonLdBase"/>
-    /// </summary>
-    public static ActionResult PresentationWithBodyResponse(this ControllerBase controller, string? uri, object? value, int statusCode)
-    {
-        if (value is JsonLdBase jsonLdBase)
-        {
-            if (value is ResourceBase {Id: {Length: > 0} id})
-                uri = id;
-            
-            controller.Response.Headers.Location = uri;
-            
-            return new ContentResult
-            {
-                Content = jsonLdBase.AsJson(),
-                ContentType = ContentTypes.V3,
-                StatusCode = statusCode,
-            };
-        }
 
-        return new CreatedResult(uri, value);
+    /// <summary>
+    /// Creates a result with serialised <see cref="JsonLdBase"/> body, specified status code and Location header set
+    /// </summary>
+    public static ActionResult PresentationWithLocationHeader(this ControllerBase controller, string? uri,
+        JsonLdBase descriptionResource, int statusCode)
+    {
+        if (descriptionResource is ResourceBase { Id: { Length: > 0 } id }) uri = id;
+
+        controller.Response.Headers.Location = uri;
+
+        return PresentationContent(controller, descriptionResource, statusCode);
     }
 }

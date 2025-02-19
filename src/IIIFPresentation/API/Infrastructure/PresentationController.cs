@@ -3,6 +3,7 @@ using API.Exceptions;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
+using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -53,7 +54,7 @@ public abstract class PresentationController : Controller
     string? instance = null,
     string? errorTitle = "Operation failed",
     CancellationToken cancellationToken = default)
-    where T : class
+    where T : JsonLdBase
     where TEnum : Enum
     {
         return await HandleRequest(async () =>

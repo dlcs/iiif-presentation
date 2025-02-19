@@ -1,5 +1,6 @@
 ﻿using API.Infrastructure.Requests;
 using Core;
+using IIIF;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
@@ -17,7 +18,7 @@ public static class PresentationContextX
         int customerId,
         ILogger logger,
         CancellationToken cancellationToken)
-        where T : class
+        where T : JsonLdBase
         => dbContext.TrySave<T>("collection", customerId, logger, cancellationToken);
     
     public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySave<T>(
@@ -26,7 +27,7 @@ public static class PresentationContextX
         int customerId, 
         ILogger logger,
         CancellationToken cancellationToken)
-        where T : class
+        where T : JsonLdBase
     {
         try
         { 

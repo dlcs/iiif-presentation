@@ -1,4 +1,4 @@
-﻿using API.Converters.Streaming;
+﻿using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using AWS.Helpers;
@@ -6,6 +6,7 @@ using AWS.S3;
 using AWS.S3.Models;
 using AWS.Settings;
 using Core.Streams;
+using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -51,13 +52,9 @@ public class GetHierarchicalCollectionHandler(
 
             if (!objectFromS3.Stream.IsNull())
             {
-                using var memoryStream = new MemoryStream();
-                using var reader = new StreamReader(memoryStream);
-                StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
-                    objectFromS3.Headers.ContentLength,
-                    new S3StoredJsonProcessor(pathGenerator.GenerateHierarchicalId(request.Hierarchy)));
-                memoryStream.Seek(0, SeekOrigin.Begin);
-                var collectionFromS3 = await reader.ReadToEndAsync(cancellationToken);
+                var collectionFromS3 =
+                    objectFromS3.GetDescriptionResourceWithId<Collection>(
+                        pathGenerator.GenerateHierarchicalId(request.Hierarchy));
                 return new(request.Hierarchy.Collection, null, 0, collectionFromS3);
             }
         }

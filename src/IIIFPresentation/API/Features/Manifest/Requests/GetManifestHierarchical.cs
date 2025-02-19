@@ -1,4 +1,5 @@
-﻿using API.Converters.Streaming;
+﻿using API.Converters;
+using API.Converters.Streaming;
 using AWS.Helpers;
 using AWS.S3;
 using AWS.Settings;
@@ -12,7 +13,7 @@ using Repository.Paths;
 
 namespace API.Features.Manifest.Requests;
 
-public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<string?>
+public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<IIIF.Presentation.V3.Manifest?>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
 }
@@ -21,14 +22,13 @@ public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
     PresentationContext dbContext,
     IPathGenerator pathGenerator,
-    IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, string?>
+    IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
 {
     private readonly AWSSettings settings = options.Value;
     
-    public async Task<string?> Handle(GetManifestHierarchical request,
+    public async Task<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
-    {          
-
+    {
         var flatId = request.Hierarchy.ManifestId ??
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
@@ -51,13 +51,7 @@ public class GetManifestHierarchicalHandler(
         request.Hierarchy.FullPath = await fetchFullPath;
 
         var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
-        
-        using var memoryStream = new MemoryStream();
-        using var reader = new StreamReader(memoryStream);
-        StreamingJsonProcessor.ProcessJson(objectFromS3.Stream, memoryStream,
-            objectFromS3.Headers.ContentLength,
-            new S3StoredJsonProcessor(hierarchicalId));
-        memoryStream.Seek(0, SeekOrigin.Begin);
-        return await reader.ReadToEndAsync(cancellationToken);
+
+        return objectFromS3.GetDescriptionResourceWithId<IIIF.Presentation.V3.Manifest>(hierarchicalId);
     }
 }
