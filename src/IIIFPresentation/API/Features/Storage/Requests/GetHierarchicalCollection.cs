@@ -52,6 +52,7 @@ public class GetHierarchicalCollectionHandler(
 
             if (!objectFromS3.Stream.IsNull())
             {
+                request.Hierarchy.FullPath = request.Slug;
                 var collectionFromS3 =
                     objectFromS3.GetDescriptionResourceWithId<Collection>(
                         pathGenerator.GenerateHierarchicalId(request.Hierarchy));
