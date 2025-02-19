@@ -189,6 +189,35 @@ public class PresentationContextFixture : IAsyncLifetime
                 }
             ]
         });
+        
+        // Child IIIF Collection with items
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = "IiifCollectionWithItems",
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                {"en", ["first child - iiif"] }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = false,
+            IsPublic = true,
+            CustomerId = CustomerId,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "iiif-collection-with-items",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFCollection,
+                    Canonical = true
+                }
+            ]
+        });
 
         // Child manifest
         await DbContext.Manifests.AddAsync(new Manifest

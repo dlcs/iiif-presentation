@@ -8,19 +8,20 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
 using Models.API.General;
-using Models.Database.Collections;
 using Models.Database.General;
 using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Collection = Models.Database.Collections.Collection;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace API.Tests.Integration;
@@ -215,9 +216,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View!.PageSize.Should().Be(20);
-        responseCollection.View.Page.Should().Be(1);
-        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
@@ -272,9 +271,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View!.PageSize.Should().Be(20);
-        responseCollection.View.Page.Should().Be(1);
-        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection!.View.Should().BeNull();
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
         
         var context = (JArray)responseCollection.Context;
@@ -408,7 +405,17 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
       ""en""
     ]
   }}
-]
+],
+    ""items"": [
+        {{
+            ""id"": ""https://digirati.io/some-iiif-repo/basic_iiif_collection/collection_a"",
+            ""type"": ""Collection""
+        }},
+        {{
+            ""id"": ""https://digirati.io/some-iiif-repo/basic_iiif_collection/collection_b"",
+            ""type"": ""Collection""
+        }}
+    ]
 }}";
 
         var requestMessage =
@@ -439,14 +446,15 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        responseCollection!.View!.PageSize.Should().Be(20);
-        responseCollection.View.Page.Should().Be(1);
-        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection!.View!.Should().BeNull();
+        responseCollection.TotalItems.Should().BeNull();
         responseCollection.Homepage.Should().NotBeNull();
+        responseCollection.Totals.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         fromS3.Should().NotBeNull();
-        responseCollection.Totals.Should().BeNull();
+        responseCollection.Items.Should().HaveCount(2);
+        responseCollection.Items[0].As<ResourceBase>().Id.Should().Be("https://digirati.io/some-iiif-repo/basic_iiif_collection/collection_a");
     }
     
     [Fact]
@@ -716,9 +724,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.IsPublic.Should().BeFalse();
         fromDatabase.IsStorageCollection.Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View!.PageSize.Should().Be(20);
-        responseCollection.View.Page.Should().Be(1);
-        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeNull();
@@ -1949,9 +1955,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Tags.Should().Be("some, tags, 2");
         fromDatabase.IsPublic.Should().BeFalse();
         fromDatabase.IsStorageCollection.Should().BeFalse();
-        responseCollection!.View!.PageSize.Should().Be(20);
-        responseCollection.View.Page.Should().Be(1);
-        responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
+        responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeNull();

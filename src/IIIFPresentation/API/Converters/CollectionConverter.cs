@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using API.Features.Storage.Models;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
@@ -39,6 +40,31 @@ public static class CollectionConverter
             parentCollection, pathGenerator, orderQueryParam);
 
     /// <summary>
+    /// Sets generated fields on a IIIF collection
+    /// </summary>
+    /// <param name="collection">The collection to set fields on</param>
+    /// <param name="dbCollection">The database record used to set fields</param>
+    /// <param name="parentCollection">The parent collection</param>
+    /// <param name="pathGenerator">A collection path generator</param>
+    /// <returns>A IIIF collection with fields set specific to presentation collection</returns>
+    public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection collection, 
+        DbCollection dbCollection, DbCollection? parentCollection, IPathGenerator pathGenerator) =>
+        EnrichIIIFCollection(collection, dbCollection, parentCollection, pathGenerator);
+
+    private static PresentationCollection EnrichIIIFCollection(PresentationCollection collection, 
+        DbCollection dbCollection, DbCollection? parentCollection,  IPathGenerator pathGenerator)
+    {
+        var hierarchy = RetrieveHierarchy(dbCollection);
+        
+        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+
+        collection.Behavior ??= [];
+        collection.Behavior.AddRange(GenerateBehavior(dbCollection) ?? []);
+
+        return collection;
+    }
+
+    /// <summary>
     /// Enriches <see cref="PresentationCollection"/> with values from database.
     /// Note that any values in <see cref="DbCollection"/> "win" and will overwrite those already in
     /// <see cref="PresentationCollection"/>
@@ -61,32 +87,51 @@ public static class CollectionConverter
         
         var totalPages = GenerateTotalPages(pageSize, totalItems);
 
-        var orderQueryParamConverted = string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
-        var hierarchy = dbCollection.Hierarchy!.Single(h => h.Canonical);
+        var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
+        var hierarchy = RetrieveHierarchy(dbCollection);
         
-        collection.Id = pathGenerator.GenerateFlatCollectionId(dbCollection);
-        collection.Context = GenerateContext();
+        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+        
+        collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
+        collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
+        collection.Behavior = GenerateBehavior(dbCollection);
+        collection.Totals = GetDescendantCounts(dbCollection, items);
+        collection.Label = dbCollection.Label;
+        
+        // this is to stop IIIF collections having storage collection only fields
+        if (dbCollection.IsStorageCollection)
+        {
+            collection.Items = GenerateItems(pathGenerator, items);
+            collection.TotalItems = totalItems;
+            collection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted);
+        }
+
+        return collection;
+    }
+    
+    private static void GenerateCommonFields(PresentationCollection collection, DbCollection dbCollection, 
+        Hierarchy hierarchy, IPathGenerator pathGenerator)
+    {
         collection.FlatId = dbCollection.Id;
         collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
-        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
-        collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
-        collection.TotalItems = totalItems;
-        collection.View = GenerateView(dbCollection, pathGenerator, pageSize, currentPage, totalPages, orderQueryParamConverted);
-        collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;
         collection.ModifiedBy = dbCollection.ModifiedBy;
-        collection.Items = GenerateItems(pathGenerator, items);
-        collection.Behavior = GenerateBehavior(dbCollection);
-        collection.Slug = hierarchy.Slug;
+        collection.Context = GenerateContext();
+        collection.Id = pathGenerator.GenerateFlatId(hierarchy);
+        collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
         collection.ItemsOrder = hierarchy.ItemsOrder;
-        collection.Label = dbCollection.Label;
-        collection.Totals = GetDescendantCounts(dbCollection, items);
-        
-        return collection;
+        collection.Tags = dbCollection.Tags;
+        collection.Slug = hierarchy.Slug;
     }
     
+    private static Hierarchy RetrieveHierarchy(DbCollection dbCollection) =>
+        dbCollection.Hierarchy!.Single(h => h.Canonical);
+
+    private static string GenerateOrderQueryParamConverted(string? orderQueryParam) =>
+        string.IsNullOrEmpty(orderQueryParam) ? string.Empty : $"&{orderQueryParam}";
+
     private static ICollectionItem GenerateCollectionItem(Hierarchy hierarchy, IPathGenerator pathGenerator,
         bool flatId)
     {

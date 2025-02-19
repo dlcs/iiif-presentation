@@ -1,10 +1,12 @@
 ﻿using API.Converters;
+using API.Features.Storage.Helpers;
 using API.Tests.Helpers;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository.Paths;
+using Collection = Models.Database.Collections.Collection;
 
 #nullable disable
 
@@ -320,6 +322,88 @@ public class CollectionConverterTests
         // Assert
         presentationCollection.Totals.Should().BeNull();
     }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsCorrectFields_WhenItemsNull()
+    {
+        // Arrange
+        var  presentationCollection = CreateTestPresentationCollection();
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+
+        presentationCollection.PartOf =
+        [
+            new Canvas
+            {
+                Id = "some-id",
+            }
+        ];
+
+        // Act
+        var presentationCollectionWithFields =
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false),
+                parentCollection, pathGenerator);
+
+        presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollectionWithFields.Label!.Should().HaveCount(1);
+        presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Modified.Should().Be(DateTime.MinValue);
+        presentationCollectionWithFields.Items.Should().BeNull();
+        presentationCollectionWithFields.View.Should().BeNull();
+        presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeFalse();
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsCorrectFields_WhenItemsEmpty()
+    {
+        // Arrange
+        var  presentationCollection = CreateTestPresentationCollection(0);
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+
+        // Act
+        var presentationCollectionWithFields =
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), parentCollection, pathGenerator);
+
+        presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollectionWithFields.Label!.Should().HaveCount(1);
+        presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Modified.Should().Be(DateTime.MinValue);
+        presentationCollectionWithFields.Items.Should().BeEmpty();
+        presentationCollectionWithFields.View.Should().BeNull();
+        presentationCollectionWithFields.TotalItems.Should().BeNull();
+        presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsCorrectFields_WhenItems()
+    {
+        // Arrange
+        var  presentationCollection = CreateTestPresentationCollection(5);
+        var parentCollection = new Collection { Id = "theparent", Label = new LanguageMap("none", "grace") };
+
+        // Act
+        var presentationCollectionWithFields =
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),  parentCollection, pathGenerator);
+
+        presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
+        presentationCollectionWithFields.Label!.Should().HaveCount(1);
+        presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
+        presentationCollection.Modified.Should().Be(DateTime.MinValue);
+        presentationCollectionWithFields.Items.Should().HaveCount(5);
+        presentationCollectionWithFields.View.Should().BeNull();
+        presentationCollectionWithFields.TotalItems.Should().BeNull();
+        presentationCollectionWithFields.Totals.Should().BeNull();
+        presentationCollectionWithFields.SeeAlso.Should().BeNull();
+        presentationCollectionWithFields.PartOf.Should().BeNull();
+        presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
+    }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
     {
@@ -433,6 +517,36 @@ public class CollectionConverterTests
             IsStorageCollection = true,
         };
         
+        return collection;
+    }
+    
+    private static PresentationCollection CreateTestPresentationCollection(int? numberOfItems = null)
+    {
+        var collection = new PresentationCollection
+        {
+            Id = "some-id",
+            Label = new LanguageMap
+            {
+                { "en", new List<string> { "repository root" } }
+            },
+            Created = DateTime.MinValue,
+            Modified = DateTime.MinValue,
+        };
+
+        if (!numberOfItems.HasValue) return collection;
+        
+        var currentItem = 0;
+        collection.Items = [];
+
+        while (currentItem < numberOfItems)
+        {
+            collection.Items.Add(new IIIF.Presentation.V3.Collection
+            {
+                Id = $"some-id-{currentItem}",
+            });
+            currentItem++;
+        }
+
         return collection;
     }
 }

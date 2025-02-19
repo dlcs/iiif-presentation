@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using API.Attributes;
 using API.Auth;
-using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
@@ -25,8 +24,7 @@ namespace API.Features.Storage;
 public class CollectionController(
     IAuthenticator authenticator,
     IOptions<ApiSettings> options,
-    IMediator mediator,
-    IPathGenerator pathGenerator)
+    IMediator mediator)
     : PresentationController(options.Value, mediator)
 {
     [HttpGet("collections/{id}")]
@@ -40,25 +38,22 @@ public class CollectionController(
         if (page is null or <= 0) page = 1;
 
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
-        var collectionWithItems =
+
+        var entityResult =
             await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderByField,
                 descending));
-
-        if (collectionWithItems.Collection == null) return this.PresentationNotFound();
-
+        
+        if (entityResult.Error)
+            return this.PresentationProblem(entityResult.ErrorMessage,
+                statusCode: (int) HttpStatusCode.InternalServerError);
+        
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
-            var orderByParameter = orderByField != null
-                ? $"{(descending ? nameof(orderByDescending) : nameof(orderBy))}={orderByField}"
-                : null;
-
-            return Ok(collectionWithItems.Collection.ToPresentationCollection(pageSize.Value, page.Value,
-                collectionWithItems.TotalItems, collectionWithItems.Items, collectionWithItems.ParentCollection,
-                pathGenerator, orderByParameter));
+            return entityResult.EntityNotFound ? this.PresentationNotFound() : Ok(entityResult.Entity);
         }
 
-        return collectionWithItems.Collection.IsPublic
-            ? SeeOther(pathGenerator.GenerateHierarchicalCollectionId(collectionWithItems.Collection))
+        return entityResult.Entity?.Behavior.IsPublic() ?? false
+            ? SeeOther(entityResult.Entity.PublicId!)
             : this.PresentationNotFound();
     }
 

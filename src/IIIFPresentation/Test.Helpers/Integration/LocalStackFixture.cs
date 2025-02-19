@@ -104,6 +104,13 @@ public class LocalStackFixture : IAsyncLifetime
                           }
                           """
         });
+        
+        await amazonS3Client.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = "1/collections/IiifCollectionWithItems",
+            ContentBody = TestContent.CollectionJson
+        });
 
         await amazonS3Client.PutObjectAsync(new()
         {

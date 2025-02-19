@@ -15,7 +15,7 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
     
     public int? ItemsOrder { get; set; }
 
-    public int TotalItems { get; set; }
+    public int? TotalItems { get; set; }
 
     public View? View { get; set; }
 
