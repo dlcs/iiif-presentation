@@ -1,4 +1,5 @@
 ﻿using Core;
+using IIIF;
 
 namespace API.Infrastructure.Requests;
 
@@ -7,7 +8,7 @@ namespace API.Infrastructure.Requests;
 /// </summary>
 /// <typeparam name="T">Type of entity being modified</typeparam>
 public class ModifyEntityResult<T, TEnum> : IModifyRequest
-    where T : class
+    where T : JsonLdBase
 {
     /// <summary>
     /// Enum representing overall result of operation

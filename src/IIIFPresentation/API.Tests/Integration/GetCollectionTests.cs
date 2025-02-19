@@ -314,7 +314,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatCollection!.Id.Should().Be("http://localhost/1/collections/NonPublic");
         flatCollection.FlatId.Should().Be("NonPublic");
         flatCollection.PublicId.Should().Be("http://localhost/1/non-public");
-        flatCollection.Items!.Count.Should().Be(0);
+        flatCollection.Items.Should().BeNull("There are no children");
         flatCollection.CreatedBy.Should().Be("admin");
         flatCollection.Behavior.Should().Contain("storage-collection");
         flatCollection.Behavior.Should().NotContain("public-iiif");

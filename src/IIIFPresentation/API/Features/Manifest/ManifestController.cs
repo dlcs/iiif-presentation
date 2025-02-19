@@ -9,6 +9,7 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,11 +43,9 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
             return entityResult.Entity?.FullPath is {Length: > 0} fullPath
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
-
-        return entityResult.Entity!.CurrentlyIngesting
-            ? this.PresentationWithBodyResponse(Request.GetDisplayUrl(), entityResult.Entity,
-                (int)HttpStatusCode.Accepted)
-            : Ok(entityResult.Entity);
+        
+        var statusCode = entityResult.Entity!.CurrentlyIngesting ? HttpStatusCode.Accepted : HttpStatusCode.OK;
+        return this.PresentationContent(entityResult.Entity, (int)statusCode);
     }
 
     /// <summary>
@@ -99,7 +98,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         string? instance = null,
         string? errorTitle = "Operation failed",
         CancellationToken cancellationToken = default)
-        where T : class
+        where T : JsonLdBase
         where TEnum : Enum
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();

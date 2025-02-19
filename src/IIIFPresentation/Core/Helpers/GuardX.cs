@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using Core.Streams;
 
 namespace Core.Helpers;
 
@@ -77,5 +78,15 @@ public static class GuardX
         }
 
         return val;
+    }
+    
+    public static Stream ThrowIfNull(this Stream? argument, string argName)
+    {
+        if (argument.IsNull())
+        {
+            throw new ArgumentNullException(argName);
+        }
+
+        return argument;
     }
 }
