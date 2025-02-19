@@ -5,6 +5,7 @@ using BackgroundHandler.Helpers;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.API;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
@@ -184,8 +185,14 @@ public class BatchCompletionMessageHandler(
             canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
             canvasPainting.Ingesting = false;
             canvasPainting.Modified = DateTime.UtcNow;
-            canvasPainting.StaticHeight = item.Height;
-            canvasPainting.StaticWidth = item.Width;
+
+            //#232 Use ImageService - leaving previous values as fallback, seems safer - PK
+            var (height, width) = item.Service?.OfType<ImageService3>().FirstOrDefault()
+                is { } imageService
+                ? (imageService.Height, imageService.Width)
+                : (item.Height, item.Width);
+            canvasPainting.StaticHeight = height;
+            canvasPainting.StaticWidth = width;
         }
     }
 
