@@ -18,7 +18,7 @@ public class ModifyEntityResult<T, TEnum> : IModifyRequest
     /// <summary>
     /// Optional representation of entity
     /// </summary>
-    public JsonLdBase? Entity { get; private init; }
+    public T? Entity { get; private init; }
 
     /// <summary>
     /// Optional error message if didn't succeed
