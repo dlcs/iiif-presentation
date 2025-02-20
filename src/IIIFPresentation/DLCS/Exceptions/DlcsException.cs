@@ -1,3 +1,5 @@
+using Core;
+
 namespace DLCS.Exceptions;
 
 /// <summary>
@@ -5,8 +7,11 @@ namespace DLCS.Exceptions;
 /// </summary>
 public class DlcsException : Exception
 {
+    WriteResult writeResult;
+    
     public DlcsException(string? message) : base(message)
     {
+        writeResult = WriteResult.Error;
     }
 
     public DlcsException(string? message, Exception? innerException) : base(message, innerException)
