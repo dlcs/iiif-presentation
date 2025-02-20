@@ -54,7 +54,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
         
         if (hierarchy.Parent != null)
         {
-            collection.Hierarchy!.GetCanonical().FullPath =
+            collection.Hierarchy.GetCanonical().FullPath =
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
