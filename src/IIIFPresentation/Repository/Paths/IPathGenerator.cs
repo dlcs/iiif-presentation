@@ -7,16 +7,6 @@ namespace Repository.Paths;
 public interface IPathGenerator
 {
     /// <summary>
-    /// Get a hierarchical id for the current collection
-    /// </summary>
-    string GenerateHierarchicalCollectionId(Collection collection);
-
-    /// <summary>
-    /// Get the hierarchical id for the parent of a collection
-    /// </summary>
-    string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy);
-
-    /// <summary>
     /// Get the flat id for the current collection
     /// </summary>
     string GenerateFlatCollectionId(Collection collection);
@@ -35,7 +25,7 @@ public interface IPathGenerator
     /// Get flat id for parent of <see cref="Hierarchy"/> 
     /// </summary>
     string GenerateFlatParentId(Hierarchy hierarchy);
-
+    
     /// <summary>
     /// Get the view id for the current collection
     /// </summary>
@@ -68,7 +58,7 @@ public interface IPathGenerator
     /// <summary>
     /// Get the FullPath of an item, using Canonical slug of attached Hierarchy collection and parent FullPath, if set 
     /// </summary>
-    string GenerateFullPath(Hierarchy collection, Collection parent);
+    string GenerateFullPath(Hierarchy collection, Hierarchy parent);
 
     /// <summary>
     /// Get the FullPath of an item, using Canonical slug of attached Hierarchy collection and provided parent 

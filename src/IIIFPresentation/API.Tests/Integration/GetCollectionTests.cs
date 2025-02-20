@@ -642,6 +642,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Vary.Should().HaveCount(2);
         collection!.Items.Should().BeNull();
+        collection.Id.Should().Be("http://localhost/1/iiif-collection");
         collection.Behavior![0].Should().Be("public-iiif");
         collection.Type.Should().Be("Collection");
     }

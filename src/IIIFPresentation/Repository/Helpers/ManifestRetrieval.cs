@@ -1,7 +1,6 @@
 ﻿using Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
-using Models.Database.General;
 
 namespace Repository.Helpers;
 
@@ -71,10 +70,4 @@ SELECT * FROM parentsearch ps
 
         return fullPath;
     }
-
-    public static Task<string> RetrieveFullPathForManifest(Hierarchy manifestHierarchy, PresentationContext dbContext,
-        CancellationToken cancellationToken = default)
-        => RetrieveFullPathForManifest(manifestHierarchy.ManifestId!, manifestHierarchy.CustomerId, dbContext,
-            cancellationToken);
-    
 }

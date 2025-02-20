@@ -21,20 +21,9 @@ public abstract class PathGeneratorBase : IPathGenerator
     /// Base url for DLCS Protagonist API
     /// </summary>
     protected abstract Uri DlcsApiUrl { get; }
-    
-    public string GenerateHierarchicalCollectionId(Collection collection) =>
-        $"{PresentationUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
         $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath.TrimStart('/')}" : string.Empty)}";
-
-    public string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy)
-    {
-        var parentPath = collection.FullPath![..^hierarchy.Slug.Length].TrimEnd('/');
-
-        return
-            $"{PresentationUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(parentPath) ? string.Empty : $"/{parentPath}")}";
-    }
 
     public string GenerateFlatCollectionId(Collection collection) => 
         $"{PresentationUrl}/{collection.CustomerId}/collections/{collection.Id}";
@@ -70,7 +59,7 @@ public abstract class PathGeneratorBase : IPathGenerator
         string orderQueryParam) => new(
         $"{GenerateFlatCollectionId(collection)}?page={lastPage}&pageSize={pageSize}{orderQueryParam}");
     
-    public string GenerateFullPath(Hierarchy collection, Collection parent)
+    public string GenerateFullPath(Hierarchy collection, Hierarchy parent)
         => GenerateFullPath(collection, parent.FullPath);
     
     public string GenerateFullPath(Hierarchy hierarchy, string? parentPath) 

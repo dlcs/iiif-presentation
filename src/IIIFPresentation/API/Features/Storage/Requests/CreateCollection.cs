@@ -121,8 +121,8 @@ public class CreateCollectionHandler(
 
         await UploadToS3IfRequiredAsync(collection, iiifCollection?.ConvertedIIIF, isStorageCollection,
             cancellationToken);
-
-        collection.FullPath =
+        
+        collection.Hierarchy.GetCanonical().FullPath =
             await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,

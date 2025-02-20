@@ -1,5 +1,4 @@
 ﻿using API.Converters;
-using API.Converters.Streaming;
 using AWS.Helpers;
 using AWS.S3;
 using AWS.Settings;
@@ -7,8 +6,6 @@ using Core.Streams;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
-using Repository;
-using Repository.Helpers;
 using Repository.Paths;
 
 namespace API.Features.Manifest.Requests;
@@ -20,7 +17,6 @@ public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<IIIF.Presen
 
 public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
-    PresentationContext dbContext,
     IPathGenerator pathGenerator,
     IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
 {
@@ -38,18 +34,12 @@ public class GetManifestHierarchicalHandler(
             return null;
         }
 
-        // So db can respond while we talk to S3
-        var fetchFullPath =
-            ManifestRetrieval.RetrieveFullPathForManifest(request.Hierarchy, dbContext, cancellationToken);
-        
         var objectFromS3 = await bucketReader.GetObjectFromBucket(
             new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
             cancellationToken);
 
         if (objectFromS3.Stream.IsNull()) return null;
-
-        request.Hierarchy.FullPath = await fetchFullPath;
-
+        
         var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
 
         return objectFromS3.GetDescriptionResourceWithId<IIIF.Presentation.V3.Manifest>(hierarchicalId);

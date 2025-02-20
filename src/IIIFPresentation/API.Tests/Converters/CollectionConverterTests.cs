@@ -15,6 +15,7 @@ namespace API.Tests.Converters;
 public class CollectionConverterTests
 {
     private const int PageSize = 100;
+    private const int CustomerId = 1;
     
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
 
@@ -25,7 +26,7 @@ public class CollectionConverterTests
         var storageRoot = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
@@ -36,7 +37,8 @@ public class CollectionConverterTests
             Hierarchy = [
                 new Hierarchy
                 {
-                    Slug = "root"
+                    Slug = "root",
+                    CustomerId = CustomerId
                 }
             ]
         };
@@ -108,7 +110,7 @@ public class CollectionConverterTests
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
@@ -121,7 +123,7 @@ public class CollectionConverterTests
                 {
                     CollectionId = "some-id",
                     Slug = "root",
-                    CustomerId = 1,
+                    CustomerId = CustomerId,
                     Type = ResourceType.StorageCollection,
                     Canonical = true
                 }
@@ -267,7 +269,7 @@ public class CollectionConverterTests
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
             IsStorageCollection = true,
@@ -276,7 +278,7 @@ public class CollectionConverterTests
                 {
                     CollectionId = "some-id",
                     Slug = "root",
-                    CustomerId = 1,
+                    CustomerId = CustomerId,
                     Type = ResourceType.StorageCollection,
                     Canonical = true
                 }
@@ -299,7 +301,7 @@ public class CollectionConverterTests
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
             IsStorageCollection = false,
@@ -308,7 +310,7 @@ public class CollectionConverterTests
                 {
                     CollectionId = "some-id",
                     Slug = "root",
-                    CustomerId = 1,
+                    CustomerId = CustomerId,
                     Type = ResourceType.StorageCollection,
                     Canonical = true
                 }
@@ -401,7 +403,7 @@ public class CollectionConverterTests
         presentationCollectionWithFields.TotalItems.Should().BeNull();
         presentationCollectionWithFields.Totals.Should().BeNull();
         presentationCollectionWithFields.SeeAlso.Should().BeNull();
-        presentationCollectionWithFields.PartOf.Should().BeNull();
+        presentationCollectionWithFields.PartOf![0].Id.Should().Be("http://base/0/collections/theparent");
         presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
     }
 
@@ -455,7 +457,7 @@ public class CollectionConverterTests
             new()
             {
                 CollectionId = "some-child",
-                CustomerId = 1,
+                CustomerId = CustomerId,
                 Slug = "root",
                 Type = ResourceType.StorageCollection,
                 Collection = new Collection
@@ -474,14 +476,13 @@ public class CollectionConverterTests
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            FullPath = "top/some-id",
             IsStorageCollection = isStorageCollection,
             IsPublic = isPublic,
             Hierarchy =
@@ -491,9 +492,10 @@ public class CollectionConverterTests
                     CollectionId = "some-id",
                     Slug = "root",
                     Parent = "top",
-                    CustomerId = 1,
+                    CustomerId = CustomerId,
                     Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
-                    Canonical = true
+                    Canonical = true,
+                    FullPath = "top/some-id"
                 }
             ]
         };
@@ -506,15 +508,22 @@ public class CollectionConverterTests
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = 1,
+            CustomerId = CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            FullPath = "top/some-id",
             IsStorageCollection = true,
+            Hierarchy = [
+                new Hierarchy
+                {
+                    Slug = "some-slug",
+                    CustomerId = CustomerId,
+                    FullPath = "top/some-id",
+                }
+            ]
         };
         
         return collection;

@@ -1,5 +1,4 @@
-﻿using API.Features.Storage.Models;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
@@ -7,6 +6,7 @@ using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Database.General;
 using Models.Infrastructure;
+using Repository.Helpers;
 using Repository.Paths;
 using Collection = IIIF.Presentation.V3.Collection;
 using Manifest = IIIF.Presentation.V3.Manifest;
@@ -21,7 +21,7 @@ public static class CollectionConverter
     {
         var collection = new Collection
         {
-            Id = pathGenerator.GenerateHierarchicalCollectionId(dbAsset),
+            Id = pathGenerator.GenerateHierarchicalId(RetrieveHierarchy(dbAsset)),
             Label = dbAsset.Label,
             Items = items?.Count > 0
                 ? items.Select(i => GenerateCollectionItem(i, pathGenerator, false)).ToList()
@@ -56,7 +56,7 @@ public static class CollectionConverter
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
         
-        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+        GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator);
 
         collection.Behavior ??= [];
         collection.Behavior.AddRange(GenerateBehavior(dbCollection) ?? []);
@@ -90,9 +90,8 @@ public static class CollectionConverter
         var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
         var hierarchy = RetrieveHierarchy(dbCollection);
         
-        GenerateCommonFields(collection, dbCollection, hierarchy, pathGenerator);
+        GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator);
         
-        collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
         collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
         collection.Behavior = GenerateBehavior(dbCollection);
         collection.Totals = GetDescendantCounts(dbCollection, items);
@@ -110,10 +109,10 @@ public static class CollectionConverter
     }
     
     private static void GenerateCommonFields(PresentationCollection collection, DbCollection dbCollection, 
-        Hierarchy hierarchy, IPathGenerator pathGenerator)
+        Hierarchy hierarchy, DbCollection? parentCollection, IPathGenerator pathGenerator)
     {
         collection.FlatId = dbCollection.Id;
-        collection.PublicId = pathGenerator.GenerateHierarchicalCollectionId(dbCollection);
+        collection.PublicId = pathGenerator.GenerateHierarchicalId(hierarchy);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;
@@ -124,6 +123,7 @@ public static class CollectionConverter
         collection.ItemsOrder = hierarchy.ItemsOrder;
         collection.Tags = dbCollection.Tags;
         collection.Slug = hierarchy.Slug;
+        collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
     }
     
     private static Hierarchy RetrieveHierarchy(DbCollection dbCollection) =>
@@ -255,7 +255,7 @@ public static class CollectionConverter
         void AddSeeAlso(string profile) =>
             seeAlso.Add(new ExternalResource(nameof(PresentationType.Collection))
             {
-                Id = pathGenerator.GenerateHierarchicalCollectionId(collection),
+                Id = pathGenerator.GenerateHierarchicalId(collection.Hierarchy.GetCanonical()),
                 Label = collection.Label,
                 Profile = profile,
             });
