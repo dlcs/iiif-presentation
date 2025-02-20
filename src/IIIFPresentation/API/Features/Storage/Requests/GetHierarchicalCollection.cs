@@ -37,7 +37,7 @@ public class GetHierarchicalCollectionHandler(
     {
         if (request.Hierarchy.CollectionId == null || request.Hierarchy.Collection == null)
         {
-            logger.LogWarning("Attempt to fetch collection for '{Slug}' but hierarchy has null collection",
+            logger.LogWarning("Attempt to fetch collection for '{FullPath}' but hierarchy has null collection",
                 request.Hierarchy.FullPath);
             return CollectionWithItems.Empty;
         }

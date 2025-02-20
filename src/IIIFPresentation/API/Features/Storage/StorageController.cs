@@ -1,3 +1,4 @@
+using System.Net;
 using API.Attributes;
 using API.Auth;
 using API.Converters;
@@ -69,7 +70,8 @@ public class StorageController(
                     : this.PresentationContent(storageRoot.StoredCollection);
 
             default:
-                return this.PresentationNotFound();
+                return this.PresentationProblem("Cannot fulfill this resource type", null,
+                    (int)HttpStatusCode.InternalServerError, "Cannot fulfill this resource type");
         }
     }
 
