@@ -44,7 +44,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
         
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
-        var hierarchy = collection.Hierarchy!.Single(h => h.Canonical);
+        var hierarchy = collection.Hierarchy.GetCanonical();
 
         var parentCollection = collection.Hierarchy?.SingleOrDefault()?.ParentCollection;
 
@@ -72,7 +72,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
 
             // We know the fullPath of parent collection so we can use that as the base for child items
             items.ForEach(item =>
-                item.FullPath = pathGenerator.GenerateFullPath(hierarchy, collection.Hierarchy.GetCanonical()));
+                item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy));
 
             var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
                 request.RequestModifiers.Page, total, items, parentCollection, pathGenerator, orderByParameter);
