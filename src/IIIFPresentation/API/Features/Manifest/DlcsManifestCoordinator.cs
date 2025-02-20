@@ -1,6 +1,5 @@
 ﻿using API.Features.Storage.Helpers;
 using API.Helpers;
-using API.Infrastructure.Requests;
 using Core;
 using DLCS.API;
 using DLCS.Exceptions;
@@ -10,8 +9,19 @@ using Models.API.Manifest;
 using Models.Database.Collections;
 using Newtonsoft.Json.Linq;
 using Repository;
+using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
+
+public class DlcsInteractionResult(EntityResult? error, int? spaceId)
+{
+    public EntityResult? Error { get; } = error;
+    public int? SpaceId { get; } = spaceId;
+    
+    public static readonly DlcsInteractionResult NoInteraction = new(null, null);
+        
+    public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
+}
 
 public class DlcsManifestCoordinator(
     IDlcsApiClient dlcsApiClient,
@@ -22,8 +32,8 @@ public class DlcsManifestCoordinator(
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
     /// </summary>
-    /// <returns>Tuple of any errors encountered and new Manifest SpaceId</returns>
-    public async Task<(ModifyEntityResult<PresentationManifest, ModifyCollectionType>? error, int? space)> HandleDlcsInteractions(WriteManifestRequest request,
+    /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
+    public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId, CancellationToken cancellationToken)
     {
         // NOTE - this must always happen before handing off to canvasPaintingResolve
@@ -32,10 +42,13 @@ public class DlcsManifestCoordinator(
         if (!request.CreateSpace && assets.Count <= 0)
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
-            return (null, null);
+            return DlcsInteractionResult.NoInteraction;
         }
 
-        if (assets.Any(a => !a.HasValues)) return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
+        if (assets.Any(a => !a.HasValues))
+        {
+            return DlcsInteractionResult.Fail(ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>());
+        }
 
         int? spaceId = null;
         var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(AssetProperties.Space, out _)).ToArray();
@@ -43,14 +56,17 @@ public class DlcsManifestCoordinator(
         {
             // Either you want a space or we detected you need a space regardless
             spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
-            if (!spaceId.HasValue) return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null);
+            if (!spaceId.HasValue)
+            {
+                return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+            }
 
             foreach (var asset in assetsWithoutSpaces)
                 asset.Add(AssetProperties.Space, spaceId.Value);
         }
 
         var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);
-        return (batchError, spaceId);
+        return new(batchError, spaceId);
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
@@ -68,7 +84,7 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>?> CreateBatches(int customerId, string manifestId, List<JObject> assets, CancellationToken cancellationToken)
+    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, List<JObject> assets, CancellationToken cancellationToken)
     {
         if (assets.Count == 0) return null;
         
@@ -85,7 +101,7 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(exception, "Error creating batch request for customer {CustomerId}, manifest {ManifestId}",
                 customerId, manifestId);
-            return ModifyEntityResult<PresentationManifest, ModifyCollectionType>.Failure(exception.Message, ModifyCollectionType.DlcsException,
+            return EntityResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
                 WriteResult.Error);
         }
     }

@@ -146,12 +146,12 @@ public class ManifestWriteService(
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
             
             // Carry out any DLCS interactions (for paintedResources with items) 
-            var (dlcsError, spaceId) =
+            var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
-            if (dlcsError != null) return dlcsError;
+            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parentCollection!, manifestId, spaceId, cancellationToken);
+                await CreateDatabaseRecord(request, parentCollection!, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
                 
             await SaveToS3(dbManifest!, request, cancellationToken);
