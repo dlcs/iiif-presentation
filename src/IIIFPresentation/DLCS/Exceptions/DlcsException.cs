@@ -1,3 +1,4 @@
+using System.Net;
 using Core;
 
 namespace DLCS.Exceptions;
@@ -7,14 +8,15 @@ namespace DLCS.Exceptions;
 /// </summary>
 public class DlcsException : Exception
 {
-    WriteResult writeResult;
+    public HttpStatusCode? StatusCode { get; }
     
-    public DlcsException(string? message) : base(message)
+    public DlcsException(string? message, HttpStatusCode? statusCode) : base(message)
     {
-        writeResult = WriteResult.Error;
+        StatusCode = statusCode;
     }
 
-    public DlcsException(string? message, Exception? innerException) : base(message, innerException)
+    public DlcsException(string? message, Exception? innerException, HttpStatusCode? statusCode) : base(message, innerException)
     {
+        StatusCode = statusCode;
     }
 }

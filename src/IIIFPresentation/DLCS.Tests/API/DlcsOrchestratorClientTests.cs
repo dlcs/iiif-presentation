@@ -22,7 +22,8 @@ public class DlcsOrchestratorClientTests
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("Could not find a DlcsError in response");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "Could not find a DlcsError in response" && e.StatusCode == httpStatusCode);
     }
     
     [Theory]
@@ -38,7 +39,8 @@ public class DlcsOrchestratorClientTests
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
     
     [Fact]

@@ -61,7 +61,7 @@ internal class DlcsApiClient(
         var payload = new Space { Name = name };
 
         var space = await CallDlcsApiFor<Space>(HttpMethod.Post, spacePath, payload, cancellationToken);
-        return space ?? throw new DlcsException("Failed to create space");
+        return space ?? throw new DlcsException("Failed to create space", HttpStatusCode.InternalServerError);
     }
     
     public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> assets, CancellationToken cancellationToken = default)
@@ -81,7 +81,7 @@ internal class DlcsApiClient(
             if (batch == null)
             {
                 logger.LogError("Could not understand the batch response for customer {CustomerId}", customerId);
-                throw new DlcsException("Failed to create batch");
+                throw new DlcsException("Failed to create batch", HttpStatusCode.InternalServerError);
             }
             
             batches.Add(batch);

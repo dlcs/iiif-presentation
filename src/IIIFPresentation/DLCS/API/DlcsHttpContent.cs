@@ -58,7 +58,7 @@ internal static class DlcsHttpContent
         }
         catch (JsonReaderException jre)
         {
-            throw new DlcsException("Error reading DLCS response", jre);
+            throw new DlcsException("Error reading DLCS response", jre, response.StatusCode);
         }
     }
     
@@ -81,14 +81,14 @@ internal static class DlcsHttpContent
 
             if (error != null)
             {
-                return new DlcsException(error.Description);
+                return new DlcsException(error.Description, response.StatusCode);
             }
 
-            throw new DlcsException("Unable to process error condition");
+            throw new DlcsException("Unable to process error condition", response.StatusCode);
         }
         catch (Exception ex) when (ex is not DlcsException)
         {
-            return new DlcsException("Could not find a DlcsError in response", ex);
+            return new DlcsException("Could not find a DlcsError in response", ex, response.StatusCode);
         }
     }
 

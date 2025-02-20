@@ -1,4 +1,5 @@
-﻿using API.Features.Storage.Helpers;
+﻿using System.Net;
+using API.Features.Storage.Helpers;
 using API.Helpers;
 using Core;
 using DLCS.API;
@@ -102,7 +103,7 @@ public class DlcsManifestCoordinator(
             logger.LogError(exception, "Error creating batch request for customer {CustomerId}, manifest {ManifestId}",
                 customerId, manifestId);
             return EntityResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
-                WriteResult.Error);
+                exception.StatusCode == HttpStatusCode.BadRequest ? WriteResult.BadRequest : WriteResult.Error);
         }
     }
 }

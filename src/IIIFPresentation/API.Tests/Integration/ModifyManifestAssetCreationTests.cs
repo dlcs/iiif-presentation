@@ -50,7 +50,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         A.CallTo(() => dlcsApiClient.IngestAssets(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
-            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception"));
+            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
 
         A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
                 A<IList<string>>.That.Matches(l => l.Any(x =>
@@ -62,7 +62,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 A<IList<string>>.That.Matches(l => l.Any(x =>
                     $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetailsFail".Equals(x))),
                 A<CancellationToken>._))
-            .Throws(new DlcsException("DLCS exception"));
+            .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
 
         A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
                 A<IList<string>>.That.Matches(l =>
@@ -1243,7 +1243,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
         errorResponse!.Detail.Should().Be("DLCS exception");
     }
