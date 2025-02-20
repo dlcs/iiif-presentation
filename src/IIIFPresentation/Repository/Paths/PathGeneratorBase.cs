@@ -9,6 +9,8 @@ public abstract class PathGeneratorBase : IPathGenerator
     private const string ManifestsSlug = "manifests";
     private const string CollectionsSlug = "collections";
     private const string CanvasesSlug = "canvases";
+    private const string AnnotationPagesSlug = "annopages";
+    private const string PaintingAnnotationSlug = "annotations";
     
     /// <summary>
     /// Base url for IIIF Presentation
@@ -24,7 +26,7 @@ public abstract class PathGeneratorBase : IPathGenerator
         $"{PresentationUrl}/{collection.CustomerId}{(string.IsNullOrEmpty(collection.FullPath) ? string.Empty : $"/{collection.FullPath}")}";
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
-        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath}" : string.Empty)}";
+        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath.TrimStart('/')}" : string.Empty)}";
 
     public string GenerateHierarchicalCollectionParent(Collection collection, Hierarchy hierarchy)
     {
@@ -79,7 +81,13 @@ public abstract class PathGeneratorBase : IPathGenerator
 
     public string GenerateCanvasId(CanvasPainting canvasPainting)
         => $"{PresentationUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
-    
+
+    public string GenerateAnnotationPagesId(CanvasPainting canvasPainting)
+        => $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
+
+    public string GeneratePaintingAnnotationId(CanvasPainting canvasPainting)
+        => $"{GenerateCanvasId(canvasPainting)}/{PaintingAnnotationSlug}/{canvasPainting.CanvasOrder}";
+
     public Uri? GenerateSpaceUri(Manifest manifest)
     {
         if (!manifest.SpaceId.HasValue) return null;

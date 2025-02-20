@@ -1160,7 +1160,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              .Include(m => m.Batches)
              .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
-         dbManifest.CanvasPaintings!.Count().Should().Be(3);
+         dbManifest.CanvasPaintings!.Should().HaveCount(3);
          dbManifest.Batches.Should().HaveCount(1);
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);
@@ -1173,6 +1173,10 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
          dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(2);
+
+         dbManifest.CanvasPaintings[0].Id.Should().Be(dbManifest.CanvasPaintings[1].Id,
+             "CanvasPaintings that share canvasOrder have same canvasId");
+         
          dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");

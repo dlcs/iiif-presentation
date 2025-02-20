@@ -310,7 +310,7 @@ public class PathGeneratorTests
     public void GenerateCanvasId_Correct()
     {
         // Arrange
-        var canvasPainting = new Models.Database.CanvasPainting
+        var canvasPainting = new CanvasPainting
         {
             Id = "test",
             CustomerId = 123
@@ -321,6 +321,42 @@ public class PathGeneratorTests
 
         // Assert
         id.Should().Be("http://base/123/canvases/test");
+    }
+    
+    [Fact]
+    public void GenerateAnnotationPagesId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            CanvasOrder = 7564,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateAnnotationPagesId(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test/annopages/7564");
+    }
+    
+    [Fact]
+    public void GeneratePaintingAnnotationId_Correct()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            CanvasOrder = 7564,
+        };
+
+        // Act
+        var id = pathGenerator.GeneratePaintingAnnotationId(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test/annotations/7564");
     }
 
     [Fact]
@@ -375,6 +411,26 @@ public class PathGeneratorTests
         };
 
         pathGenerator.GenerateAssetUri(manifest).Should().BeNull();
+    }
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GenerateHierarchicalFromFullPath_Correct_IfNullOrEmptyFullPath(string? fullPath)
+    {
+        const string expected = "http://base/5";
+        pathGenerator.GenerateHierarchicalFromFullPath(5, fullPath)
+            .Should().Be(expected, "Full path ignored if empty (which would be for root)");
+    }
+    
+    [Theory]
+    [InlineData("path/to/resource")]
+    [InlineData("/path/to/resource")]
+    public void GenerateHierarchicalFromFullPath_Correct_FullPathProvided(string? fullPath)
+    {
+        const string expected = "http://base/5/path/to/resource";
+        pathGenerator.GenerateHierarchicalFromFullPath(5, fullPath)
+            .Should().Be(expected, "full path appended to customer");
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];

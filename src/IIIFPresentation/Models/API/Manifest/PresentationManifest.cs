@@ -39,14 +39,13 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 /// <summary>
 /// Details about the Content Resource on a canvas
 /// </summary>
-/// <remarks>This only contains CanvasPainting now but will be expanded to include Asset in future</remarks>
 public class PaintedResource
 {
     [JsonProperty(Order = 1)]
     public string Type => nameof(PaintedResource);
     
     [JsonProperty(Order = 2)]
-    public required CanvasPainting CanvasPainting { get; set; }
+    public CanvasPainting? CanvasPainting { get; set; }
     
     [JsonProperty(Order = 3)]
     public JObject? Asset { get; set; }

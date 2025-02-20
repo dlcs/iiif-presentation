@@ -34,7 +34,7 @@ public class BatchCompletionMessageHandler(
             {
                 var batchCompletionMessage = DeserializeMessage(message);
 
-                await UpdateAssetsIfRequired(batchCompletionMessage, cancellationToken);
+                await TryUpdateManifest(batchCompletionMessage, cancellationToken);
                 return true;
             }
             catch (Exception ex)
@@ -46,7 +46,7 @@ public class BatchCompletionMessageHandler(
         return false;
     }
 
-    private async Task UpdateAssetsIfRequired(BatchCompletionMessage batchCompletionMessage, CancellationToken cancellationToken)
+    private async Task TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, CancellationToken cancellationToken)
     {
         var batch = await dbContext.Batches.Include(b => b.Manifest)
             .ThenInclude(m => m.CanvasPaintings)
@@ -74,17 +74,7 @@ public class BatchCompletionMessageHandler(
                 await dlcsOrchestratorClient.RetrieveAssetsForManifest(batch.CustomerId, batches,
                     cancellationToken);
             
-            Dictionary<AssetId, Canvas> itemDictionary;
-            
-            try
-            {
-                itemDictionary = namedQueryManifest.Items.ToDictionary(i => GetAssetIdFromCanvasId(i.Id), i => i);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Error retrieving the asset id from an item in {ManifestId}", namedQueryManifest?.Id);
-                throw;
-            }
+            var itemDictionary = BuildAssetIdToCanvasLookup(namedQueryManifest, batch.Manifest!);
 
             try
             {
@@ -104,11 +94,48 @@ public class BatchCompletionMessageHandler(
         logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
     }
 
-    private static AssetId GetAssetIdFromCanvasId(string canvasId)
+    private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest? namedQueryManifest, 
+        Models.Database.Collections.Manifest dbManifest)
     {
-        return AssetId.FromString(string.Join('/',
-            canvasId.Substring(0, canvasId.IndexOf("/canvas/c/")).Split("/")[^3..]));
-    } 
+        if (namedQueryManifest?.Items == null)
+        {
+            logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
+                namedQueryManifest?.Id ?? "no-id");
+            throw new ArgumentNullException(nameof(namedQueryManifest));
+        }
+
+        try
+        {
+            var canvasPaintings = dbManifest.CanvasPaintings;
+            var canvases = namedQueryManifest.Items;
+            var finalDictionary = new Dictionary<AssetId, Canvas>(canvases!.Count);
+            foreach (var canvas in canvases)
+            {
+                var assetId = canvas.GetAssetIdFromNamedQueryCanvasId();
+                var canvasPaintingForAsset = canvasPaintings.FirstOrDefault(cp => cp.AssetId == assetId);
+                if (canvasPaintingForAsset == null)
+                {
+                    logger.LogWarning("Unable to find CanvasPainting record for manifest {CustomerId}:{ManifestId}",
+                        dbManifest.CustomerId, dbManifest.Id);
+                    continue;
+                }
+
+                // Set all NQ Canvas ids to those that we use in iiif-presentation
+                logger.LogDebug("Rewriting NQ ids for {CanvasId}, from manifest {CustomerId}:{ManifestId}",
+                    canvas.Id, dbManifest.CustomerId, dbManifest.Id);
+                canvas.Id = pathGenerator.GenerateCanvasId(canvasPaintingForAsset);
+                canvas.GetFirstAnnotationPage()!.Id = pathGenerator.GenerateAnnotationPagesId(canvasPaintingForAsset);
+                canvas.GetFirstPaintingAnnotation()!.Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForAsset);
+                finalDictionary[assetId] = canvas;
+            }
+            return finalDictionary;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
+            throw;
+        }
+    }
 
     private async Task UpdateManifestInS3(Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
         CancellationToken cancellationToken = default)
@@ -151,7 +178,7 @@ public class BatchCompletionMessageHandler(
             itemDictionary.TryGetValue(canvasPainting.AssetId!, out var item);
             
             if (item == null) continue;
-
+            
             var thumbnailPath = item.Thumbnail?.OfType<Image>().GetThumbnailPath();
             
             canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
@@ -160,7 +187,6 @@ public class BatchCompletionMessageHandler(
             canvasPainting.StaticHeight = item.Height;
             canvasPainting.StaticWidth = item.Width;
         }
-        
     }
 
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message)

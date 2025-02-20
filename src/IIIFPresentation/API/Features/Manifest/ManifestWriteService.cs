@@ -6,20 +6,15 @@ using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Validation;
-using API.Settings;
 using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Helpers;
-using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
-using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -71,14 +66,11 @@ public class ManifestWriteService(
     IIIFS3Service iiifS3,
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
-    IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
-    IDlcsApiClient dlcsApiClient,
     IManifestRead manifestRead,
+    DlcsManifestCoordinator dlcsManifestCoordinator,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
-    private readonly ApiSettings settings = options.Value;
-    
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
@@ -142,16 +134,24 @@ public class ManifestWriteService(
         if (parentErrors != null) return parentErrors;
 
         // can't have both items and painted resources, so items takes precedence
-        if (settings.IgnorePaintedResourcesWithItems && !request.PresentationManifest.Items.IsNullOrEmpty() && 
-            !request.PresentationManifest.PaintedResources.IsNullOrEmpty())
+        if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
             request.PresentationManifest.PaintedResources = null;
         }
 
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
+            // Ensure we have a manifestId
+            manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
+            if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+            
+            // Carry out any DLCS interactions (for paintedResources with items) 
+            var dlcsInteractionResult =
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
+            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
+
             var (error, dbManifest) =
-                await CreateDatabaseRecordAndIiifCloudServicesInteractions(request, parentCollection!, manifestId, cancellationToken);
+                await CreateDatabaseRecord(request, parentCollection!, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
                 
             await SaveToS3(dbManifest!, request, cancellationToken);
@@ -203,66 +203,15 @@ public class ManifestWriteService(
         return (null, parentCollection);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecordAndIiifCloudServicesInteractions(
-        WriteManifestRequest request,
-        Collection parentCollection, string? requestedId, CancellationToken cancellationToken)
+    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+        Collection parentCollection, string manifestId, int? spaceId, CancellationToken cancellationToken)
     {
-        const string spaceProperty = "space";
-        var assets = request.PresentationManifest.PaintedResources?
-            .Select(p => p.Asset)
-            .OfType<JObject>()
-            .ToList() ?? [];
-        
-        var manifestSpace = request.PresentationManifest.Space;
-
-        int? spaceId = null;
-
-        var manifestId = requestedId ?? await GenerateUniqueManifestId(request, cancellationToken);
-        if (manifestId == null) return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
-
-        if (request.CreateSpace || assets.Count > 0)
-        {
-            if (assets.Any(a => !a.HasValues))
-                return (ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null);
-
-            var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(spaceProperty, out _)).ToArray();
-            if (request.CreateSpace || (string.IsNullOrEmpty(manifestSpace) && assetsWithoutSpaces.Length > 0))
-            {
-                // Either you want a space or we detected you need a space regardless
-                spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
-                if (!spaceId.HasValue)
-                    return (ErrorHelper.ErrorCreatingSpace<PresentationManifest>(), null);
-
-                foreach (var asset in assetsWithoutSpaces)
-                    asset.Add(spaceProperty, spaceId.Value);
-            }
-        }
-
-        var timeStamp = DateTime.UtcNow;
-
-        if (!assets.IsNullOrEmpty())
-        {
-            try
-            {
-                var batches = await dlcsApiClient.IngestAssets(request.CustomerId,
-                    assets,
-                    cancellationToken);
-
-                await batches.AddBatchesToDatabase(request.CustomerId, manifestId, dbContext, cancellationToken);
-            }
-            catch (DlcsException exception)
-            {
-                logger.LogError(exception, "Error creating batch request for customer {CustomerId}", request.CustomerId);
-                return (PresUpdateResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
-                    WriteResult.Error), null);
-            }
-        }
-        
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                spaceId, cancellationToken);
+                cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
+        var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
             Id = manifestId,
@@ -290,15 +239,6 @@ public class ManifestWriteService(
 
         var saveErrors = await SaveAndPopulateEntity(request, dbManifest, cancellationToken);
         return (saveErrors, dbManifest);
-    }
-    
-    private async Task<int?> CreateSpace(int customerId, string manifestId,
-        CancellationToken cancellationToken)
-    {
-        logger.LogDebug("Creating new space for customer {Customer}", customerId);
-        var newSpace =
-            await dlcsApiClient.CreateSpace(customerId, ManifestX.GetDefaultSpaceName(manifestId), cancellationToken);
-        return newSpace.Id;
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
@@ -351,6 +291,7 @@ public class ManifestWriteService(
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
+        
         await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             cancellationToken);
     }

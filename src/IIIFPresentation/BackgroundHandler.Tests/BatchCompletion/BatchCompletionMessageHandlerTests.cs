@@ -4,18 +4,15 @@ using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.infrastructure;
-using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using IIIF;
 using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
@@ -23,9 +20,7 @@ using Repository;
 using Repository.Paths;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using Batch = Models.Database.General.Batch;
-using CanvasPainting = Models.Database.CanvasPainting;
-using Manifest = Models.Database.Collections.Manifest;
+using IIIFManifest = IIIF.Presentation.V3.Manifest;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
@@ -38,8 +33,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly BackgroundHandlerSettings backgroundHandlerSettings;
-    private readonly int customerId = 1;
-    private readonly IPathGenerator pathGenerator;
+    private const int CustomerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
     {
@@ -47,7 +41,7 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        pathGenerator = A.Fake<IPathGenerator>();
+        var pathGenerator = new TestPathGenerator();
         backgroundHandlerSettings = new BackgroundHandlerSettings()
         {
             PresentationApiUrl = "https://localhost:5000",
@@ -62,7 +56,7 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_False_IfMessageInvalid()
     {
         // Arrange
-        var message = GetMessage("not-json");
+        var message = new QueueMessage("not-json", new Dictionary<string, string>(), "foo");
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
@@ -72,7 +66,7 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_DoesNotUpdateAnything_WhenBatchNotTracked()
     {
         // Arrange
-        var message = GetMessage("{\"id\":572246,\"customerId\":58,\"total\":1,\"success\":1,\"errors\":0,\"superseded\":false,\"started\":\"2024-12-19T21:03:31.577678Z\",\"finished\":\"2024-12-19T21:03:31.902514Z\"}");
+        var message = CreateQueueMessage(572246);
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
@@ -84,42 +78,26 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_UpdatesBatchedImages_WhenBatchTracked()
     {
         // Arrange
-        var batchId = 1;
-        var manifestId = nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked);
-        var slug = $"slug_{nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked)}";
-        var assetId = $"asset_id_{nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked)}";
-        var space = 2;
-        var fullAssetId = new AssetId(customerId, space, assetId);
+        const int batchId = 100;
+        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked);
+        const int space = 2;
         
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIF.Presentation.V3.Manifest>(A<IHierarchyResource>._, A<CancellationToken>._))
-            .ReturnsLazily(() => new IIIF.Presentation.V3.Manifest
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
         {
-            Id = manifestId
+            Id = identifier
         });
         
-        var manifest = CreateManifest(manifestId, slug, assetId, space, batchId);
-        
-        await dbContext.Manifests.AddAsync(manifest);
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
         await dbContext.SaveChangesAsync();
 
         var finished = DateTime.UtcNow.AddHours(-1);
-
-        var batchMessage = $@"
-{{
-    ""id"":{batchId},
-    ""customerId"": {customerId},
-    ""total"":1,
-    ""success"":1,
-    ""errors"":0,
-    ""superseded"":false,
-    ""started"":""2024-12-19T21:03:31.57Z"",
-    ""finished"":""{finished:yyyy-MM-ddTHH:mm:ssK}""
-}}";
-        
-        var message = GetMessage(batchMessage);
+        var message = CreateQueueMessage(batchId, finished);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
-            .Returns(GenerateMinimalNamedQueryManifest(fullAssetId));
+            .Returns(GenerateMinimalNamedQueryManifest(assetId));
         
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
@@ -128,61 +106,41 @@ public class BatchCompletionMessageHandlerTests
         handleMessage.Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustHaveHappened();
+        
         var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
         batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
         batch.Manifest!.LastProcessed.Should().NotBeNull();
-        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == fullAssetId);
+        
+        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == assetId);
         canvasPainting.Ingesting.Should().BeFalse();
-        canvasPainting.StaticWidth.Should().Be(100);
-        canvasPainting.StaticHeight.Should().Be(100);
-        canvasPainting.AssetId!.ToString().Should()
-            .Be(fullAssetId.ToString());
+        canvasPainting.StaticWidth.Should().Be(100, "Static width taken from NQ manifest");
+        canvasPainting.StaticHeight.Should().Be(100, "Static height taken from NQ manifest");
+        canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
     
     [Fact]
     public async Task HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting()
     {
         // Arrange
-        var batchId = 2;
-        var manifestId = nameof(HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting);
-        var slug = $"slug_{nameof(HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting)}";
-        var assetId = $"asset_id_{nameof(HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting)}";
-        var space = 2;
-        
-        var manifest = CreateManifest(manifestId, slug, assetId, space, batchId);
-        var additionalBatch = new Batch
-        {
-            Id = 3,
-            ManifestId = manifestId,
-            CustomerId = customerId,
-            Status = BatchStatus.Ingesting
-        };
-        
-        await dbContext.Manifests.AddAsync(manifest);
-        await dbContext.Batches.AddAsync(additionalBatch);
-        await dbContext.SaveChangesAsync();
+        const int batchId = 2;
+        const string identifier = nameof(HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting);
+        const int space = 2;
 
-        var batchMessage = $@"
-{{
-    ""id"":{batchId},
-    ""customerId"": {customerId},
-    ""total"": 1,
-    ""success"": 1,
-    ""errors"": 0,
-    ""superseded"": false,
-    ""started"": ""2024-12-19T21:03:31.57Z"",
-    ""finished"": ""2024-12-19T21:03:31.57Z""
-}}";
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.Batches.AddTestBatch(batchId + 1, manifest.Entity);
+        await dbContext.SaveChangesAsync();
         
-        var message = GetMessage(batchMessage);
+        var message = CreateQueueMessage(batchId);
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleOrDefaultAsync(b => b.Id == batchId);
+        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleAsync(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Manifest!.LastProcessed.Should().BeNull();
     }
@@ -191,137 +149,110 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_SavesResultingManifest_ToS3()
     {
         // Arrange
-        var batchId = -1;
-        var manifestId = nameof(HandleMessage_SavesResultingManifest_ToS3);
-        var slug = $"slug_{manifestId}";
-        var assetId = $"asset_id_{manifestId}";
-        var space = 2;
-        var fullAssetId = new AssetId(customerId, space, assetId);
+        const int batchId = -1;
+        const string identifier = nameof(HandleMessage_SavesResultingManifest_ToS3);
+        const int space = 2;
+        const string flatId = "http://base/1/manifests/HandleMessage_SavesResultingManifest_ToS3";
+        const string canvasPaintingId = $"cp_{identifier}";
         
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIF.Presentation.V3.Manifest>(A<IHierarchyResource>._, A<CancellationToken>._))
-            .ReturnsLazily(() => new IIIF.Presentation.V3.Manifest
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
         {
-            Id = manifestId
+            Id = identifier
         });
         
-        var manifest = CreateManifest(manifestId, slug, assetId, space, batchId);
-        
-        await dbContext.Manifests.AddAsync(manifest);
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
         await dbContext.SaveChangesAsync();
-
-        var finished = DateTime.UtcNow.AddHours(-1);
-
-        var batchMessage = $@"
-{{
-    ""id"":{batchId},
-    ""customerId"": {customerId},
-    ""total"":1,
-    ""success"":1,
-    ""errors"":0,
-    ""superseded"":false,
-    ""started"":""2024-12-19T21:03:31.57Z"",
-    ""finished"":""{finished:yyyy-MM-ddTHH:mm:ssK}""
-}}";
         
-        var message = GetMessage(batchMessage);
+        var message = CreateQueueMessage(batchId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
-            .Returns(GenerateMinimalNamedQueryManifest(fullAssetId));
+            .Returns(GenerateMinimalNamedQueryManifest(assetId));
+        ResourceBase? resourceBase = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, CancellationToken _) => resourceBase = arg1);
 
-        const string flatManifestId = "http://test.result/manifest";
-        A.CallTo(() => pathGenerator.GenerateFlatManifestId(A<Manifest>._)).Returns(flatManifestId);
-        
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
 
         // Assert
         handleMessage.Should().BeTrue("Message successfully handled");
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatManifestId, A<CancellationToken>._))
-            .MustHaveHappened();
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        var savedManifest = (IIIF.Presentation.V3.Manifest)resourceBase!;
+        savedManifest.Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}", "Canvas Id overwritten");
+        savedManifest.Items[0].Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annopages/1",
+            "AnnotationPage Id overwritten");
+        savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Id.Should().Be(
+            $"http://base/1/canvases/{canvasPaintingId}/annotations/1", "PaintingAnnotation Id overwritten");
     }
 
-    private Manifest CreateManifest(string manifestId, string slug, string assetId, int space, int batchId)
+    private IIIFManifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId)
     {
-        var manifest = new Manifest
-        {
-            Id = manifestId,
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            CustomerId = customerId,
-            Hierarchy =
-            [
-                new Hierarchy
-                {
-                    Slug = slug,
-                    Parent = RootCollection.Id,
-                    Type = ResourceType.StorageCollection,
-                    Canonical = true
-                }
-            ],
-            CanvasPaintings = [
-                new CanvasPainting
-                {
-                    AssetId = new AssetId(customerId, space, assetId),
-                    CanvasOrder = 0,
-                    ChoiceOrder = 1,
-                    CustomerId = customerId,
-                    Ingesting = true
-                }
-            ],
-            Batches = [
-                new Batch
-                {
-                    Id = batchId,
-                    ManifestId = manifestId,
-                    CustomerId = customerId,
-                    Submitted = DateTime.UtcNow,
-                    Status = BatchStatus.Ingesting
-                }
-            ]
-        };
-        return manifest;
-    }
-    
-    private IIIF.Presentation.V3.Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId)
-    {
-        return new IIIF.Presentation.V3.Manifest
+        var canvasId = $"{backgroundHandlerSettings.PresentationApiUrl}/iiif-img/{fullAssetId}/canvas/c/1";
+        return new IIIFManifest
         {
             Items = new List<Canvas>
             {
                 new ()
                 {
-                    Id = $"{backgroundHandlerSettings.PresentationApiUrl}/iiif-img/{fullAssetId}/canvas/c/1",
+                    Id = canvasId,
                     Width = 100,
                     Height = 100,
-                    Annotations = new List<AnnotationPage>
-                    {
-                        new ()
+                    Items =
+                    [
+                        new()
                         {
-                            Items = new List<IAnnotation>
-                            {
+                            Id = $"{canvasId}/page",
+                            Items =
+                            [
                                 new PaintingAnnotation
                                 {
+                                    Id = $"{canvasId}/page/image",
                                     Body = new Image
                                     {
                                         Width = 100,
                                         Height = 100,
                                     },
-                                    Service = new List<IService>
-                                    {
+                                    Service =
+                                    [
                                         new ImageService3
                                         {
                                             Profile = "level2"
                                         }
-                                    }
+                                    ]
                                 }
-                            }
+                            ]
                         }
-                    }
+                    ]
                 }
             }
         };
     }
 
-    private static QueueMessage GetMessage(string body) => new(body, new Dictionary<string, string>(), "foo");
+    private static QueueMessage CreateQueueMessage(int batchId, DateTime? finished = null, int? customerId = null)
+    {
+        var batchMessage = $@"
+{{
+    ""id"":{batchId},
+    ""customerId"": {customerId ?? CustomerId},
+    ""total"":1,
+    ""success"":1,
+    ""errors"":0,
+    ""superseded"":false,
+    ""started"":""2024-12-19T21:03:31.57Z"",
+    ""finished"":""{finished ?? DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssK}""
+}}";
+        return new QueueMessage(batchMessage, new Dictionary<string, string>(), "foo");
+    }
+}
+
+public class TestPathGenerator : PathGeneratorBase
+{
+    protected override string PresentationUrl => "http://base";
+    protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

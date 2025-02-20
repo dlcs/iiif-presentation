@@ -46,4 +46,4 @@ public static class StringX
     {
         return path.Split('/').Last();
     }
-} 
+}

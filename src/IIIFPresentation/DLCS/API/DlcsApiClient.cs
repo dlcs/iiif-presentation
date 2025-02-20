@@ -43,7 +43,7 @@ internal class DlcsApiClient(
     IOptions<DlcsSettings> dlcsOptions,
     ILogger<DlcsApiClient> logger) : IDlcsApiClient
 {
-    DlcsSettings settings = dlcsOptions.Value;
+    private readonly DlcsSettings settings = dlcsOptions.Value;
     
     public async Task<bool> IsRequestAuthenticated(int customerId, CancellationToken cancellationToken = default)
     {
