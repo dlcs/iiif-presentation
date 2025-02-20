@@ -121,7 +121,7 @@ public class BatchCompletionMessageHandler(
                 }
 
                 // Set all NQ Canvas ids to those that we use in iiif-presentation
-                logger.LogWarning("Rewriting NQ ids for {CanvasId}, from manifest {CustomerId}:{ManifestId}",
+                logger.LogDebug("Rewriting NQ ids for {CanvasId}, from manifest {CustomerId}:{ManifestId}",
                     canvas.Id, dbManifest.CustomerId, dbManifest.Id);
                 canvas.Id = pathGenerator.GenerateCanvasId(canvasPaintingForAsset);
                 canvas.GetFirstAnnotationPage()!.Id = pathGenerator.GenerateAnnotationPagesId(canvasPaintingForAsset);
