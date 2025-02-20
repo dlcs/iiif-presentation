@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using IIIF.Presentation.V3.Strings;
+﻿using IIIF.Presentation.V3.Strings;
 using Models.Database.General;
 
 namespace Models.Database.Collections;
@@ -69,12 +68,6 @@ public class Collection : IHierarchyResource
     public int CustomerId { get; set; }
     
     public List<Hierarchy>? Hierarchy { get; set; }
-
-    /// <summary>
-    /// The full path to this object, based on parent collections
-    /// </summary>
-    [NotMapped]
-    public string? FullPath { get; set; }
 
     /// <summary>
     /// Navigation property for any children, when this Collection is the parent

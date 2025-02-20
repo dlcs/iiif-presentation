@@ -36,8 +36,11 @@ public class StorageController(
     public async Task<IActionResult> GetHierarchical(int customerId, string slug = "")
     {
         var hierarchy = await dbContext.RetrieveHierarchy(customerId, slug);
+        
+        if (hierarchy == null) return this.PresentationNotFound();
+        hierarchy.FullPath = slug;
 
-        switch (hierarchy?.Type)
+        switch (hierarchy.Type)
         {
             case ResourceType.IIIFManifest:
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
@@ -50,7 +53,7 @@ public class StorageController(
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
-                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy, slug));
+                var storageRoot = await Mediator.Send(new GetHierarchicalCollection(hierarchy));
 
                 if (storageRoot.Collection == null) return this.PresentationNotFound();
 

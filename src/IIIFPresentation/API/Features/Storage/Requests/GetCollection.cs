@@ -3,7 +3,6 @@ using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
-using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
@@ -55,7 +54,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
         
         if (hierarchy.Parent != null)
         {
-            collection.FullPath =
+            collection.Hierarchy!.GetCanonical().FullPath =
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
@@ -72,7 +71,8 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
                 request.RequestModifiers.Page, cancellationToken);
 
             // We know the fullPath of parent collection so we can use that as the base for child items
-            items.ForEach(item => item.FullPath = pathGenerator.GenerateFullPath(hierarchy, collection));
+            items.ForEach(item =>
+                item.FullPath = pathGenerator.GenerateFullPath(hierarchy, collection.Hierarchy.GetCanonical()));
 
             var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
                 request.RequestModifiers.Page, total, items, parentCollection, pathGenerator, orderByParameter);

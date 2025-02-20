@@ -16,11 +16,10 @@ using Repository.Paths;
 
 namespace API.Features.Storage.Requests;
 
-public class GetHierarchicalCollection(Hierarchy hierarchy, string slug)
+public class GetHierarchicalCollection(Hierarchy hierarchy)
     : IRequest<CollectionWithItems>
 {
     public Hierarchy Hierarchy { get; } = hierarchy;
-    public string Slug { get; } = slug;
 }
 
 public class GetHierarchicalCollectionHandler(
@@ -39,7 +38,7 @@ public class GetHierarchicalCollectionHandler(
         if (request.Hierarchy.CollectionId == null || request.Hierarchy.Collection == null)
         {
             logger.LogWarning("Attempt to fetch collection for '{Slug}' but hierarchy has null collection",
-                request.Slug);
+                request.Hierarchy.FullPath);
             return CollectionWithItems.Empty;
         }
 
@@ -52,7 +51,6 @@ public class GetHierarchicalCollectionHandler(
 
             if (!objectFromS3.Stream.IsNull())
             {
-                request.Hierarchy.FullPath = request.Slug;
                 var collectionFromS3 =
                     objectFromS3.GetDescriptionResourceWithId<Collection>(
                         pathGenerator.GenerateHierarchicalId(request.Hierarchy));
@@ -66,9 +64,8 @@ public class GetHierarchicalCollectionHandler(
                 .ToListAsync(cancellationToken: cancellationToken);
 
             // The incoming slug will be the base, use that to generate child item path
-            items.ForEach(item => item.FullPath = pathGenerator.GenerateFullPath(item, request.Slug));
-
-            request.Hierarchy.Collection.FullPath = request.Slug;
+            items.ForEach(item => item.FullPath = pathGenerator.GenerateFullPath(item, request.Hierarchy.FullPath));
+            
             return new(request.Hierarchy.Collection, items, items.Count);
         }
 

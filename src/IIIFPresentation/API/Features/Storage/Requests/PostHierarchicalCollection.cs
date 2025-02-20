@@ -71,14 +71,16 @@ public class PostHierarchicalCollectionHandler(
         
         await iiifS3.SaveIIIFToS3(collectionFromBody, collection, pathGenerator.GenerateFlatCollectionId(collection),
             cancellationToken);
+
+        var hierarchy = collection.Hierarchy!.GetCanonical();
         
-        if (collection.Hierarchy!.Single(h => h.Canonical).Parent != null)
+        if (hierarchy.Parent != null)
         {
-            collection.FullPath =
+            hierarchy.FullPath =
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
-        collectionFromBody.Id = pathGenerator.GenerateHierarchicalCollectionId(collection);
+        collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
         return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
     }
 

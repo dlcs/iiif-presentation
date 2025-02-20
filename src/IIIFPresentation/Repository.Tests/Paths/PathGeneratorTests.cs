@@ -9,63 +9,6 @@ namespace Repository.Tests.Paths;
 public class PathGeneratorTests
 {
     private readonly IPathGenerator pathGenerator = new TestPathGenerator();
-
-    [Fact]
-    public void GenerateHierarchicalCollectionId_CreatesIdWhenNoFullPath()
-    {
-        // Arrange
-        var collection = new Collection
-        {
-            Id = "test",
-            Hierarchy = GetDefaultHierarchyList()
-        };
-
-        // Act
-        var id = pathGenerator.GenerateHierarchicalCollectionId(collection);
-
-        // Assert
-        id.Should().Be("http://base/0");
-    }
-    
-    [Theory]
-    [InlineData("test/slug", "/test")]
-    [InlineData("test/test/slug", "/test/test")]
-    [InlineData("slug", "")]
-    public void GenerateHierarchicalCollectionParent_Correct_ParentId(string fullPath, string outputUrl)
-    {
-        // Arrange
-        var collection = new Collection
-        {
-            Id = "someId",
-            FullPath = fullPath,
-        };
-        
-        var hierarchy = GetDefaultHierarchyList();
-
-        // Act
-        var parentId = pathGenerator.GenerateHierarchicalCollectionParent(collection, hierarchy.First());
-
-        // Assert
-        parentId.Should().Be($"http://base/0{outputUrl}");
-    }
-    
-    [Fact]
-    public void GenerateHierarchicalCollectionId_CreatesIdWhenFullPath()
-    {
-        // Arrange
-        var collection = new Collection
-        {
-            Id = "test",
-            Hierarchy = GetDefaultHierarchyList(),
-            FullPath = "top/test"
-        };
-
-        // Act
-        var id = pathGenerator.GenerateHierarchicalCollectionId(collection);
-
-        // Assert
-        id.Should().Be("http://base/0/top/test");
-    }
     
     [Fact]
     public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()
@@ -233,12 +176,12 @@ public class PathGeneratorTests
     public void GenerateFullPath_Correct_ParentFullPathNullOrEmpty(string? path)
     {
         // Arrange
-        var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = path};
+        var parentHierarchy = new Hierarchy { CustomerId = 99, FullPath = path, Slug = "" };
         var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "slug";
         
         // Act
-        var actual = pathGenerator.GenerateFullPath(hierarchy, parentCollection);
+        var actual = pathGenerator.GenerateFullPath(hierarchy, parentHierarchy);
         
         // Assert
         actual.Should().Be(expected);
@@ -248,12 +191,12 @@ public class PathGeneratorTests
     public void GenerateFullPath_Correct_ParentFullPathHasValue()
     {
         // Arrange
-        var parentCollection = new Collection { CustomerId = 99, Id = "javelin", FullPath = "have/hold/javelin" };
+        var parentHierarchy = new Hierarchy { CustomerId = 99, Slug = "hold", FullPath = "have/hold/javelin" };
         var hierarchy = new Hierarchy { Slug = "slug" };
         const string expected = "have/hold/javelin/slug";
         
         // Act
-        var actual = pathGenerator.GenerateFullPath(hierarchy, parentCollection);
+        var actual = pathGenerator.GenerateFullPath(hierarchy, parentHierarchy);
         
         // Assert
         actual.Should().Be(expected);
@@ -433,7 +376,8 @@ public class PathGeneratorTests
             .Should().Be(expected, "full path appended to customer");
     }
     
-    private static List<Hierarchy> GetDefaultHierarchyList() =>  [ new() { Slug = "slug" } ];
+    private static List<Hierarchy> GetDefaultHierarchyList(string? fullPath = null) =>  
+        [new() { Slug = "slug", FullPath = fullPath }];
 }
 
 public class TestPathGenerator : PathGeneratorBase

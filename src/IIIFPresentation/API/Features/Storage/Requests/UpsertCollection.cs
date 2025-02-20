@@ -1,7 +1,6 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
-using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
@@ -179,7 +178,7 @@ public class UpsertCollectionHandler(
         {
             try
             {
-                databaseCollection.FullPath =
+                hierarchy.FullPath =
                     await CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext,
                         cancellationToken);
             }
@@ -203,7 +202,7 @@ public class UpsertCollectionHandler(
         foreach (var item in items)
         {
             // We know the fullPath of parent collection so we can use that as the base for child items 
-            item.FullPath = pathGenerator.GenerateFullPath(item, databaseCollection);
+            item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy);
         }
 
         await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, isStorageCollection,
