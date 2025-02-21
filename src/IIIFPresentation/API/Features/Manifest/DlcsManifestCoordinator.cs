@@ -103,7 +103,18 @@ public class DlcsManifestCoordinator(
             logger.LogError(exception, "Error creating batch request for customer {CustomerId}, manifest {ManifestId}",
                 customerId, manifestId);
             return EntityResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
-                exception.StatusCode == HttpStatusCode.BadRequest ? WriteResult.BadRequest : WriteResult.Error);
+                ErrorStatusCodeToWriteResult(exception.StatusCode));
         }
+    }
+
+    private WriteResult ErrorStatusCodeToWriteResult(HttpStatusCode statusCode)
+    {
+        return statusCode switch
+        {
+            HttpStatusCode.BadRequest => WriteResult.BadRequest,
+            HttpStatusCode.NotFound => WriteResult.NotFound,
+            HttpStatusCode.Conflict => WriteResult.Conflict,
+            _ => WriteResult.Error
+        };
     }
 }
