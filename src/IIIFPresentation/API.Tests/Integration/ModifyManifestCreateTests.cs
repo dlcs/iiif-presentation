@@ -50,7 +50,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => dlcsApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
-            .ThrowsAsync(new DlcsException("err"));
+            .ThrowsAsync(new DlcsException("err", HttpStatusCode.BadRequest));
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
                 appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),

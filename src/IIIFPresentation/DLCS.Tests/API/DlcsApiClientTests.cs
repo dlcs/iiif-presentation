@@ -46,7 +46,8 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.CreateSpace(customerId, "hi", CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("Could not find a DlcsError in response");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "Could not find a DlcsError in response" && e.StatusCode == httpStatusCode);
     }
     
     [Theory]
@@ -63,7 +64,8 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.CreateSpace(customerId, "hi", CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
     }
     
     [Fact]
@@ -144,7 +146,8 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.IngestAssets(customerId, new List<string> {"someString"}, CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
 
     [Fact]
@@ -208,7 +211,8 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
 
         Func<Task> action = () => sut.GetBatchAssets(customerId, batchId, CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
 
     [Fact]
@@ -270,7 +274,8 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
 
         Func<Task> action = () => sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>().WithMessage("I am broken");
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
     }
 
 

@@ -1,3 +1,6 @@
+using System.Net;
+using Core;
+
 namespace DLCS.Exceptions;
 
 /// <summary>
@@ -5,11 +8,15 @@ namespace DLCS.Exceptions;
 /// </summary>
 public class DlcsException : Exception
 {
-    public DlcsException(string? message) : base(message)
+    public HttpStatusCode StatusCode { get; }
+    
+    public DlcsException(string message, HttpStatusCode statusCode) : base(message)
     {
+        StatusCode = statusCode;
     }
 
-    public DlcsException(string? message, Exception? innerException) : base(message, innerException)
+    public DlcsException(string message, Exception? innerException, HttpStatusCode statusCode) : base(message, innerException)
     {
+        StatusCode = statusCode;
     }
 }
