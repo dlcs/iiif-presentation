@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -58,7 +59,7 @@ internal static class DlcsHttpContent
         }
         catch (JsonReaderException jre)
         {
-            throw new DlcsException("Error reading DLCS response", jre, response.StatusCode);
+            throw new DlcsException("Error reading DLCS response", jre, HttpStatusCode.InternalServerError);
         }
     }
     
