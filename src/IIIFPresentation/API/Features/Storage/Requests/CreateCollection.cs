@@ -1,5 +1,6 @@
 using System.Data;
 using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.IdGenerator;
@@ -63,7 +64,7 @@ public class CreateCollectionHandler(
             request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         var parentValidationError =
-            CollectionValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+            ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
         if (parentValidationError != null) return parentValidationError;
         
         // If full URI was used, verify it indeed is pointing to the resolved parent collection

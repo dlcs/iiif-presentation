@@ -258,9 +258,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error.Detail.Should().Be("The parent collection must be a storage collection");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentMustBeStorage");
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error.Detail.Should().Be("The parent must be a storage collection");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentMustBeStorageCollection");
     }
     
     [Fact]

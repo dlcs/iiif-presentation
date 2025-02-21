@@ -1,4 +1,5 @@
-﻿using API.Features.Storage.Helpers;
+﻿using API.Features.Common.Helpers;
+using API.Features.Storage.Helpers;
 using Models.API.Collection;
 using Models.Database.Collections;
 
@@ -17,7 +18,7 @@ public class CollectionValidatorTests
         };
         
         // Act
-        var parentCollectionError = CollectionValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
 
         // Assert
         parentCollectionError.Should().BeNull();
@@ -33,7 +34,7 @@ public class CollectionValidatorTests
         };
         
         // Act
-        var parentCollectionError = CollectionValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
 
         // Assert
         parentCollectionError.Should().NotBeNull();
@@ -43,7 +44,7 @@ public class CollectionValidatorTests
     public void ValidateParentCollection_Error_WhenParentNull()
     {
         // Arrange and Act
-        var parentCollectionError = CollectionValidator.ValidateParentCollection<PresentationCollection>(null);
+        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(null);
 
         // Assert
         parentCollectionError.Should().NotBeNull();

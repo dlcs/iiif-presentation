@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
@@ -53,7 +54,7 @@ public class PostHierarchicalCollectionHandler(
             await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
         
         var parentValidationError =
-            CollectionValidator.ValidateParentCollection<Collection>(parentCollection.Collection);
+            ParentValidator.ValidateParentCollection<Collection>(parentCollection.Collection);
         if (parentValidationError != null) return parentValidationError;
         
         var id = await GenerateUniqueId(request, cancellationToken);
