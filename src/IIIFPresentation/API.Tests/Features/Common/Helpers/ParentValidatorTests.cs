@@ -1,11 +1,10 @@
 ﻿using API.Features.Common.Helpers;
-using API.Features.Storage.Helpers;
 using Models.API.Collection;
 using Models.Database.Collections;
 
-namespace API.Tests.Features.Storage.Helpers;
+namespace API.Tests.Features.Common.Helpers;
 
-public class CollectionValidatorTests
+public class ParentValidatorTests
 {
     [Fact]
     public void ValidateParentCollection_NoErrors()
