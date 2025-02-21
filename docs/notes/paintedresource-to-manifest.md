@@ -13,7 +13,7 @@ This document outlines how properties of `"paintedResources"` are used to genera
 ## Why `"paintedResources"`?
 
 There are 2 main reasons
-* It simplifies the ingestion of assets. The complexity of managing *are these batch(es) ready yet?* is moved from the user and into the IIIF-P API. Without it, over time multiple consumers of the API would all have very similar approaches for craeting batches, waiting for completion and then generating manifests.
+* It simplifies the ingestion of assets. The complexity of managing *are these batch(es) ready yet?* is moved from the user and into the IIIF-P API. Without it, over time multiple consumers of the API would all have very similar approaches for creating batches, waiting for completion and then generating manifests.
 * It simplifies the generation of canvases. It removes the need to create `AnnotationPages` within `Annotations` withing `Canvases`, the IIIF-P API takes care of this.
 
 ## Manifest Construction
@@ -40,7 +40,7 @@ Given the following data in the DB:
 | mbt3rt0ysdbjeeserq16od | 7/51/secondB | 1            | 2            | ../7/51/secondB/full/133,200/0/default.jpg | {"en":["label 1b"]}      | null                     | 683           | 1024           |
 
 > [!NOTE]
-> Those columns marked with * are update from the incoming NQ canvas, unless they have been specified in the incoming `"canvasPainting"`. This gives the API consumer a degree of control over what is set but allows IIIF-P to store defaults if not provided.
+> Those columns marked with * are updated from the incoming NQ canvas, unless they have been specified in the incoming `"canvasPainting"`. This gives the API consumer a degree of control over what is set but allows IIIF-P to store defaults if not provided.
 
 The mapping would result in the following for canvas 0:
 
