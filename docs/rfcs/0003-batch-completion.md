@@ -6,7 +6,6 @@ Once a batch is completed by Protagonist, there are a series of steps that need 
 
 This RFC outlines how the following will be accomplished:
 
-- Authenticate with the DLCS
 - Retrieve details from the DLCS Orchestrator
 - Update the manifest and database with details from the DLCS
 
