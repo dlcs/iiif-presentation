@@ -69,6 +69,14 @@ public static class ErrorHelper
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "Could not retrieve an id from an attached asset", ModifyCollectionType.CouldNotRetrieveAssetId,
             WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ParentCollectionMustBeStorage<TCollection>() 
+        where TCollection : JsonLdBase
+    {
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            $"The parent collection must be a storage collection",
+            ModifyCollectionType.ParentMustBeStorage, WriteResult.BadRequest);
+    }
 
     private static string CollectionType(bool isStorageCollection)
     {

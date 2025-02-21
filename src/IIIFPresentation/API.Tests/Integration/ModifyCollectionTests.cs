@@ -133,7 +133,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
-        
     }
 
     public static TheoryData<string> ProhibitedSlugProvider =>
@@ -224,6 +223,44 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+    
+    [Fact]
+    public async Task CreateCollection_FailsToCreatesCollection_WhenParentIsIIIFCollection()
+    {
+        var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
+        
+        var iiifParent = dbContext.Collections
+            .First(x => x.CustomerId == Customer && x.Id == "IiifCollection").Id;
+        
+        // Arrange
+        var collection = new PresentationCollection()
+        {
+            Behavior = new List<string>()
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = slug,
+            Parent = iiifParent,
+            PresentationThumbnail = "some/thumbnail",
+            Tags = "some, tags",
+            ItemsOrder = 1,
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.Detail.Should().Be("The parent collection must be a storage collection");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentMustBeStorage");
     }
     
     [Fact]

@@ -52,7 +52,9 @@ public class PostHierarchicalCollectionHandler(
         var parentCollection =
             await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
         
-        if (parentCollection == null) return ErrorHelper.NullParentResponse<Collection>();
+        var parentValidationError =
+            CollectionValidator.ValidateParentCollection<Collection>(parentCollection.Collection);
+        if (parentValidationError != null) return parentValidationError;
         
         var id = await GenerateUniqueId(request, cancellationToken);
         if (id == null) return ErrorHelper.CannotGenerateUniqueId<Collection>();
