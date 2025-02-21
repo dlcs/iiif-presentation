@@ -1,6 +1,6 @@
 using System.Data;
 using API.Converters;
-using API.Features.Manifest.Helpers;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
@@ -196,8 +196,8 @@ public class ManifestWriteService(
             manifest.GetParentSlug(), cancellationToken: cancellationToken);
         
         // Validation
-        if (parentCollection == null) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
-        if (!parentCollection.IsStorageCollection) return (ManifestErrorHelper.ParentMustBeStorageCollection<PresentationManifest>(), null);
+        var parentValidationError = ParentValidator.ValidateParentCollection<PresentationManifest>(parentCollection);
+        if (parentValidationError != null) return (parentValidationError, null);
         if (manifest.IsUriParentInvalid(parentCollection, pathGenerator)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
 
         return (null, parentCollection);
