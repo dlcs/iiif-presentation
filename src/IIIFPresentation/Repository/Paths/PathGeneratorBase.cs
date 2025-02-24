@@ -106,7 +106,10 @@ public abstract class PathGeneratorBase : IPathGenerator
         if (existing is null)
             return null;
 
-        var prefix = $"{dlcsImagePath}/{customerId}/{spaceId}";
+        var uriPrefix = string.Empty;
+        if (Uri.TryCreate(existing, UriKind.Absolute, out var uri))
+            uriPrefix = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped) + "/";
+        var prefix = $"{uriPrefix}{dlcsImagePath}/{customerId}/{spaceId}";
 
         var ir = ImageRequest.Parse(existing, prefix);
         ir.Size = new() {Width = width, Height = height};
