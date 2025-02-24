@@ -64,12 +64,8 @@ public class CreateCollectionHandler(
             request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
         var parentValidationError =
-            ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+            ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
         if (parentValidationError != null) return parentValidationError;
-        
-        // If full URI was used, verify it indeed is pointing to the resolved parent collection
-        if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
-            return ErrorHelper.NullParentResponse<PresentationCollection>();
 
         string id;
 
