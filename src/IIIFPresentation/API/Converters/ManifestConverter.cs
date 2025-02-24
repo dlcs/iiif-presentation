@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using AWS.Helpers;
+using Core.Helpers;
 using Core.IIIF;
 using DLCS.Models;
 using IIIF;
@@ -65,6 +66,7 @@ public static class ManifestConverter
         
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
+        iiifManifest.RemovePresentationBehaviours();
         
         return iiifManifest;
     }

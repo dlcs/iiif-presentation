@@ -83,14 +83,6 @@ public class IIIFS3Service(
         iiifResource.Id = flatId;
         iiifResource.EnsurePresentation3Context();
         
-        RemovePresentationBehaviours(iiifResource);
-    }
-
-    private static void RemovePresentationBehaviours(ResourceBase iiifResource)
-    {
-        var toRemove = new[] { Behavior.IsStorageCollection, Behavior.IsPublic };
-        if (iiifResource.Behavior.IsNullOrEmpty()) return;
-        
-        iiifResource.Behavior = iiifResource.Behavior.Where(b => !toRemove.Contains(b)).ToList();
+        iiifResource.RemovePresentationBehaviours();
     }
 }
