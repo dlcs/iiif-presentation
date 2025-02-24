@@ -193,11 +193,14 @@ public class ManifestMergerTests
         // should be 1 + 3 then 4 + 2 then 5
         mergedManifest.Items[0].Id.Should().Be(canvas0Choice0);
         mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingCanvasLabel");
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{canvas0Choice0}_CanvasThumbnail");
         mergedManifest.Items[1].Id.Should().Be(canvas1Choice0);
         mergedManifest.Items[1].Label.Keys.Should().Contain("canvasPaintingLabel");
         mergedManifest.Items[1].Label.Keys.Should().NotContain("canvasPaintingCanvasLabel");
+        mergedManifest.Items[1].Thumbnail[0].Id.Should().Be($"{canvas1Choice0}_CanvasThumbnail");
         mergedManifest.Items[2].Id.Should().Be(canvas2NoChoice);
         mergedManifest.Items[2].Label.Should().BeNull("label cannot be carried over from the named query");
+        mergedManifest.Items[2].Thumbnail[0].Id.Should().Be($"{canvas2NoChoice}_CanvasThumbnail");
         
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
         
@@ -251,6 +254,7 @@ public class ManifestMergerTests
         canvasPaintings[1].ChoiceOrder = 1;
         
         canvasPaintings[0].Label = null;
+        minimalManifest.Items[0].Thumbnail = null;
         
         // Act
         var mergedManifest = ManifestMerger.Merge(minimalManifest, canvasPaintings, itemDictionary);
@@ -261,6 +265,7 @@ public class ManifestMergerTests
 
         mergedManifest.Items[0].Id.Should().Be(existingItemBecomingCanvas0Choice0);
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{existingItemBecomingCanvas0Choice0}_CanvasThumbnail");
         
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
 
@@ -310,6 +315,7 @@ public class ManifestMergerTests
         canvasPaintings[1].ChoiceOrder = 1;
         
         canvasPaintings[0].Label = null;
+        canvasPaintings[0].Thumbnail = null;
         
         // Act
         var mergedManifest = ManifestMerger.Merge(existingManifest, canvasPaintings, itemDictionary);
@@ -317,6 +323,7 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Items.Should().HaveCount(2);
         mergedManifest.Items[0].Id.Should().Be(existingCanvas0Choice0);
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{existingCanvas0Choice0}_CanvasThumbnail");
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
 
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
@@ -370,6 +377,14 @@ public class ManifestMergerTests
             Width = 110,
             Height = 110,
             Metadata = GenerateMetadata(),
+            Thumbnail = [
+                new Image
+                {
+                    Id = $"{id}_CanvasThumbnail",
+                    Width = 50,
+                    Height = 50,
+                }
+            ],
             Items =
             [
                 new AnnotationPage
