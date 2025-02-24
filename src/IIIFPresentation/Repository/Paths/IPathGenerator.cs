@@ -99,4 +99,6 @@ public interface IPathGenerator
     /// Generate the hierarchical id for specified customer and path slugs 
     /// </summary>
     string GenerateHierarchicalFromFullPath(int customerId, string? fullPath);
+
+    string? GetModifiedImageRequest(string? existing, int customerId, int spaceId, int width, int height);
 }
