@@ -16,12 +16,14 @@ public static class DatabaseTestDataPopulation
 {
     public static ValueTask<EntityEntry<Manifest>> AddTestManifest(this DbSet<Manifest> manifests,
         [CallerMemberName] string id = "", int customer = 1, DateTime? createdDate = null, string? slug = null,
-        string parent = "root", LanguageMap? label = null, int? batchId = null, bool ingested = false)
+        string parent = "root", LanguageMap? label = null, int? batchId = null, bool ingested = false,
+        int? spaceId = null)
     {
         createdDate ??= DateTime.UtcNow;
         return manifests.AddAsync(new Manifest
         {
             Id = id,
+            SpaceId = spaceId,
             CustomerId = customer,
             CreatedBy = "Admin",
             Created = createdDate.Value,
