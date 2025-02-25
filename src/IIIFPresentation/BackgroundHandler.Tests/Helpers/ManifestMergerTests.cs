@@ -133,6 +133,67 @@ public class ManifestMergerTests
     }
     
     [Fact]
+    public void Merge_CorrectlyOrdersItemsWithChoiceOrderWithThumbnail()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        
+        var canvas0Choice0 = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_1";
+        var canvas1Choice2 = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_2";
+        var canvas0Choice1 = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_3";
+        var canvas1Choice0 = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_4";
+        var canvas2NoChoice = $"1/2/{nameof(Merge_CorrectlyOrdersMultipleItems)}_5";
+        
+        var namedQueryManifest = GenerateManifest(canvas0Choice0);
+        namedQueryManifest.Items.Add(GenerateCanvas(canvas1Choice2));
+        namedQueryManifest.Items.Add(GenerateCanvas(canvas0Choice1));
+        namedQueryManifest.Items.Add(GenerateCanvas(canvas1Choice0));
+        namedQueryManifest.Items.Add(GenerateCanvas(canvas2NoChoice));
+        
+        var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
+        
+        var canvasPaintings = GenerateCanvasPaintings([
+            canvas0Choice0,
+            canvas1Choice2,
+            canvas0Choice1,
+            canvas1Choice0,
+            canvas2NoChoice
+        ]);
+
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[1].CanvasOrder = 1;
+        canvasPaintings[2].CanvasOrder = 0;
+        canvasPaintings[3].CanvasOrder = 1;
+        canvasPaintings[4].CanvasOrder = 2;
+        canvasPaintings[0].ChoiceOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 1;
+        canvasPaintings[2].ChoiceOrder = 1;
+        canvasPaintings[3].ChoiceOrder = 0;
+        canvasPaintings[4].ChoiceOrder = 0;
+        
+        namedQueryManifest.Items[0].Thumbnail = null;
+        namedQueryManifest.Items[1].Thumbnail = null;
+        namedQueryManifest.Items[2].Thumbnail = null;
+        namedQueryManifest.Items[3].Thumbnail = null;
+        namedQueryManifest.Items[4].Thumbnail = null;
+        
+        // Act
+        var mergedManifest = ManifestMerger.Merge(blankManifest, canvasPaintings, itemDictionary);
+        
+        // Assert
+        mergedManifest.Items.Should().HaveCount(3);
+        mergedManifest.Thumbnail.Should().BeNull();
+        
+        // should be 1 + 3 then 4 + 2 then 5
+        mergedManifest.Items[0].Id.Should().Be(canvas0Choice0);
+        mergedManifest.Items[0].Thumbnail.Should().BeNull();
+        mergedManifest.Items[1].Id.Should().Be(canvas1Choice0);
+        mergedManifest.Items[1].Thumbnail.Should().BeNull();
+        mergedManifest.Items[2].Id.Should().Be(canvas2NoChoice);
+        mergedManifest.Items[2].Thumbnail.Should().BeNull();
+    }
+    
+    [Fact]
     public void Merge_CorrectlyOrdersItemsWithChoiceOrder()
     {
         // Arrange
@@ -193,11 +254,14 @@ public class ManifestMergerTests
         // should be 1 + 3 then 4 + 2 then 5
         mergedManifest.Items[0].Id.Should().Be(canvas0Choice0);
         mergedManifest.Items[0].Label.Keys.Should().Contain("canvasPaintingCanvasLabel");
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{canvas0Choice0}_CanvasThumbnail");
         mergedManifest.Items[1].Id.Should().Be(canvas1Choice0);
         mergedManifest.Items[1].Label.Keys.Should().Contain("canvasPaintingLabel");
         mergedManifest.Items[1].Label.Keys.Should().NotContain("canvasPaintingCanvasLabel");
+        mergedManifest.Items[1].Thumbnail[0].Id.Should().Be($"{canvas1Choice0}_CanvasThumbnail");
         mergedManifest.Items[2].Id.Should().Be(canvas2NoChoice);
         mergedManifest.Items[2].Label.Should().BeNull("label cannot be carried over from the named query");
+        mergedManifest.Items[2].Thumbnail[0].Id.Should().Be($"{canvas2NoChoice}_CanvasThumbnail");
         
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
         
@@ -251,6 +315,7 @@ public class ManifestMergerTests
         canvasPaintings[1].ChoiceOrder = 1;
         
         canvasPaintings[0].Label = null;
+        minimalManifest.Items[0].Thumbnail = null;
         
         // Act
         var mergedManifest = ManifestMerger.Merge(minimalManifest, canvasPaintings, itemDictionary);
@@ -261,6 +326,7 @@ public class ManifestMergerTests
 
         mergedManifest.Items[0].Id.Should().Be(existingItemBecomingCanvas0Choice0);
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{existingItemBecomingCanvas0Choice0}_CanvasThumbnail");
         
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
 
@@ -310,6 +376,7 @@ public class ManifestMergerTests
         canvasPaintings[1].ChoiceOrder = 1;
         
         canvasPaintings[0].Label = null;
+        canvasPaintings[0].Thumbnail = null;
         
         // Act
         var mergedManifest = ManifestMerger.Merge(existingManifest, canvasPaintings, itemDictionary);
@@ -317,6 +384,7 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Items.Should().HaveCount(2);
         mergedManifest.Items[0].Id.Should().Be(existingCanvas0Choice0);
+        mergedManifest.Items[0].Thumbnail[0].Id.Should().Be($"{existingCanvas0Choice0}_CanvasThumbnail");
         mergedManifest.Items[1].Id.Should().Be(canvas1NoChoice);
 
         var currentCanvasAnnotation = mergedManifest.GetCurrentCanvasAnnotationPage(0);
@@ -370,6 +438,14 @@ public class ManifestMergerTests
             Width = 110,
             Height = 110,
             Metadata = GenerateMetadata(),
+            Thumbnail = [
+                new Image
+                {
+                    Id = $"{id}_CanvasThumbnail",
+                    Width = 50,
+                    Height = 50,
+                }
+            ],
             Items =
             [
                 new AnnotationPage
