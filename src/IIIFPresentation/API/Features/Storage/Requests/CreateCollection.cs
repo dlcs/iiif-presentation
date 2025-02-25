@@ -1,5 +1,6 @@
 using System.Data;
 using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.IdGenerator;
@@ -62,12 +63,10 @@ public class CreateCollectionHandler(
         var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
             request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
 
-        if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
+        var parentValidationError =
+            ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
+        if (parentValidationError != null) return parentValidationError;
 
-        // If full URI was used, verify it indeed is pointing to the resolved parent collection
-        if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
-            return ErrorHelper.NullParentResponse<PresentationCollection>();
-        
         string id;
 
         try

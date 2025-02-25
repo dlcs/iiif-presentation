@@ -1,4 +1,5 @@
 ﻿using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.Helpers;
@@ -76,10 +77,9 @@ public class UpsertCollectionHandler(
             parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
                 request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
             
-            if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
-            // If full URI was used, verify it indeed is pointing to the resolved parent collection
-            if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator))
-                return ErrorHelper.NullParentResponse<PresentationCollection>();
+            var parentValidationError =
+                ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
+            if (parentValidationError != null) return parentValidationError;
 
             databaseCollection = new Collection
             {
@@ -134,11 +134,9 @@ public class UpsertCollectionHandler(
                 logger.LogDebug("Collection {CollectionId} for Customer {CustomerId} is moving parent",
                     request.CollectionId, request.CustomerId);
 
-                if (parentCollection == null) return ErrorHelper.NullParentResponse<PresentationCollection>();
-
-                // If full URI was used, verify it indeed is pointing to the resolved parent collection
-                if (request.Collection.IsUriParentInvalid(parentCollection, pathGenerator)) 
-                    return ErrorHelper.NullParentResponse<PresentationCollection>();
+                var parentValidationError =
+                    ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
+                if (parentValidationError != null) return parentValidationError;
 
                 parentId = parentCollection.Id;
             }
