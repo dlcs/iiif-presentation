@@ -375,6 +375,53 @@ public class PathGeneratorTests
         pathGenerator.GenerateHierarchicalFromFullPath(5, fullPath)
             .Should().Be(expected, "full path appended to customer");
     }
+
+    [Fact]
+    public void GetModifiedImageRequest_ReturnsNull_IfExistingIsNull()
+    {
+        pathGenerator.GetModifiedImageRequest(null, 1, 2, 3, 4)
+            .Should().BeNull("null in, null out");
+    }
+
+    [Fact]
+    public void GetModifiedImageRequest_ConstructsPrefix()
+    {
+        const int customerId = 123;
+        const int spaceId = 456;
+        var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
+
+        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, 100, 100)
+            .Should().Be(requestPath, "same size params should result in reconstructed identical URI");
+    }
+
+    [Fact]
+    public void GetModifiedImageRequest_SetsSizeParam()
+    {
+        const int customerId = 123;
+        const int spaceId = 456;
+        const int width = 75;
+        const int height = 50;
+        var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
+
+        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+            .Should().Contain($"/{width},{height}/");
+    }
+
+    [Fact]
+    public void GetModifiedImageRequest_SetsSizeParam_WhenFullUri()
+    {
+        const int customerId = 123;
+        const int spaceId = 456;
+        const int width = 75;
+        const int height = 50;
+        const string server = "https://example.com:8080";
+        var requestPath =
+            $"{server}/iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
+
+        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+            .Should().Contain($"/{width},{height}/")
+            .And.StartWith(server);
+    }
     
     private static List<Hierarchy> GetDefaultHierarchyList(string? fullPath = null) =>  
         [new() { Slug = "slug", FullPath = fullPath }];
