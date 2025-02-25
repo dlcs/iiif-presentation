@@ -196,7 +196,7 @@ public class BatchCompletionMessageHandler(
                 // if canvas painting comes with statics, use them
                 // otherwise, if we can find dimensions within, use those
                 // ReSharper disable once InvertIf
-                if (GetCanvasDimensions(item) is var (width, height))
+                if (item.GetCanvasDimensions() is var (width, height))
                 {
                     canvasPainting.StaticWidth = width;
                     canvasPainting.StaticHeight = height;
@@ -216,57 +216,6 @@ public class BatchCompletionMessageHandler(
                     canvasPainting.AssetId!.Space, staticWidth, staticHeight);
             }
         }
-    }
-
-    private static (int width, int height)? GetCanvasDimensions(Canvas canvas)
-    {
-        switch (canvas.GetFirstPaintingAnnotation()?.Body)
-        {
-            case null:
-                // Just get from the services or from canvas itself as fallback
-                if (GetItemDimensionsFromServices(canvas.Service) is { } canvasDimensions)
-                    return canvasDimensions;
-                return canvas is {Width: { } cWidth, Height: { } cHeight}
-                    ? (cWidth, cHeight)
-                    : null;
-
-            case PaintingChoice choice:
-                // Again, try first from services
-                if (GetItemDimensionsFromServices(choice.Service) is { } choiceDimensions)
-                    return choiceDimensions;
-
-                // otherwise find like, first image with dimensions, if any
-                return GetItemDimensionsFromImage(choice.Items?.OfType<Image>()
-                    .FirstOrDefault(x => x is {Width: not null, Height: not null}));
-
-            case Image image:
-                return GetItemDimensionsFromImage(image);
-
-            default: return null;
-        }
-    }
-
-    private static (int width, int height)? GetItemDimensionsFromImage(Image? image) =>
-        image switch
-        {
-            null => null,
-            not null when GetItemDimensionsFromServices(image.Service) is { } imageDimensions => imageDimensions,
-            {Width: { } iWidth, Height: { } iHeight} => (iWidth, iHeight),
-            _ => null
-        };
-
-    private static (int width, int height)? GetItemDimensionsFromServices(IList<IService>? services)
-    {
-        if (services.IsNullOrEmpty())
-            return null;
-
-        if (services.OfType<ImageService3>().FirstOrDefault() is { } is3)
-            return (is3.Width, is3.Height);
-
-        if (services.OfType<ImageService2>().FirstOrDefault() is { } is2)
-            return (is2.Width, is2.Height);
-
-        return null;
     }
     
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message)
