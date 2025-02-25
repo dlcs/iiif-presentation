@@ -203,8 +203,7 @@ public class BatchCompletionMessageHandler(
                 }
             }
             else if (canvasPainting is {StaticWidth: { } staticWidth, StaticHeight: { } staticHeight}
-                     && item.Items?.GetFirstPaintingAnnotation()?.Body is Image image
-                     && manifest.SpaceId.HasValue) // required for ImageRequest parsing and modification
+                     && item.Items?.GetFirstPaintingAnnotation()?.Body is Image image) 
             {
                 // #232: if static_width/height provided in canvasPainting
                 // then don't use ones from NQ
@@ -213,8 +212,8 @@ public class BatchCompletionMessageHandler(
                 image.Width = staticWidth;
                 image.Height = staticHeight;
 
-                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, manifest.CustomerId,
-                    manifest.SpaceId.Value, staticWidth, staticHeight);
+                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, canvasPainting.AssetId!.Customer,
+                    canvasPainting.AssetId!.Space, staticWidth, staticHeight);
             }
         }
     }

@@ -136,7 +136,7 @@ public class BatchCompletionMessageHandlerTests
                 Id = identifier
             });
 
-        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId, spaceId: space);
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
         var assetId = new AssetId(CustomerId, space, identifier);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true,
             width: 80, height: 80);
