@@ -173,11 +173,11 @@ public abstract class PresentationController : Controller
         }
         catch (APIException apiEx)
         {
-            return Problem(apiEx.Message, null, apiEx.StatusCode ?? 500, apiEx.Label);
+            return this.PresentationProblem(apiEx.Message, null, apiEx.StatusCode ?? 500, apiEx.Label);
         }
         catch (Exception ex)
         {
-            return Problem(ex.Message, null, 500, errorTitle);
+            return this.PresentationProblem(ex.Message, null, 500, errorTitle);
         }
     }
 }
