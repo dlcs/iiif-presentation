@@ -408,7 +408,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl);
+        var slug = nameof(CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors);
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
