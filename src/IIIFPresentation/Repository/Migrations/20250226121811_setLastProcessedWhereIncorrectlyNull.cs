@@ -10,6 +10,8 @@ namespace Repository.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Sets the last_processed value for manifests that require it, which fixes issues with older manifests
+            // not being able to be viewed due to a null last_processed date
             migrationBuilder.Sql(@"
 UPDATE manifests
 SET last_processed = now()
