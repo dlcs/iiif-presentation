@@ -2,11 +2,11 @@
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
+using Core.Infrastructure;
 using Core.Response;
 using IIIF.Serialisation;
 using Models.API.Collection;
 using Models.API.General;
-using Models.Infrastructure;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;

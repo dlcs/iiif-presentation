@@ -1,8 +1,8 @@
 ﻿using Core.Helpers;
+using Core.Infrastructure;
 using IIIF.Presentation.V3;
-using Models.Infrastructure;
 
-namespace AWS.Helpers;
+namespace Core.IIIF;
 
 public static class BehaviorHelper
 {
