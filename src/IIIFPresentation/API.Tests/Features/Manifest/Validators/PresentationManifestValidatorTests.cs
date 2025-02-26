@@ -239,6 +239,51 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
     }
+
+    [Fact]
+    public void CanvasPaintig_WithStaticSize_NoErrorWhenBothValues()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new()
+                    {
+                        CanvasId = "someCanvasId-2137",
+                        StaticWidth = 100,
+                        StaticHeight = 100
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+
+    [Fact]
+    public void CanvasPaintig_WithStaticSize_ErrorWhenOneMissing()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new()
+                    {
+                        CanvasId = "someCanvasId-2137",
+                        StaticWidth = 100
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources);
+    }
     
     [Fact]
     public void CanvasPaintingAndItems_Manifest_NoErrorWhenNoChoiceNoCanvasMultiple()

@@ -1,5 +1,6 @@
 ﻿using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 
 namespace BackgroundHandler.Helpers;
 
@@ -28,5 +29,35 @@ public static class ManifestX
     public static AnnotationPage GetCurrentCanvasAnnotationPage(this Manifest manifest, int index)
     {
         return manifest.Items![index].Items![0];
+    }
+
+
+    public static (int width, int height)? GetCanvasDimensions(this Canvas canvas)
+    {
+        switch (canvas.GetFirstPaintingAnnotation()?.Body)
+        {
+            case null:
+                // Just get from the services or from canvas itself as fallback
+                if (canvas.Service.GetItemDimensionsFromServices() is { } canvasDimensions)
+                    return canvasDimensions;
+                return canvas is {Width: { } cWidth, Height: { } cHeight}
+                    ? (cWidth, cHeight)
+                    : null;
+
+            case PaintingChoice choice:
+                // Again, try first from services
+                if (choice.Service.GetItemDimensionsFromServices() is { } choiceDimensions)
+                    return choiceDimensions;
+
+                // otherwise find like, first image with dimensions, if any
+                return (choice.Items?.OfType<Image>()
+                        .FirstOrDefault(x => x is {Width: not null, Height: not null}))
+                    .GetItemDimensionsFromImage();
+
+            case Image image:
+                return image.GetItemDimensionsFromImage();
+
+            default: return null;
+        }
     }
 }

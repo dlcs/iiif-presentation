@@ -48,5 +48,15 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 }))
             .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
+
+        RuleFor(f => f.PaintedResources)
+            .Must(lpr =>
+                lpr!.All(
+                    // either both have value, or none
+                    pr => pr.CanvasPainting!.StaticHeight.HasValue == pr.CanvasPainting.StaticWidth.HasValue))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() && f.PaintedResources.All(pr => pr.CanvasPainting != null))
+            .WithMessage(
+                "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
+
     }
 }

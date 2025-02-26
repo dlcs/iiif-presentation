@@ -1,4 +1,5 @@
-﻿using Models.Database;
+﻿using IIIF.ImageApi;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
@@ -97,6 +98,22 @@ public abstract class PathGeneratorBase : IPathGenerator
             Path = $"/customers/{canvasPainting.AssetId.Customer}/spaces/{canvasPainting.AssetId.Space}/images/{canvasPainting.AssetId.Asset}",
         };
         return uriBuilder.Uri;
+    }
+
+    public string? GetModifiedImageRequest(string? existing, int customerId, int spaceId, int width, int height)
+    {
+        const string dlcsImagePath = "iiif-img";
+        if (existing is null)
+            return null;
+
+        var uriPrefix = string.Empty;
+        if (Uri.TryCreate(existing, UriKind.Absolute, out var uri))
+            uriPrefix = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped) + "/";
+        var prefix = $"{uriPrefix}{dlcsImagePath}/{customerId}/{spaceId}/";
+
+        var ir = ImageRequest.Parse(existing, prefix);
+        ir.Size = new() {Width = width, Height = height};
+        return ir.ToString();
     }
 
     private string GetSlug(ResourceType resourceType) 

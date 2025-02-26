@@ -207,7 +207,9 @@ public class CanvasPaintingResolver(
                 CanvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count,
                 AssetId = assetId,
                 ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
-                Ingesting = true
+                Ingesting = true,
+                StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
+                StaticHeight = paintedResource.CanvasPainting?.StaticHeight
             };
 
             count++;

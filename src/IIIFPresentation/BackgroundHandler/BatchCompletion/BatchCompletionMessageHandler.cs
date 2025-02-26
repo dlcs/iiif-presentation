@@ -5,7 +5,11 @@ using BackgroundHandler.Helpers;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.API;
+using IIIF;
+using IIIF.ImageApi.V2;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
@@ -172,8 +176,9 @@ public class BatchCompletionMessageHandler(
                 "Received a batch completion notification with no canvas paintings on the batch {BatchId}", batch.Id);
             return;
         }
-        
-        foreach (var canvasPainting in batch.Manifest.CanvasPaintings)
+
+        var manifest = batch.Manifest;
+        foreach (var canvasPainting in manifest.CanvasPaintings)
         {
             itemDictionary.TryGetValue(canvasPainting.AssetId!, out var item);
             
@@ -184,11 +189,35 @@ public class BatchCompletionMessageHandler(
             canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
             canvasPainting.Ingesting = false;
             canvasPainting.Modified = DateTime.UtcNow;
-            canvasPainting.StaticHeight = item.Height;
-            canvasPainting.StaticWidth = item.Width;
+
+            if (canvasPainting is {StaticWidth: null, StaticHeight: null})
+            {
+                // #232: set static width/height if not provided.
+                // if canvas painting comes with statics, use them
+                // otherwise, if we can find dimensions within, use those
+                // ReSharper disable once InvertIf
+                if (item.GetCanvasDimensions() is var (width, height))
+                {
+                    canvasPainting.StaticWidth = width;
+                    canvasPainting.StaticHeight = height;
+                }
+            }
+            else if (canvasPainting is {StaticWidth: { } staticWidth, StaticHeight: { } staticHeight}
+                     && item.Items?.GetFirstPaintingAnnotation()?.Body is Image image) 
+            {
+                // #232: if static_width/height provided in canvasPainting
+                // then don't use ones from NQ
+                // and set the body to those dimensions + resized id (image request uri)
+
+                image.Width = staticWidth;
+                image.Height = staticHeight;
+
+                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, canvasPainting.AssetId!.Customer,
+                    canvasPainting.AssetId!.Space, staticWidth, staticHeight);
+            }
         }
     }
-
+    
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message)
     {
         var deserialized = JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions);
