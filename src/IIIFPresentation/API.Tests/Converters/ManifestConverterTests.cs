@@ -1,5 +1,6 @@
 ﻿using API.Converters;
 using API.Tests.Helpers;
+using Core.Infrastructure;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -372,7 +373,7 @@ public class ManifestConverterTests
                             new PaintingAnnotation
                             {
                                 Id = "http://base/0/canvases/first/annotations/1",
-                                Behavior = [Models.Infrastructure.Behavior.Processing],
+                                Behavior = [Behavior.Processing],
                                 Target = new Canvas { Id = "http://base/0/canvases/first" },
                                 Body = new PaintingChoice
                                 {
@@ -399,7 +400,7 @@ public class ManifestConverterTests
                             new PaintingAnnotation
                             {
                                 Id = "http://base/0/canvases/second/annotations/2",
-                                Behavior = [Models.Infrastructure.Behavior.Processing],
+                                Behavior = [Behavior.Processing],
                                 Target = new Canvas { Id = "http://base/0/canvases/second" },
                                 Body = new Image()
                             }
@@ -436,7 +437,7 @@ public class ManifestConverterTests
                                 new PaintingAnnotation
                                 {
                                     Id = "http://base/0/canvases/first/annotations/1",
-                                    Behavior = [Models.Infrastructure.Behavior.Processing],
+                                    Behavior = [Behavior.Processing],
                                     Target = new Canvas { Id = "http://base/0/canvases/first" },
                                     Body = new PaintingChoice
                                     {

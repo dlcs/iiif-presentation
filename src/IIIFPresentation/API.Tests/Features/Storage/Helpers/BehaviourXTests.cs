@@ -1,6 +1,6 @@
 ﻿
 using API.Features.Storage.Helpers;
-using Models.Infrastructure;
+using Core.Infrastructure;
 
 namespace API.Tests.Features.Storage.Helpers;
 

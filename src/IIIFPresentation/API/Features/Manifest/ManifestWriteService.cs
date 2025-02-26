@@ -10,6 +10,7 @@ using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Helpers;
+using Core.IIIF;
 using DLCS.Exceptions;
 using IIIF.Serialisation;
 using Models.API.General;
@@ -27,22 +28,42 @@ namespace API.Features.Manifest;
 /// <summary>
 /// Record containing fields for Upserting a Manifest
 /// </summary>
-public record UpsertManifestRequest(
-    string ManifestId,
-    string? Etag,
-    int CustomerId,
-    PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    bool CreateSpace) : WriteManifestRequest(CustomerId, PresentationManifest, RawRequestBody, CreateSpace);
+public class UpsertManifestRequest(
+    string manifestId,
+    string? etag,
+    int customerId,
+    PresentationManifest presentationManifest,
+    string rawRequestBody,
+    bool createSpace) : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace)
+{
+    public string ManifestId { get; } = manifestId;
+    public string? Etag { get; } = etag;
+}
 
 /// <summary>
 /// Record containing fields for creating a Manifest
 /// </summary>
-public record WriteManifestRequest(
-    int CustomerId,
-    PresentationManifest PresentationManifest,
-    string RawRequestBody,
-    bool CreateSpace);
+public class WriteManifestRequest
+{
+    public WriteManifestRequest(int customerId,
+        PresentationManifest presentationManifest,
+        string rawRequestBody,
+        bool createSpace)
+    {
+        // removes presentation behaviors that aren't required for a manifest
+        presentationManifest.RemovePresentationBehaviours();
+        
+        CustomerId = customerId;
+        PresentationManifest = presentationManifest;
+        RawRequestBody = rawRequestBody;
+        CreateSpace = createSpace;
+    }
+    
+    public int CustomerId { get; }
+    public PresentationManifest PresentationManifest { get; }
+    public string RawRequestBody { get; }
+    public bool CreateSpace { get; }
+}
 
 public interface IManifestWrite
 {

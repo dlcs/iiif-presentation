@@ -1,11 +1,11 @@
 ﻿using Core.Helpers;
 using Core.IIIF;
+using Core.Infrastructure;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 using Models.Database.General;
-using Models.Infrastructure;
 using Repository.Helpers;
 using Repository.Paths;
 using Collection = IIIF.Presentation.V3.Collection;

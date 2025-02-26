@@ -1,5 +1,7 @@
-﻿using Core.Helpers;
+﻿using AWS.Helpers;
+using Core.Helpers;
 using Core.IIIF;
+using Core.Infrastructure;
 using DLCS.Models;
 using IIIF;
 using IIIF.Presentation;
@@ -9,7 +11,6 @@ using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
-using Models.Infrastructure;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;

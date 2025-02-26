@@ -4,6 +4,7 @@ using Amazon.S3;
 using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
+using Core.Infrastructure;
 using Core.Response;
 using DLCS.API;
 using DLCS.Exceptions;
@@ -18,7 +19,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
-using Models.Infrastructure;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -402,6 +402,36 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            Behavior = [
+                Behavior.IsPublic,
+                "custom-behavior"
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Behavior.Should().OnlyContain(x => x == "custom-behavior");
     }
     
     [Fact]

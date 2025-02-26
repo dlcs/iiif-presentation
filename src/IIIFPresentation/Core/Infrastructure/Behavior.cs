@@ -1,4 +1,4 @@
-﻿namespace Models.Infrastructure;
+﻿namespace Core.Infrastructure;
 
 public static class Behavior
 {
