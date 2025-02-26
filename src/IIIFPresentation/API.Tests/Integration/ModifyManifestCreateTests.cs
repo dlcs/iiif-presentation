@@ -405,6 +405,35 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
+    public async Task CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            Behavior = [
+                Behavior.IsPublic
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Behavior.Should().BeNull();
+    }
+    
+    [Fact]
     public async Task CreateManifest_ReturnsManifest()
     {
         // Arrange

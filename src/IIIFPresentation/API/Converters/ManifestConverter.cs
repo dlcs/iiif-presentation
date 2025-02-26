@@ -66,7 +66,6 @@ public static class ManifestConverter
         
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
-        iiifManifest.RemovePresentationBehaviours();
         
         return iiifManifest;
     }
