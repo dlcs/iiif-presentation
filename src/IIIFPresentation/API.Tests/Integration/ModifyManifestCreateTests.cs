@@ -414,7 +414,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
             Slug = slug,
             Behavior = [
-                Behavior.IsPublic
+                Behavior.IsPublic,
+                "custom-behavior"
             ]
         };
         
@@ -430,7 +431,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().NotBeNull();
-        responseManifest.Behavior.Should().BeNull();
+        responseManifest.Behavior.Should().OnlyContain(x => x == "custom-behavior");
     }
     
     [Fact]

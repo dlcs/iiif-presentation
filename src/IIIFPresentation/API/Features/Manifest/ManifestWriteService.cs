@@ -50,6 +50,7 @@ public class WriteManifestRequest
         string rawRequestBody,
         bool createSpace)
     {
+        // removes presentation behaviors that aren't required for a manifest
         presentationManifest.RemovePresentationBehaviours();
         
         CustomerId = customerId;
