@@ -544,5 +544,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
         errorResponse!.Detail.Should().Be("Could not deserialize manifest");
+        errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
 }
