@@ -17,5 +17,6 @@ public enum ModifyCollectionType
     CouldNotRetrieveAssetId = 13,
     DlcsException = 14,
     ValidationFailed = 15,
+    CannotDeserialize = 16,
     Unknown = 1000
 }

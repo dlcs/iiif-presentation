@@ -14,6 +14,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Models.API.General;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest;
@@ -109,7 +110,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         if (presentationManifest.Error)
         {
             return this.PresentationProblem("Could not deserialize manifest", null, (int) HttpStatusCode.BadRequest,
-                "Deserialization Error");
+                "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
         }
 
         var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
