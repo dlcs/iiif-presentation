@@ -19,6 +19,7 @@ public abstract class PresentationController : Controller
     } 
     
     protected readonly IMediator Mediator;
+    private readonly ILogger logger;
 
     /// <summary>
     /// API Settings available to derived controller classes
@@ -26,10 +27,11 @@ public abstract class PresentationController : Controller
     protected readonly ApiSettings Settings;
 
     /// <inheritdoc />
-    protected PresentationController(ApiSettings settings, IMediator mediator)
+    protected PresentationController(ApiSettings settings, IMediator mediator, ILogger logger)
     {
         Settings = settings;
         Mediator = mediator;
+        this.logger = logger;
     }
 
     /// <summary>
@@ -173,10 +175,12 @@ public abstract class PresentationController : Controller
         }
         catch (APIException apiEx)
         {
+            logger.LogError(apiEx, "Caught API exception when executing request handler");
             return this.PresentationProblem(apiEx.Message, null, apiEx.StatusCode ?? 500, apiEx.Label);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Caught exception when executing request handler");
             return this.PresentationProblem(ex.Message, null, 500, errorTitle);
         }
     }

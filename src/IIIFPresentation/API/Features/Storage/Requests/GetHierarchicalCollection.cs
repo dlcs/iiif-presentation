@@ -53,7 +53,8 @@ public class GetHierarchicalCollectionHandler(
             {
                 var collectionFromS3 =
                     objectFromS3.GetDescriptionResourceWithId<Collection>(
-                        pathGenerator.GenerateHierarchicalId(request.Hierarchy));
+                        pathGenerator.GenerateHierarchicalId(request.Hierarchy),
+                        logger);
                 return new(request.Hierarchy.Collection, null, 0, collectionFromS3);
             }
         }

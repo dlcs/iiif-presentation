@@ -30,13 +30,15 @@ public static class RequestBodyX
             return TryConvertIIIFResult<T>.Failure();
         }
     }
-    
+
     /// <summary>
     /// Attempts to deserialize a presentation collection
     /// </summary>
     /// <param name="requestBody">The raw request body to convert</param>
+    /// <param name="logger"></param>
     /// <returns>A result containing the deserialized collection, or a failure</returns>
-    public static async Task<TryConvertIIIFResult<T>> TryDeserializePresentation<T>(this string requestBody) 
+    public static async Task<TryConvertIIIFResult<T>> TryDeserializePresentation<T>(this string requestBody,
+        ILogger? logger = null) 
         where T : JsonLdBase, new()
     {
         try
@@ -47,8 +49,9 @@ public static class RequestBodyX
                 ? TryConvertIIIFResult<T>.Failure()
                 : TryConvertIIIFResult<T>.Success(collection);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger?.LogWarning(ex, "An error occurred while attempting to deserialize");
             return TryConvertIIIFResult<T>.Failure();
         }
     }

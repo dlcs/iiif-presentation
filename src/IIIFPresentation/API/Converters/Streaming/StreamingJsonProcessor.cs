@@ -13,10 +13,12 @@ public static class StreamingJsonProcessor
     /// <param name="output">Processed UTF-8 JSON target</param>
     /// <param name="inputLength">If known, helps to read the stream correctly</param>
     /// <param name="implementation">Handles actual </param>
+    /// <param name="log">provide logger into static method</param>
     /// <remarks>
     ///     In C#13 it can be made async, but currently ref structs don't work with async/await.
     /// </remarks>
-    public static void ProcessJson(Stream input, Stream output, long? inputLength, IProcessJson implementation)
+    public static void ProcessJson(Stream input, Stream output, long? inputLength, IProcessJson implementation,
+        ILogger? log = null)
     {
         // Initial buffer size - will auto expand if token/whitespace sequence is bigger than that
         const int bufferSize = 1024;
@@ -62,7 +64,7 @@ public static class StreamingJsonProcessor
             }
             catch (Exception ex)
             {
-                var x = ex.Message;
+                log?.LogError(ex, "Error while processing stream");
                 throw;
             }
     }

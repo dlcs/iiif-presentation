@@ -18,7 +18,9 @@ public class GetManifestHierarchical(Hierarchy hierarchy) : IRequest<IIIF.Presen
 public class GetManifestHierarchicalHandler(
     IBucketReader bucketReader,
     IPathGenerator pathGenerator,
-    IOptions<AWSSettings> options) : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
+    IOptions<AWSSettings> options,
+    ILogger<GetManifestHierarchicalHandler> logger)
+    : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
 {
     private readonly AWSSettings settings = options.Value;
     
@@ -42,6 +44,6 @@ public class GetManifestHierarchicalHandler(
         
         var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
 
-        return objectFromS3.GetDescriptionResourceWithId<IIIF.Presentation.V3.Manifest>(hierarchicalId);
+        return objectFromS3.GetDescriptionResourceWithId<IIIF.Presentation.V3.Manifest>(hierarchicalId, logger);
     }
 }

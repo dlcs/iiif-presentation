@@ -28,8 +28,9 @@ public class StorageController(
     PresentationContext dbContext,
     IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
-    IMediator mediator)
-    : PresentationController(options.Value, mediator)
+    IMediator mediator,
+    ILogger<StorageController> logger)
+    : PresentationController(options.Value, mediator, logger)
 {
     [HttpGet("{*slug}")]
     [ETagCaching]
