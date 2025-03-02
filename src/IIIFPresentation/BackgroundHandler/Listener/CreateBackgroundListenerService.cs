@@ -1,7 +1,4 @@
-﻿using AWS.Settings;
-using AWS.SQS;
-using Core.Helpers;
-using Microsoft.Extensions.Options;
+﻿using AWS.SQS;
 
 namespace BackgroundHandler.Listener;
 

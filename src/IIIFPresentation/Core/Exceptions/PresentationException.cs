@@ -1,6 +1,4 @@
-﻿using System.Runtime.Serialization;
-
-namespace Core.Exceptions;
+﻿namespace Core.Exceptions;
 
 public class PresentationException : Exception
 {

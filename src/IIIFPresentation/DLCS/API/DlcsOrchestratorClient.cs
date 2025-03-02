@@ -1,5 +1,4 @@
 ﻿using IIIF.Presentation.V3;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DLCS.API;

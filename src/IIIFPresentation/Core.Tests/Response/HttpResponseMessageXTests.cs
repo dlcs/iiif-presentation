@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using Core.Response;
-using FluentAssertions;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 

@@ -1,7 +1,6 @@
 ﻿using AWS.S3;
 using AWS.S3.Models;
 using AWS.Settings;
-using Core.Helpers;
 using Core.IIIF;
 using Core.Streams;
 using IIIF.Presentation;

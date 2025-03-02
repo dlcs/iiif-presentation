@@ -2,8 +2,6 @@
 using Core.IIIF;
 using IIIF;
 using IIIF.Serialisation;
-using Models.API;
-using Models.API.Collection;
 
 namespace API.Features.Storage.Helpers;
 

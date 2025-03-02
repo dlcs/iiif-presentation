@@ -1,7 +1,4 @@
-﻿using System.Threading.Tasks;
-using Xunit;
-
-namespace Test.Helpers.Integration;
+﻿namespace Test.Helpers.Integration;
 
 /// <summary>
 /// Xunit fixture that contains both DbFixture and LocalStackFixture

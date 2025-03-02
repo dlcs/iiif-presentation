@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Repository.Paths;
 
 namespace API.Features.Storage;
 

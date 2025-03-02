@@ -1,5 +1,4 @@
 ﻿using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Strings;
 
 namespace Models.API.Collection;
 
