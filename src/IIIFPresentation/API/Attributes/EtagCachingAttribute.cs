@@ -34,7 +34,7 @@ public class ETagCachingAttribute : ActionFilterAttribute
         using MemoryStream memoryStream = new();
 
         response.Body = memoryStream;
-        await next();
+        _ = await next();
         memoryStream.Position = 0;
 
         if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created or StatusCodes.Status202Accepted)
