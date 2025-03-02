@@ -18,8 +18,8 @@ public static class HttpRequestX
     /// </remarks>
     public static string GetDisplayUrl(this HttpRequest request, string? path = null, bool includeQueryParams = true)
     {
-        var host = request.Host.Value ?? string.Empty;
-        var scheme = request.Scheme ?? string.Empty;
+        var host = request.Host.HasValue ? request.Host.Value : string.Empty;
+        var scheme = request.Scheme;
         var pathBase = request.PathBase.Value ?? string.Empty;
         var queryString = includeQueryParams
             ? request.QueryString.Value ?? string.Empty

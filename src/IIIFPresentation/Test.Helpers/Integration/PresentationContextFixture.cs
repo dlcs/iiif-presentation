@@ -255,7 +255,7 @@ public class PresentationContextFixture : IAsyncLifetime
         }
         catch (Exception ex)
         {
-            var m = ex.Message;
+            _ = ex;
             throw;
         }
     }
