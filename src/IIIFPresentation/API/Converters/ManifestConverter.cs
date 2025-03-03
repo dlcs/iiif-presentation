@@ -1,5 +1,4 @@
-﻿using AWS.Helpers;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using Core.Infrastructure;
 using DLCS.Models;

@@ -1,5 +1,4 @@
 ﻿using Core.Helpers;
-using FluentAssertions;
 
 namespace Core.Tests.Helpers;
 

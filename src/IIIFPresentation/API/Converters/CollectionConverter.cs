@@ -222,7 +222,7 @@ public static class CollectionConverter
                 new ExternalResource(nameof(PresentationType.Collection))
                 {
                     Id = pathGenerator.GenerateFlatCollectionId(collection),
-                    Label = collection!.Label
+                    Label = collection.Label
                 }
             ]
             : null;
@@ -282,7 +282,7 @@ public static class CollectionConverter
     /// <param name="totalPages">How many pages to generate the View for</param>
     /// <param name="orderQueryParam">What the View is being ordered by</param>
     /// <returns>A View</returns>
-    private static View GenerateView(Models.Database.Collections.Collection collection, IPathGenerator pathGenerator, int pageSize,
+    private static View GenerateView(DbCollection collection, IPathGenerator pathGenerator, int pageSize,
         int currentPage, int totalPages, string? orderQueryParam = null)
     {
         var view = new View()

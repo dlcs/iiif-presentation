@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
-using Repository.Paths;
 
 namespace API.Features.Storage;
 
@@ -24,8 +23,9 @@ namespace API.Features.Storage;
 public class CollectionController(
     IAuthenticator authenticator,
     IOptions<ApiSettings> options,
-    IMediator mediator)
-    : PresentationController(options.Value, mediator)
+    IMediator mediator,
+    ILogger<CollectionController> logger)
+    : PresentationController(options.Value, mediator, logger)
 {
     [HttpGet("collections/{id}")]
     [ETagCaching]
@@ -93,7 +93,7 @@ public class CollectionController(
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
         var deserializedCollection =
-            await rawRequestBody.TryDeserializePresentation<PresentationCollection>();
+            await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
         if (deserializedCollection.Error)
         {
             return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());

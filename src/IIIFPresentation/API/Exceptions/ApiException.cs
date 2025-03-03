@@ -1,6 +1,4 @@
-﻿using System.Runtime.Serialization;
-
-namespace API.Exceptions;
+﻿namespace API.Exceptions;
 
 public class APIException : Exception
 {

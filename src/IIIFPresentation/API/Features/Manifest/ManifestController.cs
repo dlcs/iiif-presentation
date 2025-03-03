@@ -21,8 +21,12 @@ namespace API.Features.Manifest;
 
 [Route("/{customerId:int}")]
 [ApiController]
-public class ManifestController(IOptions<ApiSettings> options, IAuthenticator authenticator, IMediator mediator)
-    : PresentationController(options.Value, mediator)
+public class ManifestController(
+    IOptions<ApiSettings> options,
+    IAuthenticator authenticator,
+    IMediator mediator,
+    ILogger<ManifestController> logger)
+    : PresentationController(options.Value, mediator, logger)
 {
     [HttpGet("manifests/{id}")]
     [ETagCaching]
@@ -105,7 +109,7 @@ public class ManifestController(IOptions<ApiSettings> options, IAuthenticator au
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
-        var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>();
+        var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
 
         if (presentationManifest.Error)
         {

@@ -34,13 +34,13 @@ public class DelegatedAuthenticator(
         if (!request.RouteValues.TryGetValue(CustomerIdRouteValue, out var customerIdRouteVal)
             || customerIdRouteVal is null)
         {
-            logger.LogDebug("Unable to identify customerId in auth request to {request}", request.Path);
+            logger.LogDebug("Unable to identify customerId in auth request to {Path}", request.Path);
             return AuthResult.NoCredentials;
         }
         
         if (!int.TryParse(customerIdRouteVal.ToString(), out int customerId))
         {
-            logger.LogDebug("Specified customerId is not numeric {request}", request.Path);
+            logger.LogDebug("Specified customerId is not numeric {Path}", request.Path);
             return AuthResult.NoCredentials;
         }
 

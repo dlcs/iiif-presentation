@@ -2,7 +2,6 @@
 using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Presentation.V3;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Stubbery;
 

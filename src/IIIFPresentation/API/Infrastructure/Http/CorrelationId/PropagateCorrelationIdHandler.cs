@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Http;
-using Microsoft.Extensions.Primitives;
+﻿using Microsoft.Extensions.Primitives;
 
 namespace API.Infrastructure.Http.CorrelationId;
 

@@ -1,5 +1,4 @@
-﻿using Models.Database.Collections;
-using Collection = Models.Database.Collections.Collection;
+﻿using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
 
 namespace Models.Database.General;

@@ -1,0 +1,5 @@
+﻿<Project>
+    <ItemGroup>
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="ErrorProne.NET.CoreAnalyzers" Version="0.1.2" IncludeAssets="analyzers" PrivateAssets="all"/>
+    </ItemGroup>
+</Project>
