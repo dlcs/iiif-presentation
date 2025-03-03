@@ -74,12 +74,7 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
             ModifyCollectionType.ParentMustBeStorageCollection, WriteResult.Conflict);
-
-    private static string CollectionType(bool isStorageCollection)
-    {
-        return isStorageCollection ? "Storage" : "IIIF";
-    }
-
+    
     public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>(string? canvasId) 
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
@@ -89,4 +84,14 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
             ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a canvas order",
+            ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
+
+    private static string CollectionType(bool isStorageCollection)
+    {
+        return isStorageCollection ? "Storage" : "IIIF";
+    }
 }

@@ -196,16 +196,11 @@ public class CanvasPaintingResolver(
             if (paintedResource.Asset == null) continue;
             
             var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
-            string? canvasId;
+            string? specifiedCanvasId;
 
             try
             {
-                canvasId = GetCanvasId(paintedResource.CanvasPainting, customerId);
-
-                if (canvasPaintings.Any(cp => cp.Id == canvasId))
-                {
-                    return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(canvasId), null);
-                }
+                specifiedCanvasId = GetCanvasId(paintedResource.CanvasPainting, customerId);
             }
             catch (ArgumentException e)
             {
@@ -216,7 +211,7 @@ public class CanvasPaintingResolver(
 
             var cp = new CanvasPainting
             {
-                Id = canvasId ?? GetGeneratedCanvasId(paintedResource.CanvasPainting),
+                Id = specifiedCanvasId ?? GetGeneratedCanvasId(paintedResource.CanvasPainting),
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
@@ -227,6 +222,17 @@ public class CanvasPaintingResolver(
                 Ingesting = true,
                 StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
                 StaticHeight = paintedResource.CanvasPainting?.StaticHeight
+            };
+            
+            if (canvasPaintings.Where(c => c.CanvasOrder != cp.CanvasOrder).Any(c => c.Id == cp.Id))
+            {
+                return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(specifiedCanvasId), null);
+            }
+
+            if (canvasPaintings.Where(c => c.CanvasOrder == cp.CanvasOrder).Any(c => c.Id != cp.Id))
+            {
+                return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(paintedResource.CanvasPainting?.CanvasId),
+                    null);
             };
 
             count++;
