@@ -201,11 +201,17 @@ public class CanvasPaintingResolver(
             try
             {
                 canvasId = GetCanvasId(paintedResource.CanvasPainting, customerId);
+
+                if (canvasPaintings.Any(cp => cp.Id == canvasId))
+                {
+                    return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(canvasId), null);
+                }
             }
             catch (ArgumentException e)
             {
                 logger.LogError(e, "Unable to generate canvas for {CustomerId}", customerId);
-                return (ErrorHelper.InvalidCanvasId<PresentationManifest>(), null);;
+                return (ErrorHelper.InvalidCanvasId<PresentationManifest>(paintedResource.CanvasPainting?.CanvasId),
+                    null);
             }
 
             var cp = new CanvasPainting

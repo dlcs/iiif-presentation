@@ -1520,4 +1520,58 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/InvalidCanvasId");
     }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenCanvasIdDuplicated()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdDuplicated);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"https://iiif.io/{Customer}/canvases/duplicate"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "duplicate"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
+    }
 }

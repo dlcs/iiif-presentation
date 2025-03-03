@@ -80,8 +80,13 @@ public static class ErrorHelper
         return isStorageCollection ? "Storage" : "IIIF";
     }
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>() 
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>(string? canvasId) 
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? DuplicateCanvasId<TCollection>(string? canvasId)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
+            ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
 }

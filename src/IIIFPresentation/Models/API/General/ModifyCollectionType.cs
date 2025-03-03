@@ -19,5 +19,6 @@ public enum ModifyCollectionType
     ValidationFailed = 15,
     CannotDeserialize = 16,
     InvalidCanvasId = 17,
+    DuplicateCanvasId = 18,
     Unknown = 1000
 }
