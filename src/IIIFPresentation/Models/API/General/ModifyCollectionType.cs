@@ -18,5 +18,6 @@ public enum ModifyCollectionType
     DlcsException = 14,
     ValidationFailed = 15,
     CannotDeserialize = 16,
+    InvalidCanvasId = 17,
     Unknown = 1000
 }

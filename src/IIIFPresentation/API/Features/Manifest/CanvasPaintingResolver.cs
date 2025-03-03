@@ -196,10 +196,21 @@ public class CanvasPaintingResolver(
             if (paintedResource.Asset == null) continue;
             
             var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
+            string? canvasId;
+
+            try
+            {
+                canvasId = GetCanvasId(paintedResource.CanvasPainting, customerId);
+            }
+            catch (ArgumentException e)
+            {
+                logger.LogError(e, "Unable to generate canvas for {CustomerId}", customerId);
+                return (ErrorHelper.InvalidCanvasId<PresentationManifest>(), null);;
+            }
 
             var cp = new CanvasPainting
             {
-                Id = GetCanvasId(paintedResource.CanvasPainting),
+                Id = canvasId ?? GetGeneratedCanvasId(paintedResource.CanvasPainting),
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
@@ -217,7 +228,7 @@ public class CanvasPaintingResolver(
         }
         return (null, canvasPaintings);
 
-        string GetCanvasId(Models.API.Manifest.CanvasPainting? cp)
+        string GetGeneratedCanvasId(Models.API.Manifest.CanvasPainting? cp)
         {
             // no order, dish out the next available
             if (cp is not { CanvasOrder: not null }) return canvasPaintingIds.Pop();
@@ -233,6 +244,21 @@ public class CanvasPaintingResolver(
             canvasIdByOrder[cp.CanvasOrder.Value] = nextId;
             return nextId;
         }
+    }
+
+    private string? GetCanvasId(Models.API.Manifest.CanvasPainting? canvasPainting, int customerId)
+    {
+        var canvasId = canvasPainting?.CanvasId;
+        
+        if (canvasId == null || !Uri.IsWellFormedUriString(canvasId, UriKind.Absolute)) return canvasId;
+        
+        var convertedCanvasId = new Uri(canvasId).PathAndQuery;
+        var startsWith = $"/{customerId}/canvases/";
+
+        if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
+            throw new ArgumentException("Canvas Id is not valid");
+        
+        return canvasId.GetLastPathElement();
     }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)

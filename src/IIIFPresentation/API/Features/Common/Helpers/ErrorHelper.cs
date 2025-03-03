@@ -79,4 +79,9 @@ public static class ErrorHelper
     {
         return isStorageCollection ? "Storage" : "IIIF";
     }
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>() 
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
+            ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
 }

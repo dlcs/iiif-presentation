@@ -86,9 +86,9 @@ public class PaintedResourceXTest
     public void GetRequiredNumberOfCanvases_Correct_IfAllPaintedResourcesNullCanvasOrder()
     {
         List<PaintedResource> paintedResources = [
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "1" } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "2" } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "3" } },
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting() },
         ];
         paintedResources.GetRequiredNumberOfCanvases().Should().Be(3);
     }
@@ -97,9 +97,9 @@ public class PaintedResourceXTest
     public void GetRequiredNumberOfCanvases_Correct_IfAllHaveCanvasOrder()
     {
         List<PaintedResource> paintedResources = [
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "1", CanvasOrder = 1} },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "2", CanvasOrder = 1 } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "3", CanvasOrder = 2 } },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 1} },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 1 } },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 2 } },
         ];
         paintedResources.GetRequiredNumberOfCanvases().Should().Be(2);
     }
@@ -108,11 +108,11 @@ public class PaintedResourceXTest
     public void GetRequiredNumberOfCanvases_Correct_IfAllMixedCanvasOrderAndNot()
     {
         List<PaintedResource> paintedResources = [
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "1", CanvasOrder = 1} },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "2" } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "3", CanvasOrder = 2 } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "4" } },
-            new() { CanvasPainting = new CanvasPainting { CanvasId = "5", CanvasOrder = 1 } },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 1} },
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 2 } },
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting { CanvasOrder = 1 } },
             new() { CanvasPainting = null, Asset = new JObject() },
         ];
         paintedResources.GetRequiredNumberOfCanvases().Should().Be(5);
