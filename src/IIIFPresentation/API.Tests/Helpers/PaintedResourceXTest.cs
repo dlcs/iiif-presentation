@@ -94,6 +94,17 @@ public class PaintedResourceXTest
     }
     
     [Fact]
+    public void GetRequiredNumberOfCanvases_ProvidesCorrectNumberOfCanvasesWithCanvasId()
+    {
+        List<PaintedResource> paintedResources = [
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting() },
+            new() { CanvasPainting = new CanvasPainting() { CanvasId = "canvasId" } },
+        ];
+        paintedResources.GetRequiredNumberOfCanvases().Should().Be(2);
+    }
+    
+    [Fact]
     public void GetRequiredNumberOfCanvases_Correct_IfAllHaveCanvasOrder()
     {
         List<PaintedResource> paintedResources = [

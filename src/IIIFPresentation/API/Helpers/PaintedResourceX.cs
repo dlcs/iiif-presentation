@@ -16,11 +16,10 @@ public static class PaintedResourceX
     /// </summary>
     public static int GetRequiredNumberOfCanvases(this List<PaintedResource>? paintedResources)
     {
-        // no need to generate a canvas id for canvases that have an id, as we'll use that
-        if (paintedResources.IsNullOrEmpty() || paintedResources.Any(pr => pr.CanvasPainting?.CanvasId != null)) return 0;
+       if (paintedResources.IsNullOrEmpty()) return 0;
 
         // Random number that counts down for each null CanvasOrder to treat it as unique
         int counter = -10000;
-        return paintedResources.DistinctBy(pr => pr.CanvasPainting?.CanvasOrder ?? --counter).Count();
+        return paintedResources.Where(pr => pr.CanvasPainting?.CanvasId == null).DistinctBy(pr => pr.CanvasPainting?.CanvasOrder ?? --counter).Count();
     }
 }
