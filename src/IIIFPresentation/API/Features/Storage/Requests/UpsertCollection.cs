@@ -218,7 +218,7 @@ public class UpsertCollectionHandler(
         if (!isStorageCollection)
         {
             await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
-                cancellationToken);
+                false, cancellationToken);
         }
     }
 }

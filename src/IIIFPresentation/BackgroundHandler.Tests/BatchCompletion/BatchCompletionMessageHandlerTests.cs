@@ -148,8 +148,9 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(GenerateMinimalNamedQueryManifest(assetId));
         ResourceBase? resourceBase = null;
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, A<CancellationToken>._))
-            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, CancellationToken _) => resourceBase = arg1);
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
 
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
@@ -158,7 +159,7 @@ public class BatchCompletionMessageHandlerTests
         handleMessage.Should().BeTrue();
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .MustHaveHappened();
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest) resourceBase!;
         var image = (savedManifest.Items?[0].Items?[0].Items?[0] as PaintingAnnotation)?.Body as Image;
@@ -220,15 +221,16 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(GenerateMinimalNamedQueryManifest(assetId));
         ResourceBase? resourceBase = null;
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, A<CancellationToken>._))
-            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, CancellationToken _) => resourceBase = arg1);
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
 
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
 
         // Assert
         handleMessage.Should().BeTrue("Message successfully handled");
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest) resourceBase!;
         savedManifest.Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}", "Canvas Id overwritten");

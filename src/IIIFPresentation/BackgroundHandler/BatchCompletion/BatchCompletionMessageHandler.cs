@@ -147,7 +147,7 @@ public class BatchCompletionMessageHandler(
             batch.Manifest?.CanvasPaintings, itemDictionary);
 
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            cancellationToken);
+            false, cancellationToken);
     }
 
     private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
