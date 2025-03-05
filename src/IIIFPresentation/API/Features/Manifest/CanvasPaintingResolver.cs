@@ -9,6 +9,7 @@ using Models.Database;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Manifests;
+using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
@@ -200,7 +201,7 @@ public class CanvasPaintingResolver(
 
             try
             {
-                specifiedCanvasId = GetCanvasId(paintedResource.CanvasPainting, customerId);
+                specifiedCanvasId = PathParser.GetCanvasId(paintedResource.CanvasPainting, customerId);
             }
             catch (ArgumentException e)
             {
@@ -256,21 +257,6 @@ public class CanvasPaintingResolver(
             canvasIdByOrder[cp.CanvasOrder.Value] = nextId;
             return nextId;
         }
-    }
-
-    private string? GetCanvasId(Models.API.Manifest.CanvasPainting? canvasPainting, int customerId)
-    {
-        var canvasId = canvasPainting?.CanvasId;
-        
-        if (canvasId == null || !Uri.IsWellFormedUriString(canvasId, UriKind.Absolute)) return canvasId;
-        
-        var convertedCanvasId = new Uri(canvasId).PathAndQuery;
-        var startsWith = $"/{customerId}/canvases/";
-
-        if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
-            throw new ArgumentException("Canvas Id is not valid");
-        
-        return canvasId.GetLastPathElement();
     }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)

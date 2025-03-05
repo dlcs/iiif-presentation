@@ -25,5 +25,20 @@ public static class PathParser
             throw new FormatException($"Unable to extract AssetId from {canvas.Id}");
         }
     }
+    
+    public static string? GetCanvasId(Models.API.Manifest.CanvasPainting? canvasPainting, int customerId)
+    {
+        var canvasId = canvasPainting?.CanvasId;
+        
+        if (canvasId == null || !Uri.IsWellFormedUriString(canvasId, UriKind.Absolute)) return canvasId;
+        
+        var convertedCanvasId = new Uri(canvasId).PathAndQuery;
+        var startsWith = $"/{customerId}/canvases/";
+
+        if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
+            throw new ArgumentException("Canvas Id is not valid");
+        
+        return canvasId.GetLastPathElement();
+    }
 }
 
