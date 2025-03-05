@@ -21,7 +21,7 @@ public interface IIIIFS3Service
         CancellationToken cancellationToken) where T : ResourceBase, new();
 
     public Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
-        CancellationToken cancellationToken);
+        bool saveToStaging, CancellationToken cancellationToken);
 
     public Task DeleteIIIFFromS3(IHierarchyResource dbResource);
 }
@@ -55,12 +55,15 @@ public class IIIFS3Service(
     /// Write IIIF resource to S3 - ensuring @context and Id set
     /// </summary>
     public async Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
-        CancellationToken cancellationToken)
+        bool saveToStaging, CancellationToken cancellationToken)
     {
         logger.LogDebug("Uploading resource {Customer}:{ResourceId} file to S3", dbResource.CustomerId, dbResource.Id);
         EnsureIIIFValid(iiifResource, flatId);
         var iiifJson = iiifResource.AsJson();
-        var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket, dbResource.GetResourceBucketKey());
+        var bucket = saveToStaging
+            ? options.CurrentValue.S3.StagingStorageBucket
+            : options.CurrentValue.S3.StorageBucket;
+        var item = new ObjectInBucket(bucket, dbResource.GetResourceBucketKey());
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
     }
     

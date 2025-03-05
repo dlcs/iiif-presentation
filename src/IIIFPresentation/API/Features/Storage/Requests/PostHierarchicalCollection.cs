@@ -73,7 +73,7 @@ public class PostHierarchicalCollectionHandler(
         }
         
         await iiifS3.SaveIIIFToS3(collectionFromBody, collection, pathGenerator.GenerateFlatCollectionId(collection),
-            cancellationToken);
+            false, cancellationToken);
 
         var hierarchy = collection.Hierarchy.GetCanonical();
         
