@@ -2,6 +2,7 @@
 using API.Tests.Helpers;
 using Models.API;
 using Models.Database.Collections;
+using Models.Database.General;
 using Repository.Paths;
 
 namespace API.Tests.Infrastructure.Validation;
@@ -11,17 +12,6 @@ public class PresentationValidationTests
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("api.tests", Uri.UriSchemeHttps);
     
     [Fact]
-    public void IsUriParentInvalid_False_IfNotUri()
-    {
-        // Arrange
-        var presentation = new TestPresentation { Parent = "foo" };
-        var parent = new Collection { Id = "bar" };
-        
-        // Assert
-        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeFalse();
-    }
-    
-    [Fact]
     public void IsUriParentInvalid_False_IfUriAndMatchesParent()
     {
         // Arrange
@@ -29,18 +19,48 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "parent", CustomerId = 1 };
         
         // Assert
-        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeFalse();
+        presentation.IsParentInvalid(parent, pathGenerator).Should().BeFalse();
     }
     
     [Fact]
     public void IsUriParentInvalid_True_IfUriAndDoesNotMatchParent()
     {
         // Arrange
-        var presentation = new TestPresentation { Parent = "https://api.tests/not-parent" };
+        var presentation = new TestPresentation { Parent = "https://api.tests/collections/not-parent" };
         var parent = new Collection { Id = "parent", CustomerId = 1 };
         
         // Assert
-        presentation.IsUriParentInvalid(parent, pathGenerator).Should().BeTrue();
+        presentation.IsParentInvalid(parent, pathGenerator).Should().BeTrue();
+    }
+    
+    [Fact]
+    public void IsUriParentInvalid_False_IfHierarchicalUriAndMatchesParent()
+    {
+        // Arrange
+        var presentation = new TestPresentation { Parent = "https://api.tests/1/hierarchy-parent" };
+        var parent = new Collection { Id = "parent", CustomerId = 1, Hierarchy =
+            [
+                new Hierarchy { Canonical = true, Slug = "hierarchy-parent", FullPath = "hierarchy-parent", CustomerId = 1 }
+            ]
+        };
+        
+        // Assert
+        presentation.IsParentInvalid(parent, pathGenerator).Should().BeFalse();
+    }
+    
+    [Fact]
+    public void IsUriParentInvalid_True_IfHierarchicalUriAndDoesNotMatchParent()
+    {
+        // Arrange
+        var presentation = new TestPresentation { Parent = "https://api.tests/not-parent" };
+        var parent = new Collection { Id = "parent", CustomerId = 1, Hierarchy =
+            [
+                new Hierarchy { Canonical = true, Slug = "hierarchy-parent", FullPath = "hierarchy-parent", CustomerId = 1 }
+            ]
+        };
+        
+        // Assert
+        presentation.IsParentInvalid(parent, pathGenerator).Should().BeTrue();
     }
 }
 

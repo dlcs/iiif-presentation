@@ -191,7 +191,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = collectionId,
+            Parent = $"http://localhost/{Customer}/collections/{collectionId}",
             Slug = "balrog"
         };
         
@@ -237,7 +237,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
         
@@ -281,7 +281,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
         
@@ -356,7 +356,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{InvalidSpaceCustomer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -443,14 +443,14 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var manifest =
             $$"""
 
-              {
-                  "@context": "http://iiif.io/api/presentation/3/context.json",
-                  "id": "https://iiif.example/manifest.json",
-                  "type": "Manifest",
-                  "parent": "{{RootCollection.Id}}",
-                  "slug": "{{slug}}"
-              }
-              """;
+               {
+                   "@context": "http://iiif.io/api/presentation/3/context.json",
+                   "id": "https://iiif.example/manifest.json",
+                   "type": "Manifest",
+                   "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
+                   "slug": "{{slug}}"
+               }
+               """;
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
@@ -480,7 +480,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var slug = nameof(CreateManifest_CreatedDBRecord);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
         };
         
@@ -519,7 +519,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                   "@context": "http://iiif.io/api/presentation/3/context.json",
                   "id": "https://iiif.example/manifest.json",
                   "type": "Manifest",
-                  "parent": "{{RootCollection.Id}}",
+                  "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
                   "slug": "{{slug}}"
               }
               """;
@@ -545,7 +545,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var slug = nameof(CreateManifest_IfSpaceRequested_CreatedDBRecord);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
         };
         
@@ -579,7 +579,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
             Label = label
         };
@@ -607,7 +607,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var slug = nameof(CreateManifest_WritesToS3);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
         };
         
@@ -639,7 +639,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var slug = nameof(CreateManifest_WritesToS3_IgnoringId);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
             Id = "https://presentation.example/i-will-be-overwritten"
         };
@@ -685,7 +685,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                       ]
                   },
                   "slug": "{{slug}}",
-                  "parent": "root",
+                  "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
                   "paintedResources": [
                       {
                           "canvasPainting":{
@@ -864,7 +864,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         const string id = nameof(PutFlatId_Insert_PreConditionFailed_IfEtagProvided);
         var manifest = new PresentationManifest
         {
-            Parent = "not-found",
+            Parent = $"http://localhost/{Customer}/collections/not-found",
             Slug = "balrog"
         };
         
@@ -916,7 +916,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = collectionId,
+            Parent = $"http://localhost/{Customer}/collections/{collectionId}",
             Slug = "balrog"
         };
         
@@ -962,7 +962,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
         
@@ -1008,7 +1008,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug.VaryCase()
         };
 
@@ -1052,7 +1052,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
         
@@ -1096,7 +1096,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug.VaryCase()
         };
 
@@ -1144,7 +1144,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{InvalidSpaceCustomer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -1205,7 +1205,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -1242,7 +1242,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -1278,7 +1278,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -1307,7 +1307,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}""
 }}";
         
@@ -1336,7 +1336,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var id = nameof(PutFlatId_Insert_WritesToS3);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
         };
         
@@ -1366,7 +1366,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var id = nameof(PutFlatId_Insert_WritesToS3_IgnoringId);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
             Id = "https://presentation.example/i-will-be-overwritten"
         };

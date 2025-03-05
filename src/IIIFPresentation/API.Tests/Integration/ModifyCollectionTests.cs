@@ -83,16 +83,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
         // Arrange
-        var collection = new PresentationCollection()
+        var collection = new PresentationCollection
         {
-            Behavior = new List<string>()
+            Behavior = new List<string>
             {
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
@@ -152,7 +152,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new("en", ["test collection"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1
@@ -184,7 +184,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
@@ -234,16 +234,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             .First(x => x.CustomerId == Customer && x.Id == "IiifCollection").Id;
         
         // Arrange
-        var collection = new PresentationCollection()
+        var collection = new PresentationCollection
         {
-            Behavior = new List<string>()
+            Behavior = new List<string>
             {
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = iiifParent,
+            Parent = $"http://localhost/{Customer}/collections/{iiifParent}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
@@ -277,7 +277,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             PresentationThumbnail = "some/thumbnail",
             Tags = "some, tags",
             ItemsOrder = 1,
@@ -416,7 +416,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
        ]
    }},
     ""slug"": ""iiif-child"",
-    ""parent"": ""{parent}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{parent}"",
     ""tags"": ""some, tags"",
     ""itemsOrder"": 1,
     ""thumbnail"": [
@@ -506,7 +506,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "iiif-child",
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             Tags = "some, tags",
             PresentationThumbnail = "some/thumbnail",
             ItemsOrder = 1,
@@ -583,7 +583,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = "first-child",
-            Parent = parent
+            Parent = $"http://localhost/{Customer}/collections/{parent}"
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
@@ -613,7 +613,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new("en", ["test collection"]),
             Slug = "fIrSt-cHiLd",
-            Parent = parent
+            Parent = $"http://localhost/{Customer}/collections/{parent}"
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
@@ -724,7 +724,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
        ]
    }},
     ""slug"": ""{slug}"",
-    ""parent"": ""{parent}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{parent}"",
     ""tags"": ""some, tags"",
     ""itemsOrder"": 1,
     ""thumbnail"": [
@@ -769,7 +769,221 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
-        
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollection_FromHierarchicalParent()
+    {
+        var slug = nameof(CreateCollection_CreatesCollection_FromHierarchicalParent);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = slug,
+            Parent = $"http://localhost/{Customer}",
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollection_FromPublicId()
+    {
+        var slug = nameof(CreateCollection_CreatesCollection_FromPublicId);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            PublicId = $"http://localhost/{Customer}/{slug}",
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollection_FromPublicIdChild()
+    {
+        var slug = nameof(CreateCollection_CreatesCollection_FromPublicId);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            PublicId = $"http://localhost/{Customer}/first-child/{slug}",
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be("FirstChildCollection");
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+    }
+    
+    [Fact]
+    public async Task CreateCollection_CreatesCollection_FromPublicIdWhileParentSlugSpecified()
+    {
+        var slug = nameof(CreateCollection_CreatesCollection_FromPublicIdWhileParentSlugSpecified);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            PublicId = $"http://localhost/{Customer}/{slug}",
+            Parent = $"http://localhost/{Customer}",
+            Slug = slug,
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+
+        var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        fromDatabase.Id.Length.Should().BeGreaterThan(6);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+        hierarchyFromDatabase.Slug.Should().Be(slug);
+    }
+    
+    [Fact]
+    public async Task CreateCollection_BadRequest_WhenPublicIdNotMatchSlug()
+    {
+        var slug = nameof(CreateCollection_BadRequest_WhenPublicIdNotMatchSlug);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            PublicId = $"http://localhost/{Customer}/{slug}",
+            Parent = $"http://localhost/{Customer}",
+            Slug = "differentSlug",
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/SlugMustMatchPublicId");
+    }
+    
+    [Fact]
+    public async Task CreateCollection_BadRequest_WhenPublicIdNotMatchParent()
+    {
+        var slug = nameof(CreateCollection_BadRequest_WhenPublicIdNotMatchParent);
+        // Arrange
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            PublicId = $"http://localhost/{Customer}/{slug}",
+            Parent = $"http://localhost/{Customer}/first-child",
+            Slug = slug,
+            PresentationThumbnail = "some/thumbnail"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            JsonSerializer.Serialize(collection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentMustMatchPublicId");
     }
 
     [Fact]
@@ -876,7 +1090,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2"
@@ -929,16 +1143,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var updatedCollection = new PresentationCollection()
+        var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
-            {
+            Behavior =
+            [
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
-            },
+            ],
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2"
@@ -1097,7 +1311,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.SaveChangesAsync();
 
         var updatedCollection = 
-"""
+$$"""
 {
   "behavior": [
     "public-iiif"
@@ -1109,7 +1323,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     ]
   },
   "slug": "iiif-programmatic-child",
-  "parent": "root",
+  "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
   "tags": "some, tags, 2",
  "thumbnail": [
     {
@@ -1212,16 +1426,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var updatedCollection = new PresentationCollection()
+        var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
+            Behavior = new List<string>
             {
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = "programmatic-child",
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2"
@@ -1278,15 +1492,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
         
-        var updatedCollection = new PresentationCollection()
+        var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
-            {
-                Behavior.IsPublic
-            },
+            Behavior = [Behavior.IsPublic],
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = "programmatic-child",
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2"
@@ -1320,7 +1531,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - create from update"]),
             Slug = "create-from-update",
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",
@@ -1375,7 +1586,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - create from update"]),
             Slug = "create-from-update-2",
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",
@@ -1429,7 +1640,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        var updatedCollection = new PresentationCollection()
+        var updatedCollection = new PresentationCollection
         {
             Behavior =
             [
@@ -1437,7 +1648,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
                 Behavior.IsStorageCollection
             ],
             Slug = "programmatic-child-2",
-            Parent = parent
+            Parent = $"http://localhost/{Customer}/collections/{parent}"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1555,16 +1766,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.Collections.AddAsync(initialCollection);
         await dbContext.SaveChangesAsync();
 
-        var updatedCollection = new PresentationCollection()
+        var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
-            {
+            Behavior =
+            [
                 Behavior.IsPublic,
                 Behavior.IsStorageCollection
-            },
+            ],
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = "programmatic-child-3",
-            Parent = "doesNotExist"
+            Parent = $"http://localhost/{Customer}/collections/doesNotExist"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1656,7 +1867,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = slug,
-            Parent = parent
+            Parent = $"http://localhost/{Customer}/collections/{parent}"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1748,7 +1959,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             ],
             Label = new LanguageMap("en", ["test collection - updated"]),
             Slug = parentCollection.Hierarchy.Single(h => h.Canonical).Slug,
-            Parent = childCollection.Id
+            Parent = $"http://localhost/{Customer}/collections/{childCollection.Id}"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1785,7 +1996,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             Label = new LanguageMap("en", ["updated"]),
             Slug = parentCollection.Entity.Hierarchy!.Single(h => h.Canonical).Slug,
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1821,7 +2032,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection, "I'm fake and will be removed"],
             Label = new LanguageMap("en", ["updated"]),
             Slug = parentCollection.Entity.Hierarchy!.Single(h => h.Canonical).Slug,
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1962,7 +2173,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         {
             Label = new LanguageMap("en", ["test collection - create from update"]),
             Slug = slug,
-            Parent = parent,
+            Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             PresentationThumbnail = "some/location/2",
             Tags = "some, tags, 2",

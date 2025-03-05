@@ -10,4 +10,10 @@ public static class PresentationX
     /// </summary>
     public static string GetParentSlug(this IPresentation presentation) =>
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent)).GetLastPathElement();
+
+    /// <summary>
+    /// Whether the parent is in a flat or hierarichical form
+    /// </summary>
+    public static bool ParentIsFlatForm(this IPresentation presentation) =>
+        presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent)).Contains("collections");
 }

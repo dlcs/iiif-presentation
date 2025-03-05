@@ -19,7 +19,6 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
-using Collection = Models.Database.Collections.Collection;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -90,6 +89,7 @@ public class ManifestWriteService(
     IPathGenerator pathGenerator,
     IManifestRead manifestRead,
     DlcsManifestCoordinator dlcsManifestCoordinator,
+    IParentSlugParser parentSlugParser,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -151,7 +151,8 @@ public class ManifestWriteService(
 
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
-        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
+        var (parentErrors, parsedParentSlug) =
+            await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
         // can't have both items and painted resources, so items takes precedence
@@ -172,7 +173,7 @@ public class ManifestWriteService(
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parentCollection!, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
+                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
                 
             await SaveToS3(dbManifest!, request, cancellationToken);
@@ -191,15 +192,16 @@ public class ManifestWriteService(
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
-        
-        var (parentErrors, parentCollection) = await TryGetParent(request, cancellationToken);
+
+        var (parentErrors, parsedParentSlug) =
+            await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
         if (parentErrors != null) return parentErrors;
 
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
             var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parentCollection!, existingManifest, cancellationToken);
+                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
 
             await SaveToS3(dbManifest!, request, cancellationToken);
@@ -208,24 +210,9 @@ public class ManifestWriteService(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
         }
     }
-    
-    private async Task<(PresUpdateResult? parentErrors, Collection? parentCollection)> TryGetParent(
-        WriteManifestRequest request, CancellationToken cancellationToken)
-    {
-        var manifest = request.PresentationManifest;
-        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
-            manifest.GetParentSlug(), cancellationToken: cancellationToken);
-        
-        // Validation
-        var parentValidationError = ParentValidator.ValidateParentCollection<PresentationManifest>(parentCollection);
-        if (parentValidationError != null) return (parentValidationError, null);
-        if (manifest.IsUriParentInvalid(parentCollection, pathGenerator)) return (ErrorHelper.NullParentResponse<PresentationManifest>(), null);
-
-        return (null, parentCollection);
-    }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
-        Collection parentCollection, string manifestId, int? spaceId, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, CancellationToken cancellationToken)
     {
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
@@ -245,10 +232,10 @@ public class ManifestWriteService(
             [
                 new Hierarchy
                 {
-                    Slug = request.PresentationManifest.Slug!,
+                    Slug = parsedParentSlug.Slug!,
                     Canonical = true,
                     Type = ResourceType.IIIFManifest,
-                    Parent = parentCollection.Id
+                    Parent = parsedParentSlug.Parent!.Id
                 }
             ],
             CanvasPaintings = canvasPaintings,
@@ -263,7 +250,7 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
-        Collection parentCollection, DbManifest existingManifest, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, CancellationToken cancellationToken)
     {
         var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
             request.PresentationManifest, existingManifest, cancellationToken);
@@ -274,7 +261,7 @@ public class ManifestWriteService(
         existingManifest.Label = request.PresentationManifest.Label;
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
-        canonicalHierarchy.Parent = parentCollection.Id;
+        canonicalHierarchy.Parent = parsedParentSlug.Parent!.Id;
 
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);

@@ -18,8 +18,10 @@ public enum ModifyCollectionType
     DlcsException = 14,
     ValidationFailed = 15,
     CannotDeserialize = 16,
-    InvalidCanvasId = 17,
-    DuplicateCanvasId = 18,
-    CanvasOrderHasDifferentCanvasId = 19,
+    ParentMustMatchPublicId = 17,
+    SlugMustMatchPublicId = 18,
+    InvalidCanvasId = 19,
+    DuplicateCanvasId = 20,
+    CanvasOrderHasDifferentCanvasId = 21,
     Unknown = 1000
 }

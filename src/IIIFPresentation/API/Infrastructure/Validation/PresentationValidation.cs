@@ -1,5 +1,7 @@
-﻿using Models.API;
+﻿using API.Helpers;
+using Models.API;
 using Models.Database.Collections;
+using Repository.Helpers;
 using Repository.Paths;
 
 namespace API.Infrastructure.Validation;
@@ -13,8 +15,11 @@ public static class PresentationValidation
     /// <param name="parent">Parent <see cref="Collection"/> object</param>
     /// <param name="pathGenerator">Helps generate paths for collections</param>
     /// <returns>true if parent and invalid URI, else false</returns>
-    public static bool IsUriParentInvalid(this IPresentation presentation, Collection parent, 
-        IPathGenerator pathGenerator) 
-        => Uri.IsWellFormedUriString(presentation.Parent, UriKind.Absolute)
-           && !pathGenerator.GenerateFlatCollectionId(parent).Equals(presentation.Parent);
+    public static bool IsParentInvalid(this IPresentation presentation, Collection parent,
+        IPathGenerator pathGenerator)
+    {
+        if (presentation.Parent == null) return false;
+        return presentation.ParentIsFlatForm() ? !pathGenerator.GenerateFlatCollectionId(parent).Equals(presentation.Parent) :
+            !pathGenerator.GenerateHierarchicalId(parent.Hierarchy.GetCanonical()).Equals(presentation.Parent);
+    }
 }

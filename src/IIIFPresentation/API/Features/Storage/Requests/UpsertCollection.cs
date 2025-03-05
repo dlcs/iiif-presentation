@@ -2,6 +2,7 @@
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
+using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -44,6 +45,7 @@ public class UpsertCollectionHandler(
     ILogger<UpsertCollectionHandler> logger,
     IIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
+    IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -63,22 +65,19 @@ public class UpsertCollectionHandler(
         }
         var databaseCollection =
             await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
-
-        Collection parentCollection;
         
+        var (parentValidationError, parsedParentSlug) =
+            await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, cancellationToken);
+        if (parentValidationError != null) return parentValidationError;
+
+        var parentCollection = parsedParentSlug.Parent;
+
         if (databaseCollection == null)
         {
             // No existing collection = create
             if (!string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNotRequired<PresentationCollection>();
 
             var createdDate = DateTime.UtcNow;
-            
-            parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
-                request.Collection.Parent.GetLastPathElement(), true, cancellationToken);
-            
-            var parentValidationError =
-                ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
-            if (parentValidationError != null) return parentValidationError;
 
             databaseCollection = new Collection
             {
@@ -99,10 +98,10 @@ public class UpsertCollectionHandler(
                         Type = isStorageCollection
                             ? ResourceType.StorageCollection
                             : ResourceType.IIIFCollection,
-                        Slug = request.Collection.Slug,
+                        Slug = parsedParentSlug.Slug,
                         Canonical = true,
                         ItemsOrder = request.Collection.ItemsOrder,
-                        Parent = parentCollection.Id
+                        Parent = parsedParentSlug.Parent.Id
                     }
                 ]
             };
@@ -125,25 +124,6 @@ public class UpsertCollectionHandler(
 
             var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
-            var parentId = existingHierarchy.Parent;
-            if (parentId != request.Collection.Parent)
-            {
-                parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
-                    request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
-                logger.LogDebug("Collection {CollectionId} for Customer {CustomerId} is moving parent",
-                    request.CollectionId, request.CustomerId);
-
-                var parentValidationError =
-                    ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
-                if (parentValidationError != null) return parentValidationError;
-
-                parentId = parentCollection.Id;
-            }
-            else
-            {
-                parentCollection = existingHierarchy.ParentCollection!;
-            }
-
             databaseCollection.Modified = DateTime.UtcNow;
             databaseCollection.ModifiedBy = Authorizer.GetUser();
             databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
@@ -152,9 +132,9 @@ public class UpsertCollectionHandler(
             databaseCollection.Thumbnail = request.Collection.GetThumbnail();
             databaseCollection.Tags = request.Collection.Tags;
 
-            existingHierarchy.Parent = parentId;
+            existingHierarchy.Parent = parsedParentSlug.Parent.Id;
             existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
-            existingHierarchy.Slug = request.Collection.Slug;
+            existingHierarchy.Slug = parsedParentSlug.Slug;
             existingHierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
         }
 
