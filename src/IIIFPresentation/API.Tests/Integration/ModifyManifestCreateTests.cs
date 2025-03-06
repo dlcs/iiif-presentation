@@ -1435,6 +1435,51 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
+    public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInWithSlashes()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInWithSlashes);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "foo/bar/baz"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        presentationManifest.PaintedResources.Count.Should().Be(1);
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+            .Be($"http://localhost/{Customer}/canvases/foo/bar/baz");
+        presentationManifest.Items.Count.Should().Be(1);
+    }
+    
+    [Fact]
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform()
     {
         // Arrange

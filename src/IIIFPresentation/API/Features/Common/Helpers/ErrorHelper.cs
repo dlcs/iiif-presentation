@@ -87,7 +87,7 @@ public static class ErrorHelper
 
     public static ModifyEntityResult<TCollection, ModifyCollectionType>? CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a canvas order",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a choice construct",
             ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)

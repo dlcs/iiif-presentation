@@ -225,7 +225,7 @@ public class CanvasPaintingResolver(
 
             var cp = new CanvasPainting
             {
-                Id = specifiedCanvasId, //?? PathParser.GetGeneratedCanvasId(paintedResource.CanvasPainting, canvasPaintingIds, canvasIdByOrder),
+                Id = specifiedCanvasId,
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
@@ -242,26 +242,25 @@ public class CanvasPaintingResolver(
             canvasPaintings.Add(cp);
         }
         return (null, canvasPaintings);
-
-    // todo: move this to another class
-    string GetGeneratedCanvasId(Models.API.Manifest.CanvasPainting? cp)
-    {
-        if (cp?.CanvasId != null) return PathParser.GetCanvasId(cp, customerId);
         
-        // no order, dish out the next available
-        if (cp is not { CanvasOrder: not null }) return canvasPaintingIds.Pop();
-        
-        // A canvas with this same order has been set a CanvasId already, use that
-        if (canvasIdByOrder.TryGetValue(cp.CanvasOrder.Value, out var idForOrder))
+        string GetGeneratedCanvasId(Models.API.Manifest.CanvasPainting? cp)
         {
-            return idForOrder;
+            if (cp?.CanvasId != null) return PathParser.GetCanvasId(cp, customerId);
+            
+            // no order, dish out the next available
+            if (cp is not { CanvasOrder: not null }) return canvasPaintingIds.Pop();
+            
+            // A canvas with this same order has been set a CanvasId already, use that
+            if (canvasIdByOrder.TryGetValue(cp.CanvasOrder.Value, out var idForOrder))
+            {
+                return idForOrder;
+            }
+        
+            // No canvas with this order has been processed, get next, add to lookup and return
+            var nextId = canvasPaintingIds.Pop();
+            canvasIdByOrder[cp.CanvasOrder.Value] = nextId;
+            return nextId;
         }
-    
-        // No canvas with this order has been processed, get next, add to lookup and return
-        var nextId = canvasPaintingIds.Pop();
-        canvasIdByOrder[cp.CanvasOrder.Value] = nextId;
-        return nextId;
-    }
     }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
