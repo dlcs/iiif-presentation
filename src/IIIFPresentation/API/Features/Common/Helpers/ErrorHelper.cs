@@ -77,12 +77,12 @@ public static class ErrorHelper
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> ParentMustMatchPublicId<TCollection>()
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must match the one specified in the public id",
             ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> SlugMustMatchPublicId<TCollection>()
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>(string? canvasId) 

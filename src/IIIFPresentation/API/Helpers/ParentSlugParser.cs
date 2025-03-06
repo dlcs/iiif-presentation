@@ -96,27 +96,23 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
 
     private async Task<Collection?> RetrieveParentFromPresentation(IPresentation presentation, int customerId, CancellationToken cancellationToken = default)
     {
-        Collection? parent;
-        
         if (presentation.ParentIsFlatForm())
         {
-            parent = await dbContext.RetrieveCollectionAsync(customerId,
-                presentation.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
+            return await dbContext.RetrieveCollectionAsync(customerId,
+                presentation.GetParentSlug(), cancellationToken: cancellationToken);
         }
-        else
-        {
-            var parentSlug = GetSlugFromPath(presentation.Parent, customerId);
-            
-            var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentSlug,
-                cancellationToken: cancellationToken);
-            parent = parentHierarchy?.Collection;
 
-            if (parent != null)
-            {
-                parent.Hierarchy.GetCanonical().FullPath = parentSlug;
-            }
+        var parentSlug = GetSlugFromPath(presentation.Parent, customerId);
+            
+        var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentSlug,
+            cancellationToken: cancellationToken);
+        var parent = parentHierarchy?.Collection;
+
+        if (parent != null)
+        {
+            parent.Hierarchy.GetCanonical().FullPath = parentSlug;
         }
-        
+
         return parent;
     }
 
