@@ -98,4 +98,13 @@ public class PathParserTests
         act.Should().Throw<ArgumentException>()
             .WithMessage(expectedError);
     }
+
+    [Fact]
+    public void GetHierarchicalSlugFromPath_ReturnsSlugFromPath()
+    {
+        var slug = PathParser.GetHierarchicalSlugFromPath("https://dlcs.example/1/slug/slug", 1,
+            "https://dlcs.example/");
+        
+        slug.Should().Be("slug/slug");
+    }
 }

@@ -58,6 +58,9 @@ public static class PathParser
         }
     }
 
+    public static string GetHierarchicalSlugFromPath(string presentationParent, int customerId, string baseUrl) =>
+        presentationParent.Substring($"{baseUrl}/{customerId}".Length).TrimStart('/');
+
     private static readonly List<char> prohibitedCharacters =
     [
         '/',
@@ -66,3 +69,4 @@ public static class PathParser
         ',',
     ];
 }
+
