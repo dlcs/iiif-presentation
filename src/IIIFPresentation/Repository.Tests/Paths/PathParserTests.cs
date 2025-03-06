@@ -107,4 +107,12 @@ public class PathParserTests
         
         slug.Should().Be("slug/slug");
     }
+    
+    [Fact]
+    public void GetParentUriFromPublicId_ReturnsSlugFromPath()
+    {
+        var slug = PathParser.GetParentUriFromPublicId("https://dlcs.example/1/slug/slug");
+        
+        slug.Should().Be("https://dlcs.example/1/slug");
+    }
 }

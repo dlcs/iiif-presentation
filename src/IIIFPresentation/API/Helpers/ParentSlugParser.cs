@@ -36,9 +36,9 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         if (presentation.PublicId != null)
         {
             publicIdSlug = presentation.PublicId.GetLastPathElement();
-            var publicIdParentUri = new Uri(presentation.PublicId.Substring(0, presentation.PublicId.LastIndexOf('/')));
+            var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
             var publicIdParentHierarchy = await dbContext.RetrieveHierarchy(customerId,
-                PathParser.GetHierarchicalSlugFromPath(presentation.Parent, customerId,
+                PathParser.GetHierarchicalSlugFromPath(publicIdParentUri.AbsoluteUri, customerId,
                     contextAccessor.HttpContext!.Request.GetBaseUrl()), cancellationToken);
             publicIdParent = publicIdParentHierarchy?.Collection;
         }
