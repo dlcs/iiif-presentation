@@ -20,7 +20,10 @@ using Repository;
 using Repository.Paths;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using A = FakeItEasy.A;
+using AssertConfigurationExtensions = FakeItEasy.AssertConfigurationExtensions;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
+using Times = FakeItEasy.Times;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
@@ -70,8 +73,8 @@ public class BatchCompletionMessageHandlerTests
         
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
-            .MustNotHaveHappened();
+        AssertConfigurationExtensions.MustNotHaveHappened(A.CallTo(() =>
+            dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._)));
     }
     
     [Fact]
@@ -81,8 +84,8 @@ public class BatchCompletionMessageHandlerTests
         const int batchId = 100;
         const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked);
         const int space = 2;
-        
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {
             Id = identifier
@@ -130,7 +133,7 @@ public class BatchCompletionMessageHandlerTests
         const string flatId = $"http://base/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new()
             {
                 Id = identifier
@@ -202,8 +205,8 @@ public class BatchCompletionMessageHandlerTests
         const int space = 2;
         const string flatId = $"http://base/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
-        
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<CancellationToken>._))
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {
             Id = identifier
@@ -221,8 +224,8 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(GenerateMinimalNamedQueryManifest(assetId));
         ResourceBase? resourceBase = null;
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
-            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._)).Invokes(
+            (ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
                 resourceBase = arg1);
 
         // Act

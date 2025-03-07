@@ -39,7 +39,7 @@ public class ManifestReadService(
     IPathGenerator pathGenerator,
     ILogger<ManifestReadService> logger) : IManifestRead
 {
-    public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, Models.Database.Collections.Manifest? dbManifest,
+    public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest,
         CancellationToken cancellationToken)
     {
         var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
@@ -86,10 +86,9 @@ public class ManifestReadService(
         }
 
         var getAssets = GetAssets(customerId, dbManifest, cancellationToken);
-        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, cancellationToken);
+        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
         dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 
-        // PK: Will this even happen? Should we log or even throw here?
         if (manifest == null)
             return FetchEntityResult<PresentationManifest>.Failure(
                 "Unable to read and deserialize manifest from storage");

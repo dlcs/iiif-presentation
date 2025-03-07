@@ -13,15 +13,16 @@ public static class GuardX
     /// </summary>
     /// <param name="argument">Argument to check.</param>
     /// <param name="argName">Name of argument.</param>
+    /// <param name="message">Optional message</param>
     /// <typeparam name="T">Type of argument to check.</typeparam>
     /// <returns>Passed argument, if not null.</returns>
     /// <exception cref="ArgumentNullException">Thrown if provided argument is null.</exception>
     [return: NotNull]
-    public static T ThrowIfNull<T>(this T argument, string argName)
+    public static T ThrowIfNull<T>(this T argument, string argName, string? message = null)
     {
         if (argument == null)
         {
-            throw new ArgumentNullException(argName);
+            throw new ArgumentNullException(argName, message);
         }
 
         return argument;

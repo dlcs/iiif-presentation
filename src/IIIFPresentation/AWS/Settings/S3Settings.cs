@@ -13,7 +13,7 @@ public class S3Settings
     /// <summary>
     ///     Name of the bucket used as a staging location
     /// </summary>
-    public string StagingStorageBucket => $"staging_{StorageBucket}";
+    public string StagingStorageBucket => $"staging-{StorageBucket}";
     
     /// <summary>
     /// Service root for S3. Only used if running LocalStack
