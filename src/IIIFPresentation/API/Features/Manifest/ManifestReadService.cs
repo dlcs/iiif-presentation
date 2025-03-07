@@ -86,7 +86,18 @@ public class ManifestReadService(
         }
 
         var getAssets = GetAssets(customerId, dbManifest, cancellationToken);
-        var manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
+        PresentationManifest? manifest = null;
+        if (dbManifest.IsIngesting())
+        {
+            manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, true, cancellationToken);
+            if (manifest == null)
+                logger.LogError("Manifest {DbManifestId} IsIngesting but can't read from staging", dbManifest.Id);
+        }
+
+        // else or if null
+        manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
+
+
         dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 
         if (manifest == null)
