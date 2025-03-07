@@ -278,7 +278,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var createdDate = DateTime.UtcNow.AddDays(-1);
         var dbManifest = (await dbContext.Manifests.AddTestManifest(createdDate: createdDate)).Entity;
         await dbContext.SaveChangesAsync();
-        var parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}";
+        var parent = RootCollection.Id;
         var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
         var manifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
         
@@ -299,7 +299,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Modified.Should().BeAfter(createdDate);
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be(parent);
+        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
         responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
         responseManifest.FlatId.Should().Be(dbManifest.Id);
     }

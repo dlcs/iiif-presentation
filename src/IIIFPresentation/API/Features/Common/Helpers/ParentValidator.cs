@@ -21,19 +21,4 @@ public static class ParentValidator
         
         return !parentCollection.IsStorageCollection ? ErrorHelper.ParentMustBeStorageCollection<TCollection>() : null;
     }
-    
-    /// <summary>
-    /// Validates that a parent collection is not null, a IIIF collection or that the URI is invalid
-    /// </summary>
-    public static ModifyEntityResult<PresentationCollection, ModifyCollectionType>? ValidateParentCollection(Collection? parentCollection, 
-        PresentationCollection presentationCollection, IPathGenerator pathGenerator)
-    {
-        var error = ValidateParentCollection<PresentationCollection>(parentCollection);
-        
-        if (error != null) return error;
-        
-        return presentationCollection.IsUriParentInvalid(parentCollection!, pathGenerator)
-            ? ErrorHelper.NullParentResponse<PresentationCollection>()
-            : null;
-    }
 }

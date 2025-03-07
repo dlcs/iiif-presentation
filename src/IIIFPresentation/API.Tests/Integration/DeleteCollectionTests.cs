@@ -178,7 +178,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
             {
                 Behavior.IsPublic
             },
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
 

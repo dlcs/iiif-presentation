@@ -1,15 +1,14 @@
 using System.Data;
 using API.Converters;
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
+using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
 using API.Settings;
 using AWS.Helpers;
 using Core;
 using Core.Auth;
-using Core.Helpers;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -41,6 +40,7 @@ public class CreateCollectionHandler(
     IIIFS3Service iiifS3,
     IdentityManager identityManager,
     IPathGenerator pathGenerator,
+    IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
@@ -58,14 +58,11 @@ public class CreateCollectionHandler(
             if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         
-        // check parent exists
-        var parentCollection = await dbContext.RetrieveCollectionAsync(request.CustomerId,
-            request.Collection.Parent.GetLastPathElement(), cancellationToken: cancellationToken);
-
-        var parentValidationError =
-            ParentValidator.ValidateParentCollection(parentCollection, request.Collection, pathGenerator);
-        if (parentValidationError != null) return parentValidationError;
-
+        var parsedParentSlugResult =
+            await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, cancellationToken);
+        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
+        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
+            
         string id;
 
         try
@@ -98,10 +95,10 @@ public class CreateCollectionHandler(
                     Type = isStorageCollection
                         ? ResourceType.StorageCollection
                         : ResourceType.IIIFCollection,
-                    Slug = request.Collection.Slug,
+                    Slug = parsedParentSlug!.Slug!,
                     Canonical = true,
                     ItemsOrder = request.Collection.ItemsOrder,
-                    Parent = parentCollection.Id
+                    Parent = parsedParentSlug.Parent!.Id
                 }
             ]
         };
@@ -124,7 +121,7 @@ public class CreateCollectionHandler(
             await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
-            settings.PageSize, CurrentPage, 0, [], parentCollection, pathGenerator); // there can be no items attached to this, as it's just been created
+            settings.PageSize, CurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator); // there can be no items attached to this, as it's just been created
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,

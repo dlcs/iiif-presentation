@@ -53,7 +53,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -117,7 +117,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -190,7 +190,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -300,7 +300,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -410,7 +410,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -477,7 +477,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -550,7 +550,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -622,7 +622,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -691,7 +691,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -764,7 +764,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -866,7 +866,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -936,7 +936,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -1064,7 +1064,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{
@@ -1163,7 +1163,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
     ""id"": ""https://iiif.example/manifest.json"",
     ""type"": ""Manifest"",
-    ""parent"": ""{RootCollection.Id}"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
     ""slug"": ""{slug}"",
     ""items"": [
         {{

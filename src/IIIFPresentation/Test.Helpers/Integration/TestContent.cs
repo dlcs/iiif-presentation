@@ -963,7 +963,7 @@ public static class TestContent
           "behavior": [
             "public-iiif"
           ],
-          "parent": "root"
+          "parent": "http://localhost/1/collections/root"
         }
         """;
     }

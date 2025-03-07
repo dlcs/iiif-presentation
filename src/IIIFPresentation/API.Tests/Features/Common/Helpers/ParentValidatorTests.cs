@@ -50,32 +50,4 @@ public class ParentValidatorTests
         // Assert
         parentCollectionError.Should().NotBeNull();
     }
-    
-    [Fact]
-    public void ValidateParentCollection_Error_WhenHieararchyNotValid()
-    {
-        // Arrange
-        var parentCollection = new Collection
-        {
-            Id = "someId",
-            IsStorageCollection = true
-        };
-
-        var presentationCollection = new PresentationCollection
-        {
-            Id = "someId",
-            Parent = "https://someParent.com/parent"
-        };
-
-        var pathGenerator = A.Fake<IPathGenerator>();
-
-        A.CallTo(() => pathGenerator.GenerateFlatCollectionId(A<Collection>._)).Returns("notMatched");
-        
-        // Act
-        var parentCollectionError =
-            ParentValidator.ValidateParentCollection(parentCollection, presentationCollection, pathGenerator);
-
-        // Assert
-        parentCollectionError.Should().NotBeNull();
-    }
 }

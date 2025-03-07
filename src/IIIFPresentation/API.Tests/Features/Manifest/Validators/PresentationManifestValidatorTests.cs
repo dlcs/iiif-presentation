@@ -19,28 +19,6 @@ public class PresentationManifestValidatorTests
             ApiUri = new Uri("https://localhost")
         }
     }));
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    public void Slug_Required(string? parent)
-    {
-        var manifest = new PresentationManifest { Slug = parent };
-        
-        var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Slug);
-    }
-    
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    public void Parent_Required(string? parent)
-    {
-        var manifest = new PresentationManifest { Parent = parent };
-        
-        var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Parent);
-    }
     
     [Fact]
     public void CanvasPaintingAndItems_Manifest_ErrorWhenDefaultSettings()
@@ -242,7 +220,7 @@ public class PresentationManifestValidatorTests
     }
 
     [Fact]
-    public void CanvasPaintig_WithStaticSize_NoErrorWhenBothValues()
+    public void CanvasPainting_WithStaticSize_NoErrorWhenBothValues()
     {
         var manifest = new PresentationManifest
         {
@@ -265,7 +243,7 @@ public class PresentationManifestValidatorTests
     }
 
     [Fact]
-    public void CanvasPaintig_WithStaticSize_ErrorWhenOneMissing()
+    public void CanvasPainting_WithStaticSize_ErrorWhenOneMissing()
     {
         var manifest = new PresentationManifest
         {

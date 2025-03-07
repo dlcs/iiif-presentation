@@ -57,6 +57,12 @@ public static class PathParser
             throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
         }
     }
+    
+    public static string GetHierarchicalFullPathFromPath(string presentationParent, int customerId, string baseUrl) =>
+        presentationParent.Substring($"{baseUrl}/{customerId}".Length).TrimStart('/');
+    
+    public static Uri GetParentUriFromPublicId(string publicId) => 
+        new(publicId[..publicId.LastIndexOf('/')]);
 
     private static readonly List<char> prohibitedCharacters =
     [
@@ -66,3 +72,4 @@ public static class PathParser
         ',',
     ];
 }
+
