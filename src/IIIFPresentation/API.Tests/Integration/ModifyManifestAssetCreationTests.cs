@@ -127,7 +127,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         storageFixture.DbFixture.CleanUp();
     }
 
-    [Fact(Skip = "Till next commit")]
+    [Fact]
     public async Task CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader()
     {
         const string postedAssetId = "theAssetId";
