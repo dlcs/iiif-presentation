@@ -143,7 +143,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = "https://iiif.example/manifest.json"
+                        CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
                     },
                     Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 123))
                 }

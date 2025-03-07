@@ -74,6 +74,21 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
             ModifyCollectionType.ParentMustBeStorageCollection, WriteResult.Conflict);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>(string? canvasId) 
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
+            ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? DuplicateCanvasId<TCollection>(string? canvasId)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
+            ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType>? CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a choice construct",
+            ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {

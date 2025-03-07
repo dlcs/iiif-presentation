@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -1389,52 +1390,32 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task CreateManifest_BadRequest_WhenItemsAndPaintedResourceFilled()
+    public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledIn()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenItemsAndPaintedResourceFilled);
+        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledIn);
         var manifest = new PresentationManifest
         {
-            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Behavior = [
                 Behavior.IsPublic
             ],
             Slug = slug,
-            Items =
+            PaintedResources =
             [
-                new Canvas
+                new PaintedResource
                 {
-                    Id = "https://iiif.example/manifestFromItems.json",
-                    Items =
-                    [
-                        new AnnotationPage
-                        {
-                            Id = "https://iiif.example/manifestFromItemsAnnotationPage.json",
-                            Items =
-                            [
-                                new PaintingAnnotation
-                                {
-                                    Id = "https://iiif.example/manifestFromItemsPaintingAnnotation.json",
-                                    Body = new Canvas
-                                    {
-                                        Id = "https://iiif.example/manifestFromItemsCanvasBody.json"
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ],
-            PaintedResources = new List<PaintedResource>()
-            {
-                new ()
-                {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "https://iiif.example/manifestFromPainted.json"
-                    }
+                        CanvasId = "manifestFromPainted"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
                 }
-            }
+            ]
         };
         
         var requestMessage =
@@ -1448,8 +1429,207 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         presentationManifest.PaintedResources.Count.Should().Be(1);
-        presentationManifest.PaintedResources.First().CanvasPainting.CanvasOriginalId.Should()
-            .Be("https://iiif.example/manifestFromItems.json");
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
         presentationManifest.Items.Count.Should().Be(1);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"https://iiif.io/{Customer}/canvases/manifestFromPainted"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        presentationManifest.PaintedResources.Count.Should().Be(1);
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
+        presentationManifest.Items.Count.Should().Be(1);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenCanvasIdIncorrectFormat()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdIncorrectFormat);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"https://iiif.io/incorrect"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/InvalidCanvasId");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenCanvasIdDuplicated()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdDuplicated);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"https://iiif.io/{Customer}/canvases/duplicate"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "duplicate"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenCanvasIdNotDuplicatedInCanvasOrder()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdNotDuplicatedInCanvasOrder);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"https://iiif.io/{Customer}/canvases/different-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "different-2",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 2
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CanvasOrderHasDifferentCanvasId");
     }
 }
