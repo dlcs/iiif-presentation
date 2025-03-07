@@ -32,10 +32,7 @@ public static class PathParser
 
         if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
         {
-            if (prohibitedCharacters.Any(pc => canvasId.Contains(pc)))
-            {
-                throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
-            }
+            CheckForProhibitedCharacters(canvasId);
 
             return canvasId;
         }
@@ -48,10 +45,17 @@ public static class PathParser
 
         var actualCanvasId =
             convertedCanvasId.Substring(startsWith.Length, convertedCanvasId.Length - startsWith.Length);
-        if (prohibitedCharacters.Any(pc => actualCanvasId.Contains(pc)))
-            throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
+        CheckForProhibitedCharacters(actualCanvasId);
 
         return actualCanvasId;
+    }
+
+    private static void CheckForProhibitedCharacters(string canvasId)
+    {
+        if (prohibitedCharacters.Any(pc => canvasId.Contains(pc)))
+        {
+            throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
+        }
     }
 
     private static readonly List<char> prohibitedCharacters =
