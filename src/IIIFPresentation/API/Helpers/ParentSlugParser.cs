@@ -73,7 +73,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         var parentValidationError =
             ParentValidator.ValidateParentCollection<TPresentation>(parent);
         if (parentValidationError != null) return (parentValidationError, null);
-        if (presentation.IsParentInvalid(parent, pathGenerator))
+        if (presentation.IsParentInvalid(parent, contextAccessor.HttpContext!.Request.GetBaseUrl(), customerId, pathGenerator))
             return (ErrorHelper.NullParentResponse<TPresentation>(), null);
         
         return (null, new ParsedParentSlug
@@ -125,7 +125,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
 
     private async Task<Collection?> RetrieveParentFromPresentation(IPresentation presentation, int customerId, CancellationToken cancellationToken = default)
     {
-        if (presentation.ParentIsFlatForm())
+        if (presentation.ParentIsFlatForm(contextAccessor.HttpContext!.Request.GetBaseUrl(), customerId))
         {
             return await dbContext.RetrieveCollectionAsync(customerId,
                 presentation.GetParentSlug(), cancellationToken: cancellationToken);

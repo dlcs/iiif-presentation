@@ -232,10 +232,10 @@ public class ManifestWriteService(
             [
                 new Hierarchy
                 {
-                    Slug = parsedParentSlug.Slug!,
+                    Slug = parsedParentSlug.Slug,
                     Canonical = true,
                     Type = ResourceType.IIIFManifest,
-                    Parent = parsedParentSlug.Parent!.Id
+                    Parent = parsedParentSlug.Parent.Id
                 }
             ],
             CanvasPaintings = canvasPaintings,
@@ -260,8 +260,8 @@ public class ManifestWriteService(
         existingManifest.ModifiedBy = Authorizer.GetUser();
         existingManifest.Label = request.PresentationManifest.Label;
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
-        canonicalHierarchy.Slug = request.PresentationManifest.Slug!;
-        canonicalHierarchy.Parent = parsedParentSlug.Parent!.Id;
+        canonicalHierarchy.Slug = parsedParentSlug.Slug;
+        canonicalHierarchy.Parent = parsedParentSlug.Parent.Id;
 
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);
