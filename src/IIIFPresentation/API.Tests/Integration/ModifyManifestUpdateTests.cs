@@ -395,7 +395,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            await amazonS3.GetObjectAsync(LocalStackFixture.StagingStorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
@@ -424,7 +424,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            await amazonS3.GetObjectAsync(LocalStackFixture.StagingStorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);

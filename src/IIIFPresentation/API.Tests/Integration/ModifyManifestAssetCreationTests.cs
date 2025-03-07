@@ -126,7 +126,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         storageFixture.DbFixture.CleanUp();
     }
-    
+
     [Fact]
     public async Task CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader()
     {
@@ -273,7 +273,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.LastProcessed.Should().BeNull();
         
         var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            await amazonS3.GetObjectAsync(LocalStackFixture.StagingStorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
@@ -555,7 +555,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.Batches!.First().Id.Should().Be(batchId);
         
         var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            await amazonS3.GetObjectAsync(LocalStackFixture.StagingStorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
@@ -650,7 +650,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.Batches!.First().Id.Should().Be(batchId);
         
         var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            await amazonS3.GetObjectAsync(LocalStackFixture.StagingStorageBucketName,
                 $"{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
