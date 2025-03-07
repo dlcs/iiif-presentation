@@ -136,6 +136,29 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsManifestFromFinalS3_IfStagingMissing()
+    {
+        // Arrange and Act
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/StillIngestingManifest");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Vary.Should().HaveCount(2);
+        manifest.Should().NotBeNull();
+        manifest!.Type.Should().Be("Manifest");
+        manifest.Id.Should().Be("http://localhost/1/manifests/StillIngestingManifest", "requested by flat URI");
+        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.FlatId.Should().Be("StillIngestingManifest");
+        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest-ingesting",
+            "iiif-manifest-ingesting is slug and under root");
+    }
+
+    [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources()
     {
         // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
