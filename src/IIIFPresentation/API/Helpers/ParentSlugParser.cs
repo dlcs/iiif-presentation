@@ -117,7 +117,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         var publicIdSlug = presentation.PublicId.GetLastPathElement();
         var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
         var publicIdParentHierarchy = await dbContext.RetrieveHierarchy(customerId,
-            PathParser.GetHierarchicalSlugFromPath(publicIdParentUri.AbsoluteUri, customerId,
+            PathParser.GetHierarchicalFullPathFromPath(publicIdParentUri.AbsoluteUri, customerId,
                 contextAccessor.HttpContext!.Request.GetBaseUrl()), cancellationToken);
         var publicIdParent = publicIdParentHierarchy?.Collection;
         return (publicIdSlug, publicIdParent);
@@ -131,15 +131,15 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
                 presentation.GetParentSlug(), cancellationToken: cancellationToken);
         }
 
-        var parentSlug = PathParser.GetHierarchicalSlugFromPath(presentation.Parent, customerId, contextAccessor.HttpContext!.Request.GetBaseUrl());
+        var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(presentation.Parent, customerId, contextAccessor.HttpContext!.Request.GetBaseUrl());
             
-        var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentSlug,
+        var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentFullPath,
             cancellationToken: cancellationToken);
         var parent = parentHierarchy?.Collection;
 
         if (parent != null)
         {
-            parent.Hierarchy.GetCanonical().FullPath = parentSlug;
+            parent.Hierarchy.GetCanonical().FullPath = parentFullPath;
         }
 
         return parent;

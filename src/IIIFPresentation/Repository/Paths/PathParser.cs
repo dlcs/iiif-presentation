@@ -59,6 +59,8 @@ public static class PathParser
     }
 
     public static string GetHierarchicalSlugFromPath(string presentationParent, int customerId, string baseUrl) =>
+    
+    public static string GetHierarchicalFullPathFromPath(string presentationParent, int customerId, string baseUrl) =>
         presentationParent.Substring($"{baseUrl}/{customerId}".Length).TrimStart('/');
     
     public static Uri GetParentUriFromPublicId(string publicId) => 
