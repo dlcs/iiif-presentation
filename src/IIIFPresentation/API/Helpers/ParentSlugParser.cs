@@ -28,33 +28,27 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
     public async Task<(ModifyEntityResult<TPresentation, ModifyCollectionType>? errors, ParsedParentSlug? parsedParentSlug)>
         Parse<TPresentation>(IPresentation presentation, int customerId, CancellationToken cancellationToken = default) where TPresentation : JsonLdBase
     {
-        Collection? parent;
-        string? slug;
+        // tracks values set from the public id
         Collection? publicIdParent = null;
         string? publicIdSlug = null;
+        
+        // tracks values set directly by the properties
+        Collection? parent;
+        string? slug;
 
         if (presentation.PublicId != null)
         {
-            publicIdSlug = presentation.PublicId.GetLastPathElement();
-            var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
-            var publicIdParentHierarchy = await dbContext.RetrieveHierarchy(customerId,
-                PathParser.GetHierarchicalSlugFromPath(publicIdParentUri.AbsoluteUri, customerId,
-                    contextAccessor.HttpContext!.Request.GetBaseUrl()), cancellationToken);
-            publicIdParent = publicIdParentHierarchy?.Collection;
+            (publicIdSlug, publicIdParent) =
+                await SetValuesFromPublicId(presentation, customerId, cancellationToken);
         }
         
         if (presentation.Parent != null)
         {
-            parent = await RetrieveParentFromPresentation(presentation, customerId, cancellationToken);
-            
-            if (publicIdParent != null && parent != null && publicIdParent.Id != parent.Id)
+            (var errors, parent) =
+                await SetValuesFromParent<TPresentation>(presentation, customerId, cancellationToken, publicIdParent);
+            if (errors != null)
             {
-                return (ErrorHelper.ParentMustMatchPublicId<TPresentation>(), null);
-            }
-            
-            if (parent == null && publicIdParent != null)
-            {
-                parent = publicIdParent;
+                return (errors, null);
             }
         }
         else
@@ -64,16 +58,10 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
 
         if (presentation.Slug != null)
         {
-            slug = presentation.Slug;
-            
-            if (publicIdSlug != null && slug != null && publicIdSlug != slug)
+            (var errors, slug) = SetValueFromSlug<TPresentation>(presentation, publicIdSlug);
+            if (errors != null)
             {
-                return (ErrorHelper.SlugMustMatchPublicId<TPresentation>(), null);
-            }
-            
-            if (slug == null && publicIdSlug != null)
-            {
-                slug = publicIdSlug;
+                return (errors, null);
             }
         }
         else
@@ -93,6 +81,46 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
             Parent = parent,
             Slug = slug
         });
+    }
+
+    private static (ModifyEntityResult<TPresentation, ModifyCollectionType>? errors, string? slug) SetValueFromSlug<TPresentation>(IPresentation presentation, string? publicIdSlug) 
+        where TPresentation : JsonLdBase
+    {
+        var slug = presentation.Slug;
+
+        if (publicIdSlug != null && slug != null && publicIdSlug != slug)
+        {
+            return (ErrorHelper.SlugMustMatchPublicId<TPresentation>(), null);
+        }
+
+        return (null, slug);
+    }
+
+    private async Task<(ModifyEntityResult<TPresentation, ModifyCollectionType>? errors, Collection? parent)> 
+        SetValuesFromParent<TPresentation>(IPresentation presentation, int customerId,
+        CancellationToken cancellationToken, Collection? publicIdParent) where TPresentation : JsonLdBase
+    {
+        Collection? parent;
+        parent = await RetrieveParentFromPresentation(presentation, customerId, cancellationToken);
+            
+        if (publicIdParent != null && parent != null && publicIdParent.Id != parent.Id)
+        {
+            return (ErrorHelper.ParentMustMatchPublicId<TPresentation>(), null);
+        }
+        
+        return (null, parent);
+    }
+
+    private async Task<(string publicIdSlug, Collection? publicIdParent)> SetValuesFromPublicId(IPresentation presentation, int customerId,
+        CancellationToken cancellationToken)
+    {
+        var publicIdSlug = presentation.PublicId.GetLastPathElement();
+        var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
+        var publicIdParentHierarchy = await dbContext.RetrieveHierarchy(customerId,
+            PathParser.GetHierarchicalSlugFromPath(publicIdParentUri.AbsoluteUri, customerId,
+                contextAccessor.HttpContext!.Request.GetBaseUrl()), cancellationToken);
+        var publicIdParent = publicIdParentHierarchy?.Collection;
+        return (publicIdSlug, publicIdParent);
     }
 
     private async Task<Collection?> RetrieveParentFromPresentation(IPresentation presentation, int customerId, CancellationToken cancellationToken = default)
@@ -120,8 +148,8 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
 
 public class ParsedParentSlug
 {
-    public Collection? Parent { get; set; }
+    public required Collection Parent { get; set; }
     
-    public string? Slug { get; set; }
+    public required string Slug { get; set; }
 }
 
