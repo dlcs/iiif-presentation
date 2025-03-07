@@ -57,6 +57,7 @@ public class PathParserTests
     
     [Theory]
     [InlineData("https://dlcs.example/1/canvases/foo/bar/baz")]
+    [InlineData("https://dlcs.example/1/canvases/someId?foo=bar")]
     [InlineData("foo/bar/baz")]
     public void GetCanvasId_ThrowsAnError_whenCalledWithMultipleSlashes(string canvasId)
     {
@@ -67,7 +68,7 @@ public class PathParserTests
 
         Action act = () =>  PathParser.GetCanvasId(canvasPainting, 1);
         act.Should().Throw<ArgumentException>()
-            .WithMessage("canvas Id foo/bar/baz cannot contain a '/'");
+            .WithMessage($"canvas Id {canvasId} contains a prohibited character");
     }
     
     [Fact]

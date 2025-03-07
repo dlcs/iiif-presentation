@@ -25,31 +25,40 @@ public static class PathParser
             throw new FormatException($"Unable to extract AssetId from {canvas.Id}");
         }
     }
-    
-    public static string GetCanvasId(Models.API.Manifest.CanvasPainting? canvasPainting, int customerId)
+
+    public static string GetCanvasId(Models.API.Manifest.CanvasPainting canvasPainting, int customerId)
     {
-        var canvasId = canvasPainting?.CanvasId.ThrowIfNull(nameof(canvasPainting));
-        
-        if (canvasId != null && !Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
+        var canvasId = canvasPainting.CanvasId.ThrowIfNull(nameof(canvasPainting));
+
+        if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
         {
-            if (canvasId.Contains('/'))
+            if (prohibitedCharacters.Any(pc => canvasId.Contains(pc)))
             {
-                throw new ArgumentException($"canvas Id {canvasId} cannot contain a '/'");
+                throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
             }
-            
+
             return canvasId;
         }
-        
+
         var convertedCanvasId = new Uri(canvasId).PathAndQuery;
         var startsWith = $"/{customerId}/canvases/";
 
         if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
             throw new ArgumentException($"Canvas Id {convertedCanvasId} is not valid");
-        
-        var actualCanvasId = convertedCanvasId.Substring(startsWith.Length, convertedCanvasId.Length - startsWith.Length);
-        if (actualCanvasId.Contains('/')) throw new ArgumentException($"canvas Id {actualCanvasId} cannot contain a '/'");
-        
+
+        var actualCanvasId =
+            convertedCanvasId.Substring(startsWith.Length, convertedCanvasId.Length - startsWith.Length);
+        if (prohibitedCharacters.Any(pc => actualCanvasId.Contains(pc)))
+            throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
+
         return actualCanvasId;
     }
-}
 
+    private static readonly List<char> prohibitedCharacters =
+    [
+        '/',
+        '=',
+        '=',
+        ',',
+    ];
+}
