@@ -17,5 +17,5 @@ public static class PresentationX
     /// </summary>
     public static bool ParentIsFlatForm(this IPresentation presentation, string baseUrl, int customerId) =>
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent))
-            .StartsWith($"{baseUrl}/{customerId}/{SpecConstants.CollectionsUri}");
+            .StartsWith($"{baseUrl}/{customerId}/{SpecConstants.CollectionsSlug}");
 }

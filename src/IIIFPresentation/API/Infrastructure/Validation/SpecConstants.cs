@@ -18,5 +18,5 @@ public static class SpecConstants
             "publish"
         }.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
     
-    public static string CollectionsUri { get; } = "collections";
+    public const string CollectionsSlug = "collections";
 }
