@@ -60,7 +60,7 @@ public class CollectionController(
     [Authorize]
     [HttpPost("collections")]
     [ETagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationCollectionValidator validator)
+    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(validator);
         if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
@@ -73,7 +73,7 @@ public class CollectionController(
     [HttpPut("collections/{id}")]
     [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id,
-        [FromServices] PresentationCollectionValidator validator)
+        [FromServices] PresentationValidator validator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(validator);
         if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
@@ -85,7 +85,7 @@ public class CollectionController(
 
 
     private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
-        PresentationCollectionValidator validator)
+        PresentationValidator validator)
     {
         if (!Request.HasShowExtraHeader())
             return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
