@@ -151,9 +151,10 @@ public class ManifestWriteService(
 
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
-        var (parentErrors, parsedParentSlug) =
+        var parsedParentSlugResult =
             await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
-        if (parentErrors != null) return parentErrors;
+        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
+        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
         // can't have both items and painted resources, so items takes precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
@@ -193,9 +194,10 @@ public class ManifestWriteService(
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
 
-        var (parentErrors, parsedParentSlug) =
+        var parsedParentSlugResult =
             await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
-        if (parentErrors != null) return parentErrors;
+        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
+        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))

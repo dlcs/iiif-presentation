@@ -1,4 +1,5 @@
-﻿using API.Features.Common.Helpers;
+﻿using System.Diagnostics.CodeAnalysis;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
@@ -18,14 +19,14 @@ namespace API.Helpers;
 /// </summary>
 public interface IParentSlugParser
 {
-    public Task<(ModifyEntityResult<TPresentation, ModifyCollectionType>? errors, ParsedParentSlug? parsedParentSlug)> Parse
-        <TPresentation>(IPresentation presentation, int customerId, CancellationToken cancellationToken = default) where TPresentation : JsonLdBase;
+    public Task<ParsedParentSlugResult<TPresentation>> Parse<TPresentation>(IPresentation presentation, int customerId, CancellationToken cancellationToken = default) 
+        where TPresentation : JsonLdBase;
 }
 
 public class ParentSlugParser(PresentationContext dbContext, IPathGenerator pathGenerator, IHttpContextAccessor contextAccessor) : IParentSlugParser
 {
     
-    public async Task<(ModifyEntityResult<TPresentation, ModifyCollectionType>? errors, ParsedParentSlug? parsedParentSlug)>
+    public async Task<ParsedParentSlugResult<TPresentation>>
         Parse<TPresentation>(IPresentation presentation, int customerId, CancellationToken cancellationToken = default) where TPresentation : JsonLdBase
     {
         // tracks values set from the public id
@@ -48,7 +49,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
                 await SetValuesFromParent<TPresentation>(presentation, customerId, cancellationToken, publicIdParent);
             if (errors != null)
             {
-                return (errors, null);
+                return ParsedParentSlugResult<TPresentation>.Fail(errors);
             }
         }
         else
@@ -61,7 +62,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
             (var errors, slug) = SetValueFromSlug<TPresentation>(presentation, publicIdSlug);
             if (errors != null)
             {
-                return (errors, null);
+                return ParsedParentSlugResult<TPresentation>.Fail(errors);
             }
         }
         else
@@ -72,11 +73,11 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         // Validation
         var parentValidationError =
             ParentValidator.ValidateParentCollection<TPresentation>(parent);
-        if (parentValidationError != null) return (parentValidationError, null);
+        if (parentValidationError != null) return ParsedParentSlugResult<TPresentation>.Fail(parentValidationError);
         if (presentation.IsParentInvalid(parent, contextAccessor.HttpContext!.Request.GetBaseUrl(), customerId, pathGenerator))
-            return (ErrorHelper.NullParentResponse<TPresentation>(), null);
-        
-        return (null, new ParsedParentSlug
+            return ParsedParentSlugResult<TPresentation>.Fail(ErrorHelper.NullParentResponse<TPresentation>());
+
+        return ParsedParentSlugResult<TPresentation>.Success(new ParsedParentSlug
         {
             Parent = parent,
             Slug = slug
@@ -151,5 +152,22 @@ public class ParsedParentSlug
     public required Collection Parent { get; set; }
     
     public required string Slug { get; set; }
+}
+
+public class ParsedParentSlugResult<T>
+    where T : JsonLdBase
+{
+    public ModifyEntityResult<T, ModifyCollectionType>? Errors { get; private init; }
+    
+    public ParsedParentSlug? ParsedParentSlug { get; private init; }
+
+    [MemberNotNullWhen(true, nameof(Errors))]
+    [MemberNotNullWhen(false, nameof(ParsedParentSlug))]
+    public bool IsError { get; private init; }
+
+    public static ParsedParentSlugResult<T> Fail(ModifyEntityResult<T, ModifyCollectionType> errors) =>
+        new() { Errors = errors, IsError = true };
+
+    public static ParsedParentSlugResult<T> Success(ParsedParentSlug parsed) => new() { ParsedParentSlug = parsed };
 }
 

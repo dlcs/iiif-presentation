@@ -66,9 +66,10 @@ public class UpsertCollectionHandler(
         var databaseCollection =
             await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
         
-        var (parentValidationError, parsedParentSlug) =
+        var parsedParentSlugResult =
             await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, cancellationToken);
-        if (parentValidationError != null) return parentValidationError;
+        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
+        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
         var parentCollection = parsedParentSlug.Parent;
 
