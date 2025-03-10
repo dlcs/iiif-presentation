@@ -1,0 +1,247 @@
+﻿using System.Net;
+using System.Net.Http.Headers;
+using Amazon.S3;
+using API.Infrastructure.Helpers;
+using API.Tests.Integration.Infrastructure;
+using Core.Infrastructure;
+using FakeItEasy;
+using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Models;
+using Models.API.Collection;
+using Repository;
+using Test.Helpers.Helpers;
+using Test.Helpers.Integration;
+
+namespace API.Tests.Integration;
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
+public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Program>>
+{
+    private readonly HttpClient httpClient;
+    private readonly PresentationContext dbContext;
+    private readonly IETagManager etagManager;
+    private readonly IAmazonS3 s3Client = A.Fake<IAmazonS3>();
+
+    public ModifyRootCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
+    {
+        dbContext = dbFixture.DbContext;
+
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(dbFixture,
+            additionalTestServices: collection => collection.AddSingleton(s3Client));
+        
+        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
+
+        dbFixture.CleanUp();
+    }
+
+    [Fact]
+    public async Task Put_400_IfTryToModifySlug()
+    {
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "not-root"
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+        SetCorrectEtag(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
+    }
+    
+    [Fact]
+    public async Task Put_400_IfTryToModifyParent()
+    {
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = "",
+            Parent = "not-root",
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+        SetCorrectEtag(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
+    }
+    
+    [Fact]
+    public async Task Put_400_IfTryToChangeFromStorageCollection()
+    {
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+            ],
+            Label = new LanguageMap("en", ["test collection"]),
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+        SetCorrectEtag(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
+    }
+    
+    [Fact]
+    public async Task Put_412_IfNoEtagProvided()
+    {
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsStorageCollection,],
+            Label = new LanguageMap("en", ["test collection"]),
+        };
+        
+        // NOTE - note etag
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed, "No eTag provided");
+    }
+    
+    [Fact]
+    public async Task Put_412_IfIncorrectEtagProvided()
+    {
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsStorageCollection,],
+            Label = new LanguageMap("en", ["test collection"]),
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"lightspeed\""));
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed, "Incorrect eTag provided");
+    }
+
+    [Fact]
+    public async Task Put_CanChangeLabel()
+    {
+        const int customer = 1234892;
+        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        await dbContext.SaveChangesAsync();
+        
+        const string newLabel = "this is the new label";
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", [newLabel]),
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
+        SetCorrectEtag(requestMessage, customer);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
+
+        var fromDb =
+            await dbContext.Collections.SingleAsync(c =>
+                c.Id == KnownCollections.RootCollection && c.CustomerId == customer);
+        fromDb.Label.Values.Should().ContainSingle(newLabel);
+    }
+    
+    [Fact]
+    public async Task Put_CanMakePrivate()
+    {
+        const int customer = 1234891;
+        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        await dbContext.SaveChangesAsync();
+        
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["repository root"]),
+        };
+        
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
+        SetCorrectEtag(requestMessage, customer);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
+
+        var fromDb =
+            await dbContext.Collections.SingleAsync(c =>
+                c.Id == KnownCollections.RootCollection && c.CustomerId == customer);
+        fromDb.IsPublic.Should().BeFalse();
+    }
+    
+    [Fact]
+    public async Task Put_CanChangeThumbnail()
+    {
+        const int customer = 1234890;
+        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        await dbContext.SaveChangesAsync();
+
+        const string thumbnail = "https://path/test/image.jpg";
+        var collection = new PresentationCollection
+        {
+            Behavior =
+            [
+                Behavior.IsStorageCollection
+            ],
+            Label = new LanguageMap("en", ["repository root"]),
+            Thumbnail =
+            [
+                new Image
+                {
+                    Id = thumbnail,
+                    Width = 100,
+                    Height = 100,
+                }
+            ]
+        };
+
+        var asJson = collection.AsJson();
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{customer}/collections/{RootCollection.Id}", asJson);
+        SetCorrectEtag(requestMessage, customer);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
+
+        var fromDb =
+            await dbContext.Collections.SingleAsync(c =>
+                c.Id == KnownCollections.RootCollection && c.CustomerId == customer);
+        fromDb.Thumbnail.Should().Be(thumbnail);
+    }
+    
+    private void SetCorrectEtag(HttpRequestMessage requestMessage, int? customerId = null)
+    {
+        // This saves some boilerplate by correctly setting Etag in manager and request
+        var tag = $"\"{RootCollection.Id}\"";
+        etagManager.UpsertETag(
+            $"/{customerId ?? PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", tag);
+        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
+    }
+}
