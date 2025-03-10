@@ -1,4 +1,5 @@
-﻿using IIIF;
+﻿using Core.Helpers;
+using IIIF;
 using IIIF.Presentation.V3.Content;
 
 namespace Core.IIIF;
@@ -12,9 +13,10 @@ public static class ThumbnailX
     /// </summary>
     /// <param name="thumbnails">List of thumbnails to check for closest</param>
     /// <returns>The id of the closest thumbnail</returns>
-    public static string? GetThumbnailPath(this IEnumerable<Image> thumbnails)
+    public static string? GetThumbnailPath(this IEnumerable<Image>? thumbnails)
     {
-        return thumbnails.SizeClosestTo(ThumbnailSize).Id;
+        var enumerated = thumbnails?.ToList();
+        return enumerated.IsNullOrEmpty() ? null : enumerated.SizeClosestTo(ThumbnailSize).Id;
     }
     
     /// <summary>
@@ -25,7 +27,7 @@ public static class ThumbnailX
     /// <param name="sizes">List of sizes to query</param>
     /// <param name="targetSize">Ideal MaxDimension to find</param>
     /// <returns><see cref="Size"/> closes to specified value</returns>
-    private static Image SizeClosestTo(this IEnumerable<Image> sizes, int targetSize)
+    private static Image SizeClosestTo(this IReadOnlyCollection<Image> sizes, int targetSize)
     {
         var closestSize = sizes
             .OrderBy(MaxDimension)

@@ -49,7 +49,7 @@ public static class IIIFResponseX
         }
         catch (JsonException)
         {
-            return default;
+            return null;
         }
     }
 }

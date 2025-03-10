@@ -9,11 +9,13 @@ public static class SpecConstants
         {
             "collections",
             "manifests",
+            "paintedResources",
             "canvases",
-            "root",
             "annotations",
             "adjuncts",
             "pipelines",
+            "queue",
+            "assets",
             "configuration",
             "publish"
         }.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
