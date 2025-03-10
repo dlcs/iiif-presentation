@@ -134,7 +134,7 @@ public class CreateCollectionHandler(
         if (!isStorageCollection)
         {
             await iiifS3.SaveIIIFToS3(iiifCollection!, collection, pathGenerator.GenerateFlatCollectionId(collection),
-                cancellationToken);
+                false, cancellationToken);
         }
     }
 }

@@ -141,13 +141,16 @@ public class BatchCompletionMessageHandler(
         CancellationToken cancellationToken = default)
     {
         var dbManifest = batch.Manifest!;
-        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, cancellationToken);
+        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
 
-        var mergedManifest = ManifestMerger.Merge(manifest.ThrowIfNull(nameof(manifest)),
+        var mergedManifest = ManifestMerger.Merge(
+            manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
             batch.Manifest?.CanvasPaintings, itemDictionary);
 
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            cancellationToken);
+            false, cancellationToken);
+
+        await iiifS3.DeleteIIIFFromS3(dbManifest, true);
     }
 
     private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
