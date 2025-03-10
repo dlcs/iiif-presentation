@@ -1,11 +1,9 @@
 using System.Data;
 using API.Converters;
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
-using API.Infrastructure.Validation;
 using AWS.Helpers;
 using Core;
 using Core.Auth;
@@ -209,7 +207,7 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
 
-            var saveToStaging = request.PresentationManifest.Items.IsNullOrEmpty();
+            var saveToStaging = request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
 
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
 
