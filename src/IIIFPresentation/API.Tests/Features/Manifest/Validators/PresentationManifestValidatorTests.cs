@@ -23,9 +23,9 @@ public class PresentationManifestValidatorTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    public void Slug_Required(string? parent)
+    public void Slug_Required(string? slug)
     {
-        var manifest = new PresentationManifest { Slug = parent };
+        var manifest = new PresentationManifest { Slug = slug };
         
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.Slug);

@@ -1,7 +1,4 @@
-﻿using IIIF.Presentation.V3.Content;
-using Newtonsoft.Json.Linq;
-using ExternalResource = IIIF.Presentation.V3.Content.ExternalResource;
-
+﻿
 namespace Models.API.Collection;
 
 public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresentation
@@ -29,25 +26,5 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
 
     public string? Tags { get; set; }
     
-    public string? PresentationThumbnail { get; set; }
-    
     public DescendantCounts? Totals { get; set; }
-
-    public new object? Thumbnail
-    {
-        get => base.Thumbnail;
-        set
-        {
-            switch (value)
-            {
-                case JArray thumbnail:
-                    var thumbnails = thumbnail.ToObject<List<Image>>();
-                    base.Thumbnail = thumbnails?.Cast<ExternalResource>().ToList();
-                    break;
-                case string presentationThumbnail:
-                    PresentationThumbnail = presentationThumbnail;
-                    break;
-            }
-        }
-    }
 }
