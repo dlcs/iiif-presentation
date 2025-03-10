@@ -1,4 +1,5 @@
-﻿using Core.IIIF;
+﻿using Core.Helpers;
+using Core.IIIF;
 using IIIF.Presentation.V3.Content;
 using Models.API.Collection;
 
@@ -15,9 +16,7 @@ public static class PresentationCollectionX
     /// </returns>
     public static string? GetThumbnail(this PresentationCollection collection)
     {
-        if (collection.Thumbnail is not { } thumbnailsAsCollection) return null;
-        
-        var thumbnails = thumbnailsAsCollection.OfType<Image>().ToList();
-        return thumbnails.GetThumbnailPath();
+        var thumbnails = collection.Thumbnail?.OfType<Image>().ToList();
+        return thumbnails.IsNullOrEmpty() ? null : thumbnails.GetThumbnailPath();
     }
 }
