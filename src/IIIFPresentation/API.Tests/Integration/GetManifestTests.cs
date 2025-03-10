@@ -11,6 +11,7 @@ using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
+using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
@@ -139,23 +140,56 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromFinalS3_IfStagingMissing()
     {
         // Arrange and Act
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/StillIngestingManifest");
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        const string id = "AStillIngestingManifest";
+        var e = await dbContext.Manifests.AddAsync(new()
+        {
+            Id = "AStillIngestingManifest",
+            CustomerId = 1,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "an-iiif-manifest-ingesting",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ],
+            Batches =
+            [
+                new()
+                {
+                    Id = -17,
+                    CustomerId = 1,
+                    ManifestId = "AStillIngestingManifest",
+                    Status = BatchStatus.Ingesting
+                }
+            ],
+            LastProcessed = DateTime.UtcNow
+        });
+       
+            await dbContext.SaveChangesAsync();
+            var requestMessage =
+                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+            var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+            var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        response.Headers.Should().ContainKey(HeaderNames.ETag);
-        response.Headers.Vary.Should().HaveCount(2);
-        manifest.Should().NotBeNull();
-        manifest!.Type.Should().Be("Manifest");
-        manifest.Id.Should().Be("http://localhost/1/manifests/StillIngestingManifest", "requested by flat URI");
-        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
-        manifest.FlatId.Should().Be("StillIngestingManifest");
-        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest-ingesting",
-            "iiif-manifest-ingesting is slug and under root");
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            response.Headers.Should().ContainKey(HeaderNames.ETag);
+            response.Headers.Vary.Should().HaveCount(2);
+            manifest.Should().NotBeNull();
+            manifest!.Type.Should().Be("Manifest");
+            manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
+            manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+            manifest.FlatId.Should().Be("AStillIngestingManifest");
+            manifest.PublicId.Should().Be("http://localhost/1/an-iiif-manifest-ingesting",
+                "an-iiif-manifest-ingesting is slug and under root");
+       
     }
 
     [Fact]

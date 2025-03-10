@@ -17,7 +17,6 @@ public class LocalStackFixture : IAsyncLifetime
     
     // S3 Buckets
     public const string StorageBucketName = "presentation-storage";
-    public const string StagingStorageBucketName = $"staging-{StorageBucketName}";
         
     public Func<IAmazonS3> AWSS3ClientFactory { get; private set; }
     
@@ -72,7 +71,6 @@ public class LocalStackFixture : IAsyncLifetime
         // Create basic buckets used by DLCS
         var amazonS3Client = AWSS3ClientFactory();
         await amazonS3Client.PutBucketAsync(StorageBucketName);
-        await amazonS3Client.PutBucketAsync(StagingStorageBucketName);
         await amazonS3Client.PutObjectAsync(new PutObjectRequest()
         {
             BucketName = StorageBucketName,
@@ -124,7 +122,7 @@ public class LocalStackFixture : IAsyncLifetime
         await amazonS3Client.PutObjectAsync(new()
         {
             BucketName = StorageBucketName,
-            Key = "1/manifests/StillIngestingManifest",
+            Key = "1/manifests/AStillIngestingManifest",
             ContentBody = TestContent.ManifestJson
         });
     }

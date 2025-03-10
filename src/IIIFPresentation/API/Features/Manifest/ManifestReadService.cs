@@ -94,7 +94,8 @@ public class ManifestReadService(
                 logger.LogError("Manifest {DbManifestId} IsIngesting but can't read from staging", dbManifest.Id);
         }
 
-        // else or if null
+        // if is not ingesting read from "real" location
+        // or if not found in "staging", an error was logged and we fall back to "real"
         manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
 
 

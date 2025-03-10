@@ -9,11 +9,6 @@ public class S3Settings
     /// Name of bucket for storing ingested web-friendly assets
     /// </summary>
     public string StorageBucket { get; set; }
-
-    /// <summary>
-    ///     Name of the bucket used as a staging location
-    /// </summary>
-    public string StagingStorageBucket => $"staging-{StorageBucket}";
     
     /// <summary>
     /// Service root for S3. Only used if running LocalStack
