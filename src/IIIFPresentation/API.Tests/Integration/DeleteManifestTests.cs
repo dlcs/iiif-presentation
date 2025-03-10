@@ -98,7 +98,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         var slug = nameof(DeleteManifest_DeletesInS3);
         var manifest = new PresentationManifest
         {
-            Parent = RootCollection.Id,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug
         };
 

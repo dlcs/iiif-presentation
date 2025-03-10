@@ -66,6 +66,7 @@ builder.Services
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
+    .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();

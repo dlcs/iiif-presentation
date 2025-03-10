@@ -17,4 +17,6 @@ public static class SpecConstants
             "configuration",
             "publish"
         }.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
+    
+    public const string CollectionsSlug = "collections";
 }
