@@ -1,3 +1,4 @@
+using API.Features.Storage.Validators;
 using API.Infrastructure.Validation;
 using API.Settings;
 using Core.Helpers;
@@ -13,10 +14,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     {
         var settings = options.Value;
         
-        RuleFor(f => f.Parent).NotEmpty().WithMessage("Requires a 'parent' to be set");
-        RuleFor(f => f.Slug).NotEmpty().WithMessage("Requires a 'slug' to be set")
-            .Must(slug => !SpecConstants.ProhibitedSlugs.Contains(slug!))
-            .WithMessage("'slug' cannot be one of prohibited terms: '{PropertyValue}'");
         if (!settings.IgnorePaintedResourcesWithItems)
         {
             RuleFor(f => f.Items).Empty()
@@ -57,6 +54,13 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .When(f => !f.PaintedResources.IsNullOrEmpty() && f.PaintedResources.All(pr => pr.CanvasPainting != null))
             .WithMessage(
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
+        
+        RuleFor(f => f.PaintedResources)
+            .Must(lpr => lpr.Any(pr => pr.CanvasPainting.CanvasId != null) 
+                         != lpr.Any(pr => pr.CanvasPainting.CanvasId == null))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("'canvasId' is required on all resources when used in at least one");
 
+        RuleFor(c => c).SetValidator(new PresentationValidator());
     }
 }

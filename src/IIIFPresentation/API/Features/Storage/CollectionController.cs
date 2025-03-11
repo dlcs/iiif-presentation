@@ -62,9 +62,9 @@ public class CollectionController(
     [Authorize]
     [HttpPost("collections")]
     [ETagCaching]
-    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationCollectionValidator validator)
+    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(validator, null);
+        var deserializeValidationResult = await DeserializeAndValidate(validator, null, null);
         if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new CreateCollection(customerId,
@@ -75,9 +75,10 @@ public class CollectionController(
     [HttpPut("collections/{id}")]
     [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id,
-        [FromServices] PresentationCollectionValidator validator)
+        [FromServices] RootCollectionValidator rootValidator, 
+        [FromServices] PresentationValidator presentationValidator)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(validator, id);
+        var deserializeValidationResult = await DeserializeAndValidate(presentationValidator, id, rootValidator);
         if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
@@ -87,7 +88,7 @@ public class CollectionController(
 
 
     private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
-        PresentationCollectionValidator validator, string? id)
+        PresentationValidator presentationValidator, string? id, RootCollectionValidator? rootValidator)
     {
         if (!Request.HasShowExtraHeader())
         {
@@ -103,13 +104,9 @@ public class CollectionController(
             return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());
         }
 
-        var validationRuleset = string.Equals(id, KnownCollections.RootCollection, StringComparison.OrdinalIgnoreCase)
-            ? PresentationCollectionValidator.RootRuleSet
-            : PresentationCollectionValidator.StandardRuleSet;
-
-        var validation = validator.Validate(
-            deserializedCollection.ConvertedIIIF,
-            options => options.IncludeRuleSets(validationRuleset));
+        var validation = id != null && KnownCollections.IsRoot(id)
+            ? rootValidator!.Validate(deserializedCollection.ConvertedIIIF)
+            : presentationValidator.Validate(deserializedCollection.ConvertedIIIF);
 
         if (!validation.IsValid)
         {

@@ -80,7 +80,5 @@ public static class CollectionX
     /// <summary>
     /// Check if <see cref="Collection"/> is root collection 
     /// </summary>
-    public static bool IsRoot(this Collection collection) =>
-        string.Equals(collection.Id, KnownCollections.RootCollection, StringComparison.OrdinalIgnoreCase);
-
+    public static bool IsRoot(this Collection collection) => KnownCollections.IsRoot(collection.Id);
 }

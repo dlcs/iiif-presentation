@@ -67,7 +67,8 @@ public class PresentationManifestValidatorTests
         };
         
         var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Items);
+        result.ShouldHaveValidationErrorFor(m => m.Items)
+            .WithErrorMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
     }
     
     [Fact]
@@ -241,7 +242,7 @@ public class PresentationManifestValidatorTests
     }
 
     [Fact]
-    public void CanvasPaintig_WithStaticSize_NoErrorWhenBothValues()
+    public void CanvasPainting_WithStaticSize_NoErrorWhenBothValues()
     {
         var manifest = new PresentationManifest
         {
@@ -264,7 +265,7 @@ public class PresentationManifestValidatorTests
     }
 
     [Fact]
-    public void CanvasPaintig_WithStaticSize_ErrorWhenOneMissing()
+    public void CanvasPainting_WithStaticSize_ErrorWhenOneMissing()
     {
         var manifest = new PresentationManifest
         {
@@ -375,5 +376,35 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasId()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId"
+                    }
+                },
+
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = null
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'canvasId' is required on all resources when used in at least one");
     }
 }

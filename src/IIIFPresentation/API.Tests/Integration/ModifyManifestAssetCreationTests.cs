@@ -143,7 +143,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = "https://iiif.example/manifest.json"
+                        CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
                     },
                     Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 123))
                 }
@@ -195,7 +195,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  ]
                              },
                              "slug": "{{slug}}",
-                             "parent": "root",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
                              "thumbnail": [
                                  {
                                      "id": "https://example.org/img/thumb.jpg",
@@ -292,7 +292,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             $$"""
               {
                   "type": "Manifest",
-                  "parent": "root",
+                  "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
                   "rights": "https://creativecommons.org/licenses/by/4.0/",
                   "label": {
@@ -350,7 +350,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             $$"""
               {
                   "type": "Manifest",
-                  "parent": "root",
+                  "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
                   "rights": "https://creativecommons.org/licenses/by/4.0/",
                   "label": {
@@ -408,7 +408,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             $$"""
               {
                   "type": "Manifest",
-                  "parent": "root",
+                  "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
                   "rights": "https://creativecommons.org/licenses/by/4.0/",
                   "label": {
@@ -479,7 +479,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  ]
                              },
                              "slug": "{{slug}}",
-                             "parent": "root",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
                              "thumbnail": [
                                  {
                                      "id": "https://example.org/img/thumb.jpg",
@@ -581,7 +581,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  ]
                              },
                              "slug": "{{slug}}",
-                             "parent": "root",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
                              "thumbnail": [
                                  {
                                      "id": "https://example.org/img/thumb.jpg",
@@ -674,7 +674,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  ]
                              },
                              "slug": "{{slug}}",
-                             "parent": "root",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
                              "thumbnail": [
                                  {
                                      "id": "https://example.org/img/thumb.jpg",
@@ -731,7 +731,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                   ]
                               },
                               "slug": "{{slug}}",
-                              "parent": "root",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
                               "thumbnail": [
                                   {
                                       "id": "https://example.org/img/thumb.jpg",
@@ -880,7 +880,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                   ]
                               },
                               "slug": "{{slug}}",
-                              "parent": "root",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
                               "thumbnail": [
                                   {
                                       "id": "https://example.org/img/thumb.jpg",
@@ -1040,7 +1040,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                   ]
                               },
                               "slug": "{{slug}}",
-                              "parent": "root",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
                               "thumbnail": [
                                   {
                                       "id": "https://example.org/img/thumb.jpg",
@@ -1200,7 +1200,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  ]
                              },
                              "slug": "{{slug}}",
-                             "parent": "root",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
                              "thumbnail": [
                                  {
                                      "id": "https://example.org/img/thumb.jpg",

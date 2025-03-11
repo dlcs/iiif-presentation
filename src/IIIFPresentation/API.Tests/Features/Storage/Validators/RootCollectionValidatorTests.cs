@@ -24,7 +24,8 @@ public class PresentationCollectionValidatorTests
     {
         var presentationCollection = new PresentationCollection { Slug = slug };
 
-        sut.TestValidate(presentationCollection, standard)
+        sut.TestValidate(presentationCollection, opts =>
+                opts.IncludeRuleSets(PresentationCollectionValidator.StandardRuleSet))
             .ShouldHaveValidationErrorFor(c => c.Slug)
             .WithErrorMessage("Requires a 'slug' to be set");
     }

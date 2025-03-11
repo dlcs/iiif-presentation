@@ -14,7 +14,7 @@ public static class IIIFModelGenerators
         => new()
         {
             Slug = slug ?? manifest.Hierarchy.Single().Slug,
-            Parent = parent ?? manifest.Hierarchy.Single().Parent,
+            Parent = $"http://localhost/{manifest.CustomerId}/collections/{ parent ?? manifest.Hierarchy.Single().Parent}",
             Label = label
         };
 }
