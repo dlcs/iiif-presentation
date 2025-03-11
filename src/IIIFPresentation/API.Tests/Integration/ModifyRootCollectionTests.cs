@@ -111,7 +111,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
             Label = new LanguageMap("en", ["test collection"]),
         };
         
-        // NOTE - note etag
+        // NOTE - no etag
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -188,7 +188,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         SetCorrectEtag(requestMessage, customer);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
-        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update public/private");
 
         var fromDb =
             await dbContext.Collections.SingleAsync(c =>
@@ -228,7 +228,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         SetCorrectEtag(requestMessage, customer);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
-        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update thumbnail");
 
         var fromDb =
             await dbContext.Collections.SingleAsync(c =>
