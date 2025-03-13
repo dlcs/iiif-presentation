@@ -81,7 +81,7 @@ public class PathParserTests
 
         Action act = () =>  PathParser.GetCanvasId(canvasPainting, 1);
         act.Should().Throw<ArgumentNullException>()
-            .WithMessage("Value cannot be null. (Parameter 'canvasPainting')");
+            .WithParameterName("canvasPainting");
     }
     
     [Theory]

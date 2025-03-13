@@ -10,19 +10,19 @@ public static class BucketHelperX
     /// <summary>
     ///     Get key where this resource will be stored in S3
     /// </summary>
-    public static string GetResourceBucketKey<T>(this T hierarchyResource)
+    public static string GetResourceBucketKey<T>(this T hierarchyResource, bool staging = false)
         where T : IHierarchyResource
     {
         var slug = hierarchyResource is Manifest ? ManifestsSlug : CollectionsSlug;
-        return GetResourceBucketKey(hierarchyResource.CustomerId, slug, hierarchyResource.Id);
+        return GetResourceBucketKey(hierarchyResource.CustomerId, slug, hierarchyResource.Id, staging);
     }
 
     /// <summary>
     ///     Get key where manifest with given id will be stored in S3 for provided customer
     /// </summary>
-    public static string GetManifestBucketKey(int customerId, string flatId)
+    public static string GetManifestBucketKey(int customerId, string flatId, bool staging = false)
         => GetResourceBucketKey(customerId, ManifestsSlug, flatId);
 
-    private static string GetResourceBucketKey(int customerId, string slug, string flatId)
-        => $"{customerId}/{slug}/{flatId}";
+    private static string GetResourceBucketKey(int customerId, string slug, string flatId, bool staging = false)
+        => $"{(staging ? "staging/" : string.Empty)}{customerId}/{slug}/{flatId}";
 }

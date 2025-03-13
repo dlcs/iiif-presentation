@@ -81,7 +81,8 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service i
         }
 
         var s3Collection =
-            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection.GetResourceBucketKey(), cancellationToken);
+            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection.GetResourceBucketKey(),
+                cancellationToken);
         
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 

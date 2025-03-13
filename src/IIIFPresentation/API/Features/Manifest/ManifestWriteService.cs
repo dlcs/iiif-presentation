@@ -1,11 +1,9 @@
 using System.Data;
 using API.Converters;
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
-using API.Infrastructure.Validation;
 using AWS.Helpers;
 using Core;
 using Core.Auth;
@@ -156,9 +154,12 @@ public class ManifestWriteService(
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
+        var saveToStaging = true;
+
         // can't have both items and painted resources, so items takes precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
+            saveToStaging = false;
             request.PresentationManifest.PaintedResources = null;
         }
 
@@ -176,8 +177,8 @@ public class ManifestWriteService(
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
-                
-            await SaveToS3(dbManifest!, request, cancellationToken);
+
+            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
             
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
@@ -206,7 +207,9 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
 
-            await SaveToS3(dbManifest!, request, cancellationToken);
+            var saveToStaging = request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
+
+            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
 
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
@@ -298,11 +301,12 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool saveToStaging,
+        CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        
+ 
         await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            cancellationToken);
+            saveToStaging, cancellationToken);
     }
 }

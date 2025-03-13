@@ -625,7 +625,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"{Customer}/manifests/{id}");
+                $"staging/{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
@@ -658,7 +658,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"{Customer}/manifests/{id}");
+                $"staging/{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
@@ -1351,7 +1351,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"{Customer}/manifests/{id}");
+                $"staging/{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
@@ -1382,7 +1382,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"{Customer}/manifests/{id}");
+                $"staging/{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
