@@ -17,7 +17,7 @@ public static class DatabaseTestDataPopulation
     public static ValueTask<EntityEntry<Manifest>> AddTestManifest(this DbSet<Manifest> manifests,
         [CallerMemberName] string id = "", int customer = 1, DateTime? createdDate = null, string? slug = null,
         string parent = "root", LanguageMap? label = null, int? batchId = null, bool ingested = false,
-        int? spaceId = null)
+        int? spaceId = null, List<CanvasPainting>? canvasPaintings = null)
     {
         createdDate ??= DateTime.UtcNow;
         return manifests.AddAsync(new Manifest
@@ -40,6 +40,7 @@ public static class DatabaseTestDataPopulation
                     Type = ResourceType.IIIFManifest
                 }
             ],
+            CanvasPaintings = canvasPaintings,
             Batches = batchId != null ?
             [
                 new Batch

@@ -31,7 +31,7 @@ public class CanvasPaintingResolver(
     {
         if (presentationManifest.PaintedResources.HasAsset())
         {
-            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, cancellationToken);
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, null, cancellationToken);
         }
         
         return await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
@@ -46,12 +46,43 @@ public class CanvasPaintingResolver(
 
         return (null, canvasPaintings);
     }
+    
+    /// <summary>
+    /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
+    /// </summary>
+    /// <returns>Tuple of either error OR newly created </returns>
+    public async Task<PresUpdateResult?>  UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
+        DbManifest existingManifest, CancellationToken cancellationToken = default)
+    {
+        if (presentationManifest.PaintedResources.HasAsset())
+        {
+            return await UpdateCanvasPaintingsFromAssets(customerId, presentationManifest, existingManifest, cancellationToken);
+        }
+        
+        return await UpdateCanvasPaintingsFromItems(customerId, presentationManifest, existingManifest, cancellationToken);
+    }
+
+    private async Task<PresUpdateResult?> UpdateCanvasPaintingsFromAssets(int customerId, 
+        PresentationManifest presentationManifest, DbManifest existingManifest, CancellationToken cancellationToken)
+    {
+        var canvasPaintingResult =
+            await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, existingManifest, cancellationToken);
+
+        if (canvasPaintingResult.updateResult != null) return canvasPaintingResult.updateResult;
+        
+        existingManifest.CanvasPaintings = canvasPaintingResult.canvasPaintings;
+        existingManifest.LastProcessed = canvasPaintingResult.canvasPaintings?.Any(cp => cp.AssetId != null) ?? false
+            ? null
+            : DateTime.UtcNow;
+        
+        return null;
+    }
 
     /// <summary>
     /// Reconcile incoming manifest with any CanvasPainting objects already stored in DB. Resulting DB records should
     /// reflect incoming manifest.
     /// </summary>
-    public async Task<PresUpdateResult?> UpdateCanvasPaintings(int customerId, IIIFManifest presentationManifest,
+    public async Task<PresUpdateResult?> UpdateCanvasPaintingsFromItems(int customerId, IIIFManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
         var incomingCanvasPaintings =
@@ -177,46 +208,41 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken)
+        int customerId, PresentationManifest presentationManifest, DbManifest? existingManifest, CancellationToken cancellationToken = default)
     {
         var paintedResources = presentationManifest.PaintedResources!;
-        var requiredUniqueIdCount = paintedResources.GetRequiredNumberOfCanvases();
 
-        var canvasPaintingIds =
-            await GenerateUniqueCanvasPaintingIds(requiredUniqueIdCount, customerId, cancellationToken);
-        if (canvasPaintingIds == null)
-            return (ErrorHelper.CannotGenerateUniqueId<PresentationManifest>(), null);
+        var canvasIdErrors = await SetCanvasIds(paintedResources, existingManifest, customerId, cancellationToken);
+        if (canvasIdErrors != null) return (canvasIdErrors, null);
         
         var canvasPaintings = new List<CanvasPainting>();
         var count = 0;
         
-        // Resources that share canvasOrder share a canvasId (as they're on same canvas) so maintain a list of order:id
-        var canvasIdByOrder = new Dictionary<int, string>();
         foreach (var paintedResource in paintedResources)
         {
             if (paintedResource.Asset == null) continue;
             
             var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
-            string? specifiedCanvasId;
+            
+            var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
+            string specifiedCanvasId;
 
             try
             {
-                specifiedCanvasId = GetGeneratedCanvasId(paintedResource.CanvasPainting);
+                specifiedCanvasId = PathParser.GetCanvasId(paintedResource.CanvasPainting!, customerId);
             }
-            catch (ArgumentException e)
+            catch (ArgumentException ex)
             {
-                logger.LogError(e, "Unable to generate canvas for {CustomerId}", customerId);
+                logger.LogError(ex, "Unable to parse canvas ID for {CustomerId}", customerId);
                 return (ErrorHelper.InvalidCanvasId<PresentationManifest>(paintedResource.CanvasPainting?.CanvasId),
                     null);
             }
-            
-            var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            
+
             if (canvasPaintings.Where(c => c.CanvasOrder != canvasOrder).Any(c => c.Id == specifiedCanvasId))
             {
                 return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(specifiedCanvasId), null);
             }
-
+            
             if (canvasPaintings.Where(c => c.CanvasOrder == canvasOrder).Any(c => c.Id != specifiedCanvasId))
             {
                 return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(paintedResource.CanvasPainting?.CanvasId),
@@ -242,25 +268,59 @@ public class CanvasPaintingResolver(
             canvasPaintings.Add(cp);
         }
         return (null, canvasPaintings);
+    }
+
+    private async Task<PresUpdateResult?> SetCanvasIds(List<PaintedResource> paintedResources, DbManifest? existingManifest, int customerId, CancellationToken cancellationToken)
+    {
+        // shortcut as the canvas id is already set
+        if (paintedResources.Any(pr => pr.CanvasPainting?.CanvasId != null)) return null;
         
-        string GetGeneratedCanvasId(Models.API.Manifest.CanvasPainting? cp)
+        // Resources that share canvasOrder share a canvasId (as they're on same canvas) so maintain a list of order:id
+        var canvasIdByOrder = new Dictionary<int, string>();
+        
+        var requiredUniqueIdCount = paintedResources.GetRequiredNumberOfCanvases();
+        
+        var canvasPaintingIds =
+            await GenerateUniqueCanvasPaintingIds(requiredUniqueIdCount, customerId, cancellationToken);
+        if (canvasPaintingIds == null)
+            return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+        var count = 0;
+        
+        foreach (var paintedResource in paintedResources)
         {
-            if (cp?.CanvasId != null) return PathParser.GetCanvasId(cp, customerId);
-            
-            // no order, dish out the next available
-            if (cp is not { CanvasOrder: not null }) return canvasPaintingIds.Pop();
-            
-            // A canvas with this same order has been set a CanvasId already, use that
-            if (canvasIdByOrder.TryGetValue(cp.CanvasOrder.Value, out var idForOrder))
+            var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
+            paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
+
+            var matchedAssetFromExisting = existingManifest?.CanvasPaintings?.FirstOrDefault(m => m.AssetId == assetId);
+
+            if (matchedAssetFromExisting != null)
             {
-                return idForOrder;
+                paintedResource.CanvasPainting.CanvasId = matchedAssetFromExisting.Id;
             }
-        
-            // No canvas with this order has been processed, get next, add to lookup and return
-            var nextId = canvasPaintingIds.Pop();
-            canvasIdByOrder[cp.CanvasOrder.Value] = nextId;
-            return nextId;
+            else
+            {
+                // no order, dish out the next available
+                if (paintedResource.CanvasPainting is not { CanvasOrder: not null })
+                {
+                    paintedResource.CanvasPainting.CanvasId = canvasPaintingIds.Pop();
+                    continue;
+                }
+                
+                // A canvas with this same order has been set a CanvasId already, use that
+                if (canvasIdByOrder.TryGetValue(paintedResource.CanvasPainting.CanvasOrder.Value, out var idForOrder))
+                {
+                    paintedResource.CanvasPainting.CanvasId = idForOrder;
+                    continue;
+                }
+                
+                // No canvas with this order has been processed, get next, add to lookup and return
+                var nextId = canvasPaintingIds.Pop();
+                canvasIdByOrder[paintedResource.CanvasPainting.CanvasOrder.Value] = nextId;
+                paintedResource.CanvasPainting.CanvasId = nextId;
+            }
         }
+
+        return null;
     }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)

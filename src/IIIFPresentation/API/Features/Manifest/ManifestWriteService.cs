@@ -206,6 +206,11 @@ public class ManifestWriteService(
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
+            // Carry out any DLCS interactions (for paintedResources with items) 
+            var dlcsInteractionResult =
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, cancellationToken);
+            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
+            
             var (error, dbManifest) =
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
