@@ -1,4 +1,5 @@
 using Models.Database.Collections;
+#pragma warning disable CS8601 // Possible null reference assignment.
 
 namespace Models.Tests.Database.Collections;
 
