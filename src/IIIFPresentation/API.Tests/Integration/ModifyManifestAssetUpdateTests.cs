@@ -808,11 +808,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_CorrectlyCreatesAssetRequests_WithSpace()
+    public async Task UpdateManifest_CorrectlyUpdatesAssetRequests_WithSpace()
     {
         // Arrange
-        var slug = nameof(UpdateManifest_CorrectlyCreatesAssetRequests_WithSpace);
-        var id = $"{nameof(UpdateManifest_CorrectlyCreatesAssetRequests_WithSpace)}_id";
+        var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WithSpace);
+        var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WithSpace)}_id";
         
         await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
         await dbContext.SaveChangesAsync();
