@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
@@ -899,5 +900,109 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_KeepsTheSameCanvasId_WhenUpdatingAsset()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_KeepsTheSameCanvasId_WhenUpdatingAsset);
+        var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasId_WhenUpdatingAsset)}_id";
+        var assetId = "testAssetByPresentation-update";
+        var canvasId = "first";
+
+        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        {
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = 1009;
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "behavior": [
+                                 "public-iiif"
+                             ],
+                             "label": {
+                                 "en": [
+                                     "post testing"
+                                 ]
+                             },
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "thumbnail": [
+                                 {
+                                     "id": "https://example.org/img/thumb.jpg",
+                                     "type": "Image",
+                                     "format": "image/jpeg",
+                                     "width": 300,
+                                     "height": 200
+                                 }
+                             ],
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "label": {
+                                             "en": [
+                                                 "canvas testing"
+                                             ]
+                                         }
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg",
+                                         "deliveryChannels": [
+                                             {
+                                                 "channel": "iiif-img",
+                                                 "policy": "default"
+                                             },
+                                             {
+                                                 "channel": "thumbs",
+                                                 "policy": "default"
+                                             }
+                                         ]
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.PaintedResources.First().CanvasPainting.CanvasId.Should().Be($"http://localhost/1/canvases/{canvasId}");
+
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        dbManifest.CanvasPaintings.Should().HaveCount(1);
+        dbManifest.CanvasPaintings!.First().Id.Should().Be(canvasId);
+        dbManifest.Batches.Should().HaveCount(1);
+        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.First().Id.Should().Be(batchId);
     }
 }
