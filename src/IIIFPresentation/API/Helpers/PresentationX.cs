@@ -18,4 +18,10 @@ public static class PresentationX
     public static bool ParentIsFlatForm(this IPresentation presentation, string baseUrl, int customerId) =>
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent))
             .StartsWith($"{baseUrl}/{customerId}/{SpecConstants.CollectionsSlug}");
+    
+    /// <summary>
+    /// Check if <see cref="IPresentation"/> objects publicId is customer root
+    /// </summary>
+    public static bool PublicIdIsRoot(this IPresentation presentation, string baseUrl, int customerId) =>
+        presentation.PublicId.ThrowIfNullOrEmpty(nameof(presentation.PublicId)).Equals($"{baseUrl}/{customerId}");
 }

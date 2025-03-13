@@ -3,8 +3,10 @@ using API.Tests.Integration.Infrastructure;
 using DLCS;
 using FakeItEasy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
+using Models.API.Manifest;
 using Repository;
 using Test.Helpers.Integration;
 
@@ -15,7 +17,7 @@ namespace API.Tests.Helpers;
 public class ParentSlugParserTests
 {
     private readonly PresentationContext presentationContext;
-    private ParentSlugParser parentSlugParser;
+    private readonly ParentSlugParser parentSlugParser;
     private const int Customer = 1;
     
     public ParentSlugParserTests(PresentationContextFixture dbFixture)
@@ -35,9 +37,90 @@ public class ParentSlugParserTests
         {
             ApiUri = new Uri("http://localhost")
         });
+
+        var pathGenerator = new HttpRequestBasedPathGenerator(httpContextAccessor, options);
+        parentSlugParser = new ParentSlugParser(presentationContext, pathGenerator, httpContextAccessor, new NullLogger<ParentSlugParser>());
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_RootCollection_NoParent_ReturnsEmptyResult()
+    {
+        // Arrange
+        var presentationCollection = new PresentationCollection();
+        const string collectionId = "root"; 
         
-        parentSlugParser = new ParentSlugParser(presentationContext,
-            new HttpRequestBasedPathGenerator(httpContextAccessor, options), httpContextAccessor);
+        // Act
+        var parentSlugParserResult =
+            await parentSlugParser.Parse(presentationCollection, Customer, collectionId);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.Errors.Should().BeNull();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().BeEmpty("Root collection has empty slug");
+        parentSlugParserResult.ParsedParentSlug.Parent.Should().BeNull("Root collection has no parent");
+    }
+    
+    [Fact]
+    public async Task ParentSlugParser_RootCollection_Public_ReturnsEmptyResult()
+    {
+        // Arrange
+        var presentationCollection = new PresentationCollection
+        {
+            PublicId = $"http://localhost/{Customer}",
+        };
+        const string collectionId = "root"; 
+        
+        // Act
+        var parentSlugParserResult =
+            await parentSlugParser.Parse(presentationCollection, Customer, collectionId);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.Errors.Should().BeNull();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().BeEmpty("Root collection has empty slug");
+        parentSlugParserResult.ParsedParentSlug.Parent.Should().BeNull("Root collection has no parent");
+    }
+    
+    [Theory]
+    [InlineData("http://localhost/1/collections/FirstChildCollection")]
+    [InlineData("http://localhost/1/iiif-manifest")]
+    public async Task ParentSlugParser_RootCollection_NonRootHierarchicalPublic_ReturnsError(string publicId)
+    {
+        // Arrange
+        var presentationCollection = new PresentationCollection
+        {
+            PublicId = publicId
+        };
+        const string collectionId = "root"; 
+        
+        // Act
+        var parentSlugParserResult =
+            await parentSlugParser.Parse(presentationCollection, Customer, collectionId);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should().Be("publicId incorrect");
+    }
+    
+    [Fact]
+    public async Task ParentSlugParser_ParsesFlatRootParentSlug_IfRootIdButNotCollection()
+    {
+        // Arrange
+        var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
+        const string rootId = "root"; 
+        
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/root",
+            Slug = slug
+        }, Customer, rootId);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.Errors.Should().BeNull();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().Be(slug);
+        parentSlugParserResult.ParsedParentSlug.Parent.Id.Should().Be("root");
     }
 
     [Fact]
@@ -47,12 +130,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}/collections/root",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -68,12 +150,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}/collections/FirstChildCollection",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -89,12 +170,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesHierarchicalRootParentSlug);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -110,12 +190,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesHierarchicalChildParentSlug);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}/first-child",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -131,11 +210,10 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesPublicId);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             PublicId = $"http://localhost/{Customer}/{slug}",
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -151,11 +229,10 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_ParsesPublicIdChild);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             PublicId = $"http://localhost/{Customer}/first-child/{slug}",
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeFalse();
@@ -171,12 +248,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_Fails_PublicIdNotMatchingSlug);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             PublicId = $"http://localhost/{Customer}/{slug}",
             Slug = "differentSlug"
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
@@ -190,12 +266,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_Fails_PublicIdNotMatchingParent);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             PublicId = $"http://localhost/{Customer}/{slug}",
             Parent = $"http://localhost/{Customer}/collections/FirstChildCollection"
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
@@ -209,12 +284,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_Fails_InvalidParent);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}/collections/NotAParent",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
@@ -228,12 +302,11 @@ public class ParentSlugParserTests
         var slug = nameof(ParentSlugParser_Fails_ParentIsIIIF);
         
         // Act
-        var parentSlugParserResult = await parentSlugParser.Parse<PresentationCollection>(new PresentationCollection
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
-            Id = "someId",
             Parent = $"http://localhost/{Customer}/collections/IiifCollection",
             Slug = slug
-        }, Customer);
+        }, Customer, null);
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();

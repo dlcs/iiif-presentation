@@ -23,5 +23,6 @@ public enum ModifyCollectionType
     InvalidCanvasId = 19,
     DuplicateCanvasId = 20,
     CanvasOrderHasDifferentCanvasId = 21,
+    PublicIdIncorrect = 22,
     Unknown = 1000
 }

@@ -56,7 +56,7 @@ public class UpsertCollectionHandler(
     public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
-        var isStorageCollection = request.Collection.Behavior!.IsStorageCollection();
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
         if (!isStorageCollection)
         {
@@ -65,9 +65,9 @@ public class UpsertCollectionHandler(
         }
         var databaseCollection =
             await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
-        
-        var parsedParentSlugResult =
-            await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, cancellationToken);
+
+        var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId,
+            request.CollectionId, cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
@@ -84,14 +84,8 @@ public class UpsertCollectionHandler(
             {
                 Id = request.CollectionId,
                 Created = createdDate,
-                Modified = createdDate,
                 CreatedBy = Authorizer.GetUser(),
                 CustomerId = request.CustomerId,
-                IsPublic = request.Collection.Behavior.IsPublic(),
-                IsStorageCollection = isStorageCollection,
-                Label = request.Collection.Label,
-                Thumbnail = request.Collection.GetThumbnail(),
-                Tags = request.Collection.Tags,
                 Hierarchy =
                 [
                     new Hierarchy
@@ -107,12 +101,13 @@ public class UpsertCollectionHandler(
                 ]
             };
             
+            SetCommonProperties(databaseCollection, request.Collection, createdDate);
+            
             await dbContext.AddAsync(databaseCollection, cancellationToken);
         }
         else
         {
             eTagManager.TryGetETag($"/{request.CustomerId}/collections/{request.CollectionId}", out var eTag);
-
             if (request.ETag != eTag || string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNonMatching<PresentationCollection>();
             
             if (isStorageCollection != databaseCollection.IsStorageCollection)
@@ -127,16 +122,17 @@ public class UpsertCollectionHandler(
 
             databaseCollection.Modified = DateTime.UtcNow;
             databaseCollection.ModifiedBy = Authorizer.GetUser();
-            databaseCollection.IsPublic = request.Collection.Behavior.IsPublic();
-            databaseCollection.IsStorageCollection = isStorageCollection;
-            databaseCollection.Label = request.Collection.Label;
-            databaseCollection.Thumbnail = request.Collection.GetThumbnail();
-            databaseCollection.Tags = request.Collection.Tags;
+            SetCommonProperties(databaseCollection, request.Collection);
 
-            existingHierarchy.Parent = parsedParentSlug.Parent.Id;
-            existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
-            existingHierarchy.Slug = parsedParentSlug.Slug;
-            existingHierarchy.Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
+            // 'root' collection hierarchy can't change
+            if (!databaseCollection.IsRoot())
+            {
+                existingHierarchy.Parent = parsedParentSlug.Parent.Id;
+                existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
+                existingHierarchy.Slug = request.Collection.Slug ?? string.Empty;
+                existingHierarchy.Type =
+                    isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
+            }
         }
 
         await using var transaction = 
@@ -191,6 +187,22 @@ public class UpsertCollectionHandler(
             parentCollection, pathGenerator);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
+    }
+
+    /// <summary>
+    /// Set properties that are common to both insert and update operations
+    /// </summary>
+    private static void SetCommonProperties(
+        Collection databaseCollection, 
+        PresentationCollection incomingCollection,
+        DateTime? specificModifiedDate = null)
+    {
+        databaseCollection.Modified = specificModifiedDate ?? DateTime.UtcNow;
+        databaseCollection.IsPublic = incomingCollection.Behavior.IsPublic();
+        databaseCollection.IsStorageCollection = incomingCollection.Behavior.IsStorageCollection();
+        databaseCollection.Label = incomingCollection.Label;
+        databaseCollection.Thumbnail = incomingCollection.GetThumbnail();
+        databaseCollection.Tags = incomingCollection.Tags;
     }
     
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 

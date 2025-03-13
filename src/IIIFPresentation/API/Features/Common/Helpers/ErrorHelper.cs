@@ -85,20 +85,25 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType>? InvalidCanvasId<TCollection>(string? canvasId) 
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId) 
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType>? DuplicateCanvasId<TCollection>(string? canvasId)
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> DuplicateCanvasId<TCollection>(string? canvasId)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
             ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType>? CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a choice construct",
             ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> IncorrectPublicId<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
+            ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {

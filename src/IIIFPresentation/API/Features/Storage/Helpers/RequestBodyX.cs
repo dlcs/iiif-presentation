@@ -2,6 +2,7 @@
 using Core.IIIF;
 using IIIF;
 using IIIF.Serialisation;
+using Models.API;
 
 namespace API.Features.Storage.Helpers;
 
@@ -30,14 +31,17 @@ public static class RequestBodyX
     }
 
     /// <summary>
-    /// Attempts to deserialize a presentation collection
+    /// Attempts to deserialize a <see cref="IPresentation"/> resource.
+    ///
+    /// As this populates an <see cref="IPresentation"/> resource it needs to be instantiated prior to population, which
+    /// leads to this method being more forgiving than <see cref="ConvertCollectionToIIIF{T}"/>
     /// </summary>
     /// <param name="requestBody">The raw request body to convert</param>
     /// <param name="logger"></param>
-    /// <returns>A result containing the deserialized collection, or a failure</returns>
+    /// <returns>A result containing the deserialized resource, or a failure</returns>
     public static async Task<TryConvertIIIFResult<T>> TryDeserializePresentation<T>(this string requestBody,
         ILogger? logger = null) 
-        where T : JsonLdBase, new()
+        where T : JsonLdBase, IPresentation, new()
     {
         try
         {

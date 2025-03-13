@@ -24,7 +24,7 @@ public static class HttpResponseMessageX
     {
         if (ensureSuccess) response.EnsureSuccessStatusCode();
 
-        if (!response.IsJsonResponse()) return default;
+        if (!response.IsJsonResponse()) return null;
 
         settings ??= new(IIIFSerialiserX.DeserializerSettings);
         if (SerializationContext.HasValue)
@@ -41,7 +41,7 @@ public static class HttpResponseMessageX
     /// </summary>
     /// <param name="response"><see cref="HttpResponseMessage"/> object</param>
     /// <returns></returns>
-    public static bool IsJsonResponse(this HttpResponseMessage response)
+    private static bool IsJsonResponse(this HttpResponseMessage response)
     {
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         return mediaType != null && mediaType.Contains("json");

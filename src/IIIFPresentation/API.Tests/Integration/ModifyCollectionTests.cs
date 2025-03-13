@@ -10,6 +10,7 @@ using API.Tests.Integration.Infrastructure;
 using Core.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -93,13 +94,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -153,13 +154,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -185,7 +186,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1,
         };
@@ -244,13 +245,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{iiifParent}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -278,7 +279,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1,
         };
@@ -330,13 +331,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new("en", ["test collection"]),
             Slug = "programmatic-child",
             Parent = $"http://localhost/1/collections/{parent}",
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -382,7 +383,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new("en", ["test collection"]),
             Slug = "programmatic-child",
             Parent = $"http://localhost/1/{parent}", //note how this is HIERARCHICAL uri
-            PresentationThumbnail = "some/thumbnail",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
             Tags = "some, tags",
             ItemsOrder = 1
         };
@@ -495,25 +496,20 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidResource()
+    public async Task CreateCollection_ReturnsError_WhenInvalidPayload()
     {
         // Arrange
-        var collection = new PresentationCollection()
+        var collection = new PresentationCollection
         {
-            Behavior = new List<string>()
-            {
-                Behavior.IsPublic
-            },
-            Label = new LanguageMap("en", ["test collection"]),
             Slug = "iiif-child",
             Parent = $"http://localhost/{Customer}/collections/{parent}",
-            Tags = "some, tags",
-            PresentationThumbnail = "some/thumbnail",
-            ItemsOrder = 1,
         };
 
+        // Use built-in serialisation which results in invalid payload. "type": "Collection" is missing so unable,
+        // PascalCase properties used etc
+        var invalidCollection= JsonSerializer.Serialize(collection);
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            invalidCollection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -786,11 +782,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}",
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -823,11 +819,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             ],
             Label = new LanguageMap("en", ["test collection"]),
             PublicId = $"http://localhost/{Customer}/{slug}",
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -860,11 +856,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             ],
             Label = new LanguageMap("en", ["test collection"]),
             PublicId = $"http://localhost/{Customer}/first-child/{slug}",
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -899,11 +895,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             PublicId = $"http://localhost/{Customer}/{slug}",
             Parent = $"http://localhost/{Customer}",
             Slug = slug,
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -938,11 +934,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             PublicId = $"http://localhost/{Customer}/{slug}",
             Parent = $"http://localhost/{Customer}",
             Slug = "differentSlug",
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -970,11 +966,11 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             PublicId = $"http://localhost/{Customer}/{slug}",
             Parent = $"http://localhost/{Customer}/first-child",
             Slug = slug,
-            PresentationThumbnail = "some/thumbnail"
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            JsonSerializer.Serialize(collection));
+            collection.AsJson());
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1092,7 +1088,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2"
         };
 
@@ -1154,7 +1150,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2"
         };
 
@@ -1241,12 +1237,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/1/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2"
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         SetCorrectEtag(updateRequestMessage, initialCollection);
 
         // Act
@@ -1416,7 +1412,7 @@ $$"""
             Hierarchy = [
                 new Hierarchy
                 {
-                    Slug = "update-test",
+                    Slug = "update-test-3",
                     Parent = RootCollection.Id,
                     Type = ResourceType.StorageCollection
                 }
@@ -1437,7 +1433,7 @@ $$"""
             Slug = "programmatic-child",
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2"
         };
 
@@ -1499,7 +1495,7 @@ $$"""
             Slug = "programmatic-child",
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2"
         };
 
@@ -1533,7 +1529,7 @@ $$"""
             Slug = "create-from-update",
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2",
         };
 
@@ -1588,7 +1584,7 @@ $$"""
             Slug = "create-from-update-2",
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2",
         };
 
@@ -1678,10 +1674,14 @@ $$"""
     [Fact]
     public async Task UpdateCollection_BadRequest_WhenConvertingToStorageCollection()
     {
+        var id = nameof(UpdateCollection_BadRequest_WhenConvertingToStorageCollection);
+        var slug = $"s_{id}";
+        var newSlug = $"ns_{id}";
+        
         // Arrange
         var initialCollection = new Collection()
         {
-            Id = "UpdateTester-3",
+            Id = id,
             UsePath = true,
             Label = new LanguageMap
             {
@@ -1699,8 +1699,8 @@ $$"""
 
         await dbContext.Hierarchy.AddAsync(new Hierarchy
         {
-            CollectionId = "UpdateTester-3",
-            Slug = "update-test-3",
+            CollectionId = id,
+            Slug = slug,
             Parent = RootCollection.Id,
             Type = ResourceType.StorageCollection,
             CustomerId = 1
@@ -1711,12 +1711,12 @@ $$"""
 
         var updatedCollection = new PresentationCollection
         {
-            Behavior = new List<string>()
+            Behavior = new List<string>
             {
                 Behavior.IsPublic
             },
             Label = new LanguageMap("en", ["test collection - updated"]),
-            Slug = "programmatic-child-3",
+            Slug = newSlug,
             Parent = parent
         };
 
@@ -1907,7 +1907,6 @@ $$"""
                 new()
                 {
                     Canonical = true,
-                    CollectionId = "UpdateTester-5",
                     Slug = "update-test-5",
                     Parent = RootCollection.Id,
                     Type = ResourceType.StorageCollection,
@@ -1937,7 +1936,6 @@ $$"""
                 new()
                 {
                     Canonical = true,
-                    CollectionId = "UpdateTester-6",
                     Slug = "update-test-6",
                     Parent = parentCollection.Id,
                     Type = ResourceType.StorageCollection,
@@ -2175,7 +2173,7 @@ $$"""
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
-            PresentationThumbnail = "some/location/2",
+            Thumbnail = [new Image { Id = "some/location/2" }],
             Tags = "some, tags, 2",
         };
 

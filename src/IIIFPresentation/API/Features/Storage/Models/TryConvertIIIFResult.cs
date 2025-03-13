@@ -5,25 +5,21 @@ namespace API.Features.Storage.Models;
 
 public class TryConvertIIIFResult<T> where T : JsonLdBase
 {
-    public static TryConvertIIIFResult<T> Success(T iiif)
-    {
-        return new TryConvertIIIFResult<T>()
+    public static TryConvertIIIFResult<T> Success(T iiif) =>
+        new()
         {
             Error = false,
             ConvertedIIIF = iiif
         };
-    }
-    
-    public static TryConvertIIIFResult<T> Failure()
-    {
-        return new TryConvertIIIFResult<T>()
+
+    public static TryConvertIIIFResult<T> Failure() =>
+        new()
         {
             Error = true
         };
-    }
-    
+
+    [MemberNotNullWhen(returnValue: false, member: nameof(ConvertedIIIF))]
     public bool Error { get; private init; }
     
-    [MemberNotNullWhen(returnValue: false, member: nameof(Error))]
     public T? ConvertedIIIF { get; private init; }
 }

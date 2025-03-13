@@ -264,12 +264,12 @@ public class PresentationContextFixture : IAsyncLifetime
     
     private void SetPropertiesFromContainer()
     {
-        ConnectionString = postgresContainer.GetConnectionString();
+        ConnectionString = $"{postgresContainer.GetConnectionString()};Include Error Detail=true";
 
         // Create new PresentationContext using connection string for Postgres container
         DbContext = new PresentationContext(
             new DbContextOptionsBuilder<PresentationContext>()
-                .UseNpgsql(postgresContainer.GetConnectionString(), builder => builder.SetPostgresVersion(14, 0))
+                .UseNpgsql(ConnectionString, builder => builder.SetPostgresVersion(14, 0))
                 .UseSnakeCaseNamingConvention()
                 .Options
         );

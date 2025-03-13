@@ -152,7 +152,7 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var parsedParentSlugResult =
-            await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
+            await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, null, cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
@@ -194,8 +194,8 @@ public class ManifestWriteService(
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
 
-        var parsedParentSlugResult =
-            await parentSlugParser.Parse<PresentationManifest>(request.PresentationManifest, request.CustomerId, cancellationToken);
+        var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
+            request.ManifestId, cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 

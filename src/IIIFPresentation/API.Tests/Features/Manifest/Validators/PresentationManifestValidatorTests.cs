@@ -19,6 +19,28 @@ public class PresentationManifestValidatorTests
             ApiUri = new Uri("https://localhost")
         }
     }));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Slug_Required(string? slug)
+    {
+        var manifest = new PresentationManifest { Slug = slug };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.Slug);
+    }
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Parent_Required(string? parent)
+    {
+        var manifest = new PresentationManifest { Parent = parent };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.Parent);
+    }
     
     [Fact]
     public void CanvasPaintingAndItems_Manifest_ErrorWhenDefaultSettings()

@@ -10,10 +10,12 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Models;
 using Models.API.Collection;
 
 namespace API.Features.Storage;
@@ -62,8 +64,8 @@ public class CollectionController(
     [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(validator);
-        if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
+        var deserializeValidationResult = await DeserializeAndValidate(validator, null, null);
+        if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new CreateCollection(customerId,
             deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody));
@@ -73,10 +75,11 @@ public class CollectionController(
     [HttpPut("collections/{id}")]
     [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id,
-        [FromServices] PresentationValidator validator)
+        [FromServices] RootCollectionValidator rootValidator, 
+        [FromServices] PresentationValidator presentationValidator)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(validator);
-        if (deserializeValidationResult.Error != null) return deserializeValidationResult.Error;
+        var deserializeValidationResult = await DeserializeAndValidate(presentationValidator, id, rootValidator);
+        if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
             deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
@@ -85,13 +88,15 @@ public class CollectionController(
 
 
     private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
-        PresentationValidator validator)
+        PresentationValidator presentationValidator, string? id, RootCollectionValidator? rootValidator)
     {
         if (!Request.HasShowExtraHeader())
+        {
             return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
-
+        }
+        
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-
+        
         var deserializedCollection =
             await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
         if (deserializedCollection.Error)
@@ -99,7 +104,9 @@ public class CollectionController(
             return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());
         }
 
-        var validation = await validator.ValidateAsync(deserializedCollection.ConvertedIIIF!);
+        var validation = id != null && KnownCollections.IsRoot(id)
+            ? rootValidator!.Validate(deserializedCollection.ConvertedIIIF)
+            : presentationValidator.Validate(deserializedCollection.ConvertedIIIF);
 
         if (!validation.IsValid)
         {
@@ -121,7 +128,7 @@ public class CollectionController(
     }
 
     /// <summary> 
-    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="ObjectResult"/> response with 400 status code.
     /// </summary>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
     private ObjectResult PresentationUnableToSerialize() =>
