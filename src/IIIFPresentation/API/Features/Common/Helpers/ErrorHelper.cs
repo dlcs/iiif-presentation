@@ -104,6 +104,16 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithItemsCannotBeUpdatedWithAssets<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using items cannot be updated with assets",
+            ModifyCollectionType.ManifestCreatedWithItemsCannotBeUpdatedWithAssets, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithAssetsCannotBeUpdatedWithItems<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using items cannot be updated with assets",
+            ModifyCollectionType.ManifestCreatedWithAssetsCannotBeUpdatedWithItems, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {

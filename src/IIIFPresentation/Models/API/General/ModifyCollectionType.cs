@@ -24,5 +24,7 @@ public enum ModifyCollectionType
     DuplicateCanvasId = 20,
     CanvasOrderHasDifferentCanvasId = 21,
     PublicIdIncorrect = 22,
+    ManifestCreatedWithItemsCannotBeUpdatedWithAssets = 23,
+    ManifestCreatedWithAssetsCannotBeUpdatedWithItems  = 24,
     Unknown = 1000
 }
