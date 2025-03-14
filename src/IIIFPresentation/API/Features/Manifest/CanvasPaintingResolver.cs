@@ -285,7 +285,7 @@ public class CanvasPaintingResolver(
     private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) VerifyAndExtractCanvasId(int customerId, 
         PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, AssetId assetId, DbManifest? existingManifest, int canvasOrder)
     {
-        if (paintedResource.CanvasPainting == null) return (null, null);
+        paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
         string? canvasId = null;
         
         try
