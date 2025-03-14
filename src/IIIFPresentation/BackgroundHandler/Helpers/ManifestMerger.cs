@@ -89,6 +89,7 @@ public static class ManifestMerger
                     }],
                     Width = namedQueryCanvas.Width,
                     Height = namedQueryCanvas.Height,
+                    Duration = namedQueryCanvas.Duration,
                     Thumbnail = namedQueryCanvas.Thumbnail
                 }
             ];
@@ -118,6 +119,7 @@ public static class ManifestMerger
             baseImage.Service ??= namedQueryAnnotation.Service;
             paintingAnnotation.Body = baseImage;
             baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
+            baseManifest.Items[index].Duration = namedQueryCanvas.Duration;
             baseManifest.Items[index].Thumbnail = namedQueryCanvas.Thumbnail;
         }
     }
@@ -144,6 +146,7 @@ public static class ManifestMerger
                 Items = baseManifestPaintingAnnotations,
                 Height = namedQueryCanvas.Height,
                 Width = namedQueryCanvas.Width,
+                Duration = namedQueryCanvas.Duration,
                 Thumbnail = namedQueryCanvas.Thumbnail
             });
             

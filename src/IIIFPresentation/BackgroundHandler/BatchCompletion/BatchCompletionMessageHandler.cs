@@ -188,6 +188,7 @@ public class BatchCompletionMessageHandler(
             var thumbnailPath = item.Thumbnail?.OfType<Image>().GetThumbnailPath();
             
             canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
+            canvasPainting.Duration = item.Duration;
             canvasPainting.Ingesting = false;
             canvasPainting.Modified = DateTime.UtcNow;
 
