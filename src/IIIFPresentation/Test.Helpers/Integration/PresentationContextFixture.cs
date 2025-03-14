@@ -240,6 +240,26 @@ public class PresentationContextFixture : IAsyncLifetime
             LastProcessed = DateTime.UtcNow
         });
         
+        // processing child manifest
+        await DbContext.Manifests.AddAsync(new Manifest
+        {
+            Id = "FirstChildManifestProcessing",
+            CustomerId = CustomerId,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "iiif-manifest-processing",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ]
+        });
+        
         await DbContext.SaveChangesAsync();
     }
     
@@ -281,6 +301,6 @@ public class PresentationContextFixture : IAsyncLifetime
         DbContext.Database.ExecuteSqlRaw(
             "DELETE FROM collections WHERE customer_id != 1 AND id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection')");
         DbContext.Database.ExecuteSqlRaw(
-            "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest')");
+            "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest', 'FirstChildManifestProcessing')");
     }
 }
