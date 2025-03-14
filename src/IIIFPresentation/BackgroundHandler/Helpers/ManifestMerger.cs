@@ -1,6 +1,7 @@
-﻿using IIIF.Presentation.V3;
+﻿using System.Diagnostics;
+using Core.Helpers;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.DLCS;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -18,7 +19,7 @@ public static class ManifestMerger
         // Ensure collection non-null
         baseManifest.Items ??= [];
 
-        List<(Canvas? Canvas, int Index)> indexBasedManifest = baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
+        var indexBasedManifest = baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
         // get everything in the right order, then group by so we can tell where one choice ends and the next begins
         var orderedCanvasPaintings = canvasPaintings?.OrderBy(cp => cp.CanvasOrder).ThenBy(cp => cp.ChoiceOrder)
             .GroupBy(cp => cp.CanvasOrder).ToList() ?? [];
@@ -61,32 +62,38 @@ public static class ManifestMerger
     private static void UpdateChoice(Manifest baseManifest, int index, Canvas namedQueryCanvas, 
         CanvasPainting canvasPainting)
     {
-        // grab the body of the selected image and base manifest to update
+        // grab the body of the selected resource and base manifest to update
         var baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
         var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-        var baseImage = paintingAnnotation!.Body as PaintingChoice; 
+        var basePaintingChoice = paintingAnnotation!.Body as PaintingChoice;
+        
         var namedQueryAnnotation = namedQueryCanvas.GetFirstPaintingAnnotation();
-        var namedQueryImage = (Image)namedQueryAnnotation!.Body!;
-        
-        namedQueryImage.Label = canvasPainting.Label;
-        
-        var baseImageIndex = baseImage?.Items?.OfType<Image>().ToList()
+
+        var basePaintingChoiceIndex = basePaintingChoice?.Items?.OfType<ResourceBase>().ToList()
             .FindIndex(pa => pa.Id == namedQueryCanvas.Id);
-        
-        // this is moving an image to a choice order
-        if (baseImageIndex is -1 or null)
+
+        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
+
+        if (namedQueryBodyObj is ResourceBase namedQueryResource)
+            namedQueryResource.Label = canvasPainting.Label;
+
+        // this is moving a resource to a choice order
+        if (basePaintingChoiceIndex is -1 or null)
         {
-            // this is replacing the existing image in items with a painting choice
+            // this is replacing the existing resource in items with a painting choice
             baseManifest.Items = 
             [
                 new Canvas
                 {
-                    Items = [new AnnotationPage
-                    {
-                        Id = namedQueryCanvas.GetFirstAnnotationPage()?.Id,
-                        Label = namedQueryCanvas.GetFirstAnnotationPage()?.Label,
-                        Items = []
-                    }],
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = namedQueryCanvas.GetFirstAnnotationPage()?.Id,
+                            Label = namedQueryCanvas.GetFirstAnnotationPage()?.Label,
+                            Items = []
+                        }
+                    ],
                     Width = namedQueryCanvas.Width,
                     Height = namedQueryCanvas.Height,
                     Duration = namedQueryCanvas.Duration,
@@ -96,19 +103,19 @@ public static class ManifestMerger
                 }
             ];
 
-            baseImage = new PaintingChoice
-            {
-                Items =
-                [
-                    namedQueryImage
-                ]
-            };
+            // If NQ body is choice, use it - otherwise create new
+            // and init with the non-choice IPaintable as sole item
+            basePaintingChoice = namedQueryBodyObj as PaintingChoice
+                                 ?? new()
+                                 {
+                                     Items = [namedQueryBodyObj]
+                                 };
             
             // update the identifier and label of the canvas based on the identifier and label of the first choice
             baseManifest.Items[index].Id = namedQueryCanvas.Id;
             baseManifest.Items[index].Label = SetCanvasLabel(canvasPainting);
-            
-            paintingAnnotation.Body = baseImage;
+
+            paintingAnnotation.Body = basePaintingChoice;
             paintingAnnotation.Id ??= namedQueryAnnotation.Id;
             paintingAnnotation.Label = null;
             paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
@@ -116,10 +123,18 @@ public static class ManifestMerger
         }
         else
         {
-            // update the manifest with the updated image
-            baseImage.Items![baseImageIndex.Value] = namedQueryImage;
-            baseImage.Service ??= namedQueryAnnotation.Service;
-            paintingAnnotation.Body = baseImage;
+            // Implied by basePaintingChoiceIndex having a >-1 value
+            Debug.Assert(basePaintingChoice?.Items is not null, "basePaintingChoice?.Items is not null");
+
+            // update the manifest with the updated resource(s)
+            if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
+                basePaintingChoice.Items = CombineChoices(basePaintingChoice.Items, namedQueryChoiceItems,
+                    basePaintingChoiceIndex.Value);
+            else
+                basePaintingChoice.Items![basePaintingChoiceIndex.Value] = namedQueryBodyObj;
+
+            basePaintingChoice.Service ??= namedQueryAnnotation.Service;
+            paintingAnnotation.Body = basePaintingChoice;
             baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
             baseManifest.Items[index].Duration = namedQueryCanvas.Duration;
             baseManifest.Items[index].Behavior = namedQueryCanvas.Behavior;
@@ -128,6 +143,19 @@ public static class ManifestMerger
         }
     }
 
+    /// <summary>
+    ///     Replaces <paramref name="items" /> item at index <paramref name="index" />
+    ///     with the items within provided <paramref name="choice" />
+    /// </summary>
+    /// <param name="items">Existing <see cref="PaintingChoice.Items" /></param>
+    /// <param name="choice">
+    ///     NQ-supplied <see cref="PaintingChoice.Items" /> as update to an item at <paramref name="index" />
+    /// </param>
+    /// <param name="index">index of the element of <paramref name="items" /> to be updated(replaced with contents)</param>
+    /// <returns></returns>
+    private static List<IPaintable> CombineChoices(List<IPaintable> items, List<IPaintable> choice, int index)
+        => [..items[..index], ..choice, ..items[(index + 1)..]];
+
     private static void AddChoice(Manifest baseManifest, int index,
         Canvas namedQueryCanvas, CanvasPainting canvasPainting)
     {
@@ -135,17 +163,14 @@ public static class ManifestMerger
         var namedQueryAnnotationPage = namedQueryCanvas.GetFirstAnnotationPage();
         var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
         
-        var namedQueryImage = (Image)namedQueryAnnotation!.Body;
-        namedQueryImage.Label = canvasPainting.Label;
-        
         // is this the first item in a new choice order?
         if (baseManifest.Items?.Count == index)
         {
-            // if it is, set up the first annotation page with objects and then populate, so errors aren't thrown
+            // if it is, set up the first annotation page with objects and then populate
             baseManifest.Items ??= [];
             baseManifestPaintingAnnotations = CreateInitialAnnotationPageList(namedQueryAnnotationPage);
-            
-            baseManifest.Items.Add(new Canvas
+
+            baseManifest.Items.Add(new()
             {
                 Items = baseManifestPaintingAnnotations,
                 Height = namedQueryCanvas.Height,
@@ -167,27 +192,35 @@ public static class ManifestMerger
         }
         
         var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-        
-        // convert the namedQuery manifest image into a painting choice on the base manifest
-        var baseImage = paintingAnnotation!.Body as PaintingChoice;
+
+        // convert the namedQuery manifest resource into a painting choice on the base manifest
+        var basePaintingChoice = paintingAnnotation!.Body as PaintingChoice;
         // use the labels from the first choice as the annotation
         paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
         paintingAnnotation.Label = null;
         paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
-        
-        // if no defaults are set for the base image, set them (this happens on the first choice order)
-        if (baseImage == null)
+
+        // if no defaults are set for the base resource, set them (this happens on the first choice order)
+        basePaintingChoice ??= new()
         {
-            baseImage = new PaintingChoice
-            {
-                Items = []
-            };
-        }
-        
-        // add the new image to the base image choice, then update the manifest with the changes
-        baseImage.Items!.Add(namedQueryImage);
-        baseImage.Service ??= namedQueryAnnotation?.Service;
-        paintingAnnotation.Body = baseImage;
+            Items = []
+        };
+
+        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
+
+        if (namedQueryBodyObj is ResourceBase namedQueryResource)
+            namedQueryResource.Label = canvasPainting.Label;
+
+        // add the new resource(s) to the base resource choice, then update the manifest with the changes
+        if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
+            foreach (var nqItem in namedQueryChoiceItems)
+                basePaintingChoice.Items!.Add(nqItem);
+        else
+            basePaintingChoice.Items!.Add(namedQueryBodyObj);
+
+
+        basePaintingChoice.Service ??= namedQueryAnnotation?.Service;
+        paintingAnnotation.Body = basePaintingChoice;
         baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
     }
 
