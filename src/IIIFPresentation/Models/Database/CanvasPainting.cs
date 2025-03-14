@@ -98,6 +98,11 @@ public class CanvasPainting : IIdentifiable
     /// For spatial resources, the height of the resources on the canvas
     /// </summary>
     public int? StaticHeight { get; set; }
+
+    /// <summary>
+    ///     For temporal resources, the duration of the resources on the canvas
+    /// </summary>
+    public double? Duration { get; set; }
     
     public Manifest? Manifest { get; set; }
     
