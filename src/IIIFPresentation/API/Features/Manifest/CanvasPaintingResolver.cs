@@ -71,8 +71,9 @@ public class CanvasPaintingResolver(
         if (canvasPaintingResult.updateResult != null) return canvasPaintingResult.updateResult;
         
         existingManifest.CanvasPaintings = canvasPaintingResult.canvasPaintings;
+        // update the last processed time if there are no assets
         existingManifest.LastProcessed = canvasPaintingResult.canvasPaintings?.Any(cp => cp.AssetId != null) ?? false
-            ? null
+            ? existingManifest.LastProcessed
             : DateTime.UtcNow;
         
         return null;
