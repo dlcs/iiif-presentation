@@ -10,7 +10,6 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
-using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
@@ -601,10 +600,10 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task CreateManifest_WritesToS3()
+    public async Task CreateManifest_NoAssets_WritesToS3_Real()
     {
         // Arrange
-        var slug = nameof(CreateManifest_WritesToS3);
+        var slug = nameof(CreateManifest_NoAssets_WritesToS3_Real);
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -623,6 +622,45 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
         
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(id);
+        (s3Manifest.Context as string).Should()
+            .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+
+    [Fact]
+    public async Task CreateManifest_WithAsset_WritesToS3_Staging()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_WithAsset_WritesToS3_Staging);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources =
+            [
+                new()
+                {
+                    Asset = new(new JProperty("id", "fnord"))
+                }
+            ]
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"staging/{Customer}/manifests/{id}");
@@ -658,7 +696,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"staging/{Customer}/manifests/{id}");
+                $"{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
@@ -1329,11 +1367,11 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Insert_WritesToS3()
+    public async Task PutFlatId_Insert_NoAssets_WritesToS3()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_WritesToS3)}";
-        var id = nameof(PutFlatId_Insert_WritesToS3);
+        var slug = $"slug_{nameof(PutFlatId_Insert_NoAssets_WritesToS3)}";
+        var id = nameof(PutFlatId_Insert_NoAssets_WritesToS3);
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1349,6 +1387,45 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(id);
+        (s3Manifest.Context as string).Should()
+            .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+    }
+
+    [Fact]
+    public async Task PutFlatId_Insert_WithAsset_WritesToS3()
+    {
+        // Arrange
+        var slug = $"slug_{nameof(PutFlatId_Insert_WithAsset_WritesToS3)}";
+        var id = nameof(PutFlatId_Insert_WithAsset_WritesToS3);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources =
+            [
+                new()
+                {
+                    Asset = new(new JProperty("id", "fnord"))
+                }
+            ]
+        };
+
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                 $"staging/{Customer}/manifests/{id}");
@@ -1382,7 +1459,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"staging/{Customer}/manifests/{id}");
+                $"{Customer}/manifests/{id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
