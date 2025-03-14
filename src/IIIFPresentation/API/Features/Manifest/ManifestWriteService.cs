@@ -154,12 +154,10 @@ public class ManifestWriteService(
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
-        var saveToStaging = true;
-
+        var saveToStaging = ShouldSaveToStaging(request);
         // can't have both items and painted resources, so items takes precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
-            saveToStaging = false;
             request.PresentationManifest.PaintedResources = null;
         }
 
@@ -187,6 +185,11 @@ public class ManifestWriteService(
         }
     }
 
+    private static bool ShouldSaveToStaging(WriteManifestRequest request)
+    {
+        return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
+    }
+
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
@@ -207,8 +210,7 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
 
-            var saveToStaging = request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
-
+            var saveToStaging = ShouldSaveToStaging(request);
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
 
             return PresUpdateResult.Success(
