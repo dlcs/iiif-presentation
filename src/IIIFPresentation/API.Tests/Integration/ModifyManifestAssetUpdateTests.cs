@@ -734,68 +734,69 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.Batches!.First().Id.Should().Be(batchId);
     }
     
-[Fact]
-public async Task UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock()
-{
-    // Arrange
-    var slug = nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock);
-    var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock)}_id";
-    var assetId = "testAssetByPresentation-update";
-    var canvasId = "first";
-
-    var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+    [Fact]
+    public async Task UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock()
     {
-        new()
+        // Arrange
+        var slug = nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock);
+        var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock)}_id";
+        var assetId = "testAssetByPresentation-update";
+        var canvasId = "first";
+
+        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
         {
-            Id = canvasId,
-            StaticWidth = 1200,
-            StaticHeight = 1800,
-            CanvasOrder = 1,
-            ChoiceOrder = 1,
-            AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
-        }
-    };
-    
-    await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
-    await dbContext.SaveChangesAsync();
-    
-    var batchId = 1010;
-    var manifestWithoutSpace = $$"""
-                     {
-                         "type": "Manifest",
-                         "slug": "{{slug}}",
-                         "parent": "http://localhost/{{Customer}}/collections/root",
-                         "paintedResources": [
-                             {
-                                 "asset": {
-                                     "id": "{{assetId}}",
-                                     "batch": "{{batchId}}",
-                                     "mediaType": "image/jpg"
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = 1010;
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg"
+                                     }
+                                 },
+                                 {
+                                     "asset": {
+                                         "id": "{{assetId}}_newone",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg"
+                                     }
                                  }
-                             },
-                             {
-                                 "asset": {
-                                     "id": "{{assetId}}_newone",
-                                     "batch": "{{batchId}}",
-                                     "mediaType": "image/jpg"
-                                 }
-                             }
-                         ] 
-                     }
-                     """;
+                             ] 
+                         }
+                         """;
 
-    var requestMessage =
-        HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-            manifestWithoutSpace);
-    etagManager.SetCorrectEtag(requestMessage, id, Customer);
-    
-    // Act
-    var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-    // Assert
-    response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-    var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-    responseManifest.PaintedResources.Should().Contain(pr => pr.CanvasPainting.CanvasId == $"http://localhost/1/canvases/{canvasId}");
-}
+        responseManifest!.PaintedResources.Should()
+            .Contain(pr => pr.CanvasPainting!.CanvasId == $"http://localhost/1/canvases/{canvasId}");
+    }
 }

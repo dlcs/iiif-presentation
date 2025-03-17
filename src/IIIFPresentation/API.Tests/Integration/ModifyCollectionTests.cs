@@ -2467,12 +2467,4 @@ $$"""
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
     }
-    
-    // private void SetCorrectEtag(HttpRequestMessage requestMessage, Collection dbCollection)
-    // {
-    //     // This saves some boilerplate by correctly setting Etag in manager and request
-    //     var tag = $"\"{dbCollection.Id}\"";
-    //     etagManager.UpsertETag($"/{Customer}/collections/{dbCollection.Id}", tag);
-    //     requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
-    // }
 }

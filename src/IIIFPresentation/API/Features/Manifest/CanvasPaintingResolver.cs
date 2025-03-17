@@ -255,12 +255,11 @@ public class CanvasPaintingResolver(
         var requiredUniqueIdCount = canvasPaintings.GetRequiredNumberOfCanvases();
         
         // Resources that share canvasOrder share a canvasId (as they're on same canvas) so maintain a list of order:id
-        var canvasIdByOrder = new Dictionary<int, string>();
+        var canvasIdByOrder = new Dictionary<int, string>(requiredUniqueIdCount);
         
         var canvasPaintingIds =
             await GenerateUniqueCanvasPaintingIds(requiredUniqueIdCount, customerId, cancellationToken);
-        if (canvasPaintingIds == null)
-            return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+        if (canvasPaintingIds == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
         
         foreach (var canvasPainting in canvasPaintings.Where(canvasPainting => string.IsNullOrEmpty(canvasPainting.Id)))
         {
@@ -283,9 +282,9 @@ public class CanvasPaintingResolver(
     private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(int customerId, 
         PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, AssetId assetId, DbManifest? existingManifest, int canvasOrder)
     {
-        paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
         try
         {
+            paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
             var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting, assetId, existingManifest?.CanvasPaintings);
 
             if (canvasId != null)
