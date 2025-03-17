@@ -139,7 +139,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         var dbManifest = dbContext.Manifests
@@ -256,7 +256,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -411,7 +411,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.OK);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -437,11 +437,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
      }
      
      [Fact]
-     public async Task UpdateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
+     public async Task UpdateManifest_CorrectlyOrdersCanvasPaintings_WhenCanvasPaintingSetsOrder()
      {
          // Arrange
-         var slug = nameof(UpdateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder);
-         var id = $"{nameof(UpdateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder)}_id";
+         var slug = nameof(UpdateManifest_CorrectlyOrdersCanvasPaintings_WhenCanvasPaintingSetsOrder);
+         var id = $"{nameof(UpdateManifest_CorrectlyOrdersCanvasPaintings_WhenCanvasPaintingSetsOrder)}_id";
         
          await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
          await dbContext.SaveChangesAsync();
@@ -564,7 +564,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.OK);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -717,7 +717,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.OK);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -870,7 +870,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -988,7 +988,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -1065,7 +1065,7 @@ public async Task UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAsset
     var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
     // Assert
-    response.StatusCode.Should().Be(HttpStatusCode.OK);
+    response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
     responseManifest.PaintedResources.Should().Contain(pr => pr.CanvasPainting.CanvasId == $"http://localhost/1/canvases/{canvasId}");

@@ -273,7 +273,7 @@ public class CanvasPaintingResolver(
                 continue;
             }
             
-            // this is the first item in a new choice, so set the canvas id
+            // this is the first item in a new canvas, so set the canvas id
             var nextId = canvasPaintingIds.Pop();
             canvasIdByOrder[canvasPainting.CanvasOrder] = nextId;
             canvasPainting.Id = nextId;
