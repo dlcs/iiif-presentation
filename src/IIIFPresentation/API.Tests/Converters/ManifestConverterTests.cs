@@ -4,11 +4,14 @@ using Core.Infrastructure;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Serialisation;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Xunit.Abstractions;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
 
@@ -17,6 +20,7 @@ namespace API.Tests.Converters;
 public class ManifestConverterTests
 {
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
+    private readonly JsonSerializerSettings serializerSettings = new JsonSerializerSettings(IIIFSerialiserX.SerializerSettings);
     
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()
@@ -198,9 +202,11 @@ public class ManifestConverterTests
     {
         // Arrange
         var iiifManifest = new PresentationManifest();
+        var customer = 123;
+        
         var dbManifest = new DBManifest
         {
-            CustomerId = 123,
+            CustomerId = customer,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow.AddDays(1),
             CreatedBy = "creator",
@@ -213,18 +219,24 @@ public class ManifestConverterTests
                 {
                     ChoiceOrder = 1,
                     CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId1")
+                    AssetId = new AssetId(1, 2, "assetId1"),
+                    CustomerId = customer,
+                    Id = "assetId1"
                 },
                 new CanvasPainting
                 {
                     ChoiceOrder = 2,
                     CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId2")
+                    AssetId = new AssetId(1, 2, "assetId2"),
+                    CustomerId = customer,
+                    Id = "assetId2"
                 },
                 new CanvasPainting
                 {
                     CanvasOrder = 1,
-                    AssetId = new AssetId(1, 2, "assetId3")
+                    AssetId = new AssetId(1, 2, "assetId3"),
+                    CustomerId = customer,
+                    Id = "assetId3"
                 }
             ]
         };
@@ -236,6 +248,54 @@ public class ManifestConverterTests
         result.PaintedResources.Should()
             .BeInAscendingOrder(pr => pr.CanvasPainting.CanvasOrder)
             .And.ThenBeInAscendingOrder(pr => pr.CanvasPainting.ChoiceOrder);
+
+        var items = JsonConvert.SerializeObject(result.Items, serializerSettings);
+        items.Should().Be(
+"""
+  [
+    {
+      "id": "http://base/123/canvases/assetId3",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "http://base/123/canvases/assetId3/annopages/1",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "http://base/123/canvases/assetId3/annotations/1",
+              "type": "Annotation",
+              "motivation": "painting",
+              "behavior": ["processing"],
+              "target": "http://base/123/canvases/assetId3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "http://base/123/canvases/assetId1",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "http://base/123/canvases/assetId1/annopages/2",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "http://base/123/canvases/assetId1/annotations/2",
+              "type": "Annotation",
+              "motivation": "painting",
+              "behavior": ["processing"],
+              "body": {
+                "type": "Choice"
+              },
+              "target": "http://base/123/canvases/assetId1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  """);
     }
     
     [Fact]
