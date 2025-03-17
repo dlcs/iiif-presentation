@@ -226,7 +226,6 @@ public class CanvasPaintingResolver(
 
             var cp = new CanvasPainting
             {
-                Id = specifiedCanvasId,
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 Created = DateTime.UtcNow,
@@ -238,6 +237,8 @@ public class CanvasPaintingResolver(
                 StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
                 StaticHeight = paintedResource.CanvasPainting?.StaticHeight
             }; 
+            
+            if (specifiedCanvasId != null) cp.Id = specifiedCanvasId;
             
             count++;
             canvasPaintings.Add(cp);
@@ -261,7 +262,7 @@ public class CanvasPaintingResolver(
         if (canvasPaintingIds == null)
             return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
         
-        foreach (var canvasPainting in canvasPaintings.Where(canvasPainting => canvasPainting.Id == null))
+        foreach (var canvasPainting in canvasPaintings.Where(canvasPainting => string.IsNullOrEmpty(canvasPainting.Id)))
         {
             // A canvas with this same order has been set a CanvasId already, use that
             if (canvasIdByOrder.TryGetValue(canvasPainting.CanvasOrder, out var idForOrder))
@@ -283,11 +284,9 @@ public class CanvasPaintingResolver(
         PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, AssetId assetId, DbManifest? existingManifest, int canvasOrder)
     {
         paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
-        string? canvasId = null;
-        
         try
         {
-            canvasId = GetCanvasId(customerId, paintedResource, assetId, existingManifest, canvasId);
+            var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting, assetId, existingManifest?.CanvasPaintings);
 
             if (canvasId != null)
             {
@@ -321,24 +320,16 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    private static string? GetCanvasId(int customerId, PaintedResource paintedResource, AssetId assetId,
-        DbManifest? existingManifest, string? canvasId)
+    private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting, AssetId assetId,
+        List<CanvasPainting>? existingManifestCanvasPaintings)
     {
-        if (paintedResource.CanvasPainting!.CanvasId != null)
+        if (canvasPainting.CanvasId != null)
         {
-            canvasId = PathParser.GetCanvasId(paintedResource.CanvasPainting!, customerId);
-        }
-        else
-        {
-            var matchedAssetFromExisting = existingManifest?.CanvasPaintings?.FirstOrDefault(m => m.AssetId == assetId);
-
-            if (matchedAssetFromExisting != null)
-            {
-                canvasId = matchedAssetFromExisting.Id;
-            }
+            return PathParser.GetCanvasId(canvasPainting, customerId);
         }
 
-        return canvasId;
+        var matchedAssetFromExisting = existingManifestCanvasPaintings?.FirstOrDefault(m => m.AssetId == assetId);
+        return matchedAssetFromExisting?.Id;
     }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
