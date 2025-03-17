@@ -583,7 +583,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -655,7 +655,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -725,7 +725,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -820,7 +820,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -898,7 +898,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1000,7 +1000,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1113,7 +1113,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1212,7 +1212,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest);
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1244,13 +1244,5 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting.StaticWidth.Should().Be(200);
         canvasPainting.StaticHeight.Should().Be(200);
         canvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "Two"));
-    }
-    
-    private void SetCorrectEtag(HttpRequestMessage requestMessage, Manifest dbManifest)
-    {
-        // This saves some boilerplate by correctly setting Etag in manager and request
-        var tag = $"\"{dbManifest.Id}\"";
-        etagManager.UpsertETag($"/{Customer}/manifests/{dbManifest.Id}", tag);
-        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
     }
 }

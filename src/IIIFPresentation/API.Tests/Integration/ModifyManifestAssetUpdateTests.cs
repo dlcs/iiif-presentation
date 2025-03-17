@@ -133,7 +133,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
                 manifestWithoutSpace);
-        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -250,7 +250,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
                 manifestWithoutSpace);
-        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -405,7 +405,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifestWithoutSpace);
-         EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+         etagManager.SetCorrectEtag(requestMessage, id, Customer);
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -558,7 +558,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifestWithoutSpace);
-         EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+         etagManager.SetCorrectEtag(requestMessage, id, Customer);
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -711,7 +711,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifestWithoutSpace);
-         EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+         etagManager.SetCorrectEtag(requestMessage, id, Customer);
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -796,7 +796,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifestWithoutSpace);
-        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -864,7 +864,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifestWithSpace);
-        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -982,7 +982,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
                 manifestWithoutSpace);
-        EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1059,7 +1059,7 @@ public async Task UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAsset
     var requestMessage =
         HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
             manifestWithoutSpace);
-    EtagHelper.SetCorrectEtag(requestMessage, id, etagManager, Customer);
+    etagManager.SetCorrectEtag(requestMessage, id, Customer);
     
     // Act
     var response = await httpClient.AsCustomer().SendAsync(requestMessage);

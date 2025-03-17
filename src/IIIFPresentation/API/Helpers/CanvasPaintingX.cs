@@ -12,6 +12,6 @@ public static class CanvasPaintingX
     public static int GetRequiredNumberOfCanvases(this List<CanvasPainting>? paintedResources)
     {
         if (paintedResources.IsNullOrEmpty()) return 0;
-        return paintedResources.Where(pr => pr.Id == null).DistinctBy(pr => pr.CanvasOrder).Count();
+        return paintedResources.Where(pr => string.IsNullOrEmpty(pr.Id)).DistinctBy(pr => pr.CanvasOrder).Count();
     }
 }
