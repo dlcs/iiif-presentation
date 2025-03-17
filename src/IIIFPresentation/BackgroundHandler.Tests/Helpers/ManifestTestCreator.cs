@@ -231,6 +231,7 @@ public class ManifestTestCreator
     private static IPaintable GenerateSound(GenerateCanvasOptions options) =>
         new Sound
         {
+            Id = options.Id,
             Duration = 15000,
             Format = "audio/mp3"
         };
@@ -238,6 +239,7 @@ public class ManifestTestCreator
     private static IPaintable GenerateVideo(GenerateCanvasOptions options)
         => new Video
         {
+            Id = options.Id,
             Duration = 16000,
             Width = 640,
             Height = 480,
