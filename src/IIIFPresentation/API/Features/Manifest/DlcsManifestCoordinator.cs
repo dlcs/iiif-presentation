@@ -34,8 +34,11 @@ public class DlcsManifestCoordinator(
     /// creating a space and/or creating DLCS batches
     /// </summary>
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
-    public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
-        string manifestId, CancellationToken cancellationToken)
+    public async Task<DlcsInteractionResult> HandleDlcsInteractions(
+        WriteManifestRequest request,
+        string manifestId, 
+        Models.Database.Collections.Manifest? dbManifest = null, 
+        CancellationToken cancellationToken = default)
     {
         // NOTE - this must always happen before handing off to canvasPaintingResolve
         var assets = GetAssetJObjectList(request);
@@ -55,15 +58,23 @@ public class DlcsManifestCoordinator(
         var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(AssetProperties.Space, out _)).ToArray();
         if (request.CreateSpace || assetsWithoutSpaces.Length > 0)
         {
-            // Either you want a space or we detected you need a space regardless
-            spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
-            if (!spaceId.HasValue)
+            if (dbManifest?.SpaceId != null)
             {
-                return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+                spaceId = dbManifest.SpaceId.Value;
+            }
+            else
+            {
+                // Either you want a space or we detected you need a space regardless
+                spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
+                if (!spaceId.HasValue)
+                {
+                    return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+                }
             }
 
             foreach (var asset in assetsWithoutSpaces)
-                asset.Add(AssetProperties.Space, spaceId.Value);
+                    asset.Add(AssetProperties.Space, spaceId.Value);
+            
         }
 
         var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);

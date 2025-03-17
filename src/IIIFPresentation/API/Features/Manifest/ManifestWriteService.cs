@@ -169,7 +169,7 @@ public class ManifestWriteService(
             
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
-                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             var (error, dbManifest) =
@@ -208,7 +208,7 @@ public class ManifestWriteService(
         {
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
-                await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, cancellationToken);
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, existingManifest, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
