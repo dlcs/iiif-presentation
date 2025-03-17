@@ -167,7 +167,7 @@ public class ManifestWriteService(
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
             
-            // Carry out any DLCS interactions (for paintedResources with items) 
+            // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
@@ -206,7 +206,7 @@ public class ManifestWriteService(
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
-            // Carry out any DLCS interactions (for paintedResources with items) 
+            // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
