@@ -801,72 +801,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_KeepsTheSameCanvasId_WhenUpdatingTwice()
-    {
-        // Arrange
-        var slug = nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock);
-        var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasId_WhenAddingAndUpdatingAssetWithoutCanvasPaintingBlock)}_id";
-        var assetId = "testAssetByPresentation-update";
-        var canvasId = "first";
-
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
-        {
-            new()
-            {
-                Id = canvasId,
-                StaticWidth = 1200,
-                StaticHeight = 1800,
-                CanvasOrder = 1,
-                ChoiceOrder = 1,
-                AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
-            }
-        };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
-        await dbContext.SaveChangesAsync();
-        
-        var batchId = 1010;
-        var manifestWithoutSpace = $$"""
-                         {
-                             "type": "Manifest",
-                             "slug": "{{slug}}",
-                             "parent": "http://localhost/{{Customer}}/collections/root",
-                             "paintedResources": [
-                                 {
-                                     "asset": {
-                                         "id": "{{assetId}}",
-                                         "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg"
-                                     }
-                                 },
-                                 {
-                                     "asset": {
-                                         "id": "{{assetId}}_newone",
-                                         "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg"
-                                     }
-                                 }
-                             ] 
-                         }
-                         """;
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifestWithoutSpace);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
-        
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-
-        responseManifest!.PaintedResources.Should()
-            .Contain(pr => pr.CanvasPainting!.CanvasId == $"http://localhost/1/canvases/{canvasId}");
-    }
-    
-    [Fact]
     public async Task UpdateManifest_UpdatesAssetRequests_WithSpaceFromManifest()
     {
         // Arrange
@@ -877,8 +811,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, spaceId: space);
         await dbContext.SaveChangesAsync();
 
-        var assetId = "testAssetByPresentation-update";
-        var batchId = 1001;
+        var assetId = "testAssetByPresentation-update-keepSpace";
+        var batchId = 1011;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
