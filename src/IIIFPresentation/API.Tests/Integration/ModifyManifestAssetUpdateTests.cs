@@ -647,7 +647,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.Batches.Should().HaveCount(1);
         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
         dbManifest.Batches!.First().Id.Should().Be(batchId);
-        dbManifest.LastProcessed.Should().BeNull();
+        dbManifest.LastProcessed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
