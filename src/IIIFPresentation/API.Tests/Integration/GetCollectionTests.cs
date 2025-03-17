@@ -16,7 +16,7 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
-    private const int TotalDatabaseChildItems = 5;
+    private const int TotalDatabaseChildItems = 6;
     private readonly IAmazonS3 amazonS3;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -40,7 +40,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1");
-        collection.Items.Count.Should().Be(TotalDatabaseChildItems - 1, "One child item is non-public");
+        collection.Items.Count.Should().Be(TotalDatabaseChildItems - 2, "Two child items are non-public");
         var firstItem = (Collection)collection.Items[0];
         firstItem.Id.Should().Be("http://localhost/1/first-child");
         firstItem.Behavior.Should().BeNull();
@@ -236,7 +236,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
-        var expectedTotals = new DescendantCounts(2, 2, 1); 
+        var expectedTotals = new DescendantCounts(2, 2, 2); 
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -497,7 +497,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     [Theory]
     [InlineData("id", "collections/NonPublic")]
     [InlineData("slug", "collections/NonPublic")]
-    [InlineData("created", "manifests/FirstChildManifest")]
+    [InlineData("created", "manifests/FirstChildManifestProcessing")]
     public async Task Get_RootFlat_ReturnsFirstPageWithSecondItem_WhenCalledWithSmallPageSizeAndOrderByDescending(string field, string expectedItemId)
     {
         // Arrange
