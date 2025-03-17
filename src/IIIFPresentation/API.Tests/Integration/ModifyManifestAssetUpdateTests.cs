@@ -82,25 +82,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
@@ -113,17 +96,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "mediaType": "image/jpg"
                                      }
                                  }
                              ] 
@@ -199,25 +172,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
@@ -230,17 +186,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "mediaType": "image/jpg"
                                      }
                                  }
                              ] 
@@ -301,25 +247,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
                               "slug": "{{slug}}",
                               "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
@@ -332,17 +261,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                       "asset": {
                                           "id": "testAssetByPresentation-update-multipleAssets-0",
                                           "batch": "{{batchId}}",
-                                          "mediaType": "image/jpg",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -355,21 +274,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-update-multipleAssets-1",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -382,21 +287,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-update-multipleAssets-2",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   }
                               ] 
@@ -450,25 +341,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
                               "slug": "{{slug}}",
                               "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
@@ -487,17 +361,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-0",
                                           "batch": "{{batchId}}",
-                                          "mediaType": "image/jpg",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -511,17 +375,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-1",
-                                          "mediaType": "image/jpg",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -535,21 +389,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-2",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   }
                               ] 
@@ -606,25 +446,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
                               "slug": "{{slug}}",
                               "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
@@ -639,17 +462,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-0",
                                           "batch": "{{batchId}}",
-                                          "mediaType": "image/jpg",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -664,21 +477,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-1",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   },
                                   {
@@ -692,17 +491,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-2",
-                                          "mediaType": "image/jpg",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "mediaType": "image/jpg"
                                       }
                                   }
                               ] 
@@ -764,25 +553,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                 {
                                      "asset": {
@@ -823,25 +595,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var manifestWithSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
@@ -931,25 +686,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
@@ -962,17 +700,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "mediaType": "image/jpg"
                                      }
                                  }
                              ] 
