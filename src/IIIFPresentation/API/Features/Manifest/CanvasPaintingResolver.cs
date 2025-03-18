@@ -70,7 +70,9 @@ public class CanvasPaintingResolver(
 
         if (canvasPaintingResult.updateResult != null) return canvasPaintingResult.updateResult;
         
-        existingManifest.CanvasPaintings = canvasPaintingResult.canvasPaintings;
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest, canvasPaintingResult.canvasPaintings);
+        existingManifest.CanvasPaintings.AddRange(toInsert);
+        
         existingManifest.LastProcessed = DateTime.UtcNow;
         
         return null;
@@ -89,13 +91,38 @@ public class CanvasPaintingResolver(
         existingManifest.CanvasPaintings ??= [];
 
         // Iterate through all incoming - this is what we want to preserve in DB
-        var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest, incomingCanvasPaintings);
+
+        var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
+        if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
+        existingManifest.CanvasPaintings.AddRange(toInsert);
+
+        return null;
+    }
+
+    private List<CanvasPainting> UpdateCanvasPaintingRecords(DbManifest existingManifest, 
+        List<CanvasPainting> incomingCanvasPaintings)
+    {
+        var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);;
         var toInsert = new List<CanvasPainting>();
         foreach (var incoming in incomingCanvasPaintings)
         {
             CanvasPainting? matching = null;
-            var candidates = existingManifest.CanvasPaintings
-                .Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId).ToList();
+
+            List<CanvasPainting> candidates;
+            if (incoming.AssetId != null)
+            {
+                candidates = existingManifest.CanvasPaintings
+                    .Where(cp => cp.Id == incoming.Id)
+                    .ToList();
+            }
+            else
+            {
+                candidates = existingManifest.CanvasPaintings
+                    .Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId)
+                    .ToList();
+            }
+
             if (candidates.Count == 1)
             {
                 // Single item matching - check if we've processed it already. If so this is due to choice
@@ -142,11 +169,7 @@ public class CanvasPaintingResolver(
             existingManifest.CanvasPaintings.Remove(toRemove);
         }
 
-        var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
-        if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
-        existingManifest.CanvasPaintings.AddRange(toInsert);
-
-        return null;
+        return toInsert;
     }
 
     private async Task<PresUpdateResult?> HandleInserts(List<CanvasPainting> canvasPaintings, int customerId,

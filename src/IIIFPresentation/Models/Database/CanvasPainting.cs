@@ -144,6 +144,7 @@ public static class CanvasPaintingX
         canvasPainting.StaticWidth = updated.StaticWidth;
         canvasPainting.Target = updated.Target;
         canvasPainting.Modified = DateTime.UtcNow;
+        canvasPainting.AssetId = updated.AssetId;
         return canvasPainting;
     } 
 }
