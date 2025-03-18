@@ -2,6 +2,7 @@
 using Core.Helpers;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.DLCS;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -136,11 +137,20 @@ public static class ManifestMerger
             basePaintingChoice.Service ??= namedQueryAnnotation.Service;
             paintingAnnotation.Body = basePaintingChoice;
             baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-            baseManifest.Items[index].Duration = namedQueryCanvas.Duration;
-            baseManifest.Items[index].Behavior = namedQueryCanvas.Behavior;
-            baseManifest.Items[index].Rendering = namedQueryCanvas.Rendering;
-            baseManifest.Items[index].Thumbnail = namedQueryCanvas.Thumbnail;
+            var indexedItem = baseManifest.Items[index];
+            indexedItem.Duration = namedQueryCanvas.Duration;
+            indexedItem.Behavior = namedQueryCanvas.Behavior;
+            indexedItem.Rendering =
+                CombineRendering(indexedItem.Rendering, namedQueryCanvas.Rendering);
+            indexedItem.Thumbnail = namedQueryCanvas.Thumbnail;
         }
+    }
+
+    private static List<ExternalResource>? CombineRendering(List<ExternalResource>? existing,
+        List<ExternalResource>? incoming)
+    {
+        if (existing is null) return incoming;
+        return incoming is null ? null : existing.Concat(incoming).ToList();
     }
 
     /// <summary>
@@ -193,18 +203,19 @@ public static class ManifestMerger
         
         var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
 
-        // convert the namedQuery manifest resource into a painting choice on the base manifest
-        var basePaintingChoice = paintingAnnotation!.Body as PaintingChoice;
+
         // use the labels from the first choice as the annotation
-        paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
+        paintingAnnotation!.Id ??= namedQueryAnnotation?.Id;
         paintingAnnotation.Label = null;
         paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
 
+        // convert the namedQuery manifest resource into a painting choice on the base manifest
         // if no defaults are set for the base resource, set them (this happens on the first choice order)
-        basePaintingChoice ??= new()
-        {
-            Items = []
-        };
+        var basePaintingChoice = paintingAnnotation.Body as PaintingChoice
+                                 ?? new()
+                                 {
+                                     Items = []
+                                 };
 
         var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
 
@@ -219,7 +230,7 @@ public static class ManifestMerger
             basePaintingChoice.Items!.Add(namedQueryBodyObj);
 
 
-        basePaintingChoice.Service ??= namedQueryAnnotation?.Service;
+        basePaintingChoice.Service ??= namedQueryAnnotation.Service;
         paintingAnnotation.Body = basePaintingChoice;
         baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
     }

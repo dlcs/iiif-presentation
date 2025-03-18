@@ -131,6 +131,7 @@ public class ManifestTestCreator
             Width = 110,
             Height = 110,
             Metadata = GenerateMetadata(),
+            Rendering = GenerateAnnotationRendering(options),
             Thumbnail =
             [
                 new Image
@@ -146,7 +147,6 @@ public class ManifestTestCreator
                 {
                     Id = $"{id}_AnnotationPage",
                     Label = new("en", $"{id}_AnnotationPage"),
-                    Rendering = GenerateAnnotationRendering(id, options),
                     Items =
                     [
                         new PaintingAnnotation
@@ -170,14 +170,14 @@ public class ManifestTestCreator
         };
     }
 
-    private static List<ExternalResource>? GenerateAnnotationRendering(string id, GenerateCanvasOptions options)
+    private static List<ExternalResource>? GenerateAnnotationRendering(GenerateCanvasOptions options)
         => options.ContentType switch
         {
             GenerateCanvasOptions.Content.Dataset =>
             [
                 new ExternalResource("Dataset")
                 {
-                    Label = new("en", $"{id}_Dataset"),
+                    Label = new("en", $"{options.Id}_Dataset"),
                     Format = "application/pdf",
                     Behavior = ["original"]
                 }
@@ -186,7 +186,7 @@ public class ManifestTestCreator
             [
                 new ExternalResource("Sound")
                 {
-                    Label = new("en", $"{id}_Audio File"),
+                    Label = new("en", $"{options.Id}_Audio File"),
                     Format = "audio/wav",
                     Behavior = ["original"]
                 }
@@ -195,7 +195,7 @@ public class ManifestTestCreator
             [
                 new ExternalResource("Video")
                 {
-                    Label = new("en", $"{id}_Video File"),
+                    Label = new("en", $"{options.Id}_Video File"),
                     Format = "video/mp4",
                     Behavior = ["original"]
                 }
@@ -204,7 +204,7 @@ public class ManifestTestCreator
             [
                 new ExternalResource("Image")
                 {
-                    Label = new("en", $"{id}_Image File"),
+                    Label = new("en", $"{options.Id}_Image File"),
                     Format = "image/jpeg",
                     Behavior = ["original"]
                 }
@@ -228,7 +228,7 @@ public class ManifestTestCreator
         };
     }
 
-    private static IPaintable GenerateSound(GenerateCanvasOptions options) =>
+    private static Sound GenerateSound(GenerateCanvasOptions options) =>
         new Sound
         {
             Id = options.Id,
@@ -236,7 +236,7 @@ public class ManifestTestCreator
             Format = "audio/mp3"
         };
 
-    private static IPaintable GenerateVideo(GenerateCanvasOptions options)
+    private static Video GenerateVideo(GenerateCanvasOptions options)
         => new Video
         {
             Id = options.Id,
