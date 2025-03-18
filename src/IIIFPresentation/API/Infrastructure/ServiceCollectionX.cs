@@ -7,6 +7,7 @@ using AWS.Configuration;
 using AWS.Helpers;
 using AWS.S3;
 using MediatR;
+using Microsoft.OpenApi.Models;
 using Repository;
 using Sqids;
 
@@ -89,5 +90,49 @@ public static class ServiceCollectionX
                 .AllowAnyOrigin()
                 .AllowAnyMethod()
                 .AllowAnyHeader());
+        });
+    
+    /// <summary>
+    /// Add SwaggerGen services to service collection.
+    /// </summary>
+    public static IServiceCollection ConfigureSwagger(this IServiceCollection services)
+        => services
+            .AddEndpointsApiExplorer()
+            .AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "IIIF Presentation API", 
+                Version = "v1",
+                Description = "API for creation and management of IIIF Presentation API resources"
+            });
+
+            c.AddSecurityDefinition(
+                "basic", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "basic",
+                    In = ParameterLocation.Header,
+                    Description = "Basic Authorization header",
+                });
+
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "basic",
+                        },
+                        Scheme = "basic",
+                        Name = "Authorization",
+                        In = ParameterLocation.Header
+                    },
+                    []
+                },
+            });
         });
 }

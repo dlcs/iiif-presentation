@@ -39,9 +39,6 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
 builder.Services.AddOptions<ApiSettings>()
     .BindConfiguration(string.Empty);
 builder.Services.AddOptions<CacheSettings>()
@@ -59,6 +56,7 @@ builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
+    .ConfigureSwagger()
     .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
     .AddScoped<DlcsManifestCoordinator>()
