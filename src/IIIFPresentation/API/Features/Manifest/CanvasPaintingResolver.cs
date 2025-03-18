@@ -89,8 +89,7 @@ public class CanvasPaintingResolver(
             manifestItemsParser.ParseItemsToCanvasPainting(presentationManifest).ToList();
 
         existingManifest.CanvasPaintings ??= [];
-
-        // Iterate through all incoming - this is what we want to preserve in DB
+        
         var toInsert = UpdateCanvasPaintingRecords(existingManifest, incomingCanvasPaintings);
 
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
@@ -110,10 +109,11 @@ public class CanvasPaintingResolver(
             CanvasPainting? matching = null;
 
             List<CanvasPainting> candidates;
+            // if the asset id has been set, a precursor will have already retrieved and set the correct id
             if (incoming.AssetId != null)
             {
                 candidates = existingManifest.CanvasPaintings
-                    .Where(cp => cp.Id == incoming.Id)
+                    .Where(cp => cp.AssetId == incoming.AssetId)
                     .ToList();
             }
             else
@@ -122,21 +122,23 @@ public class CanvasPaintingResolver(
                     .Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId)
                     .ToList();
             }
-
+            
+            var canvasId = incoming.CanvasOriginalId?.ToString() ?? incoming.Id;
+            
             if (candidates.Count == 1)
             {
                 // Single item matching - check if we've processed it already. If so this is due to choice
                 var potential = candidates.Single();
                 if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
                 {
-                    logger.LogTrace("Found existing canvas painting for {CanvasOriginalId}", incoming.CanvasOriginalId);
+                    logger.LogTrace("Found existing canvas painting for {CanvasOriginalId}", canvasId);
                     matching = potential;
                 }
             }
             else if (candidates.Count > 1)
             {
                 // If there are multiple matching items then Canvas is a choice
-                logger.LogTrace("Found multiple canvas paintings for {CanvasOriginalId}", incoming.CanvasOriginalId);
+                logger.LogTrace("Found multiple canvas paintings for {CanvasOriginalId}", canvasId);
                 matching = candidates.SingleOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder);
             }
 
@@ -244,7 +246,7 @@ public class CanvasPaintingResolver(
             
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
             var (canvasIdErrors, specifiedCanvasId) = TryGetValidCanvasId(customerId, paintedResource,
-                canvasPaintings, assetId, existingManifest, canvasOrder);
+                canvasPaintings, assetId, existingManifest, canvasOrder, existingManifest != null);
             if (canvasIdErrors != null) return (canvasIdErrors, null);
 
             var cp = new CanvasPainting
@@ -302,8 +304,14 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(int customerId, 
-        PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, AssetId assetId, DbManifest? existingManifest, int canvasOrder)
+    private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(
+        int customerId, 
+        PaintedResource paintedResource, 
+        List<CanvasPainting> canvasPaintings, 
+        AssetId assetId, 
+        DbManifest? existingManifest, 
+        int canvasOrder, 
+        bool isUpdate)
     {
         try
         {
@@ -312,8 +320,7 @@ public class CanvasPaintingResolver(
 
             if (canvasId != null)
             {
-                var validationErrors = ValidateCanvasId(paintedResource, canvasPaintings, canvasOrder, canvasId);
-                if (validationErrors != null) return (validationErrors, null);
+                return ValidateCanvasId(paintedResource, canvasPaintings, canvasOrder, canvasId, isUpdate);
             }
 
             return (null, canvasId);
@@ -325,21 +332,26 @@ public class CanvasPaintingResolver(
         }
     }
 
-    private static PresUpdateResult? ValidateCanvasId(PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, int canvasOrder,
-        string canvasId)
+    private static (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) ValidateCanvasId(PaintedResource paintedResource, List<CanvasPainting> canvasPaintings, int canvasOrder,
+        string canvasId, bool isUpdate)
     {
         if (canvasPaintings.Where(c => c.CanvasOrder != canvasOrder).Any(c => c.Id == canvasId))
         {
-            return ErrorHelper.DuplicateCanvasId<PresentationManifest>(canvasId);
+            return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(canvasId), null);
         }
 
         if (canvasPaintings.Where(c => c.CanvasOrder == canvasOrder).Any(c => c.Id != canvasId))
         {
-            return ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(paintedResource.CanvasPainting
-                ?.CanvasId);
+            if (isUpdate)
+            {
+                return (null, canvasPaintings.First(c => c.CanvasOrder == canvasOrder).Id);
+            }
+            
+            return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(paintedResource.CanvasPainting
+                ?.CanvasId), null);
         }
 
-        return null;
+        return (null, canvasId);
     }
 
     private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting, AssetId assetId,

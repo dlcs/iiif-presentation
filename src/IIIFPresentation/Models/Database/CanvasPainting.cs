@@ -145,6 +145,7 @@ public static class CanvasPaintingX
         canvasPainting.Target = updated.Target;
         canvasPainting.Modified = DateTime.UtcNow;
         canvasPainting.AssetId = updated.AssetId;
+        if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
         return canvasPainting;
     } 
 }

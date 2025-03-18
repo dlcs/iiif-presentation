@@ -908,16 +908,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
-                                          "canvasLabel": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
                                         "canvasOrder": 1,
                                         "choiceOrder": 1
                                      },
@@ -929,11 +919,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                   },
                                   {
                                      "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
                                           "canvasOrder": 1,
                                           "choiceOrder": 2
                                      },
@@ -967,5 +952,181 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 1).CanvasPaintingId.Should().Be(firstCanvasPaintingId);
         dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 2).CanvasPaintingId.Should().Be(secondCanvasPaintingId);
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_KeepsTheSameCanvasPaintingId_WhenAddingCanvasToChoiceOrder()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenAddingCanvasToChoiceOrder);
+        var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenAddingCanvasToChoiceOrder)}_id";
+        var assetId = "testAssetByPresentation-add-choice";
+        var canvasId = "first";
+
+        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        {
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+        await dbContext.SaveChangesAsync();
+
+        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.ChoiceOrder == 1)
+            .CanvasPaintingId;
+        
+        var batchId = 1013;
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1,
+                                        "choiceOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 1,
+                                          "choiceOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Count.Should().Be(2);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 1).CanvasPaintingId.Should().Be(firstCanvasPaintingId);
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_KeepsTheSameCanvasPaintingId_WhenUpdatingCanvasToChoiceOrder()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenUpdatingCanvasToChoiceOrder);
+        var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenUpdatingCanvasToChoiceOrder)}_id";
+        var assetId = "testAssetByPresentation-update-canvas-choice";
+        var canvasId = "first";
+
+        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        {
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            },
+            new()
+            {
+                Id = "second",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 2,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+        await dbContext.SaveChangesAsync();
+
+        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.ChoiceOrder == 1)
+            .CanvasPaintingId;
+        
+        var batchId = 1014;
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1,
+                                        "choiceOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 1,
+                                          "choiceOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+       // var error = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Count.Should().Be(2);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 1).CanvasPaintingId.Should().Be(firstCanvasPaintingId);
+        dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 2).Should().NotBeNull();
     }
 }
