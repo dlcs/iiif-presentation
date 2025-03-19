@@ -236,11 +236,14 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest) resourceBase!;
-        savedManifest.Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}", "Canvas Id overwritten");
+        var expectedCanvasId = $"http://base/1/canvases/{canvasPaintingId}";
+        savedManifest.Items[0].Id.Should().Be(expectedCanvasId, "Canvas Id overwritten");
         savedManifest.Items[0].Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annopages/1",
             "AnnotationPage Id overwritten");
-        savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Id.Should().Be(
-            $"http://base/1/canvases/{canvasPaintingId}/annotations/1", "PaintingAnnotation Id overwritten");
+        var paintingAnnotation = savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>();
+        paintingAnnotation.Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annotations/1",
+            "PaintingAnnotation Id overwritten");
+        paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
 
     [Fact]
