@@ -1114,8 +1114,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-       // var error = await response.ReadAsPresentationResponseAsync<Error>();
-        
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
@@ -1127,6 +1125,91 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
         dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 1).CanvasPaintingId.Should().Be(firstCanvasPaintingId);
-        dbManifest.CanvasPaintings.First(cp => cp.Id == canvasId && cp.ChoiceOrder == 2).Should().NotBeNull();
+        dbManifest.CanvasPaintings.FirstOrDefault(cp => cp.Id == canvasId && cp.ChoiceOrder == 2).Should().NotBeNull();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_ThrowsError_SplittingChoiceOrder()
+    {
+        /*
+         THIS TEST SHOULD FAIL WHEN ACTUALLY WORKING
+        
+         this demonstrates the behavior as-is for splitting a choice order. In reality this should work and not throw an exception
+        */
+        
+        // Arrange
+        var slug = nameof(UpdateManifest_ThrowsError_SplittingChoiceOrder);
+        var id = $"{nameof(UpdateManifest_ThrowsError_SplittingChoiceOrder)}_id";
+        var assetId = "testAssetByPresentation-update-canvas-choice";
+        var canvasId = "first";
+
+        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        {
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            },
+            new()
+            {
+                Id = canvasId,
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 2,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = 1015;
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
     }
 }

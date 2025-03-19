@@ -104,14 +104,14 @@ public class CanvasPaintingResolver(
     private List<CanvasPainting> UpdateCanvasPaintingRecords(DbManifest existingManifest, 
         List<CanvasPainting> incomingCanvasPaintings)
     {
-        var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);;
+        var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<CanvasPainting>();
         foreach (var incoming in incomingCanvasPaintings)
         {
             CanvasPainting? matching = null;
 
             List<CanvasPainting> candidates;
-            // if the asset id has been set, a precursor will have already retrieved and set the correct id
+            
             if (incoming.AssetId != null)
             {
                 candidates = existingManifest.CanvasPaintings
@@ -125,7 +125,7 @@ public class CanvasPaintingResolver(
                     .ToList();
             }
             
-            var canvasId = incoming.CanvasOriginalId?.ToString() ?? incoming.Id;
+            var canvasLoggingId = incoming.CanvasOriginalId?.ToString() ?? incoming.Id;
             
             if (candidates.Count == 1)
             {
@@ -133,14 +133,14 @@ public class CanvasPaintingResolver(
                 var potential = candidates.Single();
                 if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
                 {
-                    logger.LogTrace("Found existing canvas painting for {CanvasOriginalId}", canvasId);
+                    logger.LogTrace("Found existing canvas painting for {CanvasLoggingId}", canvasLoggingId);
                     matching = potential;
                 }
             }
             else if (candidates.Count > 1)
             {
                 // If there are multiple matching items then Canvas is a choice
-                logger.LogTrace("Found multiple canvas paintings for {CanvasOriginalId}", canvasId);
+                logger.LogTrace("Found multiple canvas paintings for {CanvasLoggingId}", canvasLoggingId);
                 matching = candidates.SingleOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder);
             }
 
@@ -288,35 +288,6 @@ public class CanvasPaintingResolver(
         return (null, canvasPaintings);
     }
 
-    private async Task<PresUpdateResult?> SetMissingCanvasIds(int customerId, List<CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
-    {
-        var requiredUniqueIdCount = canvasPaintings.GetRequiredNumberOfCanvases();
-        
-        // Resources that share canvasOrder share a canvasId (as they're on same canvas) so maintain a list of order:id
-        var canvasIdByOrder = new Dictionary<int, string>(requiredUniqueIdCount);
-        
-        var canvasPaintingIds =
-            await GenerateUniqueCanvasPaintingIds(requiredUniqueIdCount, customerId, cancellationToken);
-        if (canvasPaintingIds == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
-        
-        foreach (var canvasPainting in canvasPaintings.Where(canvasPainting => string.IsNullOrEmpty(canvasPainting.Id)))
-        {
-            // A canvas with this same order has been set a CanvasId already, use that
-            if (canvasIdByOrder.TryGetValue(canvasPainting.CanvasOrder, out var idForOrder))
-            {
-                canvasPainting.Id = idForOrder;
-                continue;
-            }
-            
-            // this is the first item in a new canvas, so set the canvas id
-            var nextId = canvasPaintingIds.Pop();
-            canvasIdByOrder[canvasPainting.CanvasOrder] = nextId;
-            canvasPainting.Id = nextId;
-        }
-
-        return null;
-    }
-
     private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(
         int customerId, 
         PaintedResource paintedResource, 
@@ -357,9 +328,8 @@ public class CanvasPaintingResolver(
             {
                 return (null, canvasPaintings.First(c => c.CanvasOrder == canvasOrder).Id);
             }
-            
-            return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(canvasPainting
-                ?.CanvasId), null);
+
+            return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(canvasPainting.CanvasId), null);
         }
 
         return (null, canvasId);
