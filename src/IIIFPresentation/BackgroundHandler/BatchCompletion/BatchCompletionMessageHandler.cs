@@ -125,7 +125,9 @@ public class BatchCompletionMessageHandler(
                     canvas.Id, dbManifest.CustomerId, dbManifest.Id);
                 canvas.Id = pathGenerator.GenerateCanvasId(canvasPaintingForAsset);
                 canvas.GetFirstAnnotationPage()!.Id = pathGenerator.GenerateAnnotationPagesId(canvasPaintingForAsset);
-                canvas.GetFirstPaintingAnnotation()!.Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForAsset);
+                var paintingAnnotation = canvas.GetFirstPaintingAnnotation().ThrowIfNull("canvas.PaintingAnnotation");
+                paintingAnnotation.Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForAsset);
+                paintingAnnotation.Target = new Canvas { Id = canvas.Id };
                 finalDictionary[assetId] = canvas;
             }
             return finalDictionary;
