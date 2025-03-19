@@ -656,7 +656,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
@@ -803,7 +803,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
             var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
             responseCollection.Should().NotBeNull("valid manifest is expected");
@@ -1424,7 +1424,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -1502,7 +1502,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         presentationManifest.PaintedResources.Count.Should().Be(1);
@@ -1547,7 +1547,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         presentationManifest.PaintedResources.Count.Should().Be(1);
