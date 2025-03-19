@@ -5,11 +5,14 @@ using BackgroundHandler.Helpers;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.API;
+using IIIF;
+using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
 using Batch = Models.Database.General.Batch;
@@ -80,7 +83,7 @@ public class BatchCompletionMessageHandler(
             {
                 UpdateCanvasPaintings(batch, itemDictionary);
                 CompleteBatch(batch, batchCompletionMessage.Finished, true);
-                await UpdateManifestInS3(itemDictionary, batch, cancellationToken);
+                await UpdateManifestInS3(namedQueryManifest, itemDictionary, batch, cancellationToken);
             }
             catch (Exception e)
             {
@@ -139,7 +142,8 @@ public class BatchCompletionMessageHandler(
         }
     }
 
-    private async Task UpdateManifestInS3(Dictionary<AssetId, Canvas> itemDictionary, Batch batch, 
+    private async Task UpdateManifestInS3(Manifest namedQueryManifest, Dictionary<AssetId, Canvas> itemDictionary,
+        Batch batch,
         CancellationToken cancellationToken = default)
     {
         var dbManifest = batch.Manifest!;
@@ -148,6 +152,21 @@ public class BatchCompletionMessageHandler(
         var mergedManifest = ManifestMerger.Merge(
             manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
             batch.Manifest?.CanvasPaintings, itemDictionary);
+
+        // Grab any contexts from NQ manifest
+        IEnumerable<string> contexts = namedQueryManifest.Context switch
+        {
+            null => [],
+            JArray jArray => jArray.Values<string>(),
+            JValue {Type: JTokenType.String} jValue when jValue.ToString() is { } plain => [plain],
+            _ => []
+        };
+        // skip the default one
+        contexts = contexts.Where(c => !Context.Presentation3Context.Equals(c));
+
+        // ensure if any
+        foreach (var context in contexts)
+            mergedManifest.EnsureContext(context);
 
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             false, cancellationToken);
