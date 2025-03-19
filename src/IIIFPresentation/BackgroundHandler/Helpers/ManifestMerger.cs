@@ -20,7 +20,8 @@ public static class ManifestMerger
         // Ensure collection non-null
         baseManifest.Items ??= [];
 
-        var indexBasedManifest = baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
+        var indexedBaseManifestCanvases =
+            baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
         // get everything in the right order, then group by so we can tell where one choice ends and the next begins
         var orderedCanvasPaintings = canvasPaintings?.OrderBy(cp => cp.CanvasOrder).ThenBy(cp => cp.ChoiceOrder)
             .GroupBy(cp => cp.CanvasOrder).ToList() ?? [];
@@ -34,7 +35,8 @@ public static class ManifestMerger
             {
                 if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryItem)) continue;
 
-                var existingCanvas = indexBasedManifest.FirstOrDefault(bm => bm.Canvas.Id == namedQueryItem.Id);
+                var existingCanvas =
+                    indexedBaseManifestCanvases.FirstOrDefault(bm => bm.Canvas.Id == namedQueryItem.Id);
 
                 // remove canvas metadata as it's not required
                 namedQueryItem.Metadata = null;
@@ -53,6 +55,7 @@ public static class ManifestMerger
                     {
                         AddChoice(baseManifest, groupedCanvasPaintings.Index, namedQueryItem, canvasPainting);
                     }
+                    
                 }
             }
         }
@@ -137,12 +140,12 @@ public static class ManifestMerger
             basePaintingChoice.Service ??= namedQueryAnnotation.Service;
             paintingAnnotation.Body = basePaintingChoice;
             baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-            var indexedItem = baseManifest.Items[index];
-            indexedItem.Duration = namedQueryCanvas.Duration;
-            indexedItem.Behavior = namedQueryCanvas.Behavior;
-            indexedItem.Rendering =
-                CombineRendering(indexedItem.Rendering, namedQueryCanvas.Rendering);
-            indexedItem.Thumbnail = namedQueryCanvas.Thumbnail;
+            var currentCanvas = baseManifest.Items[index];
+            currentCanvas.Duration ??= namedQueryCanvas.Duration;
+            currentCanvas.Behavior = namedQueryCanvas.Behavior;
+            currentCanvas.Rendering =
+                CombineRendering(currentCanvas.Rendering, namedQueryCanvas.Rendering);
+            currentCanvas.Thumbnail = namedQueryCanvas.Thumbnail;
         }
     }
 
@@ -150,7 +153,7 @@ public static class ManifestMerger
         List<ExternalResource>? incoming)
     {
         if (existing is null) return incoming;
-        return incoming is null ? null : existing.Concat(incoming).ToList();
+        return incoming is null ? existing : existing.Concat(incoming).ToList();
     }
 
     /// <summary>
@@ -200,12 +203,12 @@ public static class ManifestMerger
             // otherwise, just use the already created choice order
            baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
         }
+
+        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation()
+            .ThrowIfNull("baseManifestPaintingAnnotation.GetFirstPaintingAnnotation()");
         
-        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-
-
         // use the labels from the first choice as the annotation
-        paintingAnnotation!.Id ??= namedQueryAnnotation?.Id;
+        paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
         paintingAnnotation.Label = null;
         paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
 
@@ -234,7 +237,7 @@ public static class ManifestMerger
         paintingAnnotation.Body = basePaintingChoice;
         baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
     }
-
+    
     private static List<AnnotationPage> CreateInitialAnnotationPageList(AnnotationPage? annotationPage)
     {
         return 
