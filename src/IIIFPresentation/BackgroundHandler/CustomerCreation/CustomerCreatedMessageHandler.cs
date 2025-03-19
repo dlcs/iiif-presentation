@@ -68,7 +68,7 @@ public class CustomerCreatedMessageHandler(
             CustomerId = customerId,
             IsPublic = true,
             IsStorageCollection = true,
-            Label = new LanguageMap("en", "(repository root)"),
+            Label = new LanguageMap("en", "IIIF Home"),
             Hierarchy =
             [
                 new Hierarchy
