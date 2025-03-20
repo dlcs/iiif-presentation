@@ -157,6 +157,8 @@ public class BatchCompletionMessageHandler(
         IEnumerable<string> contexts = namedQueryManifest.Context switch
         {
             null => [],
+            string str => [str],
+            IEnumerable<string> enumerable => enumerable,
             JArray jArray => jArray.Values<string>(),
             JValue {Type: JTokenType.String} jValue when jValue.ToString() is { } plain => [plain],
             _ => []
