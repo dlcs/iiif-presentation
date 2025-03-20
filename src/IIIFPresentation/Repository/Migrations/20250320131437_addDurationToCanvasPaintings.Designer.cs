@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20250314144620_addDurationToCanvasPaintings")]
+    [Migration("20250320131437_addDurationToCanvasPaintings")]
     partial class addDurationToCanvasPaintings
     {
         /// <inheritdoc />
