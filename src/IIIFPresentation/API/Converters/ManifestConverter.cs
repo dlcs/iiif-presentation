@@ -110,18 +110,10 @@ public static class ManifestConverter
             return c;
         }
 
-        IPaintable GetBody(IGrouping<int, CanvasPainting> paintings)
+        IPaintable? GetBody(IGrouping<int, CanvasPainting> paintings)
         {
-            if (paintings.Count() > 1)
-                return new PaintingChoice
-                {
-                    Items = paintings.OrderBy(p => p.ChoiceOrder ?? -1).Select(p => GetImage()).ToList()
-                };
-
-            return GetImage();
+            return paintings.Count() > 1 ? new PaintingChoice() : null;
         }
-
-        IPaintable GetImage() => new Image();
     }
 
     private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)

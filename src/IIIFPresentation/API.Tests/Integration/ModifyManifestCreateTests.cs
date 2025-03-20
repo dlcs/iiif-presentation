@@ -821,7 +821,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             firstAnnotation.Should().BeOfType<PaintingAnnotation>();
             var firstBody = (firstAnnotation as PaintingAnnotation)!.Body;
             firstBody.Should().BeOfType<PaintingChoice>();
-            (firstBody as PaintingChoice)!.Items.Should().HaveCount(2);
     }
     
     [Fact]

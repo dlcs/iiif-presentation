@@ -198,9 +198,11 @@ public class ManifestConverterTests
     {
         // Arrange
         var iiifManifest = new PresentationManifest();
+        var customer = 123;
+        
         var dbManifest = new DBManifest
         {
-            CustomerId = 123,
+            CustomerId = customer,
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow.AddDays(1),
             CreatedBy = "creator",
@@ -213,18 +215,24 @@ public class ManifestConverterTests
                 {
                     ChoiceOrder = 1,
                     CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId1")
+                    AssetId = new AssetId(1, 2, "assetId1"),
+                    CustomerId = customer,
+                    Id = "assetId1"
                 },
                 new CanvasPainting
                 {
                     ChoiceOrder = 2,
                     CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId2")
+                    AssetId = new AssetId(1, 2, "assetId2"),
+                    CustomerId = customer,
+                    Id = "assetId2"
                 },
                 new CanvasPainting
                 {
                     CanvasOrder = 1,
-                    AssetId = new AssetId(1, 2, "assetId3")
+                    AssetId = new AssetId(1, 2, "assetId3"),
+                    CustomerId = customer,
+                    Id = "assetId3"
                 }
             ]
         };
@@ -236,6 +244,10 @@ public class ManifestConverterTests
         result.PaintedResources.Should()
             .BeInAscendingOrder(pr => pr.CanvasPainting.CanvasOrder)
             .And.ThenBeInAscendingOrder(pr => pr.CanvasPainting.ChoiceOrder);
+
+        result.Items.First().Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
+        result.Items.Last().Items.First().Items.First().As<PaintingAnnotation>().Body.Should()
+            .BeOfType<PaintingChoice>();
     }
     
     [Fact]
