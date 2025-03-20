@@ -167,9 +167,9 @@ public class ManifestWriteService(
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
             
-            // Carry out any DLCS interactions (for paintedResources with items) 
+            // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
-                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken);
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             var (error, dbManifest) =
@@ -181,7 +181,7 @@ public class ManifestWriteService(
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                WriteResult.Created);
+                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Created);
         }
     }
 
@@ -206,6 +206,11 @@ public class ManifestWriteService(
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
+            // Carry out any DLCS interactions (for paintedResources with _assets_) 
+            var dlcsInteractionResult =
+                await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, existingManifest, cancellationToken);
+            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
+            
             var (error, dbManifest) =
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
@@ -214,7 +219,8 @@ public class ManifestWriteService(
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator));
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator),
+                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Updated);
         }
     }
 

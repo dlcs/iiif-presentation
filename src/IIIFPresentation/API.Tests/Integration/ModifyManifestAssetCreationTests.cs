@@ -157,7 +157,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         response.Headers.Location.Should().NotBeNull();
 
         requestMessage =
@@ -247,7 +247,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -321,7 +321,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -379,7 +379,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -437,7 +437,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -530,7 +530,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -625,7 +625,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -836,7 +836,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -993,7 +993,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -1150,7 +1150,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
          // Assert
-         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
          var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
          responseManifest!.Id.Should().NotBeNull();
@@ -1182,11 +1182,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
      }
      
-     [Fact]
+    [Fact]
     public async Task? CreateManifest_ReturnsError_WhenErrorFromDlcs()
     {
         // Arrange
-        var slug = nameof(CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting);
+        var slug = nameof(CreateManifest_ReturnsError_WhenErrorFromDlcs);
         var assetId = "returnError";
         var manifestWithoutSpace = $$"""
                          {

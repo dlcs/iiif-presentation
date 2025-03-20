@@ -54,7 +54,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
-        SetCorrectEtag(requestMessage);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, PresentationContextFixture.CustomerId, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
@@ -76,7 +76,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
-        SetCorrectEtag(requestMessage);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, PresentationContextFixture.CustomerId, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
@@ -96,7 +96,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
-        SetCorrectEtag(requestMessage);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, PresentationContextFixture.CustomerId, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
@@ -156,7 +156,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
-        SetCorrectEtag(requestMessage, customer);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, customer, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
@@ -185,7 +185,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
-        SetCorrectEtag(requestMessage, customer);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, customer, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update public/private");
@@ -200,7 +200,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanChangeThumbnail()
     {
         const int customer = 1234890;
-        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
 
         const string thumbnail = "https://path/test/image.jpg";
@@ -225,7 +225,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         var asJson = collection.AsJson();
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{customer}/collections/{RootCollection.Id}", asJson);
-        SetCorrectEtag(requestMessage, customer);
+        etagManager.SetCorrectEtag(requestMessage, RootCollection.Id, customer, true);
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update thumbnail");
@@ -234,14 +234,5 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
             await dbContext.Collections.SingleAsync(c =>
                 c.Id == KnownCollections.RootCollection && c.CustomerId == customer);
         fromDb.Thumbnail.Should().Be(thumbnail);
-    }
-    
-    private void SetCorrectEtag(HttpRequestMessage requestMessage, int? customerId = null)
-    {
-        // This saves some boilerplate by correctly setting Etag in manager and request
-        var tag = $"\"{RootCollection.Id}\"";
-        etagManager.UpsertETag(
-            $"/{customerId ?? PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", tag);
-        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
     }
 }

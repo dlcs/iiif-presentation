@@ -17,7 +17,6 @@ using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using Manifest = Models.Database.Collections.Manifest;
 
 namespace API.Tests.Integration;
 
@@ -103,7 +102,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -124,7 +123,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -145,7 +144,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -167,7 +166,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -189,7 +188,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -212,7 +211,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -236,7 +235,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -259,7 +258,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -285,7 +284,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -318,7 +317,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -352,7 +351,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -386,7 +385,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -415,7 +414,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -430,14 +429,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
-    }
-
-    private void SetCorrectEtag(HttpRequestMessage requestMessage, Manifest dbManifest)
-    {
-        // This saves some boilerplate by correctly setting Etag in manager and request
-        var tag = $"\"{dbManifest.Id}\"";
-        etagManager.UpsertETag($"/{Customer}/manifests/{dbManifest.Id}", tag);
-        requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue(tag));
     }
     
     [Fact]
@@ -492,7 +483,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
                 manifest.AsJson());
-        SetCorrectEtag(requestMessage, dbManifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
