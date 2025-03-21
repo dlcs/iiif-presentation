@@ -99,7 +99,7 @@ public class ManifestWriteService(
         {
             var existingManifest =
                 await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
-                    withCanvasPaintings: true, cancellationToken: cancellationToken);
+                    withCanvasPaintings: true, withBatches: true, cancellationToken: cancellationToken);
 
             if (existingManifest == null)
             {

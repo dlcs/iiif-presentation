@@ -74,7 +74,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_AddsSingleAsset);
         var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_AddsSingleAsset)}_id";
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 901, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var assetId = "testAssetByPresentation-update";
@@ -125,9 +125,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // space added using the DLCS space
         dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
-        dbManifest.Batches.Should().HaveCount(1);
-        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(batchId);
+        dbManifest.Batches.Should().HaveCount(2);
+        dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.Last().Id.Should().Be(batchId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -163,8 +163,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 ChoiceOrder = 1
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 902, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var assetId = "testAssetByPresentation-update";
@@ -221,9 +222,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // space added using the DLCS space
         dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
-        dbManifest.Batches.Should().HaveCount(1);
-        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(batchId);
+        dbManifest.Batches.Should().HaveCount(2);
+        dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.Last().Id.Should().Be(batchId);
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -240,7 +241,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WhenMultipleAssets);
          var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WhenMultipleAssets)}_id";
         
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 903, ingested: true);
          await dbContext.SaveChangesAsync();
          var batchId = 1003;
          
@@ -314,9 +315,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
          dbManifest.CanvasPaintings!.Count().Should().Be(3);
          var currentCanvasOrder = 0;
-         dbManifest.Batches.Should().HaveCount(1);
-         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         dbManifest.Batches.Should().HaveCount(2);
+         dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.Last().Id.Should().Be(batchId);
          
          foreach (var canvasPainting in dbManifest.CanvasPaintings!)
          {
@@ -334,10 +335,10 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var slug = nameof(UpdateManifest_CorrectlyOrdersCanvasPaintings_WhenCanvasPaintingSetsOrder);
          var id = $"{nameof(UpdateManifest_CorrectlyOrdersCanvasPaintings_WhenCanvasPaintingSetsOrder)}_id";
         
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 904, ingested: true);
          await dbContext.SaveChangesAsync();
-         var batchId = 1004;
          
+         var batchId = 1004;
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
@@ -415,9 +416,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
              .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
          dbManifest.CanvasPaintings!.Count().Should().Be(3);
-         dbManifest.Batches.Should().HaveCount(1);
-         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         dbManifest.Batches.Should().HaveCount(2);
+         dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.Last().Id.Should().Be(batchId);
          
          dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(2);
          dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
@@ -439,7 +440,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          var slug = nameof(UpdateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice);
          var id = $"{nameof(UpdateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice)}_id";
         
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 906, ingested: true);
          await dbContext.SaveChangesAsync();
          var batchId = 1006;
          
@@ -517,9 +518,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
              .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
          dbManifest.CanvasPaintings!.Should().HaveCount(3);
-         dbManifest.Batches.Should().HaveCount(1);
-         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         dbManifest.Batches.Should().HaveCount(2);
+         dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.Last().Id.Should().Be(batchId);
          
          dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
@@ -545,7 +546,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var slug = nameof(UpdateManifest_ReturnsError_WhenErrorFromDlcs);
         var id = $"{nameof(UpdateManifest_ReturnsError_WhenErrorFromDlcs)}_id";
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 907, ingested: true);
         await dbContext.SaveChangesAsync();
         var batchId = 1007;
         var assetId = "returnError";
@@ -586,7 +587,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WithSpace);
         var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_WithSpace)}_id";
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 908, ingested: true);
         await dbContext.SaveChangesAsync();
         
         var space = 18;
@@ -644,9 +645,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
         // space comes from the asset
         dbManifest.CanvasPaintings!.First().AssetId.ToString().Should().Be($"{Customer}/{space}/{assetId}");
-        dbManifest.Batches.Should().HaveCount(1);
-        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(batchId);
+        dbManifest.Batches.Should().HaveCount(2);
+        dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
+        dbManifest.Batches!.Last().Id.Should().Be(batchId);
         dbManifest.LastProcessed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         
         var savedS3 =
@@ -678,8 +679,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 909, ingested: true);
         await dbContext.SaveChangesAsync();
         
         var initialCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id).CanvasPaintingId;
@@ -732,9 +734,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         dbManifest.CanvasPaintings!.First().Id.Should().Be(canvasId);
         dbManifest.CanvasPaintings!.First().CanvasPaintingId.Should().Be(initialCanvasPaintingId);
-        dbManifest.Batches.Should().HaveCount(1);
-        dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.First().Id.Should().Be(batchId);
     }
     
     [Fact]
@@ -758,8 +757,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 910, ingested: true);
         await dbContext.SaveChangesAsync();
         
         var batchId = 1010;
@@ -811,7 +811,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var id = $"{nameof(UpdateManifest_UpdatesAssetRequests_WithSpaceFromManifest)}_id";
         var space = 500;
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, spaceId: space);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, spaceId: space, batchId: 911, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var assetId = "testAssetByPresentation-update-keepSpace";
@@ -890,8 +890,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
             
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 912, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.ChoiceOrder == 1)
@@ -975,8 +976,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 913, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.ChoiceOrder == 1)
@@ -1066,8 +1068,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 914, ingested: true);
         await dbContext.SaveChangesAsync();
 
         var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.ChoiceOrder == 1)
@@ -1164,8 +1167,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
             }
         };
-        
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings );
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 915, ingested: true);
         await dbContext.SaveChangesAsync();
         
         var batchId = 1015;
@@ -1211,5 +1215,57 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
         errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets);
+        var id = $"{nameof(UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets)}_id";
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.SaveChangesAsync();
+
+        var assetId = "testAssetByPresentation-update";
+        var batchId = 1016;
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "label": {
+                                             "en": [
+                                                 "canvas testing"
+                                             ]
+                                         }
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        error.ErrorTypeUri.Should()
+            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
     }
 }

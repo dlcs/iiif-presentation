@@ -537,4 +537,32 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         errorResponse!.Detail.Should().Be("Could not deserialize manifest");
         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
+    
+    [Fact]
+    public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
+    {
+        // Arrange
+        var createdDate = DateTime.UtcNow.AddDays(-1);
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(createdDate: createdDate, batchId: 800, ingested: true)).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+        var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
+        var manifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson());
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error.ErrorTypeUri.Should()
+            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
+    }
 }
