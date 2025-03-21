@@ -112,7 +112,7 @@ public static class ErrorHelper
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithAssetsCannotBeUpdatedWithItems<TCollection>()
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using items cannot be updated with assets",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using assets cannot be updated with items",
             ModifyCollectionType.ManifestCreatedWithAssetsCannotBeUpdatedWithItems, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)

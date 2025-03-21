@@ -542,17 +542,14 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
     {
         // Arrange
-        var createdDate = DateTime.UtcNow.AddDays(-1);
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(createdDate: createdDate, batchId: 800, ingested: true)).Entity;
+            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true)).Entity;
         await dbContext.SaveChangesAsync();
         var parent = RootCollection.Id;
-        var slug = $"changed_{dbManifest.Hierarchy.Single().Slug}";
-        var manifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson());
+                dbManifest.ToPresentationManifest(parent: parent).AsJson());
         etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
 
         // Act
