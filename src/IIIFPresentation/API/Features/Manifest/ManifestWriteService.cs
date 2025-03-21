@@ -232,7 +232,8 @@ public class ManifestWriteService(
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator),
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, 
+                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
                 request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Updated);
         }
     }

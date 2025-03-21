@@ -56,6 +56,60 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
             A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
         
+        A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l =>
+                    l.Any(x => $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-update".Equals(x))),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse(
+                    """
+                    {
+                           "@context": "https://localhost/contexts/Image.jsonld",
+                           "@id": "https://localhost:7230/customers/1/spaces/999/images/testAssetByPresentation-assetDetails",
+                           "@type": "vocab:Image",
+                           "id": "testAssetByPresentation-assetDetails",
+                           "space": 15,
+                           "imageService": "https://localhost/iiif-img/1/15/testAssetByPresentation-assetDetails",
+                           "thumbnailImageService": "https://localhost/thumbs/1/15/testAssetByPresentation-assetDetails",
+                           "created": "2025-01-20T15:54:43.290925Z",
+                           "origin": "https://example.com/photos/example.jpg",
+                           "maxUnauthorised": -1,
+                           "duration": 0,
+                           "width": 0,
+                           "height": 0,
+                           "ingesting": true,
+                           "error": "",
+                           "tags": [],
+                           "string1": "",
+                           "string2": "",
+                           "string3": "",
+                           "number1": 0,
+                           "number2": 0,
+                           "number3": 0,
+                           "roles": [],
+                           "batch": "https://localhost/customers/1/queue/batches/2137",
+                           "metadata": "https://localhost/customers/1/spaces/15/images/testAssetByPresentation-assetDetails/metadata",
+                           "storage": "https://localhost/customers/1/spaces/15/images/testAssetByPresentation-assetDetails/storage",
+                           "mediaType": "image/jpeg",
+                           "family": "I",
+                           "deliveryChannels": [
+                             {
+                               "@type": "vocab:DeliveryChannel",
+                               "channel": "iiif-img",
+                               "policy": "default"
+                             },
+                             {
+                               "@type": "vocab:DeliveryChannel",
+                               "channel": "thumbs",
+                               "policy": "https://localhost/customers/1/deliveryChannelPolicies/thumbs/default"
+                             }
+                           ]
+                         }
+                    """
+                )
+            ]);
+        
         dbContext = storageFixture.DbFixture.DbContext;
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
@@ -114,6 +168,13 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        
+        responseManifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
+        {
+            Total = 1,
+            Errors = 0,
+            Finished = 0
+        });
 
         var dbManifest = dbContext.Manifests
             .Include(m => m.CanvasPaintings)
@@ -128,6 +189,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.Batches.Should().HaveCount(2);
         dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
         dbManifest.Batches!.Last().Id.Should().Be(batchId);
+        
         
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
