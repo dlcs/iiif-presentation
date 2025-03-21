@@ -99,7 +99,7 @@ public class ManifestWriteService(
         {
             var existingManifest =
                 await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
-                    withCanvasPaintings: true, cancellationToken: cancellationToken);
+                    withCanvasPaintings: true, withBatches: true, cancellationToken: cancellationToken);
 
             if (existingManifest == null)
             {
@@ -196,6 +196,19 @@ public class ManifestWriteService(
         if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
+        }
+        
+        var hasAsset = request.PresentationManifest.PaintedResources.HasAsset();
+        var noBatches = existingManifest.Batches.IsNullOrEmpty();
+
+        if (!hasAsset && !noBatches)
+        {
+            return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
+        }
+        
+        if (hasAsset && noBatches)
+        {
+            return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
         }
 
         var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,

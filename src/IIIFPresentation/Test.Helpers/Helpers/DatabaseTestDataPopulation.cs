@@ -47,7 +47,7 @@ public static class DatabaseTestDataPopulation
                 {
                     Id = batchId.Value,
                     Submitted = DateTime.UtcNow,
-                    Status = BatchStatus.Ingesting,
+                    Status = ingested ? BatchStatus.Completed : BatchStatus.Ingesting,
                     ManifestId = id
                 }
             ] : null,
