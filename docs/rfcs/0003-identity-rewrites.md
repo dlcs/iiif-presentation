@@ -1,6 +1,6 @@
 # Identity Rewrites
 
-IIIF Presentation sets a number of identifiers on generated resources. Manifests and Collections can have different identifiers depending on whether they are access publicly, or via API paths.
+IIIF Presentation sets a number of identifiers on generated resources. Manifests and Collections can have different identifiers depending on whether they are accessed publicly, or via API paths.
 
 By default all generated paths conform to a known, predictable format. However, there are instances where it's desirable to alter the paths when running IIIF Presentation behind a proxy (e.g. to omit customerId for dedicated instances).
 
@@ -160,6 +160,7 @@ The `x-forwarded-prefix` header can be used to set `HttpContext.Request.PathBase
   * If in DB, do we want to expose API to manage?
 * Do the path rules affect the eTag value?
 * Do we need rules for `AnnotationPages` and `PaintingAnnotations`? If not how do we construct? Always append `/annopages/{canvas-order}` or `/annotations/{canvas-order}` to canvasId?
+* Do we need to consider different rewrite rules for private and public? Potentially using different hostnames for public and private (ie not the incoming hostname). Specifically thinking of Caspian, where API calls are proxied but public aren't. In this case we wouldn't want to rewrite all paths to use incoming Caspian hostname, only the API ones. Is this something worth handling? Or an external concern for what will be seldom done?
 
 ## Appendix
 
