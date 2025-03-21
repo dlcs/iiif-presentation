@@ -11,12 +11,14 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using FluentValidation;
+using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Models;
 using Models.API.Collection;
+using Models.API.General;
 
 namespace API.Features.Storage;
 
@@ -131,7 +133,7 @@ public class CollectionController(
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="ObjectResult"/> response with 400 status code.
     /// </summary>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-    private ObjectResult PresentationUnableToSerialize() =>
+    private ObjectResult PresentationUnableToSerialize() => 
         this.PresentationProblem("Could not deserialize collection", null, (int) HttpStatusCode.BadRequest,
-            "Deserialization Error");
+        "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
 }
