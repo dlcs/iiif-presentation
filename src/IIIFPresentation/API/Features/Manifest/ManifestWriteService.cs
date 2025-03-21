@@ -197,15 +197,16 @@ public class ManifestWriteService(
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
+        
+        var hasAsset = request.PresentationManifest.PaintedResources.HasAsset();
+        var noBatches = existingManifest.Batches.IsNullOrEmpty();
 
-        if (!request.PresentationManifest.PaintedResources.HasAsset() &&
-            !existingManifest.Batches.IsNullOrEmpty())
+        if (!hasAsset && !noBatches)
         {
             return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
         }
         
-        if (request.PresentationManifest.PaintedResources.HasAsset() &&
-            existingManifest.Batches.IsNullOrEmpty())
+        if (hasAsset && noBatches)
         {
             return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
         }

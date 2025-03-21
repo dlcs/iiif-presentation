@@ -1218,11 +1218,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets()
+    public async Task UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets()
     {
         // Arrange
-        var slug = nameof(UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets);
-        var id = $"{nameof(UpdateManifest_BadRequest_WhenManifestWithBatchIsUpdatedWithAssets)}_id";
+        var slug = nameof(UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets);
+        var id = $"{nameof(UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets)}_id";
         
         await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
         await dbContext.SaveChangesAsync();
