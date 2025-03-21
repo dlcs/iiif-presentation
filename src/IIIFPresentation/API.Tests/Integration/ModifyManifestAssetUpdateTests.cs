@@ -1168,8 +1168,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: 915, ingested: true);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings);
         await dbContext.SaveChangesAsync();
         
         var batchId = 1015;
@@ -1228,7 +1227,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         await dbContext.SaveChangesAsync();
 
         var assetId = "testAssetByPresentation-update";
-        var batchId = 1016;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -1245,7 +1243,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
-                                         "batch": "{{batchId}}",
                                          "mediaType": "image/jpg"
                                      }
                                  }
