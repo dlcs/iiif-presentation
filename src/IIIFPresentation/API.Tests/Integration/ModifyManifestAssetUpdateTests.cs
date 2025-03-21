@@ -1168,7 +1168,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 915, ingested: true);
         await dbContext.SaveChangesAsync();
         
         var batchId = 1015;
