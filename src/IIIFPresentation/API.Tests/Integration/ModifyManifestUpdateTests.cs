@@ -541,7 +541,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     [Fact]
     public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
     {
-        
         // Arrange
         var dbManifest =
             (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true, canvasPaintings:
