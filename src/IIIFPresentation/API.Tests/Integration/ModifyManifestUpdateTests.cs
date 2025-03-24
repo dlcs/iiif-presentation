@@ -541,9 +541,18 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     [Fact]
     public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
     {
+        
         // Arrange
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true)).Entity;
+            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true, canvasPaintings:
+            [
+                new Models.Database.CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1
+                }
+            ])).Entity;
         await dbContext.SaveChangesAsync();
         var parent = RootCollection.Id;
         
@@ -560,6 +569,27 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
+            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_UpdatesManifest_WhenExistingManifestNoItemsOrAssets()
+    {
+        // Arrange
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true)).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                dbManifest.ToPresentationManifest(parent: parent).AsJson());
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
