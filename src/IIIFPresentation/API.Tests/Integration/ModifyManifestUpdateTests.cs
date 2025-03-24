@@ -543,7 +543,15 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true)).Entity;
+            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true, canvasPaintings:
+            [
+                new Models.Database.CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1
+                }
+            ])).Entity;
         await dbContext.SaveChangesAsync();
         var parent = RootCollection.Id;
         
@@ -560,6 +568,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
+            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
     }
 }

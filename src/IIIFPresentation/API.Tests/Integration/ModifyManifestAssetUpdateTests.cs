@@ -20,6 +20,7 @@ using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Batch = DLCS.Models.Batch;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Tests.Integration;
 
@@ -1286,7 +1287,15 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var slug = nameof(UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets);
         var id = $"{nameof(UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets)}_id";
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings:
+        [
+            new CanvasPainting
+            {
+                Id = "first",
+                CanvasOrder = 1,
+                ChoiceOrder = 1
+            }
+        ]);
         await dbContext.SaveChangesAsync();
 
         var assetId = "testAssetByPresentation-update";
@@ -1326,6 +1335,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var error = await response.ReadAsPresentationResponseAsync<Error>();
 
         error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
+            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
     }
 }
