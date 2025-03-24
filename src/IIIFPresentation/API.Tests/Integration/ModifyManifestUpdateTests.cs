@@ -577,7 +577,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true)).Entity;
+            (await dbContext.Manifests.AddTestManifest(batchId: 801, ingested: true)).Entity;
         await dbContext.SaveChangesAsync();
         var parent = RootCollection.Id;
         
