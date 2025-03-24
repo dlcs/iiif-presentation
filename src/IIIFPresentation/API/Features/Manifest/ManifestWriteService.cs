@@ -200,18 +200,15 @@ public class ManifestWriteService(
         
         var hasAsset = request.PresentationManifest.PaintedResources.HasAsset();
         var noBatches = existingManifest.Batches.IsNullOrEmpty();
-
-        if (existingManifest.CanvasPaintings?.Count > 0)
+        
+        if (!hasAsset && !noBatches)
         {
-            if (!hasAsset && !noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
-            }
-            
-            if (hasAsset && noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
-            }
+            return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
+        }
+        
+        if (hasAsset && noBatches)
+        {
+            return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
         }
 
         var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
