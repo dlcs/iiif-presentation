@@ -570,4 +570,25 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         error.ErrorTypeUri.Should()
             .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
     }
+    
+    [Fact]
+    public async Task UpdateManifest_UpdatesManifest_WhenExistingManifestNoItemsOrAssets()
+    {
+        // Arrange
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(ingested: true)).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                dbManifest.ToPresentationManifest(parent: parent).AsJson());
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

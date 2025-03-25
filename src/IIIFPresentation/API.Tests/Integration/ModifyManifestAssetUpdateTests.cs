@@ -1337,4 +1337,52 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         error.ErrorTypeUri.Should()
             .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
     }
+    
+    [Fact]
+    public async Task UpdateManifest_UpdatesManifest_WhenExistingManifestNoItemsOrAssets()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_UpdatesManifest_WhenExistingManifestNoItemsOrAssets);
+        var id = $"{nameof(UpdateManifest_UpdatesManifest_WhenExistingManifestNoItemsOrAssets)}_id";
+        
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        await dbContext.SaveChangesAsync();
+        var batchId = 1016;
+
+        var assetId = "testAssetByPresentation-update";
+        var manifestWithoutSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "label": {
+                                             "en": [
+                                                 "canvas testing"
+                                             ]
+                                         }
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
 }
