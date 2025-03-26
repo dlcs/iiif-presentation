@@ -165,7 +165,8 @@ public static class ManifestMerger
     ///     NQ-supplied <see cref="PaintingChoice.Items" /> as update to an item at <paramref name="index" />
     /// </param>
     /// <param name="index">index of the element of <paramref name="items" /> to be updated(replaced with contents)</param>
-    /// <returns></returns>
+    /// <returns>List of <see cref="IPaintable"/> where <paramref name="index"/>-element of <paramref name="items"/>
+    /// is replaced by enumerated items from <paramref name="choice"/></returns>
     private static List<IPaintable> CombineChoices(List<IPaintable> items, List<IPaintable> choice, int index)
         => [..items[..index], ..choice, ..items[(index + 1)..]];
 
@@ -227,8 +228,10 @@ public static class ManifestMerger
 
         // add the new resource(s) to the base resource choice, then update the manifest with the changes
         if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
+        {
             foreach (var nqItem in namedQueryChoiceItems)
                 basePaintingChoice.Items!.Add(nqItem);
+        }
         else
             basePaintingChoice.Items!.Add(namedQueryBodyObj);
 
