@@ -51,6 +51,9 @@ Example config appSetting:
           "ManifestPublic": "{customerId}/{hierarchyPath}",
           "ManifestPrivate": "{customerId}/manifests/{resourceId}"
         },
+        "bar.com": {
+          "ManifestPublic": "https://foo.com/{customerId}/{hierarchyPath}"
+        },
         "default": {
           "ManifestPublic": "foo/iiif/{hierarchyPath}",
           "ManifestPrivate": "just-manifest/{resourceId}"
@@ -61,6 +64,7 @@ Example config appSetting:
 
 where:
 * `"foo.com"` defines the templates to use for `foo.com` hostname requests.
+* `"bar.com"` defines the templates to use for `bar.com` hostname requests. Note that public manifest Ids will go to `foo.com` as it's a fully qualified URI and private will use the default template.
 * `"default"` defines templates to use for all other hostnames. Note that this is optional and only required if the default templates differ from the above canonical paths (in the above `"foo.com"` uses the canonical path with the `"default"` values being non-canonical. This would allow, `presentation.com`, `dev.presentation.com`, `staging.presentation.com` etc to all use non-canonical paths with minimal config).
 
 ### Path Replacement values
@@ -80,6 +84,12 @@ The available templates are:
 * `CollectionPublic` - paths for public/hierarchical collection requests
 * `CollectionPrivate` - paths for private/API collection requests
 * `Canvas` - single canvas as it's same for public + private
+
+### Asset Paths
+
+IIIF-Presentation will never update the path for an asset, this logic belongs in Orchestrator and shouldn't be copied over. A Manifest will only ever have 1 set of ids for assets, they won't differ per incoming IIIF-Presentation hostname.
+
+To allow some degree of control over the Asset paths used, each customer can have a specific `OrchestratorUrl` that is used to generate the base NamedQuery (with a default fallback for not specified). The generated NamedQuery will then use his hostname and any configured PathTemplates to output approproate Ids.
 
 ## Proxy Expectations
 
@@ -153,14 +163,10 @@ The `x-forwarded-prefix` header can be used to set `HttpContext.Request.PathBase
 
 `PathBase` is currently not configured in IIIF Presentation API but if it is we may need to consider pulling this in.
 
-## Outstanding Questions
+## Other Points
 
-* Do we need to understand incoming values? Or can we apply same rules as Protagonist API and always expect requests to conform to canonical path?
-* How should we manage these? Is AppSettings enough? Or do we need to store these in database.
-  * If in DB, do we want to expose API to manage?
-* Do the path rules affect the eTag value?
-* Do we need rules for `AnnotationPages` and `PaintingAnnotations`? If not how do we construct? Always append `/annopages/{canvas-order}` or `/annotations/{canvas-order}` to canvasId?
-* Do we need to consider different rewrite rules for private and public? Potentially using different hostnames for public and private (ie not the incoming hostname). Specifically thinking of Caspian, where API calls are proxied but public aren't. In this case we wouldn't want to rewrite all paths to use incoming Caspian hostname, only the API ones. Is this something worth handling? Or an external concern for what will be seldom done?
+* For `AnnotationPages` and `PaintingAnnotations` we won't have custom rewrite paths. We'll always append `/annopages/{canvas-order}` or `/annotations/{canvas-order}` to canvasId (may revisit if required).
+* Initially we can store these values in AppSettings, with scope to make controllable via API in future if required. We would need to consider that changes to hostnames generally involve proxy changes, or other infrastructure configuration so may always want to manage as an admin user.
 
 ## Appendix
 
