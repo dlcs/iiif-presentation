@@ -7,6 +7,7 @@ using BackgroundHandler.Tests.infrastructure;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
+using IIIF;
 using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -244,6 +245,63 @@ public class BatchCompletionMessageHandlerTests
         paintingAnnotation.Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
+    }
+
+    [Fact]
+    public async Task HandleMessage_PreserveNonStandardContext()
+    {
+        // Arrange
+        const int batchId = -321;
+        const string identifier = nameof(HandleMessage_PreserveNonStandardContext);
+        const int space = 2;
+        const string flatId = $"http://base/1/manifests/{identifier}";
+        const string canvasPaintingId = $"cp_{identifier}";
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new()
+            {
+                Id = identifier
+            });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var message = CreateQueueMessage(batchId);
+
+        var nqManifest = GenerateMinimalNamedQueryManifest(assetId);
+        const string nonStandardContext = "https://iiif.wellcomecollection.org/extensions/born-digital/context.json";
+        nqManifest.EnsureContext(nonStandardContext);
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .Returns(nqManifest);
+        ResourceBase? resourceBase = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._)).Invokes(
+            (ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
+
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue("Message successfully handled");
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        var savedManifest = (IIIFManifest) resourceBase!;
+        switch (savedManifest.Context)
+        {
+            case List<string> lst:
+                lst.Should().Contain(nonStandardContext);
+                break;
+            case string str:
+                str.Should().Be(nonStandardContext);
+                break;
+            default:
+                Assert.Fail("missing context!");
+                break;
+        }
     }
 
     [Fact]

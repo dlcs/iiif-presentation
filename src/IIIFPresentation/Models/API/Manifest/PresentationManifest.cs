@@ -63,6 +63,7 @@ public class CanvasPainting
     public string? Target { get; set; }
     public int? StaticWidth { get; set; }
     public int? StaticHeight { get; set; }
+    public double? Duration { get; set; }
 }
 
 public class IngestingAssets

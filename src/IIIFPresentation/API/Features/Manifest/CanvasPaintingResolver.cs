@@ -258,7 +258,8 @@ public class CanvasPaintingResolver(
                 ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
                 Ingesting = true,
                 StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
-                StaticHeight = paintedResource.CanvasPainting?.StaticHeight
+                StaticHeight = paintedResource.CanvasPainting?.StaticHeight,
+                Duration = paintedResource.CanvasPainting?.Duration
             };
             
             if (specifiedCanvasId != null)
