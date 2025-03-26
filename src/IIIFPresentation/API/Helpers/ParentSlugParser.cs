@@ -143,12 +143,29 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
 
         // Lookup the parent Collection, handling Api and Public paths
         var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
-        var publicIdParentHierarchy = await dbContext.RetrieveHierarchy(customerId,
-            PathParser.GetHierarchicalFullPathFromPath(publicIdParentUri.AbsoluteUri, customerId,
-                contextAccessor.HttpContext!.Request.GetBaseUrl()), cancellationToken);
-        var publicIdParent = publicIdParentHierarchy?.Collection;
-        return publicIdParent;
+
+        // Ensure we're actually ingesting path that's managed by this instance
+        if (HostsMatch(publicIdParentUri) is not true)
+            return null; // because we cannot use hierarchical parent inferred from foreign URI
+
+        try
+        {
+            var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(publicIdParentUri.AbsolutePath, customerId);
+            var publicIdParentHierarchy =
+                await dbContext.RetrieveHierarchy(customerId, parentFullPath, cancellationToken);
+            var publicIdParent = publicIdParentHierarchy?.Collection;
+            return publicIdParent;
+        }
+        catch (FormatException fe)
+        {
+            logger.LogDebug(fe, "Cannot parse parent from public id");
+            return null;
+        }
     }
+
+    private bool HostsMatch(Uri uri) =>
+        string.Equals(contextAccessor.HttpContext!.Request.Host.Host,
+            uri.Host, StringComparison.OrdinalIgnoreCase);
 
     private async Task<Collection?> RetrieveParentFromPresentation(IPresentation presentation, int customerId,
         CancellationToken cancellationToken)
@@ -160,18 +177,26 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
                 presentation.GetParentSlug(), cancellationToken: cancellationToken);
         }
 
-        var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(presentation.Parent!, customerId, baseUrl);
-
-        var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentFullPath,
-            cancellationToken: cancellationToken);
-        var parent = parentHierarchy?.Collection;
-
-        if (parent != null)
+        if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true
+            || HostsMatch(parentUri) is not true)
+            return null; // null/weird/foreign parent, cannot use
+        try
         {
-            parent.Hierarchy.GetCanonical().FullPath = parentFullPath;
-        }
+            var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(parentUri.AbsolutePath, customerId);
 
-        return parent;
+            var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentFullPath,
+                cancellationToken);
+            var parent = parentHierarchy?.Collection;
+
+            if (parent != null) parent.Hierarchy.GetCanonical().FullPath = parentFullPath;
+
+            return parent;
+        }
+        catch (FormatException fe)
+        {
+            logger.LogDebug(fe, "Failed to parse parent from presentation");
+            return null;
+        }
     }
 
     private string GetBaseUrl() => contextAccessor.HttpContext!.Request.GetBaseUrl();

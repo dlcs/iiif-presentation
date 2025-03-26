@@ -102,8 +102,7 @@ public class PathParserTests
     [Fact]
     public void GetHierarchicalSlugFromPath_ReturnsSlugFromPath()
     {
-        var slug = PathParser.GetHierarchicalFullPathFromPath("https://dlcs.example/1/slug/slug", 1,
-            "https://dlcs.example/");
+        var slug = PathParser.GetHierarchicalFullPathFromPath("/1/slug/slug", 1);
         
         slug.Should().Be("slug/slug");
     }

@@ -296,6 +296,22 @@ public class ParentSlugParserTests
     }
     
     [Fact]
+    public async Task ParentSlugParser_Fails_InvalidHost()
+    {
+        var slug = nameof(ParentSlugParser_Fails_InvalidHost);
+        
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            PublicId = $"http://example.com/{Customer}/{slug}",
+        }, Customer, null);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should().Be("The parent collection could not be found");
+    }
+    
+    [Fact]
     public async Task ParentSlugParser_Fails_ParentIsIIIF()
     {
         // Arrange
