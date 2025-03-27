@@ -564,6 +564,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.Detail.Should().Be("Could not deserialize collection");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
     
     [Fact]
@@ -2158,6 +2159,7 @@ $$"""
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error.Detail.Should().Be("Could not deserialize collection");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
     
     [Fact]
