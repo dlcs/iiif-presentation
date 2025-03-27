@@ -168,7 +168,7 @@ Based on the information discussed above, these are what the new Etags process s
 
 based on the [API scratchpad tests](https://github.com/dlcs/iiif-presentation-tests/blob/04213f185bf4fb370855e7e37be27ee4587234bf/tests/apiscratch/t0071-update-managed-asset-manifest.spec.ts#L60-L62) shows that editable resources (i.e.: PUT/POST) should not respond with Etags and instead would require a GET to retrieve the Etag.  This would have implications on the automated tests.
 
-The presentation API [sends Cache-Control: no-cache headers](https://github.com/dlcs/iiif-presentation/issues/140) to stop clients from caching values and then serving old Etags.  As it stands, this shouldn't have an impact on how the Etags work
+The presentation API [sends Cache-Control: no-cache](https://github.com/dlcs/iiif-presentation/issues/140) headers to stop clients from caching values and then serving old Etags.  As it stands, this shouldn't have an impact on how the Etags work
 
 Storage collections would need to change the id whenever a child collection is added - a child collection would cause parent etag to update
 massive amounts of collections would be slow to update a storage collection
