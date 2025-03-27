@@ -1708,4 +1708,67 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CanvasOrderHasDifferentCanvasId");
     }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInForChoice()
+    {
+        // Arrange
+        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInForChoice);
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior = [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "manifestFromPainted",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "manifestFromPainted",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 2
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "1b",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        presentationManifest.PaintedResources.Count.Should().Be(2);
+        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
+        presentationManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should()
+            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
+        presentationManifest.Items.Count.Should().Be(1);
+    }
 }

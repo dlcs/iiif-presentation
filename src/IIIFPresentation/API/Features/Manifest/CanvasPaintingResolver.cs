@@ -191,7 +191,8 @@ public class CanvasPaintingResolver(
         // with a canvas_id
         var canvasIds = canvasPaintings
             .Where(cp => !string.IsNullOrEmpty(cp.Id))
-            .ToDictionary(k => k.CanvasOrder, v => v.Id);
+            .GroupBy(cp => cp.CanvasOrder) // grouping by canvas order avoids issues with choices providing duplicate canvas ids
+            .ToDictionary(k => k.Key, v => v.First().Id); // the id will be the same in all items within a choice construct
         foreach (var cp in canvasPaintings)
         {
             // CanvasPainting records that have the same CanvasOrder will share the same CanvasId
