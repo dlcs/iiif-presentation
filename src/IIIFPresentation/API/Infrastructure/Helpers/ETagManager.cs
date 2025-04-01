@@ -9,18 +9,18 @@ namespace API.Infrastructure.Helpers;
 public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cacheOptions, ILogger<ETagManager> logger)
     : IETagManager
 {
-    public int CacheTimeoutSeconds { get; } = appCache.DefaultCachePolicy.DefaultCacheDurationSeconds;
-
     /// <inheritdoc />
-    public bool TryGetETag(string id, out string? eTag)
+    public bool TryGetETag(string resourcePath, out string? eTag)
     {
         try
         {
-            return appCache.TryGetValue(id, out eTag);
+            var found = appCache.TryGetValue(resourcePath, out eTag);
+            logger.LogTrace("Etag for path {ResourcePath} - {Etag}. Found? {Found}", resourcePath, eTag, found);
+            return found;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error retrieving ETag {EtagId}", id);
+            logger.LogError(ex, "Error retrieving ETag {ResourcePath}", resourcePath);
             eTag = null;
             return false;
         }
@@ -33,6 +33,7 @@ public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cach
     /// <inheritdoc />
     public void UpsertETag(string resourcePath, string etag)
     {
-        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions());
+        logger.LogTrace("Caching etag {Etag} for {ResourcePath}", etag, resourcePath);
+        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetNonExpiringMemoryCacheOptions());
     }
 }
