@@ -67,6 +67,18 @@ public class CacheSettings
             AbsoluteExpirationRelativeToNow =
                 TimeSpan.FromSeconds(GetTtl(duration, CacheSource.Memory)),
         };
+    
+    /// <summary>
+    /// Get <see cref="MemoryCacheEntryOptions"/> object that will never expire
+    /// </summary>
+    public MemoryCacheEntryOptions GetNonExpiringMemoryCacheOptions(
+        long size = 1,
+        CacheItemPriority priority = CacheItemPriority.Normal)
+        => new()
+        {
+            Priority = priority,
+            Size = size,
+        };
 }
 
 public class CacheGroupSettings

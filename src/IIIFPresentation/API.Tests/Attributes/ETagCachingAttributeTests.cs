@@ -23,7 +23,7 @@ public class ETagCachingAttributeTests
     {
         public int CacheTimeoutSeconds => 10;
 
-        public bool TryGetETag(string id, out string? eTag)
+        public bool TryGetETag(string resourcePath, out string? eTag)
         {
             eTag = null;
             return false;
