@@ -34,6 +34,6 @@ public class ETagManager(IAppCache appCache, IOptionsMonitor<CacheSettings> cach
     public void UpsertETag(string resourcePath, string etag)
     {
         logger.LogTrace("Caching etag {Etag} for {ResourcePath}", etag, resourcePath);
-        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetNonExpiringMemoryCacheOptions());
+        appCache.Add(resourcePath, etag, cacheOptions.CurrentValue.GetMemoryCacheOptions(CacheDuration.NeverExpire));
     }
 }
