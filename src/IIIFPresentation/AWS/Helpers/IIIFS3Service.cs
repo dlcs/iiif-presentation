@@ -50,7 +50,7 @@ public class IIIFS3Service(
         if (objectFromBucket.Stream.IsNull())
             return null;
 
-        return await objectFromBucket.Stream.ToPresentation<T>();
+        return await objectFromBucket.Stream.ToPresentation<T>(logger: logger);
     }
     
     /// <summary>

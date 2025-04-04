@@ -1,5 +1,6 @@
 using IIIF;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Core.IIIF;
@@ -12,11 +13,12 @@ public static class IIIFResponseX
     /// <remarks>
     /// There is a slight difference between the IIIF ToJson method, in that ToPresentation is case-insensitive
     /// </remarks>
-    public static async Task<T?> ToPresentation<T>(this Stream contentStream, JsonSerializerSettings? settings = null)
+    public static async Task<T?> ToPresentation<T>(this Stream contentStream, JsonSerializerSettings? settings = null,
+        ILogger? logger = null)
         where T : JsonLdBase, new()
     {
         using var streamReader = new StreamReader(contentStream);
-        return await DeserializeStream<T>(settings, streamReader);
+        return await DeserializeStream<T>(settings, streamReader, logger);
     }
     
     /// <summary>
@@ -25,14 +27,16 @@ public static class IIIFResponseX
     /// <remarks>
     /// There is a slight difference between the IIIF ToJson method, in that ToPresentation is case-insensitive
     /// </remarks>
-    public static async Task<T?> ToPresentation<T>(this string content, JsonSerializerSettings? settings = null)
+    public static async Task<T?> ToPresentation<T>(this string content, JsonSerializerSettings? settings = null,
+        ILogger? logger = null)
         where T : JsonLdBase, new()
     {
         using var streamReader = new StringReader(content);
-        return await DeserializeStream<T>(settings, streamReader);
+        return await DeserializeStream<T>(settings, streamReader, logger);
     }
     
-    private static async Task<T?> DeserializeStream<T>(JsonSerializerSettings? settings, TextReader streamReader)
+    private static async Task<T?> DeserializeStream<T>(JsonSerializerSettings? settings, TextReader streamReader,
+        ILogger? logger = null)
         where T : JsonLdBase, new()
     {
         await using var jsonReader = new JsonTextReader(streamReader);
@@ -47,8 +51,9 @@ public static class IIIFResponseX
             serializer.Populate(jsonReader, result);
             return result;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger?.LogError(ex, "An error occurred while deserializing the presentation request");
             return null;
         }
     }
