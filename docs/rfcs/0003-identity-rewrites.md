@@ -141,6 +141,16 @@ There are instances where IIIF Presentation will automatically redirect requests
 
 These redirects would also take advantage of the rewrite rules and redirect to the appropriate `*Public` or `*Private` path as required, depending on the current hostname.
 
+## Customer Specific
+
+The above configuration needs to be able to be specified at a customer level to allow adequate control.
+
+## Example
+
+The below example shows sample configuration and ability to control public/private id depending on incoming host/`x-forwarded-host`. The configured config allows for the same public id to be used in both instances, while private id differs.
+
+![example](src/example_rewrite.png)
+
 ## Disregarded Options
 
 The following options were disregarded
