@@ -55,9 +55,9 @@ Currently, the Etag is saved into an in-memory cache that does not provide the a
 
 Is the cache needed?  Currently most calls for retrieval directly hits the database, meaning that savings could be minimal.  However, this could be an issue if there are a lot calls being made, overwhelming the database.  This would be especially likely if the application has to start scaling due to multiple applications talking to the same database instance.
 
-Additionally, the need for scaling is still not certain, meaning that further thinking on this could just be adding unnecessary complication.  As such, just a simple in-memory cache 
+Additionally, the need for scaling is still not certain, meaning that further thinking on this could just be adding unnecessary complication.  As such, just a simple in-memory cache with a short duration could be good enough.
 
-It should be fairly obvious when the database begins to become resource starved and in this case, any form of caching would improve the situation.
+It should be fairly obvious when the database begins to become resource starved and in this case, any form of caching would improve the situation. However, there are issues with this thinking, in that by the time it becomes obvious that resource starvation is an issue, it can often be too late to fix the problem as this is the point that requests start to fail. 
 
 #### Distributed cache
 
