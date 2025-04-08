@@ -97,10 +97,11 @@ While using a distributed cache there are some problems that could make using on
 - Implementation is shared between nodes, meaning it's easy to scale
 - A failed match would not require calls to the database on items in the cache 
 - Ultimately means less calls on the database, which could be a performance bottleneck
+- Failed updates would fail faster due to knowing the Etag across the cache
 
 #### Publisher and subscriber with internal cache
 
-This is a more complicated version odf using a distributed cache, where each instance has it's own internal cache, which is then notified by a queue to remove the Etag for a resource that is updated on another node.  This would have the same process as retrieval for the distributed cache, but has some additional complexity when updating a resource:
+This is a more complicated version of using a distributed cache, where each instance has it's own internal cache, which is then notified by a queue to remove the Etag for a resource that is updated on another node.  This would have the same process as retrieval for the distributed cache, but has some additional complexity when updating a resource:
 
 ```mermaid
 sequenceDiagram
