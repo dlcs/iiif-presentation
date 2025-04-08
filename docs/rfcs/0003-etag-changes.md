@@ -209,7 +209,7 @@ This method is a hybrid of storing by id or path, and instead to use both.  This
 Based on the information discussed above, these are what the new Etags process should do:
 
 - The Etag should be stored in the database under a column on the `manifests` and `collections` table
-- While the distributed cache would be useful, as an initial implementation it would be ok to run using the direct database calls.  However, this should be monitored and if it seems that the database begins to become resource starved, then the distributed cache should be implemented.  Although, in the intervening time between deciding the cache is needed and deploying the implementation, additional resources can be dedicated to the [RDS instance](https://aws.amazon.com/rds/instance-types/) to mitigate issues with resource starvation. However, in preparation for this, an in-memory cache should be implemented using `IDistributedCache` with a short caching duration (~ 5 seconds)
+- While the distributed cache would be useful, as an initial implementation it would be ok to run using the direct database calls with a short duration cache to slightly reduce issues with repeated calls.  However, this should be monitored and if it seems that the database begins to become resource starved, then the distributed cache should be implemented.  Although, in the intervening time between deciding the cache is needed and deploying the implementation, additional resources can be dedicated to the [RDS instance](https://aws.amazon.com/rds/instance-types/) to mitigate issues with resource starvation. The short-duration cache should be implemented using `IDistributedCache` so that it can be swapped out at a later date, with a short caching duration (~ 5 seconds)
 - In order to help with potential resource starvation, the read and write logic should be split like mentioned above.
 - S3 should be used to retrieve the hash as this avoids issues with keeping the response body in memory
 - The cache key should be stored by `path:id`
@@ -221,8 +221,6 @@ This section contains additional areas of concern where additional tickets shoul
 based on the [API scratchpad tests](https://github.com/dlcs/iiif-presentation-tests/blob/04213f185bf4fb370855e7e37be27ee4587234bf/tests/apiscratch/t0071-update-managed-asset-manifest.spec.ts#L60-L62) shows that editable resources (i.e.: PUT/POST) should not respond with Etags and instead would require a GET to retrieve the Etag.  This would have implications on the automated tests.
 
 The presentation API [sends Cache-Control: no-cache](https://github.com/dlcs/iiif-presentation/issues/140) headers to stop clients from caching values and then serving old Etags.  As it stands, this shouldn't have an impact on how the Etags work, due to how Cloudfront caches with the `no-cache` header.  Essentially, if the `Minimum TTL` is larger than 0, the `no-cache` header will not be respected, and instead cached for the `Minimum TTL` value. Details [here](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html).
-
-**NOTE:** the dev environment currently has a `Minimum TTL` of 0, meaning nothing would be cached, it might be worth increasing this value.
 
 Storage collections would need to change the id whenever a child collection is added - a child collection would cause parent etag to update
 massive amounts of collections would be slow to update a storage collection
