@@ -123,7 +123,7 @@ sequenceDiagram
     Api1 ->> User: Return updated resource
 ```
 
-While this would work, there's a lot of additional complexity over the distributed cache, while providing the same benefits along with potential race conditions.  As such, while this has been mapped out for posterity, this option is being discarded.
+While this would work and is a powerful pattern, there's a lot of additional complexity over the distributed cache, while providing the same benefits along with potential race conditions.  As such, while this has been mapped out for posterity, this option is not warranted and is being discarded.
 
 #### Splitting read and write logic
 
@@ -194,12 +194,16 @@ This is where the path to the resource would be used as the key for the cache, t
 
 As the path differs by hierarchical and flat paths, this would mean essentially storing the path twice and is how the current system works.  This is simpler, but does mean that the cache key could not be in the cache for one path, when the work has been done for another path. 
 
-While there may be 2 keys added to the cache, at the point the record is retrieved, the path would be known from the `publicId` in the flat path, and the `id` from the database record when retrieving via a hierarchical path.  As such, both keys could be added to the cache at the same time meaning that the cache could be hit
+While there may be 2 keys added to the cache, at the point the record is retrieved, the path would be known from the `publicId` in the flat path, and the `id` from the database record when retrieving via a hierarchical path.  As such, both keys could be added to the cache at the same time, meaning that the cache could be hit
 
 #### Store by id
 
 This is where the id is used regardless of if the request comes in on a hierarchical or flat path.  While this means there's more chance of hitting the cache, for a hierarchical path, the id is only known after the record has been retrieved from the database, which would break the point of caching this value.
 
+#### Store by path:id
+
+This method is a hybrid of storing by id or path, and instead to use both.  This would save the need to do frequent lookups of the id from the path, which would avoid issues with multiple keys in the database.  This would be possible as the `id` is retrieved for a record on the hierarchical path, and the `publicId` is retrieved when going via the flat path.  This would mean the full cached value could either be 2 records of `path:id` and `id:cache` or using a single cached value like `path:id:cache`.  In this case, `path:id:cache` is preferrable as it reduces the amount of lookups required for a `path` retrieval.
+ 
 ## Recommendations
 
 Based on the information discussed above, these are what the new Etags process should do:
@@ -208,7 +212,7 @@ Based on the information discussed above, these are what the new Etags process s
 - While the distributed cache would be useful, as an initial implementation it would be ok to run using the direct database calls.  However, this should be monitored and if it seems that the database begins to become resource starved, then the distributed cache should be implemented.  Although, in the intervening time between deciding the cache is needed and deploying the implementation, additional resources can be dedicated to the [RDS instance](https://aws.amazon.com/rds/instance-types/) to mitigate issues with resource starvation. However, in preparation for this, an in-memory cache should be implemented using `IDistributedCache` with a short caching duration (~ 5 seconds)
 - In order to help with potential resource starvation, the read and write logic should be split like mentioned above.
 - S3 should be used to retrieve the hash as this avoids issues with keeping the response body in memory
-- The cache key should be stored by path
+- The cache key should be stored by `path:id`
 
 ## Other considerations
 
