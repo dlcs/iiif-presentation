@@ -143,7 +143,8 @@ Write requests:
 
 If the checksum is now being generated upfront instead of using the GET response to generate an Etag, there are some other ways of doing this:
 
-#### Using the hash
+#### Using the hash of the request/response body
+
 This is the same way that it currently works, which is fine, but could mean there are differences between a checksum generated from a hierarchical PUT/POST and a flat PUT/POST
 
 There's an issue with using the file to generate the hash in that PUT/POST can occur on the hierarchical path and the flat path which has different styles of request body.  This means that potentially updating a resource could have 2 different file hashes if using the request.  This can also happen with variations of `publicId`, `slug` and `parent`. Given these are ultimately the same request, it would be better for a single value to control the Etag on all of these requests and responses. This could be done using the response instead of the request, but there are issues with this around properties such as `ingesting` which will change based on assets. However, this would likely make for a better value when PATCH is integrated.
@@ -185,7 +186,7 @@ Generating the Etag could also be combined with data to indicate versioning (i.e
 
 ### Cache key
 
-If it's decided to use a cache, there are 2 potential paths that can be stored in the cache which would point at the same record, the hierarchical and flat path.  These means there are a couple of options for how to store the key in a cache.  This cache would contain the key (discussed here) and the value of the Etag.
+If it's decided to use a cache, there are 2 potential paths that can be stored in the cache which would point at the same record, the hierarchical and flat path.  This means there are a couple of options for how to store the key in a cache.  This cache would contain the key (discussed here) and the value of the Etag.
 
 #### Store by path
 
