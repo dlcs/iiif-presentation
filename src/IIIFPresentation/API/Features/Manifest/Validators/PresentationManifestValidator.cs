@@ -33,7 +33,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 .Any(s => s.Any(g => g.CanvasPainting.ChoiceOrder == null)))
             .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
             .WithMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
-        
+
         RuleFor(f => f.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
@@ -43,7 +43,8 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 
                     return distinctChoiceOrder != s.Count();
                 }))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .When(f => !f.PaintedResources.IsNullOrEmpty() &&
+                       f.PaintedResources.All(pr => pr.CanvasPainting?.ChoiceOrder != null))
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
 
         RuleFor(f => f.PaintedResources)

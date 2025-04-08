@@ -181,6 +181,8 @@ public class PresentationManifestValidatorTests
     {
         var manifest = new PresentationManifest
         {
+            Slug = "someSlug",
+            Parent = "https://someParent",
             PaintedResources =
             [
                 new PaintedResource
@@ -188,8 +190,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
 
@@ -200,6 +201,16 @@ public class PresentationManifestValidatorTests
                         CanvasId = "someCanvasId-2",
                         CanvasOrder = 1
                     }
+                },
+                
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-3",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
                 }
             ],
         };
@@ -207,6 +218,8 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
+        
+        result.Errors.Should().HaveCount(1);
     }
     
     [Fact]
