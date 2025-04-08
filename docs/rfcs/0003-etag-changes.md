@@ -30,11 +30,11 @@ This section is to discuss all options related to how the Etag changes could be 
 
 ### Database storage
 
-Solving this means that hashes should be generated up front and then shared between instances.  This likely means storing a value in the database that can be used to check the hash against.  This would alleviate issues with scaling, Etag values needing to be retrieved beforehand and Etag values not surviving restarts.
+Solving this means that hashes should be generated up front and then shared between instances.  This means storing a value in the database that can be used to check the hash against.  This would alleviate issues with scaling, Etag values needing to be retrieved beforehand and Etag values not surviving restarts.
 
 #### Additional table
 
-Doing this would mean an additional value being added to the database called `etag` that allows for the Etag to be stored.  While it would be possible to add a column onto the shared `hierarchy` table to reduce duplication, but due to the ability to create `canonical` and `non-canonical` resources which would mean the Etag value is duplicated across the table.  Therefore, the preferred solution to this is to have another table containing the Etag, which would look like this:
+Doing this would mean an additional value being added to the database called `etag` that allows for the Etag to be stored.  While it would be possible to add a column onto the shared `hierarchy` table, due to the ability to create `canonical` and `non-canonical` hierarchy records, it would mean the Etag value is duplicated within the table.  Therefore, a possible solution to reducing this is to have another table containing the Etag, which would look like this:
 
 | name | type | constraints |
 |---|---|---|
@@ -51,7 +51,7 @@ Adding an additional table could be considered overkill given it's adding 4 colu
 
 Currently, the Etag is saved into an in-memory cache that does not provide the ability to scale.
 
-### No cache
+#### No cache
 
 Is the cache needed?  Currently most calls for retrieval directly hits the database, meaning that savings could be minimal.  However, this could be an issue if there are a lot calls being made, overwhelming the database.  This would be especially likely if the application has to start scaling due to multiple applications talking to the same database instance.
 
@@ -147,7 +147,7 @@ This is the same way that it currently works, which is fine, but could mean ther
 
 There's an issue with using the file to generate the hash in that PUT/POST can occur on the hierarchical path and the flat path which has different styles of request body.  This means that potentially updating a resource could have 2 different file hashes if using the request.  This can also happen with variations of `publicId`, `slug` and `parent`. Given these are ultimately the same request, it would be better for a single value to control the Etag on all of these requests and responses. This could be done using the response instead of the request, but there are issues with this around properties such as `ingesting` which will change based on assets. However, this would likely make for a better value when PATCH is integrated.
 
-Additionally, the PUT/POST response is modified at a later date byt the background handler if there are assets attached to the manifest.  This would mean that Etags would not be available for manifests with assets until after processing was completed.  The full process would look like this:
+Additionally, the PUT/POST response is modified at a later date by the background handler if there are assets attached to the manifest.  This would mean that Etags would not be available for manifests with assets until after processing was completed.  The full process would look like this:
 
 ```mermaid
 sequenceDiagram
