@@ -60,13 +60,21 @@ public class CacheSettings
     public MemoryCacheEntryOptions GetMemoryCacheOptions(
         CacheDuration duration = CacheDuration.Default, long size = 1,
         CacheItemPriority priority = CacheItemPriority.Normal)
-        => new()
+    {
+        var memoryCacheEntryOptions = new MemoryCacheEntryOptions
         {
             Priority = priority,
             Size = size,
-            AbsoluteExpirationRelativeToNow =
-                TimeSpan.FromSeconds(GetTtl(duration, CacheSource.Memory)),
         };
+
+        if (duration != CacheDuration.NeverExpire)
+        {
+            memoryCacheEntryOptions.AbsoluteExpirationRelativeToNow =
+                TimeSpan.FromSeconds(GetTtl(duration, CacheSource.Memory));
+        }
+        
+        return memoryCacheEntryOptions;
+    }
 }
 
 public class CacheGroupSettings
@@ -117,5 +125,6 @@ public enum CacheDuration
 {
     Short,
     Default,
-    Long
+    Long,
+    NeverExpire,
 }

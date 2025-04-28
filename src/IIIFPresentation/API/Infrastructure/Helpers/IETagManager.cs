@@ -5,14 +5,9 @@ namespace API.Infrastructure.Helpers;
 public interface IETagManager
 {
     /// <summary>
-    /// How long clients should cache the response
-    /// </summary>
-    public int CacheTimeoutSeconds { get; }
-    
-    /// <summary>
     /// Attempt to get ETag for specified id, where Id is the path of the resource
     /// </summary>
-    bool TryGetETag(string id, out string? eTag);
+    bool TryGetETag(string resourcePath, out string? eTag);
     
     /// <summary>
     /// Attempt to get ETag for specified resource
