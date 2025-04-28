@@ -180,8 +180,13 @@ public class CanvasPaintingResolver(
                 existingManifest.CanvasPaintings.Remove(toRemove);
             }
 
-            await manifestCoordinator.RemoveManifestsFromAssets(existingManifest,
-                canvasPaintingsToRemove.Where(cp => cp.AssetId != null), cancellationToken);
+            var canvasPaintingsWithAssetIds = canvasPaintingsToRemove.Where(cp => cp.AssetId != null).ToList();
+
+            if (canvasPaintingsWithAssetIds.Count != 0)
+            {
+                await manifestCoordinator.RemoveManifestsFromAssets(existingManifest,
+                    canvasPaintingsWithAssetIds, cancellationToken);
+            }
         }
 
         return toInsert;

@@ -88,6 +88,9 @@ public class DlcsManifestCoordinator(
             throw new NotImplementedException(
                 "All assets are tracked, but the ability to generate items from the API is not yet implemented");
         }
+        
+        foreach (var asset in checkedAssets.untrackedAssets)
+            asset.Add(AssetProperties.Manifests, new JArray(new List<string> { manifestId }));
 
         var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets, cancellationToken);
         return new(batchError, spaceId);

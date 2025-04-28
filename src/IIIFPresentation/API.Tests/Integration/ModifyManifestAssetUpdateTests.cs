@@ -1726,10 +1726,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).CanvasPaintingId.Should().NotBe(firstCanvasPaintingId);
         
-        A.CallTo(() => dlcsApiClient.UpdateAssetManifest(Customer,
-            A<List<AssetId>>.That.Matches(a => a.Single().Asset == $"{assetId}_1"), A<OperationType>._,
-            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
-        
         dbManifest.Batches.Should().HaveCount(2, "batch created for asset 2");
     }
 }
