@@ -320,7 +320,7 @@ public class DlcsApiClientTests
                                 """).StatusCode(200);
         var sut = GetClient(stub);
 
-        var assets = await sut.UpdateAssetWithManifest(customerId, [new AssetId(customerId, 1, "someString")],
+        var assets = await sut.UpdateAssetManifest(customerId, [new AssetId(customerId, 1, "someString")],
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(1);
@@ -341,7 +341,7 @@ public class DlcsApiClientTests
             .StatusCode((int) httpStatusCode);
         var sut = GetClient(stub);
 
-        Func<Task> action = () => sut.UpdateAssetWithManifest(customerId, [new AssetId(customerId, 1, "someString")],
+        Func<Task> action = () => sut.UpdateAssetManifest(customerId, [new AssetId(customerId, 1, "someString")],
             OperationType.Add, ["first"], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);

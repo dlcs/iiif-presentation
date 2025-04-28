@@ -93,6 +93,11 @@ public class DlcsManifestCoordinator(
         return new(batchError, spaceId);
     }
     
+    public async Task RemoveManifestsFromAssets(Models.Database.Collections.Manifest dbManifest, IEnumerable<CanvasPainting> canvasPaintingsToRemove, CancellationToken cancellationToken) =>
+        await dlcsApiClient.UpdateAssetManifest(dbManifest.CustomerId,
+        canvasPaintingsToRemove.Select(cp => cp.AssetId).ToList()!, OperationType.Remove,
+    [dbManifest.Id], cancellationToken);
+    
     private async Task<(List<JObject> untrackedAssets, List<JObject> trackedAssets)> FindTrackedAssets(List<JObject> assets, 
         Models.Database.Collections.Manifest? dbManifest, string manifestId, int customerId, CancellationToken cancellationToken = default)
     {
@@ -116,7 +121,7 @@ public class DlcsManifestCoordinator(
 
         if (dlcsAssets.Any())
         {
-            await dlcsApiClient.UpdateAssetWithManifest(customerId,
+            await dlcsApiClient.UpdateAssetManifest(customerId,
                 dlcsAssets.Select(a => new AssetId(customerId, a.Space, a.Id)).ToList(), OperationType.Add,
                 [manifestId], cancellationToken);
         }

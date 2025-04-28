@@ -1525,120 +1525,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 2).Should().NotBeNull("asset added to manifest");
         dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 3).Should().NotBeNull("asset added to manifest");
         
-        A.CallTo(() => dlcsApiClient.UpdateAssetWithManifest(Customer,
+        A.CallTo(() => dlcsApiClient.UpdateAssetManifest(Customer,
             A<List<AssetId>>.That.Matches(a => a.Single().Asset == $"fromDlcs_{assetId}_2"), A<OperationType>._,
             A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
         
         dbManifest.Batches.Should().HaveCount(2, "batch created for asset 3");
-    }
-    
-    [Fact]
-    public async Task UpdateManifest_AssetNotFoundInDlcs_WhenMixOfNewAndOldAssets()
-    {
-        // Arrange
-        var slug = nameof(UpdateManifest_AssetNotFoundInDlcs_WhenMixOfNewAndOldAssets);
-        var id = $"{nameof(UpdateManifest_AssetNotFoundInDlcs_WhenMixOfNewAndOldAssets)}_id";
-        var assetId = "testAssetByPresentation-same-asset-different-space";
-
-        var initialCanvasPaintings = new List<CanvasPainting>
-        {
-            new()
-            {
-                Id = "first",
-                StaticWidth = 1200,
-                StaticHeight = 1800,
-                CanvasOrder = 1,
-                ChoiceOrder = 1,
-                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
-            },
-            new()
-            {
-                Id = "second",
-                StaticWidth = 1200,
-                StaticHeight = 1800,
-                CanvasOrder = 2,
-                ChoiceOrder = 1,
-                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
-            }
-        };
-
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: 919, ingested: true);
-        await dbContext.SaveChangesAsync();
-
-        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 1)
-            .CanvasPaintingId;
-        var secondCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 2)
-            .CanvasPaintingId;
-   
-        A.CallTo(() => dlcsApiClient.GetAssetsById(Customer, 
-                A<List<AssetId>>.That.Matches(o => o.First().Asset.Contains("returnNothing")), A<CancellationToken>._))
-            .ReturnsLazily(() => Task.FromResult(Array.Empty<Asset>()));
-        
-        var batchId = 1019;
-        var manifestWithoutSpace = $$"""
-                          {
-                              "type": "Manifest",
-                              "slug": "{{slug}}",
-                              "parent": "http://localhost/{{Customer}}/collections/root",
-                              "paintedResources": [
-                                  {
-                                     "canvasPainting":{
-                                        "canvasOrder": 1
-                                     },
-                                      "asset": {
-                                          "id": "{{assetId}}_1",
-                                          "mediaType": "image/jpg"
-                                      }
-                                  },
-                                  {
-                                     "canvasPainting":{
-                                          "canvasOrder": 2
-                                     },
-                                      "asset": {
-                                          "id": "{{assetId}}_2",
-                                          "mediaType": "image/jpg"
-                                      }
-                                  },
-                                  {
-                                     "canvasPainting":{
-                                          "canvasOrder": 3
-                                     },
-                                      "asset": {
-                                          "id": "returnNothing",
-                                          "mediaType": "image/jpg",
-                                          "batch": "{{batchId}}",
-                                      }
-                                  }
-                              ] 
-                          }
-                          """;
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifestWithoutSpace);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
-        
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-
-        responseManifest!.PaintedResources.Should().HaveCount(3);
-        
-        var dbManifest = dbContext.Manifests
-            .Include(m => m.CanvasPaintings)
-            .Include(m => m.Batches)
-            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
-
-        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).CanvasPaintingId.Should().Be(firstCanvasPaintingId);
-        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 2).CanvasPaintingId.Should().Be(secondCanvasPaintingId);
-        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 3).Should().NotBeNull("added through manifest");
-        
-        dbManifest.Batches.Should().HaveCount(2, "asset not found, so batch created");
-        dbManifest.Batches.Single(b => b.Id == batchId).Should().NotBeNull("asset not found, so batch created");
     }
     
     [Fact]
@@ -1762,5 +1653,83 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         dbManifest.Batches.Should().HaveCount(2);
         dbManifest.Batches.Single(b => b.Id == batchId).Should().NotBeNull("Assets not found, so batch created");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved);
+        var id = $"{nameof(UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved)}_id";
+        var assetId = "testAssetByPresentation-only-calls-new";
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 919, ingested: true);
+        await dbContext.SaveChangesAsync();
+
+        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 1)
+            .CanvasPaintingId;
+
+        var batchId = 1019;
+
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(1);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).CanvasPaintingId.Should().NotBe(firstCanvasPaintingId);
+        
+        A.CallTo(() => dlcsApiClient.UpdateAssetManifest(Customer,
+            A<List<AssetId>>.That.Matches(a => a.Single().Asset == $"{assetId}_1"), A<OperationType>._,
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        dbManifest.Batches.Should().HaveCount(2, "batch created for asset 2");
     }
 }

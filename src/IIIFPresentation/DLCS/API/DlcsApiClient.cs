@@ -49,7 +49,7 @@ public interface IDlcsApiClient
     /// <param name="assets">assets to update</param>
     /// <param name="operationType">whether to add, remove or replace</param>
     /// <param name="manifests">manifests to update</param>
-    public Task<Asset[]> UpdateAssetWithManifest(int customerId, List<AssetId> assets, OperationType operationType, 
+    public Task<Asset[]> UpdateAssetManifest(int customerId, List<AssetId> assets, OperationType operationType, 
         List<string> manifests, CancellationToken cancellationToken = default);
 }
 
@@ -165,7 +165,7 @@ internal class DlcsApiClient(
         return results;
     }
     
-    public async Task<Asset[]> UpdateAssetWithManifest(int customerId, List<AssetId> assets, OperationType operationType, List<string> manifests,
+    public async Task<Asset[]> UpdateAssetManifest(int customerId, List<AssetId> assets, OperationType operationType, List<string> manifests,
         CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",

@@ -20,6 +20,7 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
+    DlcsManifestCoordinator manifestCoordinator,
     ILogger<CanvasPaintingResolver> logger)
 {
     /// <summary>
@@ -69,8 +70,9 @@ public class CanvasPaintingResolver(
             GeneratePartialCanvasPaintingsFromAssets(customerId, presentationManifest, existingManifest);
 
         if (canvasPaintingResult.updateResult != null) return canvasPaintingResult.updateResult;
-        
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest, canvasPaintingResult.canvasPaintings);
+
+        var toInsert =
+            await UpdateCanvasPaintingRecords(existingManifest, canvasPaintingResult.canvasPaintings, cancellationToken);
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
@@ -92,7 +94,7 @@ public class CanvasPaintingResolver(
 
         existingManifest.CanvasPaintings ??= [];
         
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest, incomingCanvasPaintings);
+        var toInsert = await UpdateCanvasPaintingRecords(existingManifest, incomingCanvasPaintings, cancellationToken);
 
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
@@ -101,8 +103,8 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    private List<CanvasPainting> UpdateCanvasPaintingRecords(DbManifest existingManifest, 
-        List<CanvasPainting> incomingCanvasPaintings)
+    private async Task<List<CanvasPainting>> UpdateCanvasPaintingRecords(DbManifest existingManifest, 
+        List<CanvasPainting> incomingCanvasPaintings, CancellationToken cancellationToken)
     {
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<CanvasPainting>();
@@ -165,12 +167,21 @@ public class CanvasPaintingResolver(
                 processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
             }
         }
-        // Delete canvasPaintings from DB that are not in payload
-        foreach (var toRemove in existingManifest.CanvasPaintings
-                     .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
+
+        var canvasPaintingsToRemove = existingManifest.CanvasPaintings
+            .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList();
+        
+        if (canvasPaintingsToRemove.Count != 0)
         {
-            logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
-            existingManifest.CanvasPaintings.Remove(toRemove);
+            // Delete canvasPaintings from DB that are not in payload
+            foreach (var toRemove in canvasPaintingsToRemove)
+            {
+                logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
+                existingManifest.CanvasPaintings.Remove(toRemove);
+            }
+
+            await manifestCoordinator.RemoveManifestsFromAssets(existingManifest,
+                canvasPaintingsToRemove.Where(cp => cp.AssetId != null), cancellationToken);
         }
 
         return toInsert;
