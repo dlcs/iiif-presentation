@@ -4,6 +4,7 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Stubbery;
 
@@ -276,6 +277,74 @@ public class DlcsApiClientTests
         Func<Task> action = () => sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+    }
+    
+    [Fact]
+    public async Task GetAssetsById_ReturnsAssetIds_WhenSuccess()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Post($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@type": "Collection",
+                           "member": [
+                            { "id": "someAssetId" }
+                           ]
+                           }
+                          """)
+            .StatusCode(200);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetAssetsById(customerId, [new AssetId(customerId, 1,"someString")], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+        assets.Single().Id.Should().Be("someAssetId");
+    }
+    
+    [Fact]
+    public async Task UpdateAssetWithManifest_ReturnsAssetIds_WhenSuccess()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => """
+                                {
+                                 "@type": "Collection",
+                                 "totalItems": 1,
+                                 "pageSize": 1,
+                                 "member": [
+                                  { "id": "someAssetId" }
+                                 ]
+                                 }
+                                """).StatusCode(200);
+        var sut = GetClient(stub);
+
+        var assets = await sut.UpdateAssetWithManifest(customerId, [new AssetId(customerId, 1, "someString")],
+            OperationType.Add, ["first"], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+        assets.Single().Id.Should().Be("someAssetId");
+    }
+    
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task UpdateAssetWithManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        const int batchId = 2137;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.UpdateAssetWithManifest(customerId, [new AssetId(customerId, 1, "someString")],
+            OperationType.Add, ["first"], CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
 
 

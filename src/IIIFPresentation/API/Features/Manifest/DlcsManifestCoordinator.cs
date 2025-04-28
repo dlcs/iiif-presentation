@@ -2,14 +2,17 @@
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using Core;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using CanvasPainting = Models.Database.CanvasPainting;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
@@ -77,8 +80,60 @@ public class DlcsManifestCoordinator(
             
         }
 
+        var checkedAssets =
+            await FindTrackedAssets(assets, dbManifest, manifestId, request.CustomerId, cancellationToken);
+        assets = checkedAssets.untrackedAssets;
+
         var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);
         return new(batchError, spaceId);
+    }
+    
+    private async Task<(List<JObject> untrackedAssets, List<JObject> trackedAssets)> FindTrackedAssets(List<JObject> assets, 
+        Models.Database.Collections.Manifest? dbManifest, string manifestId, int customerId, CancellationToken cancellationToken = default)
+    {
+        var assetIds = assets.Select(a =>
+            AssetId.FromString(
+                $"{customerId}/{a.GetRequiredValue(AssetProperties.Space)}/{a.GetRequiredValue(AssetProperties.Id)}"));
+        
+        List<CanvasPainting> assetsInDatabase = [];
+
+        if (dbManifest != null)
+        {
+            assetsInDatabase = dbManifest.CanvasPaintings
+                .Where(cp => cp.AssetId != null && assetIds.Contains(cp.AssetId)).ToList();
+
+            // all assets are tracked
+            if (assetsInDatabase.Count == assets.Count) return ([], assets);
+        }
+
+        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
+        var dlcsAssets = await dlcsApiClient.GetAssetsById(customerId, assetsToCheckDlcs, cancellationToken);
+
+        if (dlcsAssets.Any())
+        {
+            await dlcsApiClient.UpdateAssetWithManifest(customerId,
+                dlcsAssets.Select(a => new AssetId(customerId, a.Space, a.Id)).ToList(), OperationType.Add,
+                [manifestId], cancellationToken);
+        }
+        
+        if (assetsInDatabase.Count + dlcsAssets.Length == assets.Count) return ([], assets);
+
+        var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssets);
+        var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
+        
+        return (untrackedAssets, trackedAssets);
+    }
+
+
+    private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, Asset[] dlcsAssets)
+    {
+        var trackedAssets = assets.Where(a =>
+            assetsInDatabase.Any(b => b.AssetId.Asset == a.TryGetValue(AssetProperties.Id)?.ToString())).ToList();
+        trackedAssets.AddRange(assets.Where(a =>
+            dlcsAssets.Any(b =>
+                b.Id == a.TryGetValue(AssetProperties.Id)?.ToString() &&
+                b.Space.ToString() == a.TryGetValue(AssetProperties.Space)?.ToString())));
+        return trackedAssets;
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
@@ -86,6 +141,11 @@ public class DlcsManifestCoordinator(
             .Select(p => p.Asset)
             .OfType<JObject>()
             .ToList() ?? [];
+    
+    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<JObject> trackedAssets) =>
+        assets.Where(
+                a => trackedAssets.All(b => b.TryGetValue(AssetProperties.Id) != a.TryGetValue(AssetProperties.Id)))
+            .ToList();
     
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
@@ -99,7 +159,7 @@ public class DlcsManifestCoordinator(
     private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, List<JObject> assets, CancellationToken cancellationToken)
     {
         if (assets.Count == 0) return null;
-        
+
         try
         {
             var batches = await dlcsApiClient.IngestAssets(customerId,

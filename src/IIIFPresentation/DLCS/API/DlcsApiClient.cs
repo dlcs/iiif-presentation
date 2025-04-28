@@ -5,6 +5,7 @@ using DLCS.Handlers;
 using DLCS.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 
 namespace DLCS.API;
@@ -26,12 +27,30 @@ public interface IDlcsApiClient
     /// </summary>
     public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get assets from the DLCS based on an asset id
+    /// </summary>
+    /// <param name="assets">assets to retrieve</param>
+    public Task<Asset[]> GetAssetsById(int customerId, List<AssetId> assets,
+        CancellationToken cancellationToken = default);
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
         CancellationToken cancellationToken);
 
     Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default);
+    
+    
+    /// <summary>
+    /// Updates an asset with a new manifest
+    /// </summary>
+    /// <param name="customerId">the customer id</param>
+    /// <param name="assets">assets to update</param>
+    /// <param name="operationType">whether to add, remove or replace</param>
+    /// <param name="manifests">manifests to update</param>
+    public Task<Asset[]> UpdateAssetWithManifest(int customerId, List<AssetId> assets, OperationType operationType, 
+        List<string> manifests, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -91,6 +110,18 @@ internal class DlcsApiClient(
         return batches.ToList();
     }
 
+    public async Task<Asset[]> GetAssetsById(int customerId, List<AssetId> assets, CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Retrieving assets for customer {CustomerId} by the identifier", customerId);
+        
+        var hydraAssets = new HydraCollection<Asset>(assets.Select(a => new Asset(){Id = a.ToString()}).ToArray());
+        var allImagesPath = $"/customers/{customerId}/allImages";
+        
+        var allImages = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Post, allImagesPath, hydraAssets, cancellationToken);
+        
+        return allImages?.Members ?? [];
+    }
+
     public async Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
         CancellationToken cancellationToken = default)
     {
@@ -132,6 +163,42 @@ internal class DlcsApiClient(
         }
 
         return results;
+    }
+    
+    public async Task<Asset[]> UpdateAssetWithManifest(int customerId, List<AssetId> assets, OperationType operationType, List<string> manifests,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
+            customerId, operationType.ToString());
+        
+        var allImages = new BulkPatchAssets
+        {
+            Field = "manifests",
+            Members = assets.Select(a => new IdentifierOnly(){Id = a.ToString()}).ToList(),
+            Operation = operationType,
+            Value = manifests
+        };
+        
+        var endpoint = $"/customers/{customerId}/allImages";
+
+        var assetsResponse = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Patch, endpoint, allImages, cancellationToken);
+        if (assetsResponse == null)
+        {
+            logger.LogError("Could not understand the patch all assets response for customer {CustomerId}", customerId);
+            throw new DlcsException("Failed to create batch", HttpStatusCode.InternalServerError);
+        }
+
+        if (assetsResponse.Members.Length != assets.Count)
+        {
+            var missingAssets = assets.Where(a => assetsResponse.Members.All(ar => a.Asset != ar.Id)).ToList();
+
+            logger.LogError(
+                "Received less assets than expected when patching customer images for {CustomerId}, assets missing - {MissingAssets}",
+                customerId, missingAssets);
+            throw new DlcsException($"Could not find assets [{missingAssets}] in DLCS", HttpStatusCode.InternalServerError);
+        }
+        
+        return assetsResponse.Members;
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,
