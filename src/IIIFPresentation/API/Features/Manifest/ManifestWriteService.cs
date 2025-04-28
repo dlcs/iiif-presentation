@@ -155,7 +155,7 @@ public class ManifestWriteService(
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
         var saveToStaging = ShouldSaveToStaging(request);
-        // can't have both items and painted resources, so items takes precedence
+        // can't have both items and painted resources, so items take precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
             request.PresentationManifest.PaintedResources = null;

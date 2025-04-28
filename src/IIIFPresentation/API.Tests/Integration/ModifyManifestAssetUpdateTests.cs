@@ -207,7 +207,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_RemovesSingleAsset);
         var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_RemovesSingleAsset)}_id";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -730,7 +730,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var assetId = "testAssetByPresentation-update";
         var canvasId = "first";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -808,7 +808,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var assetId = "testAssetByPresentation-update";
         var canvasId = "first";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -931,7 +931,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var assetId = "testAssetByPresentation-update-choice";
         var canvasId = "first";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -1027,7 +1027,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var assetId = "testAssetByPresentation-add-choice";
         var canvasId = "first";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -1107,10 +1107,10 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var slug = nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenUpdatingCanvasToChoiceOrder);
         var id = $"{nameof(UpdateManifest_KeepsTheSameCanvasPaintingId_WhenUpdatingCanvasToChoiceOrder)}_id";
-        var assetId = "testAssetByPresentation-update-canvas-choice";
-        var canvasId = "first";
+        var assetId = "asset_for_testAssetByPresentation-update-canvas-choice";
+        var canvasId = "testAssetByPresentation-update-canvas-choice";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
@@ -1123,7 +1123,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             },
             new()
             {
-                Id = "second",
+                Id = canvasId,
                 StaticWidth = 1200,
                 StaticHeight = 1800,
                 CanvasOrder = 1,
@@ -1148,6 +1148,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
+                                        "id": "{{canvasId}}",
                                         "canvasOrder": 1,
                                         "choiceOrder": 1
                                      },
@@ -1159,6 +1160,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                   },
                                   {
                                      "canvasPainting":{
+                                          "id": "{{canvasId}}",
                                           "canvasOrder": 1,
                                           "choiceOrder": 2
                                      },
@@ -1209,7 +1211,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var assetId = "testAssetByPresentation-update-canvas-choice";
         var canvasId = "first";
 
-        var initialCanvasPaintings = new List<Models.Database.CanvasPainting>
+        var initialCanvasPaintings = new List<CanvasPainting>
         {
             new()
             {
