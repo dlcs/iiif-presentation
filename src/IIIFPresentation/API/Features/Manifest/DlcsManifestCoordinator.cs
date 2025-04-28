@@ -82,9 +82,14 @@ public class DlcsManifestCoordinator(
 
         var checkedAssets =
             await FindTrackedAssets(assets, dbManifest, manifestId, request.CustomerId, cancellationToken);
-        assets = checkedAssets.untrackedAssets;
 
-        var batchError = await CreateBatches(request.CustomerId, manifestId, assets, cancellationToken);
+        if (checkedAssets.untrackedAssets.Count == 0 && assets.Count > 0)
+        {
+            throw new NotImplementedException(
+                "All assets are tracked, but the ability to generate items from the API is not yet implemented");
+        }
+
+        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets, cancellationToken);
         return new(batchError, spaceId);
     }
     
