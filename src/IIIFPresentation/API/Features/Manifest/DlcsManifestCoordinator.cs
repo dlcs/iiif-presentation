@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using API.Features.Storage.Helpers;
 using API.Helpers;
+using API.Infrastructure.Helpers;
 using Core;
 using Core.Helpers;
 using DLCS.API;
@@ -105,46 +106,49 @@ public class DlcsManifestCoordinator(
         Models.Database.Collections.Manifest? dbManifest, string manifestId, int customerId, CancellationToken cancellationToken = default)
     {
         var assetIds = assets.Select(a =>
-            AssetId.FromString(
-                $"{customerId}/{a.GetRequiredValue(AssetProperties.Space)}/{a.GetRequiredValue(AssetProperties.Id)}"));
+                $"{customerId}/{a.GetRequiredValue(AssetProperties.Space)}/{a.GetRequiredValue(AssetProperties.Id)}");
         
         List<CanvasPainting> assetsInDatabase = [];
 
         if (dbManifest != null)
         {
             assetsInDatabase = dbManifest.CanvasPaintings
-                .Where(cp => cp.AssetId != null && assetIds.Contains(cp.AssetId)).ToList();
+                .Where(cp => cp.AssetId != null && assetIds.Contains(cp.AssetId.ToString())).ToList();
 
             // all assets are tracked
             if (assetsInDatabase.Count == assets.Count) return ([], assets);
         }
 
-        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
-        var dlcsAssets = await dlcsApiClient.GetAssetsById(customerId, assetsToCheckDlcs, cancellationToken);
+        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId?.ToString() != a)).ToList();
+        
+        var dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
+                assetsToCheckDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
+        
+
+        var dlcsAssetIds = dlcsAssets.Select(a => a.GetAssetId(customerId)).ToList();
 
         if (dlcsAssets.Any())
         {
-            await dlcsApiClient.UpdateAssetManifest(customerId,
-                dlcsAssets.Select(a => new AssetId(customerId, a.Space, a.Id)).ToList(), OperationType.Add,
-                [manifestId], cancellationToken);
+            await dlcsApiClient.UpdateAssetManifest(customerId, dlcsAssetIds, OperationType.Add, [manifestId],
+                cancellationToken);
         }
         
-        if (assetsInDatabase.Count + dlcsAssets.Length == assets.Count) return ([], assets);
+        if (assetsInDatabase.Count + dlcsAssets.Count == assets.Count) return ([], assets);
 
-        var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssets);
+        var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
         var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
         
         return (untrackedAssets, trackedAssets);
     }
 
 
-    private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, Asset[] dlcsAssets)
+    private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
     {
         var trackedAssets = assets.Where(a =>
             assetsInDatabase.Any(b => b.AssetId.Asset == a.TryGetValue(AssetProperties.Id)?.ToString())).ToList();
         trackedAssets.AddRange(assets.Where(a =>
             dlcsAssets.Any(b =>
-                b.Id == a.TryGetValue(AssetProperties.Id)?.ToString() &&
+                b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
                 b.Space.ToString() == a.TryGetValue(AssetProperties.Space)?.ToString())));
         return trackedAssets;
     }

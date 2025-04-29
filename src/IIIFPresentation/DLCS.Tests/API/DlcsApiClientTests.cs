@@ -280,29 +280,6 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task GetAssetsById_ReturnsAssetIds_WhenSuccess()
-    {
-        using var stub = new ApiStub();
-        const int customerId = 4;
-        stub.Post($"/customers/{customerId}/allImages",
-                (_, _) => """
-                          {
-                           "@type": "Collection",
-                           "member": [
-                            { "id": "someAssetId" }
-                           ]
-                           }
-                          """)
-            .StatusCode(200);
-        var sut = GetClient(stub);
-
-        var assets = await sut.GetAssetsById(customerId, [new AssetId(customerId, 1,"someString")], CancellationToken.None);
-
-        assets.Should().HaveCount(1);
-        assets.Single().Id.Should().Be("someAssetId");
-    }
-    
-    [Fact]
     public async Task UpdateAssetWithManifest_ReturnsAssetIds_WhenSuccess()
     {
         using var stub = new ApiStub();

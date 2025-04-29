@@ -31,13 +31,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     private const int Customer = 1;
     private readonly IAmazonS3 amazonS3;
     private const int NewlyCreatedSpace = 999;
-    private readonly IDlcsApiClient dlcsApiClient;
+    private static readonly IDlcsApiClient dlcsApiClient = A.Fake<IDlcsApiClient>();
 
     public ModifyManifestAssetCreationTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        dlcsApiClient = A.Fake<IDlcsApiClient>();
+        //dlcsApiClient = A.Fake<IDlcsApiClient>();
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
@@ -63,12 +63,14 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 A<IList<string>>.That.Matches(l => l.Any(x =>
                     $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetailsFail".Equals(x))),
                 A<CancellationToken>._))
+            .ReturnsLazily(() => []).Once().Then // makes it so that this fake acts like a "new" image, rather than a tracked one
             .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
 
         A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
                 A<IList<string>>.That.Matches(l =>
                     l.Any(x => $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetails".Equals(x))),
                 A<CancellationToken>._))
+            .ReturnsLazily(() => []).Once().Then // makes it so that this fake acts like a "new" image, rather than a tracked one
             .ReturnsLazily(() =>
             [
                 JObject.Parse(
@@ -119,11 +121,18 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 )
             ]);
         
-        A.CallTo(() => dlcsApiClient.GetAssetsById(Customer, A<List<AssetId>>.That.Matches(o => o.First().Asset.StartsWith("fromDlcs_")), A<CancellationToken>._))
-            .ReturnsLazily((int customerId, List<AssetId> assetIds, CancellationToken can) =>
-                Task.FromResult(assetIds.Where(a => a.Asset.StartsWith("fromDlcs_"))
-                    .Select(x => new Asset { Id = x.Asset.Split('/').Last(), Space = NewlyCreatedSpace})
-                    .ToArray()));
+        A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer, 
+                A<ICollection<string>>.That.Matches(o => o.First().Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_")), 
+                A<CancellationToken>._))
+            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
+                Task.FromResult((IList<JObject>)assetIds.Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
+                    .Select(x => JObject.Parse($$"""
+
+                                                 {
+                                                   "id": "{{x.Split('/').Last()}}",
+                                                   "space": {{NewlyCreatedSpace}}
+                                                 }
+                                                 """)).ToList()));
         
         dbContext = storageFixture.DbFixture.DbContext;
 

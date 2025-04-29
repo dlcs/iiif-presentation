@@ -27,13 +27,6 @@ public interface IDlcsApiClient
     /// </summary>
     public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
         CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Get assets from the DLCS based on an asset id
-    /// </summary>
-    /// <param name="assets">assets to retrieve</param>
-    public Task<Asset[]> GetAssetsById(int customerId, List<AssetId> assets,
-        CancellationToken cancellationToken = default);
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
         CancellationToken cancellationToken);
@@ -108,18 +101,6 @@ internal class DlcsApiClient(
         await Task.WhenAll(tasks);
         
         return batches.ToList();
-    }
-
-    public async Task<Asset[]> GetAssetsById(int customerId, List<AssetId> assets, CancellationToken cancellationToken = default)
-    {
-        logger.LogTrace("Retrieving assets for customer {CustomerId} by the identifier", customerId);
-        
-        var hydraAssets = new HydraCollection<Asset>(assets.Select(a => new Asset(){Id = a.ToString()}).ToArray());
-        var allImagesPath = $"/customers/{customerId}/allImages";
-        
-        var allImages = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Post, allImagesPath, hydraAssets, cancellationToken);
-        
-        return allImages?.Members ?? [];
     }
 
     public async Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
