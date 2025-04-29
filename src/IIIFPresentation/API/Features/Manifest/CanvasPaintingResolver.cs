@@ -256,9 +256,10 @@ public class CanvasPaintingResolver(
             var (canvasIdErrors, specifiedCanvasId) =
                 TryGetValidCanvasId(customerId, paintedResource, canvasPaintings, canvasOrder);
             if (canvasIdErrors != null) return (canvasIdErrors, null);
-            
+
             var cp = new CanvasPainting
             {
+                Id = specifiedCanvasId!, // actually can be null
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 CustomerId = customerId,

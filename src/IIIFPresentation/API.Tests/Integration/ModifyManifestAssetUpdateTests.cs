@@ -1197,19 +1197,18 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_ThrowsError_SplittingChoiceOrder()
+    public async Task UpdateManifest_SplittingChoiceOrder_ReturnsAccepted()
     {
         /*
-         THIS TEST SHOULD FAIL WHEN ACTUALLY WORKING
-        
-         this demonstrates the behavior as-is for splitting a choice order. In reality this should work and not throw an exception
+         Test used to be a negative, now it presents how the split is implemented by removing and creating new non-choice
+         canvases. To achieve that, the payload should omit canvasId for both canvases
         */
         
         // Arrange
-        var slug = nameof(UpdateManifest_ThrowsError_SplittingChoiceOrder);
-        var id = $"{nameof(UpdateManifest_ThrowsError_SplittingChoiceOrder)}_id";
+        var slug = nameof(UpdateManifest_SplittingChoiceOrder_ReturnsAccepted);
+        var id = $"{nameof(UpdateManifest_SplittingChoiceOrder_ReturnsAccepted)}_id";
         var assetId = "testAssetByPresentation-update-canvas-choice";
-        var canvasId = "first";
+        var canvasId = $"http://localhost/{Customer}/canvases/first";
 
         var initialCanvasPaintings = new List<CanvasPainting>
         {
@@ -1276,10 +1275,21 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.PaintedResources.Should()
+            .NotBeNull()
+            .And
+            .HaveCount(2);
 
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
+        var canvasOne = responseManifest.PaintedResources[0];
+        var canvasTwo = responseManifest.PaintedResources[1];
+
+        canvasOne.CanvasPainting.Should().NotBeNull();
+        canvasTwo.CanvasPainting.Should().NotBeNull();
+
+        canvasOne.CanvasPainting.CanvasId.Should().NotBeEquivalentTo(canvasTwo.CanvasPainting.CanvasId);
+        canvasOne.CanvasPainting.CanvasOrder.Should().NotBe(canvasTwo.CanvasPainting.CanvasOrder);
     }
     
     [Fact]
