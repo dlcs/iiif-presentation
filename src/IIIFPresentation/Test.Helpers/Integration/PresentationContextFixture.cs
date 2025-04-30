@@ -43,7 +43,9 @@ public class PresentationContextFixture : IAsyncLifetime
          *     - SecondChildCollection/
          *   - NonPublic/
          *   - IiifCollection/
+         *   - IiifCollectionWithItems/
          *   - FirstChildManifest/
+         *   - FirstChildManifestProcessing/
          */
         
         // Root collection
