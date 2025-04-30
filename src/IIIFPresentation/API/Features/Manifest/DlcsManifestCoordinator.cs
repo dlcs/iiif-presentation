@@ -106,25 +106,25 @@ public class DlcsManifestCoordinator(
         Models.Database.Collections.Manifest? dbManifest, string manifestId, int customerId, CancellationToken cancellationToken = default)
     {
         var assetIds = assets.Select(a =>
-                $"{customerId}/{a.GetRequiredValue(AssetProperties.Space)}/{a.GetRequiredValue(AssetProperties.Id)}");
+                AssetId.FromString($"{customerId}/{a.GetRequiredValue(AssetProperties.Space)}/{a.GetRequiredValue(AssetProperties.Id)}"));
         
         List<CanvasPainting> assetsInDatabase = [];
 
         if (dbManifest != null)
         {
-            assetsInDatabase = dbManifest.CanvasPaintings
-                .Where(cp => cp.AssetId != null && assetIds.Contains(cp.AssetId.ToString())).ToList();
+            assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
+                    cp.AssetId != null && assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId)
+                .ToList();
 
             // all assets are tracked
             if (assetsInDatabase.Count == assets.Count) return ([], assets);
         }
 
-        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId?.ToString() != a)).ToList();
+        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
         
         var dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
                 assetsToCheckDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
         
-
         var dlcsAssetIds = dlcsAssets.Select(a => a.GetAssetId(customerId)).ToList();
 
         if (dlcsAssets.Any())

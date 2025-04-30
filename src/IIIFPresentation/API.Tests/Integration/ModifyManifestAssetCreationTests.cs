@@ -1330,6 +1330,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     [Fact]
     public async Task CreateManifest_FindsAssetInDlcs_ThrowsExceptionWhenOnlyAsset()
     {
+        // THIS TEST WILL FAIL ONCE #352 IS IMPLEMENTED
+        
         // Arrange
         var slug = nameof(CreateManifest_FindsAssetInDlcs_ThrowsExceptionWhenOnlyAsset);
         var assetId = "testAssetByPresentation-exception-thrown";
