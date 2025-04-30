@@ -1745,8 +1745,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // THIS TEST WILL FAIL ONCE #352 IS IMPLEMENTED
         
         // Arrange
-        var slug = nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_AddsSingleAsset);
-        var id = $"{nameof(UpdateManifest_CorrectlyUpdatesAssetRequests_AddsSingleAsset)}_id";
+        var slug = nameof(UpdateManifest_BadRequest_WhenAssetsMatchedFromAnotherManifest);
+        var id = $"{nameof(UpdateManifest_BadRequest_WhenAssetsMatchedFromAnotherManifest)}_id";
         var assetId = "testAssetByPresentation-update-assetInAnotherManifest";
         
         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: 920, ingested: true);
