@@ -37,7 +37,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        //dlcsApiClient = A.Fake<IDlcsApiClient>();
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
