@@ -1,4 +1,6 @@
-﻿using Models.Database;
+﻿using Core.Web;
+using FakeItEasy;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
@@ -8,8 +10,17 @@ namespace Repository.Tests.Paths;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = new TestPathGenerator();
-    
+    private readonly IPathGenerator pathGenerator = new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()
+    {
+        Defaults = new Dictionary<string, string>()
+        {
+            ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
+            ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
+            ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
+            ["Canvas"] = "{customerId}/canvases/{resourceId}",
+        }
+    }));
+
     [Fact]
     public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()
     {
@@ -427,8 +438,21 @@ public class PathGeneratorTests
         [new() { Slug = "slug", FullPath = fullPath }];
 }
 
-public class TestPathGenerator : PathGeneratorBase
+public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
 {
-    protected override string PresentationUrl => "http://base";
     protected override Uri DlcsApiUrl => new("https://dlcs.test");
+}
+
+public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
+    : IPresentationPathGenerator
+{
+    public string GetPresentationPathForRequest(string iiifServiceType, int? customerId, string? hierarchyPath, string? resourceId)
+    {
+        var host = presentationUrl;
+        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, iiifServiceType);
+
+        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
+        
+        return presentationUrl + path;
+    }
 }

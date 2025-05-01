@@ -5,18 +5,10 @@ using Models.Database.General;
 
 namespace Repository.Paths;
 
-public abstract class PathGeneratorBase : IPathGenerator
+public abstract class PathGeneratorBase(IPresentationPathGenerator presentationPathGenerator) : IPathGenerator
 {
-    private const string ManifestsSlug = "manifests";
-    private const string CollectionsSlug = "collections";
-    private const string CanvasesSlug = "canvases";
     private const string AnnotationPagesSlug = "annopages";
     private const string PaintingAnnotationSlug = "annotations";
-    
-    /// <summary>
-    /// Base url for IIIF Presentation
-    /// </summary>
-    protected abstract string PresentationUrl { get; }
     
     /// <summary>
     /// Base url for DLCS Protagonist API
@@ -24,19 +16,24 @@ public abstract class PathGeneratorBase : IPathGenerator
     protected abstract Uri DlcsApiUrl { get; }
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
-        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath.TrimStart('/')}" : string.Empty)}";
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ResourcePublic, customerId,
+            fullPath);
 
-    public string GenerateFlatCollectionId(Collection collection) => 
-        $"{PresentationUrl}/{collection.CustomerId}/collections/{collection.Id}";
+    public string GenerateFlatCollectionId(Collection collection) =>
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
+            collection.CustomerId, resourceId: collection.Id);
     
     public string GenerateHierarchicalId(Hierarchy hierarchy) =>
-        GenerateHierarchicalFromFullPath(hierarchy.CustomerId, hierarchy.FullPath);
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ResourcePublic, hierarchy.CustomerId,
+            hierarchy.FullPath);
     
     public string GenerateFlatId(Hierarchy hierarchy) =>
-        $"{PresentationUrl}/{hierarchy.CustomerId}/{GetSlug(hierarchy.Type)}/{hierarchy.ResourceId}";
+        presentationPathGenerator.GetPresentationPathForRequest(GetResourceType(hierarchy.Type), hierarchy.CustomerId,
+            resourceId: hierarchy.ResourceId);
     
     public string GenerateFlatParentId(Hierarchy hierarchy) =>
-        $"{PresentationUrl}/{hierarchy.CustomerId}/{CollectionsSlug}/{hierarchy.Parent}";
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.CollectionPrivate, hierarchy.CustomerId,
+            resourceId: hierarchy.Parent);
     
     public string GenerateFlatCollectionViewId(Collection collection, int currentPage, int pageSize, 
         string? orderQueryParam) =>
@@ -67,13 +64,15 @@ public abstract class PathGeneratorBase : IPathGenerator
         => $"{(!string.IsNullOrEmpty(parentPath) ? $"{parentPath}/" : string.Empty)}{hierarchy.Slug}";
     
     public string GenerateFlatManifestId(Manifest manifest) =>
-        $"{PresentationUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ManifestPrivate, manifest.CustomerId,
+            resourceId: manifest.Id);
 
-    public string GenerateCanvasId(CanvasPainting canvasPainting)
-        => $"{PresentationUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
+    public string GenerateCanvasId(CanvasPainting canvasPainting) => 
+        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.Canvas, canvasPainting.CustomerId,
+            resourceId: canvasPainting.Id);
 
-    public string GenerateAnnotationPagesId(CanvasPainting canvasPainting)
-        => $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
+    public string GenerateAnnotationPagesId(CanvasPainting canvasPainting) => 
+        $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
 
     public string GeneratePaintingAnnotationId(CanvasPainting canvasPainting)
         => $"{GenerateCanvasId(canvasPainting)}/{PaintingAnnotationSlug}/{canvasPainting.CanvasOrder}";
@@ -116,6 +115,6 @@ public abstract class PathGeneratorBase : IPathGenerator
         return ir.ToString();
     }
 
-    private string GetSlug(ResourceType resourceType) 
-        => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;
+    private string GetResourceType(ResourceType resourceType) 
+        => resourceType == ResourceType.IIIFManifest ? PresentationResourceType.ManifestPrivate : PresentationResourceType.CollectionPrivate;
 }

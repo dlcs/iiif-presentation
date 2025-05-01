@@ -1,24 +1,44 @@
 ﻿using API.Helpers;
+using Core.Web;
 using DLCS;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using Repository.Paths;
 
 namespace API.Tests.Helpers;
 
 public static class TestPathGenerator
 {
     public static HttpRequestBasedPathGenerator CreatePathGenerator(string baseUrl, string scheme)
-        => new(new HttpContextAccessor
+    {
+        var dlcsSettings = Options.Create(new DlcsSettings
+            { ApiUri = new Uri("https://dlcs.test") });
+        var typedPathTemplateOptions = Options.Create(new TypedPathTemplateOptions()
+        {
+            Defaults = new Dictionary<string, string>()
             {
-                HttpContext = new DefaultHttpContext
+                ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
+                ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
+                ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
+                ["Canvas"] = "{customerId}/canvases/{resourceId}",
+            }
+        });
+
+        var contextAccessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                Request =
                 {
-                    Request =
-                    {
-                        Scheme = scheme,
-                        Host = new HostString(baseUrl)
-                    }
+                    Scheme = scheme,
+                    Host = new HostString(baseUrl)
                 }
-            },
-            Options.Create(new DlcsSettings
-                { ApiUri = new Uri("https://dlcs.test") }));
+            }
+        };
+
+        var http = new HttpRequestBasedPathGenerator(dlcsSettings,
+            new ConfigDrivenPresentationPathGenerator(typedPathTemplateOptions, contextAccessor));
+        
+        return http;
+    }
 }

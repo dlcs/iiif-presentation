@@ -1,6 +1,7 @@
 ﻿using System.Text;
+using Microsoft.AspNetCore.Http;
 
-namespace API.Infrastructure.Requests;
+namespace Core.Web;
 
 public static class HttpRequestX
 {

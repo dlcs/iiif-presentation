@@ -1,4 +1,5 @@
 ﻿using AWS.Settings;
+using Core.Web;
 using DLCS;
 
 namespace API.Settings;
@@ -25,4 +26,6 @@ public class ApiSettings
     public required AWSSettings AWS { get; set; }
 
     public required DlcsSettings DLCS { get; set; }
+    
+    public TypedPathTemplateOptions TypedPathTemplateOptions { get; set; }
 }

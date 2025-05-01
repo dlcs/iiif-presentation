@@ -9,6 +9,7 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using Core.Web;
 using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

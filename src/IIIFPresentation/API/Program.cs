@@ -8,6 +8,7 @@ using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
 using API.Settings;
+using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -45,6 +46,7 @@ builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
+builder.Services.Configure<TypedPathTemplateOptions>(builder.Configuration.GetSection(TypedPathTemplateOptions.SettingsName));
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
@@ -64,6 +66,7 @@ builder.Services
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
+    .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();

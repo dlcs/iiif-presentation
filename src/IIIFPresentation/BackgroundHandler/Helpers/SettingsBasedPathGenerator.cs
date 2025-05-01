@@ -9,9 +9,8 @@ namespace BackgroundHandler.Helpers;
 /// Implementation of <see cref="PathGeneratorBase"/> using settings for base urls
 /// </summary>
 public class SettingsBasedPathGenerator(
-    IOptions<DlcsSettings> dlcsOptions,
-    IOptions<BackgroundHandlerSettings> backgroundHandlerOptions) : PathGeneratorBase
+    IOptions<DlcsSettings> dlcsOptions, IPresentationPathGenerator presentationPathGenerator) 
+    : PathGeneratorBase(presentationPathGenerator)
 {
-    protected override string PresentationUrl { get; } = backgroundHandlerOptions.Value.PresentationApiUrl;
     protected override Uri DlcsApiUrl { get; } = dlcsOptions.Value.ApiUri;
 }

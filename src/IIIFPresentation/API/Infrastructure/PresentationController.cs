@@ -3,6 +3,7 @@ using API.Exceptions;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
+using Core.Web;
 using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;

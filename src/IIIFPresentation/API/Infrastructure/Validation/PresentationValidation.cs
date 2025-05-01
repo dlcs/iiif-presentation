@@ -21,6 +21,7 @@ public static class PresentationValidation
         IPathGenerator pathGenerator)
     {
         if (presentation.Parent == null) return false;
+        
         return presentation.ParentIsFlatForm(baseUri, customerId) ? !pathGenerator.GenerateFlatCollectionId(parent).Equals(presentation.Parent) :
             !pathGenerator.GenerateHierarchicalId(parent.Hierarchy.GetCanonical()).Equals(presentation.Parent);
     }

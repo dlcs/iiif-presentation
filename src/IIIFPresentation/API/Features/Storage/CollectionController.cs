@@ -10,6 +10,7 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
+using Core.Web;
 using FluentValidation;
 using IIIF.Presentation.V3;
 using MediatR;
