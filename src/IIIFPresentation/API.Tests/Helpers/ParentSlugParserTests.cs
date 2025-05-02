@@ -1,4 +1,5 @@
 ﻿using API.Helpers;
+using API.Paths;
 using API.Tests.Integration.Infrastructure;
 using Core.Web;
 using DLCS;

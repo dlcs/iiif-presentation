@@ -1,7 +1,8 @@
 ﻿using Core.Web;
 using Microsoft.Extensions.Options;
+using Repository.Paths;
 
-namespace Repository.Paths;
+namespace API.Paths;
 
 public class ConfigDrivenPresentationPathGenerator(
     IOptions<TypedPathTemplateOptions> settings,
@@ -10,11 +11,11 @@ public class ConfigDrivenPresentationPathGenerator(
 {
     private readonly TypedPathTemplateOptions settings = settings.Value;
 
-    public string GetPresentationPathForRequest(string iiifServiceType, int? customerId, string? hierarchyPath, string? resourceId)
+    public string GetPresentationPathForRequest(string presentationServiceType, int? customerId, string? hierarchyPath, string? resourceId)
     {
         var request = GetHttpRequest();
         var host = request.Host.Value;
-        var template = settings.GetPathTemplateForHostAndType(host, iiifServiceType);
+        var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
 

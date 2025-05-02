@@ -7,11 +7,19 @@ namespace Core.Web;
 public class TypedPathTemplateOptions
 {
     public const string SettingsName = "PathRules";
-    
+
+    internal static readonly Dictionary<string, string> DefaultFormats = new Dictionary<string, string>()
+    {
+        ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
+        ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
+        ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
+        ["Canvas"] = "{customerId}/canvases/{resourceId}"
+    };
+
     /// <summary>
     /// Default path names for the different types of path
     /// </summary>
-    public Dictionary<string, string> Defaults { get; set; } = new();
+    public Dictionary<string, string> Defaults { get; set; } = DefaultFormats; 
     
     /// <summary>
     /// Collection of path template overrides, these are keyed by "hostname" and sub-dictionary keyed by type

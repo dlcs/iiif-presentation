@@ -7,6 +7,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
+using API.Paths;
 using API.Settings;
 using Core.Web;
 using DLCS;

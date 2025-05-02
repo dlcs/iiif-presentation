@@ -446,10 +446,10 @@ public class TestPathGenerator(IPresentationPathGenerator presentationPathGenera
 public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
     : IPresentationPathGenerator
 {
-    public string GetPresentationPathForRequest(string iiifServiceType, int? customerId, string? hierarchyPath, string? resourceId)
+    public string GetPresentationPathForRequest(string presentationServiceType, int? customerId, string? hierarchyPath, string? resourceId)
     {
         var host = presentationUrl;
-        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, iiifServiceType);
+        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
         
