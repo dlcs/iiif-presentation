@@ -42,15 +42,7 @@ public class ParentSlugParserTests
         });
 
         var presentationPathGenerator =
-            new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions
-                {
-                    Defaults = new Dictionary<string, string>()
-                    {
-                        ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
-                        ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
-                        ["ResourcePublic"] = "{customerId}/{hierarchyPath}"
-                    }
-                }),
+            new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
                 httpContextAccessor);
 
         var pathGenerator =

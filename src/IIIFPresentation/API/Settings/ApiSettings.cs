@@ -27,5 +27,5 @@ public class ApiSettings
 
     public required DlcsSettings DLCS { get; set; }
     
-    public TypedPathTemplateOptions TypedPathTemplateOptions { get; set; }
+    public TypedPathTemplateOptions PathRules { get; set; } = new ();
 }

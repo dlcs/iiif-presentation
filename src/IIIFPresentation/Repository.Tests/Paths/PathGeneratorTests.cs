@@ -9,16 +9,8 @@ namespace Repository.Tests.Paths;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()
-    {
-        Defaults = new Dictionary<string, string>()
-        {
-            ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
-            ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
-            ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
-            ["Canvas"] = "{customerId}/canvases/{resourceId}",
-        }
-    }));
+    private readonly IPathGenerator pathGenerator =
+        new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()));
 
     [Fact]
     public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()

@@ -10,7 +10,7 @@ namespace API.Tests.Paths;
 public class ConfigDrivenPresentationPathGeneratorTests
 {
     private static readonly IHttpContextAccessor HttpContextAccessor = A.Fake<IHttpContextAccessor>();
-    private static readonly HttpRequest request = A.Fake<HttpRequest>();
+    private static readonly HttpRequest Request = A.Fake<HttpRequest>();
 
     private readonly TypedPathTemplateOptions defaultTypedPathTemplateOptions = new ()
     {
@@ -19,7 +19,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             ["ManifestPrivate"] = "custom/{customerId}/manifests/{resourceId}",
             ["CollectionPrivate"] = "custom/{customerId}/collections/{resourceId}",
             ["ResourcePublic"] = "custom/{customerId}/{hierarchyPath}",
-            ["Canvas"] = "custom/{customerId}/canvases/{resourceId}",
+            ["Canvas"] = "custom/{customerId}/canvases/{resourceId}"
         },
         Overrides =
         {
@@ -51,10 +51,10 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         HttpContextAccessor.HttpContext = A.Fake<HttpContext>();
 
-        A.CallTo(() => request.Host).Returns(new HostString("localhost"));
-        A.CallTo(() => request.Scheme).Returns("http");
+        A.CallTo(() => Request.Host).Returns(new HostString("localhost"));
+        A.CallTo(() => Request.Scheme).Returns("http");
         
-        A.CallTo(() => HttpContextAccessor.HttpContext.Request).Returns(request);
+        A.CallTo(() => HttpContextAccessor.HttpContext.Request).Returns(Request);
     }
     
     [Theory]
@@ -107,8 +107,8 @@ public class ConfigDrivenPresentationPathGeneratorTests
     public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromFooOverrideConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
     {
         // Arrange
-        A.CallTo(() => request.Host).Returns(new HostString("foo"));
-        A.CallTo(() => request.Scheme).Returns("http");
+        A.CallTo(() => Request.Host).Returns(new HostString("foo"));
+        A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
             HttpContextAccessor);
@@ -130,8 +130,8 @@ public class ConfigDrivenPresentationPathGeneratorTests
     public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromBazConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
     {
         // Arrange
-        A.CallTo(() => request.Host).Returns(new HostString("baz"));
-        A.CallTo(() => request.Scheme).Returns("http");
+        A.CallTo(() => Request.Host).Returns(new HostString("baz"));
+        A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
             HttpContextAccessor);

@@ -12,7 +12,7 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
     public string GetPresentationPathForRequest(string presentationServiceType, int? customerId, string? hierarchyPath, string? resourceId)
     {
         var host = settings.PresentationApiUrl;
-        var template = settings.TypedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
+        var template = settings.PathRules.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
         

@@ -14,16 +14,7 @@ public static class TestPathGenerator
     {
         var dlcsSettings = Options.Create(new DlcsSettings
             { ApiUri = new Uri("https://dlcs.test") });
-        var typedPathTemplateOptions = Options.Create(new TypedPathTemplateOptions()
-        {
-            Defaults = new Dictionary<string, string>()
-            {
-                ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
-                ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
-                ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
-                ["Canvas"] = "{customerId}/canvases/{resourceId}",
-            }
-        });
+        var typedPathTemplateOptions = Options.Create(new TypedPathTemplateOptions());
 
         var contextAccessor = new HttpContextAccessor
         {
