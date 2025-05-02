@@ -10,7 +10,6 @@ using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Manifest;
 using Repository;
-using Repository.Paths;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Helpers;

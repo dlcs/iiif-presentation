@@ -4,7 +4,6 @@ using Core.Web;
 using DLCS;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using Repository.Paths;
 
 namespace API.Tests.Helpers;
 
