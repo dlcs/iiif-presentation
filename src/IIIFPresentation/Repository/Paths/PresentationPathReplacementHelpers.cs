@@ -19,8 +19,6 @@ public static class PresentationPathReplacementHelpers
         string? hierarchyPath = null,
         string? resourceId = null)
     {
-        if (!template.StartsWith("/")) template = "/" + template;
-        
         return template
             .Replace("{customerId}", customer ?? string.Empty)
             .Replace("{hierarchyPath}", hierarchyPath?.TrimStart('/') ?? string.Empty)

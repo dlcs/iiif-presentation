@@ -5,7 +5,6 @@ using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Helpers;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.infrastructure;
-using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -52,16 +51,6 @@ public class BatchCompletionMessageHandlerTests
         {
             PresentationApiUrl = "https://localhost:5000",
             AWS = new AWSSettings(),
-            TypedPathTemplateOptions = new TypedPathTemplateOptions
-            {
-                Defaults = new Dictionary<string, string>
-                {
-                    ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
-                    ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
-                    ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
-                    ["Canvas"] = "{customerId}/canvases/{resourceId}",
-                }
-            }
         };
 
         var presentationGenerator =

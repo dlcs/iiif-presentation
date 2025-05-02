@@ -9,5 +9,5 @@ public class BackgroundHandlerSettings
     
     public string PresentationApiUrl { get; set; } = string.Empty;
     
-    public TypedPathTemplateOptions TypedPathTemplateOptions { get; set; }
+    public TypedPathTemplateOptions TypedPathTemplateOptions { get; set; } = new ();
 }

@@ -1,5 +1,4 @@
 ﻿using Core.Web;
-using FakeItEasy;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -452,6 +451,8 @@ public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTe
         var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
+        
+        if (!path.StartsWith('/')) path = '/' + path;
         
         return presentationUrl + path;
     }

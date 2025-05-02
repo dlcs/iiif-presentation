@@ -16,6 +16,8 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
         
+        if (!path.StartsWith('/')) path = '/' + path;
+        
         return settings.PresentationApiUrl + path;
     }
 }
