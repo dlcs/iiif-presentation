@@ -8,7 +8,7 @@ public class TypedPathTemplateOptions
 {
     public const string SettingsName = "PathRules";
 
-    internal static readonly Dictionary<string, string> DefaultFormats = new ()
+    private static readonly Dictionary<string, string> DefaultFormats = new ()
     {
         ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
         ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",

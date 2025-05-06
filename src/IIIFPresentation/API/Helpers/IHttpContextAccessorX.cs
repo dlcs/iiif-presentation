@@ -1,7 +1,6 @@
 using Core.Helpers;
-using Microsoft.AspNetCore.Http;
 
-namespace Core.Web;
+namespace API.Helpers;
 
 public static class HttpContextAccessorX
 {
