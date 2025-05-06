@@ -16,6 +16,7 @@ namespace API.Tests.Integration;
 public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
+    private readonly HttpClient redirectHttpClient;
     private const int TotalDatabaseChildItems = 6;
     private readonly IAmazonS3 amazonS3;
 
@@ -24,7 +25,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
-        
+        redirectHttpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture), allowRedirect: true);
         storageFixture.DbFixture.CleanUp();
     }
     
@@ -645,5 +647,58 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Id.Should().Be("http://localhost/1/iiif-collection");
         collection.Behavior![0].Should().Be("public-iiif");
         collection.Type.Should().Be("Collection");
+    }
+    
+    [Fact]
+    public async Task Get_Hierarchical_ReturnsSeeOtherWithRewrittenPath_WhenAuthAndShowExtrasHeadersWithPathRewrites()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1");
+        HttpRequestMessageBuilder.AddPathRewriteHeader(requestMessage);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://example.com/example/1/collections/root");
+    }
+    
+    [Fact]
+    public async Task Get_Hierarchical_ReturnsSeeOther_WhenAuthAndShowExtrasHeadersAndPathRewrites()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1");
+        HttpRequestMessageBuilder.AddPathRewriteHeader(requestMessage);
+        
+        // Act
+        var response = await redirectHttpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Id.Should().Be($"http://example.com/1/collections/{RootCollection.Id}");
+        collection.FlatId.Should().Be(RootCollection.Id);
+        collection.PublicId.Should().Be("http://example.com/1");
+        collection.Items!.Count.Should().Be(TotalDatabaseChildItems);
+        collection.Items.OfType<Collection>().First().Id.Should().Be("http://example.com/1/collections/FirstChildCollection");
+        collection.TotalItems.Should().Be(TotalDatabaseChildItems);
+        collection.CreatedBy.Should().Be("admin");
+        collection.Behavior.Should().Contain("public-iiif");
+        collection.PartOf.Should().BeNull("Root has no parent");
+        var firstItem = (Collection)collection.Items[0];
+        firstItem.Id.Should().Be("http://example.com/1/collections/FirstChildCollection");
+        firstItem.Behavior.Should().Contain("public-iiif");
+        firstItem.Behavior.Should().Contain("storage-collection");
+        var secondItem = (Collection)collection.Items[1];
+        secondItem.Id.Should().Be("http://example.com/1/collections/NonPublic");
+        secondItem.Behavior.Should().NotContain("public-iiif");
+        secondItem.Behavior.Should().Contain("storage-collection");
+        var thirdItem = (Collection)collection.Items[2];
+        thirdItem.Id.Should().Be("http://example.com/1/collections/IiifCollection");
+        thirdItem.Behavior.Should().Contain("public-iiif");
+        thirdItem.Behavior.Should().NotContain("storage-collection");
+        var fifthItem = (Manifest)collection.Items[4];
+        fifthItem.Id.Should().Be("http://example.com/1/manifests/FirstChildManifest");
     }
 }
