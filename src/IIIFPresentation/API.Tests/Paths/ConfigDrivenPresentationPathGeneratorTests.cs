@@ -104,7 +104,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "http://foo/foo/1/collections/someId")]
     [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "http://foo/foo/1/manifests/someId")]
     [InlineData(PresentationResourceType.Canvas, null, "someId", "http://foo/foo/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromFooOverrideConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
+    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromOverrideEverythingConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
     {
         // Arrange
         A.CallTo(() => Request.Host).Returns(new HostString("foo"));
@@ -127,7 +127,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "https://base/1/collections/someId")]
     [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "https://base/1/manifests/someId")]
     [InlineData(PresentationResourceType.Canvas, null, "someId", "https://base/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromBazConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
+    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromPartialOverrideConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
     {
         // Arrange
         A.CallTo(() => Request.Host).Returns(new HostString("baz"));
