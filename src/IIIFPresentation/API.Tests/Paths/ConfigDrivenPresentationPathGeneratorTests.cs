@@ -16,25 +16,25 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         Defaults = new Dictionary<string, string>
         {
-            ["ManifestPrivate"] = "custom/{customerId}/manifests/{resourceId}",
-            ["CollectionPrivate"] = "custom/{customerId}/collections/{resourceId}",
-            ["ResourcePublic"] = "custom/{customerId}/{hierarchyPath}",
-            ["Canvas"] = "custom/{customerId}/canvases/{resourceId}"
+            ["ManifestPrivate"] = "/custom/{customerId}/manifests/{resourceId}",
+            ["CollectionPrivate"] = "/custom/{customerId}/collections/{resourceId}",
+            ["ResourcePublic"] = "/custom/{customerId}/{hierarchyPath}",
+            ["Canvas"] = "/custom/{customerId}/canvases/{resourceId}"
         },
         Overrides =
         {
             // override everything
             ["foo"] = new Dictionary<string, string>
             {
-                ["ManifestPrivate"] = "foo/{customerId}/manifests/{resourceId}",
-                ["CollectionPrivate"] = "foo/{customerId}/collections/{resourceId}",
-                ["ResourcePublic"] = "foo/{customerId}/{hierarchyPath}",
-                ["Canvas"] = "foo/{customerId}/canvases/{resourceId}",
+                ["ManifestPrivate"] = "/foo/{customerId}/manifests/{resourceId}",
+                ["CollectionPrivate"] = "/foo/{customerId}/collections/{resourceId}",
+                ["ResourcePublic"] = "/foo/{customerId}/{hierarchyPath}",
+                ["Canvas"] = "/foo/{customerId}/canvases/{resourceId}"
             },
             // fallback to defaults
             ["bar"] = new Dictionary<string, string>
             {
-                ["ResourcePublic"] = "bar/{customerId}/{hierarchyPath}",
+                ["ResourcePublic"] = "/bar/{customerId}/{hierarchyPath}"
             },
             // custom base URL
             ["baz"] = new Dictionary<string, string>

@@ -5,7 +5,6 @@ namespace API.Helpers;
 public static class HttpRequestX
 {
     private const string SchemeDelimiter = "://";
-    private const char PathDelimiter = '/';
 
     /// <summary>
     /// Generate a full display URL, deriving values from specified HttpRequest
@@ -25,10 +24,7 @@ public static class HttpRequestX
         var queryString = includeQueryParams
             ? request.QueryString.Value ?? string.Empty
             : string.Empty;
-        if (!string.IsNullOrEmpty(path) && !path.StartsWith(PathDelimiter))
-        {
-            path = PathDelimiter + path;
-        }
+        
         var pathElement = path ?? string.Empty;
 
         // PERF: Calculate string length to allocate correct buffer size for StringBuilder.
