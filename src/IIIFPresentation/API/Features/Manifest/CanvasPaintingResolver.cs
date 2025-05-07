@@ -133,14 +133,17 @@ public class CanvasPaintingResolver(
     {
         CanvasPainting? matching = null;
 
-        var candidates = (incoming.Id is {Length: > 0} incomingId
+        var candidates = (incoming.Id is { Length: > 0 } incomingId
                 // match by provided canvas id
                 ? existingCanvasPaintings.Where(cp => cp.Id == incomingId)
                 // match by original canvas id (if present, otherwise empty list)
-                : existingCanvasPaintings.Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId)
+                : existingCanvasPaintings.Where(cp =>
+                    incoming.CanvasOriginalId != null && cp.CanvasOriginalId == incoming.CanvasOriginalId)
             ).ToList();
 
-        var canvasLoggingId = incoming.CanvasOriginalId?.ToString() ?? incoming.Id;
+        var canvasLoggingId = !string.IsNullOrEmpty(incoming.Id)
+            ? incoming.Id
+            : incoming.CanvasOriginalId?.ToString() ?? incoming.AssetId?.ToString() ?? "unknown";
 
         switch (candidates.Count)
         {
@@ -259,7 +262,6 @@ public class CanvasPaintingResolver(
 
             var cp = new CanvasPainting
             {
-                Id = specifiedCanvasId!, // actually can be null
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 CustomerId = customerId,
