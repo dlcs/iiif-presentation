@@ -95,17 +95,14 @@ var app = builder.Build();
 
 app
     .UseMiddleware<CorrelationIdMiddleware>()
+    .UseMiddleware<TrailingSlashRedirectMiddleware>()
     .UseForwardedHeaders();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
-var rewriteOptions = new RewriteOptions()
-    .Add(new TrailingSlashRedirectRule());
-
 app
     .UseSwagger()
     .UseSwaggerUI()
-    .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()

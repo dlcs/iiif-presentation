@@ -21,4 +21,5 @@ public static class SpecConstants
         }.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
     
     public const string CollectionsSlug = "collections";
+    public const string ManifestsSlug = "manifests";
 }

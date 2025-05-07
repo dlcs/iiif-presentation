@@ -67,7 +67,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, "1", hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
@@ -84,7 +84,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, "1", resourceId);
 
         // Assert
         path.Should().Be(expected);
@@ -100,7 +100,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, "1", hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
@@ -117,7 +117,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, "1", resourceId);
 
         // Assert
         path.Should().Be(expected);
@@ -136,7 +136,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, "1", hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
@@ -156,7 +156,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, "1", resourceId);
 
         // Assert
         path.Should().Be(expected);
@@ -175,7 +175,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, "1", hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
@@ -195,7 +195,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, "1", resourceId);
 
         // Assert
         path.Should().Be(expected);

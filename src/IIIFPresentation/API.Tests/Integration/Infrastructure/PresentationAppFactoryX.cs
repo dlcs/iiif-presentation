@@ -15,8 +15,7 @@ public static class PresentationAppFactoryX
         this PresentationAppFactory<T> factory,
         PresentationContextFixture dbFixture,
         Func<PresentationAppFactory<T>, PresentationAppFactory<T>>? additionalSetup = null,
-        Action<IServiceCollection>? additionalTestServices = null,
-        bool allowRedirect = false) where T : class
+        Action<IServiceCollection>? additionalTestServices = null) where T : class
     {
         additionalSetup ??= f => f;
         
@@ -31,7 +30,7 @@ public static class PresentationAppFactoryX
         var httpClient = additionalSetup(configuredFactory)
             .CreateClient(new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = allowRedirect
+                AllowAutoRedirect = false
             });
         return httpClient;
     }
