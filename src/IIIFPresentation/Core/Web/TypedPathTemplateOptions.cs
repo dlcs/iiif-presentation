@@ -10,10 +10,10 @@ public class TypedPathTemplateOptions
 
     private static readonly Dictionary<string, string> DefaultFormats = new ()
     {
-        ["ManifestPrivate"] = "{customerId}/manifests/{resourceId}",
-        ["CollectionPrivate"] = "{customerId}/collections/{resourceId}",
-        ["ResourcePublic"] = "{customerId}/{hierarchyPath}",
-        ["Canvas"] = "{customerId}/canvases/{resourceId}"
+        ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
+        ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
+        ["ResourcePublic"] = "/{customerId}/{hierarchyPath}",
+        ["Canvas"] = "/{customerId}/canvases/{resourceId}"
     };
 
     /// <summary>
