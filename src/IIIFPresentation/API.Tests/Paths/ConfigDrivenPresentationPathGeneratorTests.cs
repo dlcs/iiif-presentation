@@ -58,53 +58,75 @@ public class ConfigDrivenPresentationPathGeneratorTests
     }
     
     [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", null, "http://localhost/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", null, "http://localhost/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "something", "http://localhost/1/public/path")]
-    [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "http://localhost/1/collections/someId")]
-    [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "http://localhost/1/manifests/someId")]
-    [InlineData(PresentationResourceType.Canvas, null, "someId", "http://localhost/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromEmptyConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
+    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://localhost/1/public/path")]
+    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "http://localhost/1/public/path")]
+    public void GetHierarchyPresentationPathForRequest_ReturnsAllPaths_FromEmptyConfig(string resourceType, string hierarchyPath, string expected)
     {
         // Arrange
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetPresentationPathForRequest(resourceType, 1, hierarchyPath, resourceId);
-
-        // Assert
-        path.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", null, "http://localhost/custom/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", null, "http://localhost/custom/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "something", "http://localhost/custom/1/public/path")]
-    [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "http://localhost/custom/1/collections/someId")]
-    [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "http://localhost/custom/1/manifests/someId")]
-    [InlineData(PresentationResourceType.Canvas, null, "someId", "http://localhost/custom/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromDefaultConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
-    {
-        // Arrange
-        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor);
-        
-        // Act
-        var path = sut.GetPresentationPathForRequest(resourceType, 1, hierarchyPath, resourceId);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
     }
     
     [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", null, "http://foo/foo/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", null, "http://foo/foo/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "something", "http://foo/foo/1/public/path")]
-    [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "http://foo/foo/1/collections/someId")]
-    [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "http://foo/foo/1/manifests/someId")]
-    [InlineData(PresentationResourceType.Canvas, null, "someId", "http://foo/foo/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromOverrideEverythingConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
+    [InlineData(PresentationResourceType.CollectionPrivate, "someId", "http://localhost/1/collections/someId")]
+    [InlineData(PresentationResourceType.ManifestPrivate, "someId", "http://localhost/1/manifests/someId")]
+    [InlineData(PresentationResourceType.Canvas, "someId", "http://localhost/1/canvases/someId")]
+    public void GetFlatPresentationPathForRequest_ReturnsAllPaths_FromEmptyConfig(string resourceType, string resourceId, string expected)
+    {
+        // Arrange
+        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
+            HttpContextAccessor);
+        
+        // Act
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+
+        // Assert
+        path.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://localhost/custom/1/public/path")]
+    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "http://localhost/custom/1/public/path")]
+    public void GetHierarchyPresentationPathForRequest_ReturnsAllPaths_FromDefaultConfig(string resourceType, string hierarchyPath, string expected)
+    {
+        // Arrange
+        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
+            HttpContextAccessor);
+        
+        // Act
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+
+        // Assert
+        path.Should().Be(expected);
+    }
+    
+    [Theory]
+    [InlineData(PresentationResourceType.CollectionPrivate, "someId", "http://localhost/custom/1/collections/someId")]
+    [InlineData(PresentationResourceType.ManifestPrivate, "someId", "http://localhost/custom/1/manifests/someId")]
+    [InlineData(PresentationResourceType.Canvas, "someId", "http://localhost/custom/1/canvases/someId")]
+    public void GetFlatPresentationPathForRequest_ReturnsAllPaths_FromDefaultConfig(string resourceType, string resourceId, string expected)
+    {
+        // Arrange
+        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
+            HttpContextAccessor);
+        
+        // Act
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+
+        // Assert
+        path.Should().Be(expected);
+    }
+    
+    [Theory]
+    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://foo/foo/1/public/path")]
+    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "http://foo/foo/1/public/path")]
+    public void GetHierarchyPresentationPathForRequest_ReturnsAllPaths_FromOverrideEverythingConfig(string resourceType, string hierarchyPath, string expected)
     {
         // Arrange
         A.CallTo(() => Request.Host).Returns(new HostString("foo"));
@@ -114,20 +136,36 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetPresentationPathForRequest(resourceType, 1, hierarchyPath, resourceId);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
 
         // Assert
         path.Should().Be(expected);
     }
     
     [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", null, "https://base/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", null, "https://base/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "something", "https://base/1/public/path")]
-    [InlineData(PresentationResourceType.CollectionPrivate, null, "someId", "https://base/1/collections/someId")]
-    [InlineData(PresentationResourceType.ManifestPrivate, null, "someId", "https://base/1/manifests/someId")]
-    [InlineData(PresentationResourceType.Canvas, null, "someId", "https://base/1/canvases/someId")]
-    public void ConfigDrivenPresentationPathGenerator_ReturnsAllPaths_FromPartialOverrideConfig(string resourceType, string? hierarchyPath, string? resourceId, string expected)
+    [InlineData(PresentationResourceType.CollectionPrivate, "someId", "http://foo/foo/1/collections/someId")]
+    [InlineData(PresentationResourceType.ManifestPrivate, "someId", "http://foo/foo/1/manifests/someId")]
+    [InlineData(PresentationResourceType.Canvas, "someId", "http://foo/foo/1/canvases/someId")]
+    public void GetFlatPresentationPathForRequest_ReturnsAllPaths_FromOverrideEverythingConfig(string resourceType, string resourceId, string expected)
+    {
+        // Arrange
+        A.CallTo(() => Request.Host).Returns(new HostString("foo"));
+        A.CallTo(() => Request.Scheme).Returns("http");
+        
+        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
+            HttpContextAccessor);
+        
+        // Act
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
+
+        // Assert
+        path.Should().Be(expected);
+    }
+    
+    [Theory]
+    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "https://base/1/public/path")]
+    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "https://base/1/public/path")]
+    public void GetHierarchyPresentationPathForRequest_ReturnsAllPaths_FromPartialOverrideConfig(string resourceType, string hierarchyPath, string expected)
     {
         // Arrange
         A.CallTo(() => Request.Host).Returns(new HostString("baz"));
@@ -137,7 +175,27 @@ public class ConfigDrivenPresentationPathGeneratorTests
             HttpContextAccessor);
         
         // Act
-        var path = sut.GetPresentationPathForRequest(resourceType, 1, hierarchyPath, resourceId);
+        var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
+
+        // Assert
+        path.Should().Be(expected);
+    }
+    
+    [Theory]
+    [InlineData(PresentationResourceType.CollectionPrivate, "someId", "https://base/1/collections/someId")]
+    [InlineData(PresentationResourceType.ManifestPrivate, "someId", "https://base/1/manifests/someId")]
+    [InlineData(PresentationResourceType.Canvas, "someId", "https://base/1/canvases/someId")]
+    public void GetFlatPresentationPathForRequest_ReturnsAllPaths_FromPartialOverrideConfig(string resourceType, string resourceId, string expected)
+    {
+        // Arrange
+        A.CallTo(() => Request.Host).Returns(new HostString("baz"));
+        A.CallTo(() => Request.Scheme).Returns("http");
+        
+        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
+            HttpContextAccessor);
+        
+        // Act
+        var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
 
         // Assert
         path.Should().Be(expected);

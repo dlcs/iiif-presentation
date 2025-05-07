@@ -9,12 +9,24 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
 {
     private readonly BackgroundHandlerSettings settings = settings.Value;
 
-    public string GetPresentationPathForRequest(string presentationServiceType, int customerId, string? hierarchyPath, string? resourceId)
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
+    }
+    
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
+    }
+
+    private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
+        string? resourceId = null)
     {
         var host = settings.PresentationApiUrl;
         var template = settings.PathRules.GetPathTemplateForHostAndType(host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId.ToString(), hierarchyPath, resourceId);
+        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
+            customerId.ToString(), hierarchyPath, resourceId);
         
         if (!path.StartsWith('/')) path = '/' + path;
         

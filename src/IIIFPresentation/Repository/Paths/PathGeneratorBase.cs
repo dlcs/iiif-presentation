@@ -16,24 +16,24 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
     protected abstract Uri DlcsApiUrl { get; }
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ResourcePublic, customerId,
+        presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, customerId,
             fullPath);
 
     public string GenerateFlatCollectionId(Collection collection) =>
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
-            collection.CustomerId, resourceId: collection.Id);
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
+            collection.CustomerId, collection.Id);
     
     public string GenerateHierarchicalId(Hierarchy hierarchy) =>
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ResourcePublic, hierarchy.CustomerId,
+        presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, hierarchy.CustomerId,
             hierarchy.FullPath);
     
     public string GenerateFlatId(Hierarchy hierarchy) =>
-        presentationPathGenerator.GetPresentationPathForRequest(GetResourceType(hierarchy.Type), hierarchy.CustomerId,
-            resourceId: hierarchy.ResourceId);
+        presentationPathGenerator.GetFlatPresentationPathForRequest(GetResourceType(hierarchy.Type), hierarchy.CustomerId,
+            hierarchy.ResourceId);
     
     public string GenerateFlatParentId(Hierarchy hierarchy) =>
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.CollectionPrivate, hierarchy.CustomerId,
-            resourceId: hierarchy.Parent);
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate, hierarchy.CustomerId,
+            hierarchy.Parent);
     
     public string GenerateFlatCollectionViewId(Collection collection, int currentPage, int pageSize, 
         string? orderQueryParam) =>
@@ -64,12 +64,12 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
         => $"{(!string.IsNullOrEmpty(parentPath) ? $"{parentPath}/" : string.Empty)}{hierarchy.Slug}";
     
     public string GenerateFlatManifestId(Manifest manifest) =>
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.ManifestPrivate, manifest.CustomerId,
-            resourceId: manifest.Id);
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.ManifestPrivate, manifest.CustomerId,
+            manifest.Id);
 
     public string GenerateCanvasId(CanvasPainting canvasPainting) => 
-        presentationPathGenerator.GetPresentationPathForRequest(PresentationResourceType.Canvas, canvasPainting.CustomerId,
-            resourceId: canvasPainting.Id);
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.Canvas, canvasPainting.CustomerId,
+            canvasPainting.Id);
 
     public string GenerateAnnotationPagesId(CanvasPainting canvasPainting) => 
         $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
