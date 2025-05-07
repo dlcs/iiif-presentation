@@ -12,7 +12,7 @@ public class ConfigDrivenPresentationPathGenerator(
 {
     private readonly TypedPathTemplateOptions settings = settings.Value;
 
-    public string GetPresentationPathForRequest(string presentationServiceType, int? customerId, string? hierarchyPath, string? resourceId)
+    public string GetPresentationPathForRequest(string presentationServiceType, int customerId, string? hierarchyPath, string? resourceId)
     {
         var request = GetHttpRequest();
         var host = request.Host.Value;

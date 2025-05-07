@@ -9,7 +9,7 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
 {
     private readonly BackgroundHandlerSettings settings = settings.Value;
 
-    public string GetPresentationPathForRequest(string presentationServiceType, int? customerId, string? hierarchyPath, string? resourceId)
+    public string GetPresentationPathForRequest(string presentationServiceType, int customerId, string? hierarchyPath, string? resourceId)
     {
         var host = settings.PresentationApiUrl;
         var template = settings.PathRules.GetPathTemplateForHostAndType(host, presentationServiceType);

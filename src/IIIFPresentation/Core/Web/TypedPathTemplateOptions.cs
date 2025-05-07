@@ -1,8 +1,7 @@
 namespace Core.Web;
 
 /// <summary>
-/// A collection of options related to path generation. This differs from <see cref="PathTemplateOptions"/> as this
-/// models objects with differing templates depending on 'type' parameter.
+/// A collection of options related to path generation.
 /// </summary>
 public class TypedPathTemplateOptions
 {
