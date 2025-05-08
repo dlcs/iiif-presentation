@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace API.Helpers;
+namespace API.Infrastructure.Requests;
 
 public static class HttpRequestX
 {

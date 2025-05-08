@@ -1,4 +1,5 @@
 ﻿using API.Helpers;
+using API.Infrastructure.Requests;
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
@@ -30,7 +31,7 @@ public class ConfigDrivenPresentationPathGenerator(
         var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+            customerId, hierarchyPath, resourceId);
 
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com
