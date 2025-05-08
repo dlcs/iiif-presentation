@@ -1293,6 +1293,94 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
+    public async Task UpdateManifest_ExistingCanvasPaintingBecomesChoice_ReturnsAccepted()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var canvasId = $"http://localhost/{Customer}/canvases/first";
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = canvasId,
+                CanvasOrder = 1,
+                ChoiceOrder = -1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            },
+            new()
+            {
+                Id = canvasId,
+                CanvasOrder = 2,
+                ChoiceOrder = -1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+
+        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: 123, ingested: true);
+        await dbContext.SaveChangesAsync();
+
+        var batchId = 1015;
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1,
+                                        "choiceOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "batch": "{{batchId}}"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1,
+                                        "choiceOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace);
+        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.PaintedResources.Should()
+            .NotBeNull()
+            .And
+            .HaveCount(2);
+
+        var cpOne = responseManifest.PaintedResources[0].CanvasPainting;
+        var cpTwo = responseManifest.PaintedResources[1].CanvasPainting;
+
+        cpOne.Should().NotBeNull();
+        cpTwo.Should().NotBeNull();
+
+        cpOne.CanvasId.Should().BeEquivalentTo(cpTwo.CanvasId);
+        cpOne.CanvasOrder.Should().Be(cpTwo.CanvasOrder);
+
+        cpOne.ChoiceOrder.Should().Be(1);
+        cpTwo.ChoiceOrder.Should().Be(2);
+    }
+    
+    [Fact]
     public async Task UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets()
     {
         // Arrange
@@ -1398,3 +1486,4 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
 }
+
