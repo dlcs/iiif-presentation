@@ -22,7 +22,7 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
     private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
         string? resourceId = null)
     {
-        var host = settings.PresentationApiUrl;
+        var host = settings.GetCustomerSpecificPresentationUrl(customerId);
         var template = settings.PathRules.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
@@ -30,6 +30,6 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com
-            : settings.PresentationApiUrl + path;
+            : host + path;
     }
 }
