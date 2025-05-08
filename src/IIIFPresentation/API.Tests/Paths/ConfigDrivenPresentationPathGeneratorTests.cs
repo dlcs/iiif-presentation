@@ -89,22 +89,6 @@ public class ConfigDrivenPresentationPathGeneratorTests
         // Assert
         path.Should().Be(expected);
     }
-    
-    [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://localhost/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "http://localhost/1/public/path")]
-    public void GetPathCustomerIdAsStringForRequest_ReturnsAllPaths_FromEmptyConfig(string resourceType, string hierarchyPath, string expected)
-    {
-        // Arrange
-        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-            HttpContextAccessor);
-        
-        // Act
-        var path = sut.GetPathCustomerIdAsStringForRequest(resourceType,  "1", hierarchyPath);
-
-        // Assert
-        path.Should().Be(expected);
-    }
 
     [Theory]
     [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://localhost/custom/1/public/path")]
@@ -157,25 +141,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         // Assert
         path.Should().Be(expected);
     }
-    
-    [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "http://foo/foo/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "http://foo/foo/1/public/path")]
-    public void GetPathCustomerIdAsStringForRequest_ReturnsAllPaths_FromOverrideEverythingConfig(string resourceType, string hierarchyPath, string expected)
-    {
-        // Arrange
-        A.CallTo(() => Request.Host).Returns(new HostString("foo"));
-        A.CallTo(() => Request.Scheme).Returns("http");
-        
-        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor);
-        
-        // Act
-        var path = sut.GetPathCustomerIdAsStringForRequest(resourceType, "1", hierarchyPath);
 
-        // Assert
-        path.Should().Be(expected);
-    }
     
     [Theory]
     [InlineData(PresentationResourceType.CollectionPrivate, "someId", "http://foo/foo/1/collections/someId")]
@@ -211,25 +177,6 @@ public class ConfigDrivenPresentationPathGeneratorTests
         
         // Act
         var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
-
-        // Assert
-        path.Should().Be(expected);
-    }
-    
-    [Theory]
-    [InlineData(PresentationResourceType.ResourcePublic, "public/path", "https://base/1/public/path")]
-    [InlineData(PresentationResourceType.ResourcePublic, "/public/path", "https://base/1/public/path")]
-    public void GetPathCustomerIdAsStringForRequest_ReturnsAllPaths_FromPartialOverrideConfig(string resourceType, string hierarchyPath, string expected)
-    {
-        // Arrange
-        A.CallTo(() => Request.Host).Returns(new HostString("baz"));
-        A.CallTo(() => Request.Scheme).Returns("http");
-        
-        var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor);
-        
-        // Act
-        var path = sut.GetPathCustomerIdAsStringForRequest(resourceType, "1", hierarchyPath);
 
         // Assert
         path.Should().Be(expected);

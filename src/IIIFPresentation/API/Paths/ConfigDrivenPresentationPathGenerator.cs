@@ -23,21 +23,12 @@ public class ConfigDrivenPresentationPathGenerator(
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
     }
 
-    public string GetPathCustomerIdAsStringForRequest(string presentationServiceType, string customerId, string path)
-    {
-        var (request, template) = GetRequiredValues(presentationServiceType);
-        var replacedPath =
-            PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId,  hierarchyPath: path);
-        
-        return Uri.IsWellFormedUriString(replacedPath, UriKind.Absolute)
-            ? replacedPath // template contains https://foo.com
-            : request.GetDisplayUrl(replacedPath, includeQueryParams: false);
-    }
-
     private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null, 
         string? resourceId = null)
     {
-        var (request, template) = GetRequiredValues(presentationServiceType);
+        var request = GetHttpRequest();
+        var host = request.Host.Value;
+        var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
             customerId.ToString(), hierarchyPath, resourceId);
@@ -45,14 +36,6 @@ public class ConfigDrivenPresentationPathGenerator(
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com
             : request.GetDisplayUrl(path, includeQueryParams: false);
-    }
-
-    private (HttpRequest request, string template) GetRequiredValues(string presentationServiceType)
-    {
-        var request = GetHttpRequest();
-        var host = request.Host.Value;
-        var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
-        return (request, template);
     }
 
     private HttpRequest GetHttpRequest()

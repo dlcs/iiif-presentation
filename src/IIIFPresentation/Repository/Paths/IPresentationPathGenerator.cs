@@ -12,9 +12,4 @@ public interface IPresentationPathGenerator
     /// Generate full path for IIIF Presentation resources
     /// </summary>
     public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId);
-    
-    /// <summary>
-    /// Generate full path for IIIF Presentation resources
-    /// </summary>
-    public string GetPathCustomerIdAsStringForRequest(string presentationServiceType, string customerId, string path);
 }

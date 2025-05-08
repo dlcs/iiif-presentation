@@ -24,6 +24,7 @@ public class TrailingSlashMiddlewareTests : IClassFixture<PresentationAppFactory
     [InlineData("1/hierarchical/path/", HttpStatusCode.Found, "1/hierarchical/path")]
     [InlineData("some/random/path/", HttpStatusCode.Found, "some/random/path")]
     [InlineData("1/", HttpStatusCode.Found, "1")]
+    [InlineData("1/test/", HttpStatusCode.Found, "1/test")]
     [InlineData("/", HttpStatusCode.Found, "")]
     public async Task TrailingSlash_StandardPathMatches(string path, HttpStatusCode expectedStatusCode, string expectedPath)
     {
@@ -42,9 +43,10 @@ public class TrailingSlashMiddlewareTests : IClassFixture<PresentationAppFactory
     [InlineData("1/collections/root/", HttpStatusCode.Found, "http://example.com/foo/1/collections/root")]
     [InlineData("1/manifests/root/", HttpStatusCode.Found, "http://example.com/example/1/manifests/root")]
     [InlineData("1/hierarchical/path/", HttpStatusCode.Found, "http://example.com/example/1/hierarchical/path")]
-    [InlineData("some/random/path/", HttpStatusCode.Found, "http://example.com/example/some/random/path")]
+    [InlineData("some/random/path/", HttpStatusCode.Found, "http://example.com/some/random/path")]
     [InlineData("1/", HttpStatusCode.Found, "http://example.com/example/1")]
-    [InlineData("/", HttpStatusCode.Found, "http://example.com/example")]
+    [InlineData("1/test/", HttpStatusCode.Found, "http://example.com/example/1/test")]
+    [InlineData("/", HttpStatusCode.Found, "http://example.com")]
     public async Task TrailingSlash_RewrittenPathMatches(string path, HttpStatusCode expectedStatusCode, string expectedPath)
     {
         // Arrange
