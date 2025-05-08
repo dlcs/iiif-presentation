@@ -22,4 +22,5 @@ public static class SpecConstants
     
     public const string CollectionsSlug = "collections";
     public const string ManifestsSlug = "manifests";
+    public const string CanvasesSlug = "canvases";
 }

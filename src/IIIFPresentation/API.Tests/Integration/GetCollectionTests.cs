@@ -678,7 +678,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
-    public async Task Get_Flat_ReturnsPathRewrites_WhenAuthAndShowExtrasHeadersWithPathRewrites()
+    public async Task Get_Flat_ReturnsWithRewrittenPaths_WhenAuthAndShowExtrasHeadersWithPathRewrites()
     {
         // Arrange
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/root");

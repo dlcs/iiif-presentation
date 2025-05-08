@@ -94,8 +94,8 @@ builder.Services.AddOptionsWithValidateOnStart<Program>();
 var app = builder.Build();
 
 app
-    .UseMiddleware<CorrelationIdMiddleware>()
     .UseMiddleware<TrailingSlashRedirectMiddleware>()
+    .UseMiddleware<CorrelationIdMiddleware>()
     .UseForwardedHeaders();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);

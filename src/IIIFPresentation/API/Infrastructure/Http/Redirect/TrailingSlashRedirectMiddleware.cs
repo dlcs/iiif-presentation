@@ -35,8 +35,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next, IPresentation
             }
             else
             {
-                var trimmedPath = path.TrimEnd('/');
-                completedPath = $"{context.Request.Scheme}://{context.Request.Host.Value}{trimmedPath}";
+                completedPath = PathParser.GetPathFromHostContext(context, path.TrimEnd('/'));
             }
 
             context.Response.Headers.Append("Location", completedPath);
@@ -55,6 +54,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next, IPresentation
         {
             SpecConstants.ManifestsSlug => PresentationResourceType.ManifestPrivate,
             SpecConstants.CollectionsSlug => PresentationResourceType.CollectionPrivate,
+            SpecConstants.CanvasesSlug => PresentationResourceType.Canvas,
             _ => PresentationResourceType.ResourcePublic // assume the path is hierarchical
         };
 }

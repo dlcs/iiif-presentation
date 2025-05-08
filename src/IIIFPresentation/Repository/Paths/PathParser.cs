@@ -58,6 +58,9 @@ public static class PathParser
             throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
         }
     }
+    
+    public static string GetPathFromHostContext(HttpContext context, string trimmedPath) => 
+        $"{context.Request.Scheme}://{context.Request.Host.Value}{trimmedPath}";
 
     public static string GetHierarchicalFullPathFromPath(string presentationParent, int customerId) =>
         presentationParent.Trim('/').TrimExpect($"{customerId}").Trim('/');
