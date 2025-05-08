@@ -17,23 +17,23 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
         presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, 
-            customerId.ToString(), fullPath);
+            customerId, fullPath);
 
     public string GenerateFlatCollectionId(Collection collection) =>
         presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
-            collection.CustomerId.ToString(), collection.Id);
+            collection.CustomerId, collection.Id);
     
     public string GenerateHierarchicalId(Hierarchy hierarchy) =>
         presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, 
-            hierarchy.CustomerId.ToString(), hierarchy.FullPath);
+            hierarchy.CustomerId, hierarchy.FullPath);
     
     public string GenerateFlatId(Hierarchy hierarchy) =>
         presentationPathGenerator.GetFlatPresentationPathForRequest(GetResourceType(hierarchy.Type), 
-            hierarchy.CustomerId.ToString(), hierarchy.ResourceId);
+            hierarchy.CustomerId, hierarchy.ResourceId);
     
     public string GenerateFlatParentId(Hierarchy hierarchy) =>
         presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
-            hierarchy.CustomerId.ToString(),
+            hierarchy.CustomerId,
             hierarchy.Parent);
     
     public string GenerateFlatCollectionViewId(Collection collection, int currentPage, int pageSize, 
@@ -66,11 +66,11 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
     
     public string GenerateFlatManifestId(Manifest manifest) =>
         presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.ManifestPrivate, 
-            manifest.CustomerId.ToString(), manifest.Id);
+            manifest.CustomerId, manifest.Id);
 
     public string GenerateCanvasId(CanvasPainting canvasPainting) => 
         presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.Canvas, 
-            canvasPainting.CustomerId.ToString(), canvasPainting.Id);
+            canvasPainting.CustomerId, canvasPainting.Id);
 
     public string GenerateAnnotationPagesId(CanvasPainting canvasPainting) => 
         $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";

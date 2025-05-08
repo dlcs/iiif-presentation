@@ -16,22 +16,33 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next, IPresentation
         if (context.Request.Method == HttpMethods.Get && (path?.EndsWith('/') ?? false))
         {
             var pathElements = path.Split('/');
+            int customerId;
+            try
+            {
+                customerId = Convert.ToInt32(pathElements[1]);
+                
+                // avoid issues with http//:something/
+                var pathType = pathElements.Length < 3 ? string.Empty : pathElements[2];
         
-            var customerId = pathElements[1];
-            
-            // avoid issues with http//:something/
-            var pathType = pathElements.Length < 3 ? string.Empty : pathElements[2];
-        
-            var presentationServiceType = WorkOutRedirectTemplate(pathType);
+                var presentationServiceType = WorkOutRedirectTemplate(pathType);
 
-            var completedPath = presentationServiceType == PresentationResourceType.ResourcePublic
-                ? presentationPathGenerator.GetHierarchyPresentationPathForRequest(presentationServiceType, customerId,
-                    string.Join('/', pathElements.Skip(2).SkipLast(1))) // skip customer id and trailing whitespace
-                : presentationPathGenerator.GetFlatPresentationPathForRequest(presentationServiceType, customerId,
-                    pathElements.SkipLast(1).Last()); // miss the trailing whitespace and use the last path element
+                var completedPath = presentationServiceType == PresentationResourceType.ResourcePublic
+                    ? presentationPathGenerator.GetHierarchyPresentationPathForRequest(presentationServiceType, customerId,
+                        string.Join('/', pathElements.Skip(2).SkipLast(1))) // skip customer id and trailing whitespace
+                    : presentationPathGenerator.GetFlatPresentationPathForRequest(presentationServiceType, customerId,
+                        pathElements.SkipLast(1).Last()); // miss the trailing whitespace and use the last path element
             
-            context.Response.Headers.Append("Location", completedPath);
-            context.Response.StatusCode = (int)HttpStatusCode.Found;
+                context.Response.Headers.Append("Location", completedPath);
+                context.Response.StatusCode = (int)HttpStatusCode.Found;
+            }
+            catch(FormatException)
+            {
+                var completedPath = presentationPathGenerator.GetPathCustomerIdAsStringForRequest(
+                    PresentationResourceType.ResourcePublic, pathElements[1],
+                    string.Join('/', pathElements.Skip(2).SkipLast(1))); // skip customer id and trailing whitespace
+                context.Response.Headers.Append("Location", completedPath);
+                context.Response.StatusCode = (int)HttpStatusCode.Found;
+            }
             
             await context.Response.CompleteAsync();
         }
