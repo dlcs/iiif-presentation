@@ -24,7 +24,6 @@ public static class HttpRequestX
         var queryString = includeQueryParams
             ? request.QueryString.Value ?? string.Empty
             : string.Empty;
-        
         var pathElement = path ?? string.Empty;
 
         // PERF: Calculate string length to allocate correct buffer size for StringBuilder.
