@@ -1,4 +1,5 @@
-﻿using Models.Database;
+﻿using Core.Web;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
@@ -8,8 +9,9 @@ namespace Repository.Tests.Paths;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = new TestPathGenerator();
-    
+    private readonly IPathGenerator pathGenerator =
+        new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()));
+
     [Fact]
     public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()
     {
@@ -427,8 +429,35 @@ public class PathGeneratorTests
         [new() { Slug = "slug", FullPath = fullPath }];
 }
 
-public class TestPathGenerator : PathGeneratorBase
+public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
 {
-    protected override string PresentationUrl => "http://base";
     protected override Uri DlcsApiUrl => new("https://dlcs.test");
+}
+
+public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
+    : IPresentationPathGenerator
+{
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
+    }
+
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
+    }
+
+    private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
+        string? resourceId = null)
+    {
+        var host = presentationUrl;
+        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
+
+        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
+            customerId.ToString(), hierarchyPath, resourceId);
+        
+        if (!path.StartsWith('/')) path = '/' + path;
+        
+        return presentationUrl + path;
+    }
 }

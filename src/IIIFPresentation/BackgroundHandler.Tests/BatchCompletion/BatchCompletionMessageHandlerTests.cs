@@ -2,6 +2,7 @@
 using AWS.Settings;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
+using BackgroundHandler.Helpers;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.infrastructure;
 using DLCS.API;
@@ -14,6 +15,7 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
@@ -44,12 +46,16 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        var pathGenerator = new TestPathGenerator();
-        backgroundHandlerSettings = new BackgroundHandlerSettings()
+        
+        backgroundHandlerSettings = new BackgroundHandlerSettings
         {
             PresentationApiUrl = "https://localhost:5000",
-            AWS = new AWSSettings()
+            AWS = new AWSSettings(),
         };
+
+        var presentationGenerator =
+            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
+        var pathGenerator = new TestPathGenerator(presentationGenerator);
 
         sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3, pathGenerator,
             new NullLogger<BatchCompletionMessageHandler>());
@@ -131,7 +137,7 @@ public class BatchCompletionMessageHandlerTests
         const int batchId = 101;
         const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenStaticSize);
         const int space = 2;
-        const string flatId = $"http://base/1/manifests/{identifier}";
+        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -204,7 +210,7 @@ public class BatchCompletionMessageHandlerTests
         const int batchId = -1;
         const string identifier = nameof(HandleMessage_SavesResultingManifest_ToS3);
         const int space = 2;
-        const string flatId = $"http://base/1/manifests/{identifier}";
+        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -237,12 +243,12 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest) resourceBase!;
-        var expectedCanvasId = $"http://base/1/canvases/{canvasPaintingId}";
+        var expectedCanvasId = $"https://localhost:5000/1/canvases/{canvasPaintingId}";
         savedManifest.Items[0].Id.Should().Be(expectedCanvasId, "Canvas Id overwritten");
-        savedManifest.Items[0].Items[0].Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annopages/1",
+        savedManifest.Items[0].Items[0].Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annopages/1",
             "AnnotationPage Id overwritten");
         var paintingAnnotation = savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>();
-        paintingAnnotation.Id.Should().Be($"http://base/1/canvases/{canvasPaintingId}/annotations/1",
+        paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
@@ -254,7 +260,7 @@ public class BatchCompletionMessageHandlerTests
         const int batchId = -321;
         const string identifier = nameof(HandleMessage_PreserveNonStandardContext);
         const int space = 2;
-        const string flatId = $"http://base/1/manifests/{identifier}";
+        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -311,7 +317,6 @@ public class BatchCompletionMessageHandlerTests
         const int batchId = -123;
         const string identifier = nameof(HandleMessage_ReturnsFalse_NoException_WhenStagingMissing);
         const int space = 3;
-        const string flatId = $"http://base/1/manifests/{identifier}";
         const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -406,8 +411,7 @@ public class BatchCompletionMessageHandlerTests
     }
 }
 
-public class TestPathGenerator : PathGeneratorBase
+public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
 {
-    protected override string PresentationUrl => "http://base";
     protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

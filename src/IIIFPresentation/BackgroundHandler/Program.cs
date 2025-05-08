@@ -2,6 +2,7 @@
 using BackgroundHandler.Helpers;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
+using Core.Web;
 using DLCS;
 using Repository.Paths;
 using Serilog;
@@ -21,6 +22,9 @@ builder.Host.UseSerilog((hostContext, loggerConfig) =>
 
 builder.Services.AddOptions<BackgroundHandlerSettings>()
     .BindConfiguration(string.Empty);
+var typedPathTemplateOptions = builder.Configuration.GetSection(TypedPathTemplateOptions.SettingsName);
+builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
+
 var aws = builder.Configuration.GetSection(AWSSettings.SettingsName).Get<AWSSettings>() ?? new AWSSettings();
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
@@ -30,6 +34,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
+    .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();
