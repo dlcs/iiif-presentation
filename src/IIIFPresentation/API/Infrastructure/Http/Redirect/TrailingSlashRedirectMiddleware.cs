@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using Repository.Paths;
 
@@ -7,11 +8,9 @@ namespace API.Infrastructure.Http.Redirect;
 /// <summary>
 /// Redirects trailing slash to the correct path
 /// </summary>
-public class TrailingSlashRedirectMiddleware(RequestDelegate next, IPresentationPathGenerator presentationPathGenerator)
+public class TrailingSlashRedirectMiddleware(RequestDelegate next, 
+    IPresentationPathGenerator presentationPathGenerator)
 {
-    private const int CustomerIdIndex = 1;
-    private const int PathTypeIndex = 2;
-    
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value;
@@ -19,23 +18,23 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next, IPresentation
         if (context.Request.Method == HttpMethods.Get && (path?.EndsWith('/') ?? false))
         {
             var pathElements = path.Split('/');
-            var customerIdIsInt = int.TryParse(pathElements[CustomerIdIndex], out var customerId);
+            var customerIdIsInt = int.TryParse(pathElements[PathParser.FullPathCustomerIdIndex], out var customerId);
 
             string completedPath;
-            if (customerIdIsInt && pathElements.Length > PathTypeIndex)
+            if (customerIdIsInt && pathElements.Length > PathParser.FullPathTypeIndex)
             {
-                var pathType = pathElements[PathTypeIndex];
+                var pathType = pathElements[PathParser.FullPathTypeIndex];
                 var presentationServiceType = WorkOutRedirectTemplate(pathType);
 
                 completedPath = presentationServiceType == PresentationResourceType.ResourcePublic
                     ? presentationPathGenerator.GetHierarchyPresentationPathForRequest(presentationServiceType, customerId,
-                        string.Join('/', pathElements.Skip(2).SkipLast(1))) // skip customer id and trailing whitespace
+                        PathParser.GetHierarchicalPath(pathElements))
                     : presentationPathGenerator.GetFlatPresentationPathForRequest(presentationServiceType, customerId,
-                        pathElements.SkipLast(1).Last()); // miss the trailing whitespace and use the last path element
+                        PathParser.GetResourceIdFromPath(pathElements));
             }
             else
             {
-                completedPath = PathParser.GetPathFromHostContext(context, path.TrimEnd('/'));
+                completedPath = context.Request.GetDisplayUrl(path: path.TrimEnd('/'));
             }
 
             context.Response.Headers.Append("Location", completedPath);
