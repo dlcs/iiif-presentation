@@ -3,6 +3,7 @@ using API.Paths;
 using Core.Web;
 using DLCS;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace API.Tests.Helpers;
@@ -28,7 +29,8 @@ public static class TestPathGenerator
         };
 
         var http = new HttpRequestBasedPathGenerator(dlcsSettings,
-            new ConfigDrivenPresentationPathGenerator(typedPathTemplateOptions, contextAccessor));
+            new ConfigDrivenPresentationPathGenerator(typedPathTemplateOptions, contextAccessor,
+                new NullLogger<ConfigDrivenPresentationPathGenerator>()));
         
         return http;
     }
