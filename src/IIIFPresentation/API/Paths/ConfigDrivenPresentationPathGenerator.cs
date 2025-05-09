@@ -8,7 +8,8 @@ namespace API.Paths;
 
 public class ConfigDrivenPresentationPathGenerator(
     IOptions<TypedPathTemplateOptions> settings,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<ConfigDrivenPresentationPathGenerator> logger)
     : IPresentationPathGenerator
 {
     private readonly TypedPathTemplateOptions settings = settings.Value;
@@ -26,12 +27,17 @@ public class ConfigDrivenPresentationPathGenerator(
     private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null, 
         string? resourceId = null)
     {
+        logger.LogDebug("Get path for presentation");
         var request = GetHttpRequest();
+        logger.LogDebug("request - {Request}", request.ToString());
         var host = request.Host.Value;
+        logger.LogDebug("host - {Host}", host);
         var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
+        logger.LogDebug("template - {Template}", template);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
             customerId.ToString(), hierarchyPath, resourceId);
+        logger.LogDebug("path - {Path}", path);
 
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

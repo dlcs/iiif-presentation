@@ -9,7 +9,8 @@ namespace API.Infrastructure.Http.Redirect;
 /// Redirects trailing slash to the correct path
 /// </summary>
 public class TrailingSlashRedirectMiddleware(RequestDelegate next, 
-    IPresentationPathGenerator presentationPathGenerator)
+    IPresentationPathGenerator presentationPathGenerator,
+    ILogger<TrailingSlashRedirectMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -17,6 +18,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
 
         if (context.Request.Method == HttpMethods.Get && (path?.EndsWith('/') ?? false))
         {
+            logger.LogDebug("Trailing slash redirect detected");
             var pathElements = path.Split('/');
             var customerIdIsInt = int.TryParse(pathElements[PathParser.FullPathCustomerIdIndex], out var customerId);
 
@@ -31,6 +33,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
                         PathParser.GetHierarchicalPath(pathElements))
                     : presentationPathGenerator.GetFlatPresentationPathForRequest(presentationServiceType, customerId,
                         PathParser.GetResourceIdFromPath(pathElements));
+                logger.LogDebug("Completed path - {Path}", completedPath);
             }
             else
             {
