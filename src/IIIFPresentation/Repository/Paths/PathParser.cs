@@ -63,6 +63,28 @@ public static class PathParser
         presentationParent.Trim('/').TrimExpect($"{customerId}").Trim('/');
 
     /// <summary>
+    /// Gets a hierarchical path from a full array of path elements
+    /// </summary>
+    public static string GetHierarchicalPath(string[] pathElements) =>
+        string.Join('/', pathElements.Skip(2).SkipLast(1)); // skip customer id and trailing whitespace 
+
+    /// <summary>
+    /// Gets the resource id from a full array of path elements
+    /// </summary>
+    public static string GetResourceIdFromPath(string[] pathElements) =>
+        pathElements.SkipLast(1).Last(); // miss the trailing whitespace and use the last path element
+
+    /// <summary>
+    /// This is the index of a customer id from a full path
+    /// </summary>
+    public static int FullPathCustomerIdIndex => 1;
+    
+    /// <summary>
+    /// Index of the element used for the type of path
+    /// </summary>
+    public static int FullPathTypeIndex => 2;
+
+    /// <summary>
     ///     Will ensure <paramref name="input" /> starts with entire <paramref name="expectation" />
     ///     but will omit it from output. Throws if strings differ.
     /// </summary>

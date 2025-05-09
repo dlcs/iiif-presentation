@@ -141,6 +141,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         // Assert
         path.Should().Be(expected);
     }
+
     
     [Theory]
     [InlineData(PresentationResourceType.CollectionPrivate, "someId", "http://foo/foo/1/collections/someId")]

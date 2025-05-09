@@ -94,18 +94,15 @@ builder.Services.AddOptionsWithValidateOnStart<Program>();
 var app = builder.Build();
 
 app
-    .UseMiddleware<CorrelationIdMiddleware>()
-    .UseForwardedHeaders();
+    .UseForwardedHeaders()
+    .UseMiddleware<TrailingSlashRedirectMiddleware>()
+    .UseMiddleware<CorrelationIdMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
-
-var rewriteOptions = new RewriteOptions()
-    .Add(new TrailingSlashRedirectRule());
 
 app
     .UseSwagger()
     .UseSwaggerUI()
-    .UseRewriter(rewriteOptions)
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()

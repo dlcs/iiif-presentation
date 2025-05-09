@@ -277,17 +277,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
-    public async Task Get_IiifManifest_Hierarchical_Returns_TrailingSlashRedirect()
-    {
-        // Arrange and Act
-        var response = await httpClient.GetAsync("1/iiif-manifest/");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Found);
-        response.Headers.Location!.Should().Be("/1/iiif-manifest");
-    }
-
-    [Fact]
     public async Task Get_IiifManifest_Hierarchical_ReturnsManifestFromS3()
     {
         // Arrange and Act

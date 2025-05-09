@@ -456,8 +456,8 @@ public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTe
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
             customerId.ToString(), hierarchyPath, resourceId);
         
-        if (!path.StartsWith('/')) path = '/' + path;
-        
-        return presentationUrl + path;
+        return Uri.IsWellFormedUriString(path, UriKind.Absolute)
+            ? path // template contains https://foo.com
+            : presentationUrl + path;
     }
 }

@@ -4,7 +4,6 @@ using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using Core.Helpers;
-using Core.Web;
 using IIIF;
 using Models;
 using Models.API;
