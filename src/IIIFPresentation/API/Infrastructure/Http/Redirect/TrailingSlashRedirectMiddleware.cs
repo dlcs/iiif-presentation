@@ -33,13 +33,13 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
                         PathParser.GetHierarchicalPath(pathElements))
                     : presentationPathGenerator.GetFlatPresentationPathForRequest(presentationServiceType, customerId,
                         PathParser.GetResourceIdFromPath(pathElements));
-                logger.LogDebug("Completed path - {Path}", completedPath);
             }
             else
             {
                 completedPath = context.Request.GetDisplayUrl(path: path.TrimEnd('/'));
             }
 
+            logger.LogDebug("Completed redirect - {Path}", completedPath);
             context.Response.Headers.Append("Location", completedPath);
             context.Response.StatusCode = (int)HttpStatusCode.Found;
             

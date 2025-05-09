@@ -42,7 +42,7 @@ public class ParentSlugParserTests
 
         var presentationPathGenerator =
             new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-                httpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+                httpContextAccessor);
 
         var pathGenerator =
             new HttpRequestBasedPathGenerator(options, presentationPathGenerator);

@@ -2,7 +2,6 @@
 using Core.Web;
 using FakeItEasy;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
 
@@ -65,7 +64,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         // Arrange
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
@@ -82,7 +81,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         // Arrange
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
@@ -98,7 +97,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         // Arrange
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
@@ -115,7 +114,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
     {
         // Arrange
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
@@ -134,7 +133,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
@@ -155,7 +154,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
@@ -174,7 +173,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetHierarchyPresentationPathForRequest(resourceType, 1, hierarchyPath);
@@ -194,7 +193,7 @@ public class ConfigDrivenPresentationPathGeneratorTests
         A.CallTo(() => Request.Scheme).Returns("http");
         
         var sut = new ConfigDrivenPresentationPathGenerator(Options.Create(defaultTypedPathTemplateOptions),
-            HttpContextAccessor, new NullLogger<ConfigDrivenPresentationPathGenerator>());
+            HttpContextAccessor);
         
         // Act
         var path = sut.GetFlatPresentationPathForRequest(resourceType, 1, resourceId);
