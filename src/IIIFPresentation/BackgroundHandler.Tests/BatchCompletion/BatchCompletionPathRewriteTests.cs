@@ -41,18 +41,18 @@ public class BatchCompletionPathRewriteTests
         
         backgroundHandlerSettings = new BackgroundHandlerSettings
         {
-            PresentationApiUrl = "https://localhost:5000",
-            CustomerPresentationApiUrl = new Dictionary<int, string>()
+            PresentationApiUrl = new Uri("https://localhost:5000"),
+            CustomerPresentationApiUrl = new Dictionary<int, Uri>()
             {
-                {1, "https://foo.com"},
-                {2, "https://bar.com"}
+                {1, new Uri("https://foo.com")},
+                {2, new Uri("https://bar.com")}
             },
             PathRules = new TypedPathTemplateOptions
             {
                 Overrides = new Dictionary<string, Dictionary<string, string>>
                 {
                     // override everything
-                    ["https://foo.com"] = new()
+                    ["foo.com"] = new()
                     {
                         ["ManifestPrivate"] = "/foo/{customerId}/manifests/{resourceId}",
                         ["CollectionPrivate"] = "/foo/{customerId}/collections/{resourceId}",
@@ -60,7 +60,7 @@ public class BatchCompletionPathRewriteTests
                         ["Canvas"] = "/foo/{customerId}/canvases/{resourceId}"
                     },
                     // custom base URL
-                    ["https://bar.com"] = new()
+                    ["bar.com"] = new()
                     {
                         ["ManifestPrivate"] = "https://base/{customerId}/manifests/{resourceId}",
                         ["CollectionPrivate"] = "https://base/{customerId}/collections/{resourceId}",

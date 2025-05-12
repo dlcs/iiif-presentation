@@ -10,7 +10,6 @@ using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
 using IIIF;
-using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -50,7 +49,7 @@ public class BatchCompletionMessageHandlerTests
 
         backgroundHandlerSettings = new BackgroundHandlerSettings
         {
-            PresentationApiUrl = "https://localhost:5000",
+            PresentationApiUrl = new Uri("https://localhost:5000"),
             AWS = new AWSSettings(),
         };
 

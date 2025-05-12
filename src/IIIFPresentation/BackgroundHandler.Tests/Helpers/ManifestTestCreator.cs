@@ -280,9 +280,9 @@ public class ManifestTestCreator
             Label = new("en", $"{id}_Image")
         };
     
-    public static Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId, string presentationUrl)
+    public static Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId, Uri presentationUrl)
     {
-        var qualifiedAssetId = $"{presentationUrl}/iiif-img/{fullAssetId}";
+        var qualifiedAssetId = $"{presentationUrl}iiif-img/{fullAssetId}";
         var canvasId = $"{qualifiedAssetId}/canvas/c/1";
         return new Manifest
         {
