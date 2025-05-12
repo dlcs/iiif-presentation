@@ -138,7 +138,6 @@ public class BatchCompletionMessageHandlerTests
         const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenStaticSize);
         const int space = 2;
         const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
-        const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new()
@@ -149,7 +148,7 @@ public class BatchCompletionMessageHandlerTests
         var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
         var assetId = new AssetId(CustomerId, space, identifier);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true,
-            width: 80, height: 80);
+            width: 60, height: 80);
         await dbContext.SaveChangesAsync();
 
         var finished = DateTime.UtcNow.AddHours(-1);
@@ -174,7 +173,61 @@ public class BatchCompletionMessageHandlerTests
         var savedManifest = (IIIFManifest)resourceBase!;
         var image = (savedManifest.Items?[0].Items?[0].Items?[0] as PaintingAnnotation)?.Body as Image;
         image.Should().NotBeNull("an image was provided at this path");
-        image!.Width.Should().Be(80, "width taken from statics set on canvasPainting");
+        image!.Id.Should()
+            .Be($"{backgroundHandlerSettings.PresentationApiUrl}iiif-img/{assetId}/full/60,80/0/default.jpg",
+                "w,h set from statics set on canvasPainting");
+        image.Width.Should().Be(60, "width taken from statics set on canvasPainting");
+        image.Height.Should().Be(80, "height taken from statics set on canvasPainting");
+    }
+    
+    [Fact]
+    public async Task HandleMessage_UpdatesBatchedImages_WhenStaticSize_HandlingRewrittenPaths()
+    {
+        // Arrange
+        const int batchId = 102;
+        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenStaticSize_HandlingRewrittenPaths);
+        const int space = 2;
+        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new()
+            {
+                Id = identifier
+            });
+
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true,
+            width: 60, height: 80);
+        await dbContext.SaveChangesAsync();
+
+        var finished = DateTime.UtcNow.AddHours(-1);
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, finished);
+
+        var qualifiedAssetId = $"https://other.host/image/{assetId.Asset}/full/100,100/0/default.jpg";
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId,
+                backgroundHandlerSettings.PresentationApiUrl, qualifiedAssetId));
+        ResourceBase? resourceBase = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
+
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue();
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .MustHaveHappened();
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest.Entity, flatId, false, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        var savedManifest = (IIIFManifest)resourceBase!;
+        var image = (savedManifest.Items?[0].Items?[0].Items?[0] as PaintingAnnotation)?.Body as Image;
+        image.Should().NotBeNull("an image was provided at this path");
+        image!.Id.Should().Be($"https://other.host/image/{assetId.Asset}/full/60,80/0/default.jpg",
+            "w,h set from statics set on canvasPainting");
+        image.Width.Should().Be(60, "width taken from statics set on canvasPainting");
         image.Height.Should().Be(80, "height taken from statics set on canvasPainting");
     }
 

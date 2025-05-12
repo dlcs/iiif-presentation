@@ -381,7 +381,7 @@ public class PathGeneratorTests
     [Fact]
     public void GetModifiedImageRequest_ReturnsNull_IfExistingIsNull()
     {
-        pathGenerator.GetModifiedImageRequest(null, 1, 2, 3, 4)
+        pathGenerator.GetModifiedImageRequest(null, 1, 2)
             .Should().BeNull("null in, null out");
     }
 
@@ -392,7 +392,7 @@ public class PathGeneratorTests
         const int spaceId = 456;
         var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, 100, 100)
+        pathGenerator.GetModifiedImageRequest(requestPath, 100, 100)
             .Should().Be(requestPath, "same size params should result in reconstructed identical URI");
     }
 
@@ -405,7 +405,7 @@ public class PathGeneratorTests
         const int height = 50;
         var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+        pathGenerator.GetModifiedImageRequest(requestPath, width, height)
             .Should().Contain($"/{width},{height}/");
     }
 
@@ -420,9 +420,26 @@ public class PathGeneratorTests
         var requestPath =
             $"{server}/iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+        pathGenerator.GetModifiedImageRequest(requestPath, width, height)
             .Should().Contain($"/{width},{height}/")
             .And.StartWith(server);
+    }
+    
+    [Theory]
+    [InlineData("asset/iiif-img/1/2/foo/full/max/0/default.jpg", "asset/iiif-img/1/2/foo/full/75,50/0/default.jpg")]
+    [InlineData("https://dlcs.example/asset/iiif-img/1/2/foo/full/max/0/default.jpg", "https://dlcs.example/asset/iiif-img/1/2/foo/full/75,50/0/default.jpg")]
+    [InlineData("img/foo/full/!400,400/0/default.jpg", "img/foo/full/75,50/0/default.jpg")]
+    [InlineData("https://dlcs.example/img/foo/full/!400,400/0/default.jpg", "https://dlcs.example/img/foo/full/75,50/0/default.jpg")]
+    public void GetModifiedImageRequest_SetsSizeParam_WhenRewritten(string input, string expected)
+    {
+        // Verify that we can handle image paths for "rewritten" (non standard) asset paths
+        const int customerId = 123;
+        const int spaceId = 456;
+        const int width = 75;
+        const int height = 50;
+
+        pathGenerator.GetModifiedImageRequest(input, width, height)
+            .Should().Be(expected);
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList(string? fullPath = null) =>  

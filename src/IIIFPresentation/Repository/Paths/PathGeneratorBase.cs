@@ -100,20 +100,13 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
         return uriBuilder.Uri;
     }
 
-    public string? GetModifiedImageRequest(string? existing, int customerId, int spaceId, int width, int height)
+    public string? GetModifiedImageRequest(string? existing, int width, int height)
     {
-        const string dlcsImagePath = "iiif-img";
-        if (existing is null)
-            return null;
+        if (string.IsNullOrEmpty(existing)) return existing;
+        if (!ImageRequest.TryParse(existing, out var imageRequest)) return existing;
 
-        var uriPrefix = string.Empty;
-        if (Uri.TryCreate(existing, UriKind.Absolute, out var uri))
-            uriPrefix = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped) + "/";
-        var prefix = $"{uriPrefix}{dlcsImagePath}/{customerId}/{spaceId}/";
-
-        var ir = ImageRequest.Parse(existing, prefix);
-        ir.Size = new() {Width = width, Height = height};
-        return ir.ToString();
+        imageRequest.Size = new() { Width = width, Height = height };
+        return imageRequest.ToString();
     }
 
     private string GetResourceType(ResourceType resourceType) 

@@ -280,7 +280,7 @@ public class ManifestTestCreator
             Label = new("en", $"{id}_Image")
         };
     
-    public static Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId, Uri presentationUrl)
+    public static Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId, Uri presentationUrl, string? bodyId = null)
     {
         var qualifiedAssetId = $"{presentationUrl}iiif-img/{fullAssetId}";
         var canvasId = $"{qualifiedAssetId}/canvas/c/1";
@@ -305,7 +305,7 @@ public class ManifestTestCreator
                                     Id = $"{canvasId}/page/image",
                                     Body = new Image
                                     {
-                                        Id = $"{qualifiedAssetId}/full/100,100/0/default.jpg",
+                                        Id = bodyId ?? $"{qualifiedAssetId}/full/100,100/0/default.jpg",
                                         Width = 100,
                                         Height = 100,
                                         Service =
