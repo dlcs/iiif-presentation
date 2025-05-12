@@ -17,8 +17,8 @@ public class BackgroundHandlerSettings
     /// <param name="customerId">CustomerId to get settings for.</param>
     /// <returns>Customer specific overrides, or default if not found.</returns>
     public string GetCustomerSpecificPresentationUrl(int customerId)
-        => CustomerPresentationApiUrl.TryGetValue(customerId, out var presentationApiUrl)
-            ? presentationApiUrl
+        => CustomerPresentationApiUrl.TryGetValue(customerId, out var customerPresentationApiUrl)
+            ? customerPresentationApiUrl
             : PresentationApiUrl;
     
     public TypedPathTemplateOptions PathRules { get; set; } = new ();
