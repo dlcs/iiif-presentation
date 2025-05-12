@@ -23,10 +23,15 @@ public class DlcsOrchestratorClient(
     {
         var batchString = string.Join(',', batches);
 
-        var requestUri =
-            $"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{batchString}?cacheBust={DateTime.UtcNow.Ticks}";
+        var hostname = settings.GetOrchestratorUri(customerId);
+
+        var uriBuilder = new UriBuilder(hostname)
+        {
+            Path = $"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{batchString}",
+            Query = $"cacheBust={DateTime.UtcNow.Ticks}"
+        };
         
-        var response = await httpClient.GetAsync(requestUri, cancellationToken);
+        var response = await httpClient.GetAsync(uriBuilder.Uri, cancellationToken);
         return await response.ReadAsIIIFResponse<Manifest>(cancellationToken);
     }
 }

@@ -1,3 +1,5 @@
+using Core.Helpers;
+
 namespace DLCS;
 
 public class DlcsSettings
@@ -13,6 +15,19 @@ public class DlcsSettings
     /// URL root of DLCS Orchestrator 
     /// </summary>
     public Uri? OrchestratorUri { get; set; }
+    
+    /// <summary>
+    /// Optional dictionary of customerId:orchestratorUri, allows overriding per customer
+    /// </summary>
+    public Dictionary<int, Uri> CustomerOrchestratorUri { get; set; } = new();
+
+    /// <summary>
+    /// Get Orchestrator URI to use for customer 
+    /// </summary>
+    /// <param name="customerId">CustomerId to get URI for</param>
+    /// <returns>Customer specific overrides, or default if not found.</returns>
+    public Uri GetOrchestratorUri(int customerId)
+        => CustomerOrchestratorUri.GetValueOrDefault(customerId, OrchestratorUri.ThrowIfNull(nameof(OrchestratorUri)));
         
     /// <summary>
     /// Default timeout (in ms) use for HttpClient.Timeout in the API.

@@ -36,9 +36,7 @@ public static class ServiceCollectionX
     {
         services
             .AddTransient<TimingHandler>()
-            .AddHttpClient<IDlcsOrchestratorClient, DlcsOrchestratorClient>(client =>
-            {
-                client.BaseAddress = dlcsSettings.OrchestratorUri;
+            .AddHttpClient<IDlcsOrchestratorClient, DlcsOrchestratorClient>(client => {
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.OrchestratorDefaultTimeoutMs);
             })
             .AddHttpMessageHandler<TimingHandler>();
