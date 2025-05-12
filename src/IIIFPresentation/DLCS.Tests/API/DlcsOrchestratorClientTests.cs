@@ -17,7 +17,9 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 3;
-        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1,2", (_, _) => string.Empty).StatusCode((int)httpStatusCode);
+        stub.Get(
+            $"/iiif-resource/v3/{customerId}/batch-query/1,2",
+            (_, _) => string.Empty).StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
         
         Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
@@ -59,6 +61,26 @@ public class DlcsOrchestratorClientTests
     }
     
     [Fact]
+    public async Task RetrieveAssetsForManifest_ReturnsManifest_FromCustomerSpecificSettings()
+    {
+        using var stub = new ApiStub();
+        const int customerId = -5;
+        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
+                (_, _) => "{\"id\":\"some/id\", \"type\": \"Manifest\" }")
+            .StatusCode(200);
+        var sut = GetClient(stub, settings =>
+        {
+            settings.OrchestratorUri = new Uri("http://0.0.0.0"); // invalid address, ensures not used
+            settings.CustomerOrchestratorUri[customerId] = new Uri(stub.Address);
+        });
+        var expected = new Manifest() { Id = "some/id" }; 
+        
+        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+
+        retrievedManifest.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
     public async Task RetrieveAssetsForManifest_PassesCacheBustParam()
     {
         using var stub = new ApiStub();
@@ -78,21 +100,19 @@ public class DlcsOrchestratorClientTests
         passedQueryParam.Should().NotBeNull("?cacheBust query param passed to avoid caching issues");
     }
     
-    private static DlcsOrchestratorClient GetClient(ApiStub stub)
+    private static DlcsOrchestratorClient GetClient(ApiStub stub, Action<DlcsSettings>? configureSettings = null)
     {
         stub.EnsureStarted();
-        
-        var httpClient = new HttpClient
-        {
-            BaseAddress = new Uri(stub.Address)
-        };
 
-        var options = Options.Create(new DlcsSettings()
+        var httpClient = new HttpClient();
+
+        var dlcsSettings = new DlcsSettings
         {
             ApiUri = new Uri("https://localhost"),
-            MaxBatchSize = 1
-        });
+            OrchestratorUri = new Uri(stub.Address),
+        };
+        configureSettings?.Invoke(dlcsSettings);
         
-        return new DlcsOrchestratorClient(httpClient, options);
+        return new DlcsOrchestratorClient(httpClient, Options.Create(dlcsSettings));
     }
 }
