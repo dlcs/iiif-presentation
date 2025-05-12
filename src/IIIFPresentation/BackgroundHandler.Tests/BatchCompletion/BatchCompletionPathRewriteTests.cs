@@ -117,6 +117,7 @@ public class BatchCompletionPathRewriteTests
         // Assert
         updatedManifest.Id.Should().Be(identifier);
         updatedManifest.Items[0].Id.Should().Be("https://foo.com/foo/1/canvases/Models.Database.Collections.Manifest_1");
+        updatedManifest.Items[0].Items[0].Id.Should().Be("https://foo.com/foo/1/canvases/Models.Database.Collections.Manifest_1/annopages/0");
         Fake.ClearRecordedCalls(iiifS3);
     }
     
@@ -125,7 +126,7 @@ public class BatchCompletionPathRewriteTests
     {
         // Arrange
         var customerId = 2;
-        await dbContext.Collections.AddTestRootCollection(2);
+        await dbContext.Collections.AddTestRootCollection(customerId);
         
         var batchId = 301;
         var identifier = nameof(HandleMessage_UpdatesBatchedImages_WithCustomBaseUrl);
@@ -159,6 +160,50 @@ public class BatchCompletionPathRewriteTests
         // Assert
         updatedManifest.Id.Should().Be(identifier);
         updatedManifest.Items[0].Id.Should().Be("https://base/2/canvases/Models.Database.Collections.Manifest_1");
+        updatedManifest.Items[0].Items[0].Id.Should().Be("https://base/2/canvases/Models.Database.Collections.Manifest_1/annopages/0");
+        Fake.ClearRecordedCalls(iiifS3);
+    }
+    
+    [Fact]
+    public async Task HandleMessage_UpdatesBatchedImages_WithoutCustomerPresentationApiOverride()
+    {
+        // Arrange
+        var customerId = 3;
+        await dbContext.Collections.AddTestRootCollection(customerId);
+        
+        var batchId = 302;
+        var identifier = nameof(HandleMessage_UpdatesBatchedImages_WithoutCustomerPresentationApiOverride);
+        const int space = 2;
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
+            {
+                Id = identifier
+            });
+        
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId, id: identifier, customer: customerId);
+        
+        var assetId = new AssetId(customerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var finished = DateTime.UtcNow.AddHours(-1);
+        var message = QueueHelper.CreateQueueMessage(batchId, 1, finished);
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+        
+        IIIFManifest updatedManifest = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>._, A<bool>._, A<CancellationToken>._))
+            .Invokes(x => updatedManifest =x.Arguments.Get<IIIFManifest>(0));
+        
+        // Act
+        await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        updatedManifest.Id.Should().Be(identifier);
+        updatedManifest.Items[0].Id.Should().Be("https://localhost:5000/3/canvases/Models.Database.Collections.Manifest_1");
+        updatedManifest.Items[0].Items[0].Id.Should().Be("https://localhost:5000/3/canvases/Models.Database.Collections.Manifest_1/annopages/0");
         Fake.ClearRecordedCalls(iiifS3);
     }
 }
