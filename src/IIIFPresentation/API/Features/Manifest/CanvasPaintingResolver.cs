@@ -168,10 +168,11 @@ public class CanvasPaintingResolver(
 
         if (matching == null)
         {
-            if (incoming.ChoiceOrder.HasValue
-                && candidates.SingleOrDefault()?.Id is {Length: > 0} existingId)
-                // This is a choice. If there are other, existing items for the same canvas, then seed canvas_id
+            // If this is a choice and there are other, existing items for the same canvas, then seed canvas_id
+            if (incoming.ChoiceOrder.HasValue && candidates.FirstOrDefault()?.Id is { Length: > 0 } existingId)
+            {
                 incoming.Id = existingId;
+            }
 
             // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
             logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
