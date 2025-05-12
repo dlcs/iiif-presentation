@@ -13,13 +13,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
-using Models.Database.General;
 using Models.DLCS;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using A = FakeItEasy.A;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
+using ResourceBase = IIIF.Presentation.V3.ResourceBase;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
@@ -32,8 +32,6 @@ public class BatchCompletionPathRewriteTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly BackgroundHandlerSettings backgroundHandlerSettings;
-    private const int CustomerId = 1;
-
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
     {
         dbContext = dbFixture.DbContext;
@@ -44,31 +42,25 @@ public class BatchCompletionPathRewriteTests
         backgroundHandlerSettings = new BackgroundHandlerSettings
         {
             PresentationApiUrl = "https://localhost:5000",
-            CustomerPresentationApiUrl = new Dictionary<string, string>()
+            CustomerPresentationApiUrl = new Dictionary<int, string>()
             {
-                {"1", "foo"},
-                {"2", "bar"},
-                {"3", "baz"}
+                {1, "https://foo.com"},
+                {2, "https://bar.com"}
             },
             PathRules = new TypedPathTemplateOptions
             {
                 Overrides = new Dictionary<string, Dictionary<string, string>>
                 {
                     // override everything
-                    ["foo"] = new()
+                    ["https://foo.com"] = new()
                     {
                         ["ManifestPrivate"] = "/foo/{customerId}/manifests/{resourceId}",
                         ["CollectionPrivate"] = "/foo/{customerId}/collections/{resourceId}",
                         ["ResourcePublic"] = "/foo/{customerId}/{hierarchyPath}",
                         ["Canvas"] = "/foo/{customerId}/canvases/{resourceId}"
                     },
-                    // fallback to defaults
-                    ["bar"] = new()
-                    {
-                        ["ResourcePublic"] = "/bar/{customerId}/{hierarchyPath}"
-                    },
                     // custom base URL
-                    ["baz"] = new()
+                    ["https://bar.com"] = new()
                     {
                         ["ManifestPrivate"] = "https://base/{customerId}/manifests/{resourceId}",
                         ["CollectionPrivate"] = "https://base/{customerId}/collections/{resourceId}",
@@ -89,11 +81,12 @@ public class BatchCompletionPathRewriteTests
     }
     
     [Fact]
-    public async Task HandleMessage_UpdatesBatchedImages_WhenBatchTracked()
+    public async Task HandleMessage_UpdatesBatchedImages_WithAllPathsRewritten()
     {
         // Arrange
-        const int batchId = 100;
-        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked);
+        var batchId = 300;
+        var customerId = 1;
+        var identifier = nameof(HandleMessage_UpdatesBatchedImages_WithAllPathsRewritten);
         const int space = 2;
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -102,8 +95,9 @@ public class BatchCompletionPathRewriteTests
             Id = identifier
         });
         
-        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
-        var assetId = new AssetId(CustomerId, space, identifier);
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId, id: identifier, customer: customerId);
+        
+        var assetId = new AssetId(customerId, space, identifier);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
         await dbContext.SaveChangesAsync();
 
@@ -113,24 +107,58 @@ public class BatchCompletionPathRewriteTests
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
+        IIIFManifest updatedManifest = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>._, A<bool>._, A<CancellationToken>._))
+            .Invokes(x => updatedManifest =x.Arguments.Get<IIIFManifest>(0));
+        
         // Act
-        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+        await sut.HandleMessage(message, CancellationToken.None);
 
         // Assert
-        handleMessage.Should().BeTrue();
+        updatedManifest.Id.Should().Be(identifier);
+        updatedManifest.Items[0].Id.Should().Be("https://foo.com/foo/1/canvases/Models.Database.Collections.Manifest_1");
+        Fake.ClearRecordedCalls(iiifS3);
+    }
+    
+    [Fact]
+    public async Task HandleMessage_UpdatesBatchedImages_WithCustomBaseUrl()
+    {
+        // Arrange
+        var customerId = 2;
+        await dbContext.Collections.AddTestRootCollection(2);
+        
+        var batchId = 301;
+        var identifier = nameof(HandleMessage_UpdatesBatchedImages_WithCustomBaseUrl);
+        const int space = 2;
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
+            {
+                Id = identifier
+            });
+        
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId, id: identifier, customer: customerId);
+        
+        var assetId = new AssetId(customerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var finished = DateTime.UtcNow.AddHours(-1);
+        var message = QueueHelper.CreateQueueMessage(batchId, 1, finished);
+
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
-            .MustHaveHappened();
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
-        var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
-        batch.Status.Should().Be(BatchStatus.Completed);
-        batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
-        batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-        batch.Manifest!.LastProcessed.Should().NotBeNull();
+        IIIFManifest updatedManifest = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>._, A<bool>._, A<CancellationToken>._))
+            .Invokes(x => updatedManifest =x.Arguments.Get<IIIFManifest>(0));
         
-        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == assetId);
-        canvasPainting.Ingesting.Should().BeFalse();
-        canvasPainting.StaticWidth.Should().Be(75, "width taken from NQ manifest image->imageService");
-        canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
-        canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
+        // Act
+        await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        updatedManifest.Id.Should().Be(identifier);
+        updatedManifest.Items[0].Id.Should().Be("https://base/2/canvases/Models.Database.Collections.Manifest_1");
+        Fake.ClearRecordedCalls(iiifS3);
     }
 }

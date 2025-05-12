@@ -94,6 +94,31 @@ public static class DatabaseTestDataPopulation
             ]
         });
     }
+    
+    public static ValueTask<EntityEntry<Collection>> AddTestRootCollection(this DbSet<Collection> collections, int customer,
+         DateTime? createdDate = null, bool isPublic = true)
+    {
+        createdDate ??= DateTime.UtcNow;
+        return collections.AddAsync(new Collection
+        {
+            Id = "root",
+            CustomerId = customer,
+            CreatedBy = "Admin",
+            Created = createdDate.Value,
+            Modified = createdDate.Value,
+            IsStorageCollection = true,
+            IsPublic = isPublic,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Canonical = true,
+                    Slug = "",
+                    Type = isPublic ? ResourceType.StorageCollection : ResourceType.IIIFCollection
+                }
+            ]
+        });
+    }
 
     public static ValueTask<EntityEntry<CanvasPainting>> AddTestCanvasPainting(
         this DbSet<CanvasPainting> canvasPaintings, Manifest manifest, string? id = null, int? canvasOrder = null,
