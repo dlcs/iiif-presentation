@@ -235,8 +235,7 @@ public class BatchCompletionMessageHandler(
                 image.Width = staticWidth;
                 image.Height = staticHeight;
 
-                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, canvasPainting.AssetId!.Customer,
-                    canvasPainting.AssetId!.Space, staticWidth, staticHeight);
+                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, staticWidth, staticHeight);
             }
         }
     }
