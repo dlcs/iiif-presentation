@@ -47,7 +47,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
 
                         if (resource is Image or Video or Sound)
                         {
-                            var cp = CreatePartialCanvasPainting(resource, canvas.Id!, choiceCanvasOrder, target,
+                            var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
                                 canvas, choiceOrder);
 
                             choiceOrder++;
@@ -89,7 +89,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id!, canvasOrder, target, canvas);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -151,7 +151,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
         return Uri.TryCreate(thumbnail, UriKind.Absolute, out var thumbnailUri) ? thumbnailUri : null;
     }
 
-    private string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
+    private static string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
     {
         switch (target)
         {

@@ -39,13 +39,15 @@ public static class PathParser
         }
 
         var convertedCanvasId = new Uri(canvasId).PathAndQuery;
-        var startsWith = $"/{customerId}/canvases/";
+        var customerCanvasesPath = $"/{customerId}/canvases/";
 
-        if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
+        if (!convertedCanvasId.StartsWith(customerCanvasesPath) ||
+            convertedCanvasId.Length == customerCanvasesPath.Length)
             throw new ArgumentException($"Canvas Id {convertedCanvasId} is not valid");
 
         var actualCanvasId =
-            convertedCanvasId.Substring(startsWith.Length, convertedCanvasId.Length - startsWith.Length);
+            convertedCanvasId.Substring(customerCanvasesPath.Length,
+                convertedCanvasId.Length - customerCanvasesPath.Length);
         CheckForProhibitedCharacters(actualCanvasId);
 
         return actualCanvasId;
