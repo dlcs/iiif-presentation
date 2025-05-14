@@ -659,4 +659,87 @@ public class ManifestItemsParserTests
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
+    
+        [Fact]
+    public void Parse_SpatialRegion()
+    {
+        // https://iiif.io/api/cookbook/recipe/0299-region/
+        // Arrange
+        var manifest = @"
+{
+  ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+  ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/manifest.json"",
+  ""type"": ""Manifest"",
+  ""label"": {
+    ""en"": [
+      ""Berliner Tageblatt article, 'Ein neuer Sicherungsplan?'""
+    ]
+  },
+  ""items"": [
+    {
+      ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1"",
+      ""type"": ""Canvas"",
+      ""height"": 2080,
+      ""width"": 1768,
+      ""items"": [
+        {
+          ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/page/p1/1"",
+          ""type"": ""AnnotationPage"",
+          ""items"": [
+            {
+              ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/annotation/p0001-image"",
+              ""type"": ""Annotation"",
+              ""motivation"": ""painting"",
+              ""body"": {
+                ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/body/b1"",
+                ""type"": ""SpecificResource"",
+                ""source"": {
+                  ""id"": ""https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2/full/max/0/default.jpg"",
+                  ""type"": ""Image"",
+                  ""format"": ""image/jpeg"",
+                  ""height"": 4999,
+                  ""width"": 3536,
+                  ""service"": [
+                    {
+                      ""id"": ""https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2"",
+                      ""profile"": ""level1"",
+                      ""type"": ""ImageService3""
+                    }
+                  ]
+                },
+                ""selector"": {
+                  ""type"": ""ImageApiSelector"",
+                  ""region"": ""1768,2423,1768,2080""
+                }
+              },
+              ""target"": ""https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1"),
+                StaticWidth = 3536,
+                StaticHeight = 4999,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null,
+            },
+        };
+
+        var deserialised = manifest.FromJson<Manifest>();
+
+        // Act
+        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
 }
