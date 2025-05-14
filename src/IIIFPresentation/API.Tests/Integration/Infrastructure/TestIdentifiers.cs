@@ -22,7 +22,7 @@ public static class TestIdentifiers
         => (testMethod, $"{testMethod}_id", testMethod);
 
     /// <summary>
-    /// Helper method that returns slug, id and assetId values
+    /// Helper method that returns slug, id assetId and canvasId values
     /// </summary>
     public static (string slug, string id, string assetId, string canvasId) SlugResourceAssetCanvas(
         [CallerMemberName] string testMethod = "")
