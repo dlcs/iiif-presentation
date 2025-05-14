@@ -182,7 +182,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithSpace);
         var space = 18;
         var assetId = "testAssetByPresentation-withSpace";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 1;
         var manifestWithSpace = $$"""
                          {
                              "type": "Manifest",
@@ -287,7 +287,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetAllImagesFails);
         var space = 15;
         var assetId = "testAssetByPresentation-assetDetailsFail";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 500;
         var manifestWithSpace =
             $$"""
               {
@@ -345,7 +345,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetAllImagesMissing);
         var space = 15;
         var assetId = "testAssetByPresentation-assetDetailsMissing";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 404;
         var manifestWithSpace =
             $$"""
               {
@@ -403,7 +403,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var slug = nameof(CreateManifest_ReturnsAssetDetails_FromAllImages);
         var space = 15;
         var assetId = "testAssetByPresentation-assetDetails";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 2137;
         var manifestWithSpace =
             $$"""
               {
@@ -466,7 +466,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithoutSpace);
         var assetId = "testAssetByPresentation-withoutSpace";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 2;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -568,7 +568,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var slug = nameof(CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting);
         var assetId = "assetWithoutCanvasPainting";
-        var batchId = TestIdentifiers.BatchId();
+        var batchId = 3;
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
@@ -717,7 +717,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
-         var batchId = TestIdentifiers.BatchId();
+         var batchId = 4;
          
          var manifestWithoutSpace = $$"""
                           {
@@ -866,7 +866,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder);
-         var batchId = TestIdentifiers.BatchId();
+         var batchId = 5;
          
          var manifestWithoutSpace = $$"""
                           {
@@ -1026,7 +1026,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Arrange
          var slug = nameof(CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice);
-         var batchId = TestIdentifiers.BatchId();
+         var batchId = 6;
          
          var manifestWithoutSpace = $$"""
                           {

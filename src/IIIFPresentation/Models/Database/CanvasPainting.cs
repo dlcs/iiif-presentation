@@ -64,7 +64,7 @@ public class CanvasPainting : IIdentifiable
     }
     
     // Note - this is value stored in DB
-    private int internalChoiceOrder = NoChoiceOrderValue;
+    private int internalChoiceOrder; 
     private const int NoChoiceOrderValue = -1;
 
     /// <summary>

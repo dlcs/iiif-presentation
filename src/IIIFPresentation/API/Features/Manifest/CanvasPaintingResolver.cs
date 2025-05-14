@@ -1,5 +1,4 @@
 ﻿using System.Data;
-using System.Diagnostics;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
@@ -32,7 +31,7 @@ public class CanvasPaintingResolver(
     {
         if (presentationManifest.PaintedResources.HasAsset())
         {
-            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, cancellationToken);
+            return await CreateCanvasPaintingsFromAssets(customerId, presentationManifest, null, cancellationToken);
         }
         
         return await InsertCanvasPaintingsFromItems(customerId, presentationManifest, cancellationToken);
@@ -66,16 +65,12 @@ public class CanvasPaintingResolver(
     private async Task<PresUpdateResult?> UpdateCanvasPaintingsFromAssets(int customerId, 
         PresentationManifest presentationManifest, DbManifest existingManifest, CancellationToken cancellationToken)
     {
-        var (updateResult, incomingCanvasPaintings) =
-            GeneratePartialCanvasPaintingsFromAssets(customerId, presentationManifest);
+        var canvasPaintingResult =
+            GeneratePartialCanvasPaintingsFromAssets(customerId, presentationManifest, existingManifest);
 
-        existingManifest.CanvasPaintings ??= [];
-
-        if (updateResult != null) return updateResult;
-
-        Debug.Assert(incomingCanvasPaintings is not null, "incomingCanvasPaintings is not null");
-
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings, incomingCanvasPaintings);
+        if (canvasPaintingResult.updateResult != null) return canvasPaintingResult.updateResult;
+        
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest, canvasPaintingResult.canvasPaintings);
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
@@ -96,8 +91,8 @@ public class CanvasPaintingResolver(
             manifestItemsParser.ParseItemsToCanvasPainting(presentationManifest).ToList();
 
         existingManifest.CanvasPaintings ??= [];
-
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings, incomingCanvasPaintings);
+        
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest, incomingCanvasPaintings);
 
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
@@ -106,48 +101,33 @@ public class CanvasPaintingResolver(
         return null;
     }
 
-    private List<CanvasPainting> UpdateCanvasPaintingRecords(List<CanvasPainting> existingCanvasPaintings, 
+    private List<CanvasPainting> UpdateCanvasPaintingRecords(DbManifest existingManifest, 
         List<CanvasPainting> incomingCanvasPaintings)
     {
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<CanvasPainting>();
-        
         foreach (var incoming in incomingCanvasPaintings)
         {
-            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert);
-        }
-        
-        // Delete canvasPaintings from DB that are not in payload
-        foreach (var toRemove in existingCanvasPaintings
-                     .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
-        {
-            logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
-            existingCanvasPaintings.Remove(toRemove);
-        }
+            CanvasPainting? matching = null;
 
-        return toInsert;
-    }
-
-    private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, CanvasPainting incoming,
-        List<int> processedCanvasPaintingIds, List<CanvasPainting> toInsert)
-    {
-        CanvasPainting? matching = null;
-
-        var candidates = (incoming.Id is { Length: > 0 } incomingId
-                // match by provided canvas id
-                ? existingCanvasPaintings.Where(cp => cp.Id == incomingId)
-                // match by original canvas id (if present, otherwise empty list)
-                : existingCanvasPaintings.Where(cp =>
-                    incoming.CanvasOriginalId != null && cp.CanvasOriginalId == incoming.CanvasOriginalId)
-            ).ToList();
-
-        var canvasLoggingId = !string.IsNullOrEmpty(incoming.Id)
-            ? incoming.Id
-            : incoming.CanvasOriginalId?.ToString() ?? incoming.AssetId?.ToString() ?? "unknown";
-
-        switch (candidates.Count)
-        {
-            case 1:
+            List<CanvasPainting> candidates;
+            
+            if (incoming.AssetId != null)
+            {
+                candidates = existingManifest.CanvasPaintings
+                    .Where(cp => cp.AssetId == incoming.AssetId)
+                    .ToList();
+            }
+            else
+            {
+                candidates = existingManifest.CanvasPaintings
+                    .Where(cp => cp.CanvasOriginalId == incoming.CanvasOriginalId)
+                    .ToList();
+            }
+            
+            var canvasLoggingId = incoming.CanvasOriginalId?.ToString() ?? incoming.Id;
+            
+            if (candidates.Count == 1)
             {
                 // Single item matching - check if we've processed it already. If so this is due to choice
                 var potential = candidates.Single();
@@ -156,37 +136,44 @@ public class CanvasPaintingResolver(
                     logger.LogTrace("Found existing canvas painting for {CanvasLoggingId}", canvasLoggingId);
                     matching = potential;
                 }
-
-                break;
             }
-            case > 1:
+            else if (candidates.Count > 1)
+            {
                 // If there are multiple matching items then Canvas is a choice
                 logger.LogTrace("Found multiple canvas paintings for {CanvasLoggingId}", canvasLoggingId);
                 matching = candidates.SingleOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder);
-                break;
-        }
-
-        if (matching == null)
-        {
-            // If this is a choice and there are other, existing items for the same canvas, then seed canvas_id
-            if (incoming.ChoiceOrder.HasValue && candidates.FirstOrDefault()?.Id is { Length: > 0 } existingId)
-            {
-                incoming.Id = existingId;
             }
 
-            // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
-            logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
-                incoming.ChoiceOrder);
+            if (matching == null)
+            {
+                if (incoming.ChoiceOrder.HasValue)
+                {
+                    // This is a choice. If there are other, existing items for the same canvas then seed canvas_id
+                    incoming.Id = candidates.SingleOrDefault()?.Id;
+                }
 
-            toInsert.Add(incoming);
+                // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
+                logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
+                    incoming.ChoiceOrder);
+                toInsert.Add(incoming);
+            }
+            else
+            {
+                // Found matching DB record, update...
+                logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
+                matching.UpdateFrom(incoming);
+                processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
+            }
         }
-        else
+        // Delete canvasPaintings from DB that are not in payload
+        foreach (var toRemove in existingManifest.CanvasPaintings
+                     .Where(cp => !processedCanvasPaintingIds.Contains(cp.CanvasPaintingId)).ToList())
         {
-            // Found matching DB record, update...
-            logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-            matching.UpdateFrom(incoming);
-            processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
+            logger.LogTrace("Deleting canvasPaintingId {CanvasId}", toRemove.CanvasPaintingId);
+            existingManifest.CanvasPaintings.Remove(toRemove);
         }
+
+        return toInsert;
     }
 
     private async Task<PresUpdateResult?> HandleInserts(List<CanvasPainting> canvasPaintings, int customerId,
@@ -244,7 +231,7 @@ public class CanvasPaintingResolver(
     }
     
     private (PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings) GeneratePartialCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest)
+        int customerId, PresentationManifest presentationManifest, DbManifest? existingManifest)
     {
         var paintedResources = presentationManifest.PaintedResources!;
         
@@ -255,19 +242,20 @@ public class CanvasPaintingResolver(
         {
             if (paintedResource.Asset == null) continue;
             
+            var assetId = GetAssetIdForAsset(paintedResource.Asset, customerId);
             
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            var (canvasIdErrors, specifiedCanvasId) =
-                TryGetValidCanvasId(customerId, paintedResource, canvasPaintings, canvasOrder);
+            var (canvasIdErrors, specifiedCanvasId) = TryGetValidCanvasId(customerId, paintedResource,
+                canvasPaintings, assetId, existingManifest, canvasOrder);
             if (canvasIdErrors != null) return (canvasIdErrors, null);
-
+            
             var cp = new CanvasPainting
             {
                 Label = paintedResource.CanvasPainting?.Label,
                 CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
                 CustomerId = customerId,
                 CanvasOrder = canvasOrder,
-                AssetId = GetAssetIdForAsset(paintedResource.Asset, customerId),
+                AssetId = assetId,
                 ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
                 Ingesting = true,
                 StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
@@ -288,35 +276,32 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
-        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, DbManifest? existingManifest, CancellationToken cancellationToken = default)
     {
-        var (updateResult, canvasPaintings) =
-            GeneratePartialCanvasPaintingsFromAssets(customerId, presentationManifest);
+        var canvasPaintingResult =
+            GeneratePartialCanvasPaintingsFromAssets(customerId, presentationManifest, existingManifest);
 
-        if (updateResult != null)
-            return (updateResult, null);
-
-        Debug.Assert(canvasPaintings is not null, "canvasPaintings is not null");
-        
+        if (canvasPaintingResult.updateResult != null) return (canvasPaintingResult.updateResult, null);
+        var canvasPaintings = canvasPaintingResult.canvasPaintings;
         var insertCanvasPaintingsError =
             await HandleInserts(canvasPaintings, customerId, cancellationToken);
-
-        if (insertCanvasPaintingsError != null)
-            return (insertCanvasPaintingsError, null);
+        if (insertCanvasPaintingsError != null) return (insertCanvasPaintingsError, null);
         
         return (null, canvasPaintings);
     }
 
     private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(
-        int customerId,
-        PaintedResource paintedResource,
-        List<CanvasPainting> canvasPaintings,
+        int customerId, 
+        PaintedResource paintedResource, 
+        List<CanvasPainting> canvasPaintings, 
+        AssetId assetId, 
+        DbManifest? existingManifest, 
         int canvasOrder)
     {
         try
         {
-            paintedResource.CanvasPainting ??= new();
-            var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting);
+            paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
+            var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting, assetId, existingManifest?.CanvasPaintings);
 
             return canvasId != null
                 ? ValidateCanvasId(paintedResource.CanvasPainting, canvasPaintings, canvasOrder, canvasId)
@@ -352,9 +337,17 @@ public class CanvasPaintingResolver(
         return (null, canvasId);
     }
 
-    // PK: Simplified by #340
-    private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting)
-        => canvasPainting.CanvasId != null ? PathParser.GetCanvasId(canvasPainting, customerId) : null;
+    private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting, AssetId assetId,
+        List<CanvasPainting>? existingManifestCanvasPaintings)
+    {
+        if (canvasPainting.CanvasId != null)
+        {
+            return PathParser.GetCanvasId(canvasPainting, customerId);
+        }
+
+        var matchedAssetFromExisting = existingManifestCanvasPaintings?.FirstOrDefault(m => m.AssetId == assetId);
+        return matchedAssetFromExisting?.Id;
+    }
 
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
     {
