@@ -37,7 +37,7 @@ WITH RECURSIVE parentsearch AS (
     type,
     0 AS generation_number
  FROM hierarchy
- WHERE manifest_id = '{manifestId}' AND customer_id = '{customerId}'
+ WHERE manifest_id = '{manifestId}' AND customer_id = {customerId}
  UNION
  SELECT
     child.id,
