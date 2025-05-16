@@ -116,15 +116,14 @@ public static class PathParser
     /// <param name="logger">logger for errors</param>
     public static PathParts ParsePathWithRewrites(TypedPathTemplateOptions settings, string host, string path, int customer, ILogger logger)
     {
-        var templates = settings.GetPathTemplatesForHost(host);
-            
-	    var replacementRegex = new Regex("^{(.+)}$");
-        
         // Always try and parse canonical first
         var canonical = ParseCanonical(path, customer);
         if (canonical != null) return canonical;
         
-	    // Not canonical - try and match to a path...
+        // Not canonical - try and match to a path...
+        var templates = settings.GetPathTemplatesForHost(host);
+        var replacementRegex = new Regex("^{(.+)}$");
+        
 	    // First split the path into it's individual segments
 	    var pathSplit = path.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		    
@@ -134,7 +133,7 @@ public static class PathParser
 		    var templateSplit = template.Value.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             // work out if the template is a FQDN and remove the host if it is
-            if  (templateSplit.First().Contains("http")) templateSplit = templateSplit.Skip(2).ToArray();
+            if (templateSplit.First().Contains("http")) templateSplit = templateSplit.Skip(2).ToArray();
 		    
 		    // Check lengths are same, if not don't compare, or it's possible to be just the host value
 		    if (pathSplit.Length != templateSplit.Length && template.Key != PresentationResourceType.ResourcePublic) continue;
