@@ -1,6 +1,7 @@
 ﻿using API.Infrastructure.Validation;
 using Core.Helpers;
 using Models.API;
+using Models.API.General;
 
 namespace API.Helpers;
 
@@ -15,9 +16,9 @@ public static class PresentationX
     /// <summary>
     /// Whether the parent is in a flat or hierarchical form
     /// </summary>
-    public static bool ParentIsFlatForm(this IPresentation presentation, string baseUrl, int customerId) =>
+    public static bool ParentIsFlatForm(this IPresentation presentation) =>
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent))
-            .StartsWith($"{baseUrl}/{customerId}/{SpecConstants.CollectionsSlug}");
+            .Contains($"/{SpecConstants.CollectionsSlug}/", StringComparison.OrdinalIgnoreCase);
     
     /// <summary>
     /// Check if <see cref="IPresentation"/> objects publicId is customer root

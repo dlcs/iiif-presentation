@@ -39,6 +39,8 @@ public class ParentSlugParserTests
         {
             ApiUri = new Uri("http://localhost")
         });
+        
+        var typedTemplateOptions = Options.Create(new TypedPathTemplateOptions());
 
         var presentationPathGenerator =
             new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
@@ -46,7 +48,7 @@ public class ParentSlugParserTests
 
         var pathGenerator =
             new HttpRequestBasedPathGenerator(options, presentationPathGenerator);
-        parentSlugParser = new ParentSlugParser(presentationContext, pathGenerator, httpContextAccessor, new NullLogger<ParentSlugParser>());
+        parentSlugParser = new ParentSlugParser(presentationContext, typedTemplateOptions, httpContextAccessor, new NullLogger<ParentSlugParser>());
     }
 
     [Fact]
@@ -314,8 +316,10 @@ public class ParentSlugParserTests
         }, Customer, null);
 
         // Assert
-        parentSlugParserResult.IsError.Should().BeTrue();
-        parentSlugParserResult.Errors.Error.Should().Be("The parent collection could not be found");
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.Errors.Should().BeNull();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().Be(slug);
+        parentSlugParserResult.ParsedParentSlug.Parent.Id.Should().Be("root");
     }
     
     [Fact]

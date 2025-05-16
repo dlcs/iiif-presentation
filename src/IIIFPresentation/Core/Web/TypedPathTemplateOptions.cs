@@ -26,6 +26,14 @@ public class TypedPathTemplateOptions
     public Dictionary<string, Dictionary<string, string>> Overrides { get; set; } = new();
 
     /// <summary>
+    /// Get all templates for host. 
+    /// </summary>
+    public Dictionary<string, string> GetPathTemplatesForHost(string host) => DefaultFormats
+        .Select(format => (format.Key, GetPathTemplateForHostAndType(host, format.Key)))
+        .ToDictionary(format => format.Key, format => format.Item2);
+   
+
+    /// <summary>
     /// Get template path for host. 
     /// </summary>
     /// <param name="host">Host to get template path for.</param>
@@ -49,5 +57,12 @@ public class TypedPathTemplateOptions
         }
 
         throw new KeyNotFoundException($"Could not find default path template for type: {type}");
+    }
+    
+    public static class SupportedTemplateOptions
+    {
+        public static string HierarchyPath => "hierarchyPath";
+        public static string ResourceId => "resourceId";
+        public static string CustomerId => "customerId";
     }
 }
