@@ -23,7 +23,7 @@ public class PresentationContextFixture : IAsyncLifetime
     public const int CustomerId = 1;
     
     /// <summary>
-    /// Identity of sedond default seeded customer
+    /// Identity of second default seeded customer
     /// </summary>
     public const int SecondCustomerId = 10;
     
