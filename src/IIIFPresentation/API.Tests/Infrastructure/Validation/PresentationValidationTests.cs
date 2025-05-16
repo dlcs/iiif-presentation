@@ -1,16 +1,12 @@
 ﻿using API.Infrastructure.Validation;
-using API.Tests.Helpers;
 using Models.API;
 using Models.Database.Collections;
 using Models.Database.General;
-using Repository.Paths;
 
 namespace API.Tests.Infrastructure.Validation;
 
 public class PresentationValidationTests
 {
-    private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("api.tests", Uri.UriSchemeHttps);
-    private const string BaseUri = "https://api.tests";
     private const int Customer = 1;
     
     [Fact]
@@ -21,7 +17,7 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "parent", CustomerId = Customer };
         
         // Assert
-        presentation.IsParentInvalid(parent, BaseUri, Customer, pathGenerator).Should().BeFalse();
+        presentation.IsParentInvalid(parent, Customer).Should().BeFalse();
     }
     
     [Fact]
@@ -32,7 +28,7 @@ public class PresentationValidationTests
         var parent = new Collection { Id = "parent", CustomerId = Customer };
         
         // Assert
-        presentation.IsParentInvalid(parent, BaseUri, Customer, pathGenerator).Should().BeTrue();
+        presentation.IsParentInvalid(parent, Customer).Should().BeTrue();
     }
     
     [Fact]
@@ -47,7 +43,7 @@ public class PresentationValidationTests
         };
         
         // Assert
-        presentation.IsParentInvalid(parent, BaseUri, Customer, pathGenerator).Should().BeFalse();
+        presentation.IsParentInvalid(parent, Customer).Should().BeFalse();
     }
     
     [Fact]
@@ -62,7 +58,7 @@ public class PresentationValidationTests
         };
         
         // Assert
-        presentation.IsParentInvalid(parent, BaseUri, Customer, pathGenerator).Should().BeTrue();
+        presentation.IsParentInvalid(parent, Customer).Should().BeTrue();
     }
     
     [Fact]
@@ -77,7 +73,7 @@ public class PresentationValidationTests
         };
         
         // Assert
-        presentation.IsParentInvalid(parent, BaseUri, Customer, pathGenerator).Should().BeFalse();
+        presentation.IsParentInvalid(parent, Customer).Should().BeFalse();
     }
 }
 

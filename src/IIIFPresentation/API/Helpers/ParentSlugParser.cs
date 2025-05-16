@@ -4,7 +4,9 @@ using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using API.Infrastructure.Validation;
 using Core.Helpers;
+using Core.Web;
 using IIIF;
+using Microsoft.Extensions.Options;
 using Models;
 using Models.API;
 using Models.API.Collection;
@@ -29,8 +31,11 @@ public interface IParentSlugParser
         where T : JsonLdBase, IPresentation;
 }
 
-public class ParentSlugParser(PresentationContext dbContext, IPathGenerator pathGenerator, IHttpContextAccessor contextAccessor, ILogger<ParentSlugParser> logger) : IParentSlugParser
+public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathTemplateOptions> options, 
+    IHttpContextAccessor contextAccessor, ILogger<ParentSlugParser> logger) : IParentSlugParser
 {
+    private readonly TypedPathTemplateOptions settings = options.Value;
+    
     public async Task<ParsedParentSlugResult<T>> Parse<T>(T presentation,
         int customerId, string? id, CancellationToken cancellationToken = default)
         where T : JsonLdBase, IPresentation
@@ -102,12 +107,6 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         var parentValidationError = ParentValidator.ValidateParentCollection<T>(parent);
         if (parentValidationError != null) return (parentValidationError, null);
 
-        if (presentation.IsParentInvalid(parent, contextAccessor.HttpContext!.Request.GetBaseUrl(), customerId,
-                pathGenerator))
-        {
-            return (ErrorHelper.NullParentResponse<T>(), null);
-        }
-
         return (null, parent);
     }
 
@@ -126,7 +125,7 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         // We have Parent property - find Collection for that 
         var parent = await RetrieveParentFromPresentation(presentation, customerId, cancellationToken);
 
-        // Validate that if we have publicId AND parent they are for same thing 
+        // Validate that if we have publicId AND parent they are for the same thing 
         if (publicIdParent != null && parent != null && publicIdParent.Id != parent.Id)
         {
             logger.LogDebug("PublicId parent '{PublicIdParent}' and explicit parent {Parent} do not match",
@@ -144,15 +143,14 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
         // Lookup the parent Collection, handling Api and Public paths
         var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
 
-        // Ensure we're actually ingesting path that's managed by this instance
-        if (HostsMatch(publicIdParentUri) is not true)
-            return null; // because we cannot use hierarchical parent inferred from foreign URI
-
         try
         {
-            var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(publicIdParentUri.AbsolutePath, customerId);
+            var parentPath = PathParser.ParsePathWithRewrites(settings, publicIdParentUri.Host, publicIdParentUri.AbsolutePath,
+                customerId, logger);
+            
+            if (parentPath.Resource == null) return null;
             var publicIdParentHierarchy =
-                await dbContext.RetrieveHierarchy(customerId, parentFullPath, cancellationToken);
+                await dbContext.RetrieveHierarchy(customerId, parentPath.Resource, cancellationToken);
             var publicIdParent = publicIdParentHierarchy?.Collection;
             return publicIdParent;
         }
@@ -162,41 +160,29 @@ public class ParentSlugParser(PresentationContext dbContext, IPathGenerator path
             return null;
         }
     }
-
-    private bool HostsMatch(Uri uri) =>
-        string.Equals(contextAccessor.HttpContext!.Request.Host.Host,
-            uri.Host, StringComparison.OrdinalIgnoreCase);
-
+    
     private async Task<Collection?> RetrieveParentFromPresentation(IPresentation presentation, int customerId,
         CancellationToken cancellationToken)
     {
-        var baseUrl = GetBaseUrl();
-        if (presentation.ParentIsFlatForm(baseUrl, customerId))
+        if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true) return null;
+        var parentPath = PathParser.ParsePathWithRewrites(settings, parentUri.Host, parentUri.AbsolutePath,
+            customerId, logger);
+
+        if (parentPath.Resource == null) return null;
+
+        if (parentPath.Canonical)
         {
-            return await dbContext.RetrieveCollectionAsync(customerId,
-                presentation.GetParentSlug(), cancellationToken: cancellationToken);
+            return await dbContext.RetrieveCollectionAsync(customerId, parentPath.Resource,
+                cancellationToken: cancellationToken);
         }
-
-        if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true
-            || HostsMatch(parentUri) is not true)
-            return null; // null/weird/foreign parent, cannot use
-        try
-        {
-            var parentFullPath = PathParser.GetHierarchicalFullPathFromPath(parentUri.AbsolutePath, customerId);
-
-            var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentFullPath,
-                cancellationToken);
-            var parent = parentHierarchy?.Collection;
-
-            if (parent != null) parent.Hierarchy.GetCanonical().FullPath = parentFullPath;
-
-            return parent;
-        }
-        catch (FormatException fe)
-        {
-            logger.LogDebug(fe, "Failed to parse parent from presentation");
-            return null;
-        }
+        
+        var parentHierarchy = await dbContext.RetrieveHierarchy(customerId, parentPath.Resource,
+            cancellationToken);
+        var parent = parentHierarchy?.Collection;
+        
+        if (parent != null) parent.Hierarchy.GetCanonical().FullPath = parentPath.Resource;
+        
+        return parent;
     }
 
     private string GetBaseUrl() => contextAccessor.HttpContext!.Request.GetBaseUrl();

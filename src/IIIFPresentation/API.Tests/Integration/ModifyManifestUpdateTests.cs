@@ -248,12 +248,14 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task PutFlatId_Update_BadRequest_WhenParentIsInvalidHierarchicalUri()
+    public async Task PutFlatId_Update_Ok_WhenParentIsDifferentHost()
     {
         // Arrange
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();
-        var manifest = dbManifest.ToPresentationManifest(parent: "http://different.host/root");
+        var manifest =
+            dbManifest.ToPresentationManifest(
+                parent: $"http://different.host/{dbManifest.CustomerId}/collections/root");
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
@@ -262,12 +264,12 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error!.Detail.Should().Be("The parent collection could not be found");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
     }
 
     [Fact]
