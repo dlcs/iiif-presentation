@@ -1,15 +1,14 @@
 ﻿using Core.Helpers;
 using Core.IIIF;
 using Core.Infrastructure;
-using DLCS.Models;
 using IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;

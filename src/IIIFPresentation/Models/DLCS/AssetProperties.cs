@@ -1,4 +1,4 @@
-﻿namespace DLCS.Models;
+﻿namespace Models.DLCS;
 
 /// <summary>
 /// Asset is generally a pass-through object and isn't strongly typed. However, we do access some properties of it so

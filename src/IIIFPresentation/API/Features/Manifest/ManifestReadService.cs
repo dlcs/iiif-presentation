@@ -8,6 +8,7 @@ using DLCS.Models;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;

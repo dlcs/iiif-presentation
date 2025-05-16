@@ -38,7 +38,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
             .WithMessage("'canvasOrder' is required on all resources when used in at least one");
         
-        // Error
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)

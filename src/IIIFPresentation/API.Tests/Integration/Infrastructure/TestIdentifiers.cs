@@ -10,6 +10,11 @@ namespace API.Tests.Integration.Infrastructure;
 public static class TestIdentifiers
 {
     /// <summary>
+    /// Helper method that returns single id
+    /// </summary>
+    public static string Id([CallerMemberName] string testMethod = "") => testMethod;
+    
+    /// <summary>
     /// Helper method that returns slug and id
     /// </summary>
     public static (string slug, string id) SlugResource([CallerMemberName] string testMethod = "")

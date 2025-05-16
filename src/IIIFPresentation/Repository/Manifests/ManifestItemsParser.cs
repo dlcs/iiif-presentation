@@ -4,7 +4,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
-using Models.Database;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Repository.Manifests;
 

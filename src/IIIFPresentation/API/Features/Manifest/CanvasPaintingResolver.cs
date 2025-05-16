@@ -3,6 +3,7 @@ using System.Diagnostics;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using Core.Exceptions;
 using Core.Helpers;
 using DLCS.Models;
 using Models.API.Manifest;
@@ -21,6 +22,7 @@ namespace API.Features.Manifest;
 public class CanvasPaintingResolver(
     IdentityManager identityManager,
     ManifestItemsParser manifestItemsParser,
+    ManifestPaintedResourceParser manifestPaintedResourceParser,
     ILogger<CanvasPaintingResolver> logger)
 {
     /// <summary>
@@ -246,45 +248,17 @@ public class CanvasPaintingResolver(
     private (PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings) GeneratePartialCanvasPaintingsFromAssets(
         int customerId, PresentationManifest presentationManifest)
     {
-        var paintedResources = presentationManifest.PaintedResources!;
-        
-        var canvasPaintings = new List<CanvasPainting>();
-        var count = 0;
-        
-        foreach (var paintedResource in paintedResources)
+        try
         {
-            if (paintedResource.Asset == null) continue;
-            
-            
-            var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            var (canvasIdErrors, specifiedCanvasId) =
-                TryGetValidCanvasId(customerId, paintedResource, canvasPaintings, canvasOrder);
-            if (canvasIdErrors != null) return (canvasIdErrors, null);
-
-            var cp = new CanvasPainting
-            {
-                Label = paintedResource.CanvasPainting?.Label,
-                CanvasLabel = paintedResource.CanvasPainting?.CanvasLabel,
-                CustomerId = customerId,
-                CanvasOrder = canvasOrder,
-                AssetId = GetAssetIdForAsset(paintedResource.Asset, customerId),
-                ChoiceOrder = paintedResource.CanvasPainting?.ChoiceOrder ?? -1,
-                Ingesting = true,
-                StaticWidth = paintedResource.CanvasPainting?.StaticWidth,
-                StaticHeight = paintedResource.CanvasPainting?.StaticHeight,
-                Duration = paintedResource.CanvasPainting?.Duration
-            };
-            
-            if (specifiedCanvasId != null)
-            {
-                cp.Id = specifiedCanvasId;
-            }
-            
-            count++;
-            canvasPaintings.Add(cp);
+            var res = manifestPaintedResourceParser.ParseItemsToCanvasPainting(presentationManifest, customerId)
+                .ToList();
+            return (null, res);
         }
-        
-        return (null, canvasPaintings);
+        catch (InvalidCanvasIdException cpId)
+        {
+            logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
+            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId), null);
+        }
     }
     
     private async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> CreateCanvasPaintingsFromAssets(
@@ -305,62 +279,5 @@ public class CanvasPaintingResolver(
             return (insertCanvasPaintingsError, null);
         
         return (null, canvasPaintings);
-    }
-
-    private (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) TryGetValidCanvasId(
-        int customerId,
-        PaintedResource paintedResource,
-        List<CanvasPainting> canvasPaintings,
-        int canvasOrder)
-    {
-        try
-        {
-            paintedResource.CanvasPainting ??= new();
-            var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting);
-
-            return canvasId != null
-                ? ValidateCanvasId(paintedResource.CanvasPainting, canvasPaintings, canvasOrder, canvasId)
-                : (null, canvasId);
-        }
-        catch (ArgumentException ex)
-        {
-            logger.LogError(ex, "Unable to parse canvas ID for {CustomerId}", customerId);
-            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(paintedResource.CanvasPainting.CanvasId), null);
-        }
-    }
-
-    private static (PresUpdateResult? canvasIdErrors, string? specifiedCanvasId) ValidateCanvasId(
-        Models.API.Manifest.CanvasPainting canvasPainting, List<CanvasPainting> canvasPaintings, int canvasOrder,
-        string canvasId)
-    {
-        if (canvasPaintings.Where(c => c.CanvasOrder != canvasOrder).Any(c => c.Id == canvasId))
-        {
-            return (ErrorHelper.DuplicateCanvasId<PresentationManifest>(canvasId), null);
-        }
-
-        if (canvasPaintings.Where(c => c.CanvasOrder == canvasOrder).Any(c => c.Id != canvasId))
-        {
-            // this means that the canvas id has not been set, but there's a matching canvas painting record
-            if (canvasPainting.CanvasId == null)
-            {
-                return (null, canvasPaintings.First(c => c.CanvasOrder == canvasOrder).Id);
-            }
-
-            return (ErrorHelper.CanvasOrderDifferentCanvasId<PresentationManifest>(canvasPainting.CanvasId), null);
-        }
-
-        return (null, canvasId);
-    }
-
-    // PK: Simplified by #340
-    private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting)
-        => canvasPainting.CanvasId != null ? PathParser.GetCanvasId(canvasPainting, customerId) : null;
-
-    private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
-    {
-        // Read props from Asset - these must be there. If not, throw an exception
-        var space = asset.GetRequiredValue(AssetProperties.Space);
-        var id = asset.GetRequiredValue(AssetProperties.Id);
-        return AssetId.FromString($"{customerId}/{space}/{id}");
     }
 }
