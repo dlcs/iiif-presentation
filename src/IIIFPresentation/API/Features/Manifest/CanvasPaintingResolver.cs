@@ -65,10 +65,6 @@ public class CanvasPaintingResolver(
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return insertCanvasPaintingsError;
         existingManifest.CanvasPaintings.AddRange(toInsert);
-        
-        // TODO - this should only happen when updating via "items". For "assets" it's updated in bkg handler, prior
-        // to refactor this was always happening for "assets", not for "items". Also - move to ManifestSvc
-        existingManifest.LastProcessed = DateTime.UtcNow;
         return null;
     }
     
