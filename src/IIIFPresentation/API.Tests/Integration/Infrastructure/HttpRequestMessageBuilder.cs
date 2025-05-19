@@ -24,4 +24,9 @@ public static class HttpRequestMessageBuilder
     {
         requestMessage.Headers.Add("Host", "example.com");
     }
+    
+    public static void AddHostNoCustomerHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Host", "no-customer.com");
+    }
 }
