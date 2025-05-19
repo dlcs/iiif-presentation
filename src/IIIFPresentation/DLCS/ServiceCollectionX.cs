@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using DLCS.API;
 using DLCS.Handlers;
@@ -22,7 +24,10 @@ public static class ServiceCollectionX
             {
                 client.BaseAddress = dlcsSettings.ApiUri;
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.ApiDefaultTimeoutMs);
-            }).AddHttpMessageHandler<AmbientAuthHandler>()
+                client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DlcsApiClient",
+                    Assembly.GetExecutingAssembly().GetName().Version?.ToString()));
+            })
+            .AddHttpMessageHandler<AmbientAuthHandler>()
             .AddHttpMessageHandler<TimingHandler>();
         
         return services;
