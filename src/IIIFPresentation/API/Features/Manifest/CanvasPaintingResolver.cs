@@ -33,9 +33,11 @@ public class CanvasPaintingResolver(
     }
 
     /// <summary>
-    /// Generate new CanvasPainting objects for items in provided <see cref="PresentationManifest"/>
+    /// Generate and set <see cref="CanvasPainting"/> objects for items in provided <see cref="PresentationManifest"/>.
+    /// Provided <see cref="PresentationManifest"/> is update to reflect required changes (ie canvasPaintings are
+    /// created/updated/deleted accordingly) 
     /// </summary>
-    /// <returns>A presentation update result</returns>
+    /// <returns>Error, if processing fails</returns>
     public async Task<PresUpdateResult?> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
@@ -93,40 +95,8 @@ public class CanvasPaintingResolver(
     private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, CanvasPainting incoming,
         List<int> processedCanvasPaintingIds, List<CanvasPainting> toInsert)
     {
-        CanvasPainting? matching = null;
-
-        var candidates = (incoming.Id is { Length: > 0 } incomingId
-                // match by provided canvas id
-                ? existingCanvasPaintings.Where(cp => cp.Id == incomingId)
-                // match by original canvas id (if present, otherwise empty list)
-                : existingCanvasPaintings.Where(cp =>
-                    incoming.CanvasOriginalId != null && cp.CanvasOriginalId == incoming.CanvasOriginalId)
-            ).ToList();
-
-        var canvasLoggingId = !string.IsNullOrEmpty(incoming.Id)
-            ? incoming.Id
-            : incoming.CanvasOriginalId?.ToString() ?? incoming.AssetId?.ToString() ?? "unknown";
-
-        switch (candidates.Count)
-        {
-            case 1:
-            {
-                // Single item matching - check if we've processed it already. If so this is due to choice
-                var potential = candidates.Single();
-                if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
-                {
-                    logger.LogTrace("Found existing canvas painting for {CanvasLoggingId}", canvasLoggingId);
-                    matching = potential;
-                }
-
-                break;
-            }
-            case > 1:
-                // If there are multiple matching items then Canvas is a choice
-                logger.LogTrace("Found multiple canvas paintings for {CanvasLoggingId}", canvasLoggingId);
-                matching = candidates.SingleOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder);
-                break;
-        }
+        var candidates = GetCandidates(existingCanvasPaintings, incoming);
+        var matching = TryFindMatching(incoming, processedCanvasPaintingIds, candidates);
 
         if (matching == null)
         {
@@ -149,6 +119,63 @@ public class CanvasPaintingResolver(
             matching.UpdateFrom(incoming);
             processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
         }
+    }
+    
+    private static List<CanvasPainting> GetCandidates(List<CanvasPainting> existingCanvasPaintings, CanvasPainting incoming)
+    {
+        if (incoming.Id is { Length: > 0 } incomingId)
+        {
+            // match by provided canvas id if provided
+            return existingCanvasPaintings.Where(cp => cp.Id == incomingId).ToList();
+        }
+
+        // else match by original canvas id (if present, otherwise empty list)
+        return existingCanvasPaintings.Where(cp =>
+                incoming.CanvasOriginalId != null && cp.CanvasOriginalId == incoming.CanvasOriginalId)
+            .ToList();
+    }
+
+    private CanvasPainting? TryFindMatching(CanvasPainting incoming, List<int> processedCanvasPaintingIds,
+        List<CanvasPainting> candidates)
+    {
+        var canvasLoggingId = GetCanvasLoggingId(incoming);
+        CanvasPainting? matching = null;
+
+        switch (candidates.Count)
+        {
+            case 1:
+            {
+                // Single item matching - check if we've processed it already.
+                // If so this is due to choice OR multiple items on canvas
+                var potential = candidates.Single();
+                if (!processedCanvasPaintingIds.Contains(potential.CanvasPaintingId))
+                {
+                    logger.LogTrace("Found existing canvas painting for {CanvasLoggingId}", canvasLoggingId);
+                    matching = potential;
+                }
+
+                break;
+            }
+            case > 1:
+                // If there are multiple matching items then Canvas is a choice OR multi item canvas
+                // If incoming has a choice, attempt to match existing candidate that has that choice order.
+                // If incoming doesn't have a choice - then try to match on canvasOrder
+                // TODO is it safe to assume we have a usable CanvasOrder? do we need to defend against not having it, or it coming from "items" automatically?
+                logger.LogTrace("Found multiple canvas paintings for {CanvasLoggingId}", canvasLoggingId);
+                matching = incoming.ChoiceOrder.HasValue
+                    ? candidates.FirstOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder)
+                    : candidates.FirstOrDefault(c => c.CanvasOrder == incoming.CanvasOrder);
+                break;
+        }
+
+        return matching;
+    }
+
+    private static string GetCanvasLoggingId(CanvasPainting incoming)
+    {
+        return !string.IsNullOrEmpty(incoming.Id)
+            ? incoming.Id
+            : incoming.CanvasOriginalId?.ToString() ?? incoming.AssetId?.ToString() ?? "unknown";
     }
 
     private async Task<PresUpdateResult?> HandleInserts(List<CanvasPainting> canvasPaintings, int customerId,
@@ -177,7 +204,7 @@ public class CanvasPaintingResolver(
                 continue;
             }
 
-            // If item has an Id, it's an update for a Choice so use the existing canvas_id. Else grab a new one
+            // If item has an id, it's an update for a Choice so use the existing canvas_id. Else grab a new one
             var canvasId = string.IsNullOrEmpty(cp.Id) ? canvasPaintingIds.Pop() : cp.Id;
             canvasIds[cp.CanvasOrder] = canvasId;
             cp.Id = canvasId;

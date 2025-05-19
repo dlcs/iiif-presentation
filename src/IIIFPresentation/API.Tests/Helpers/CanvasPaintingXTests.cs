@@ -22,16 +22,15 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvases_Correct_IfSingleNullCanvas()
     {
-        List<CanvasPainting> canvasPaintings = [
-            new()
-        ];
+        List<CanvasPainting> canvasPaintings = [new()];
         canvasPaintings.GetRequiredNumberOfCanvases().Should().Be(1);
     }
     
     [Fact]
     public void GetRequiredNumberOfCanvases_Correct_IfMultipleNullCanvas()
     {
-        List<CanvasPainting> canvasPaintings = [
+        List<CanvasPainting> canvasPaintings =
+        [
             new() { CanvasOrder = 1 },
             new() { CanvasOrder = 2 },
         ];
@@ -41,8 +40,9 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvases_Correct_IfAllHaveCanvasOrderWithMultipleSameCanvas()
     {
-        List<CanvasPainting> canvasPaintings = [
-            new() { CanvasOrder = 1},
+        List<CanvasPainting> canvasPaintings =
+        [
+            new() { CanvasOrder = 1 },
             new() { CanvasOrder = 1 },
             new() { CanvasOrder = 2 },
         ];
@@ -52,12 +52,29 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvases_Correct_IfAllMixedCanvasOrderAndNot()
     {
-        List<CanvasPainting> canvasPaintings = [
-            new() { CanvasOrder = 1},
+        List<CanvasPainting> canvasPaintings =
+        [
+            new() { CanvasOrder = 1 },
             new(),
-            new(){ CanvasOrder = 2 },
+            new() { CanvasOrder = 2 },
             new(),
-            new(){ CanvasOrder = 1 },
+            new() { CanvasOrder = 1 },
+        ];
+        canvasPaintings.GetRequiredNumberOfCanvases().Should().Be(3);
+    }
+    
+    [Fact]
+    public void GetRequiredNumberOfCanvases_Correct_IgnoresItemsWithId()
+    {
+        List<CanvasPainting> canvasPaintings =
+        [
+            new() { CanvasOrder = 1 },
+            new(),
+            new() { CanvasOrder = 2 },
+            new(),
+            new() { CanvasOrder = 1 },
+            new() { Id = "one" },
+            new() { Id = "one", CanvasOrder = 1 },
         ];
         canvasPaintings.GetRequiredNumberOfCanvases().Should().Be(3);
     }
