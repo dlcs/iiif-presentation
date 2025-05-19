@@ -125,18 +125,21 @@ public static class PathParser
         var replacementRegex = new Regex("^{(.+)}$");
         
 	    // First split the path into it's individual segments
-	    var pathSplit = path.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var pathSplit = path.Split(PathSeparator,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		    
 	    foreach (var template in templates)
 	    {
 		    // Split template into chunks
-		    var templateSplit = template.Value.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var templateSplit = template.Value.Split(PathSeparator,
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             // work out if the template is a FQDN and remove the host if it is
             if (templateSplit.First().Contains("http")) templateSplit = templateSplit.Skip(2).ToArray();
 		    
 		    // Check lengths are same, if not don't compare, or it's possible to be just the host value
-		    if (pathSplit.Length != templateSplit.Length && template.Key != PresentationResourceType.ResourcePublic) continue;
+            if (pathSplit.Length != templateSplit.Length &&
+                template.Key != PresentationResourceType.ResourcePublic) continue;
 
             try
             {
@@ -144,7 +147,8 @@ public static class PathParser
                     MatchValuesInTemplate(pathSplit, templateSplit, replacementRegex, customer);
                 if (resourceId != null)
                 {
-                    return new PathParts(customerId, resourceId, template.Key != PresentationResourceType.ResourcePublic);
+                    return new PathParts(customerId, resourceId,
+                        template.Key != PresentationResourceType.ResourcePublic);
                 }
             }
             catch (Exception e)
@@ -156,7 +160,8 @@ public static class PathParser
 	    return new PathParts(null, null, false);
     }
 
-    private static (int customerId, string? resourceId) MatchValuesInTemplate(string[] pathSplit, string[] templateSplit, Regex replacementRegex, int customer)
+    private static (int customerId, string? resourceId) MatchValuesInTemplate(string[] pathSplit, string[] templateSplit, 
+        Regex replacementRegex, int customer)
     {
         int? customerIdFromPath = null;
         string? resourceId = null;
