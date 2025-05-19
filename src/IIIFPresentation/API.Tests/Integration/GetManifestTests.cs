@@ -169,53 +169,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_RootFlat_ReturnsCorrectRedirect_WhenSecondCustomer()
     {
         // Arrange
-        await dbContext.Collections.AddAsync(new Models.Database.Collections.Collection()
-        {
-            Id = RootCollection.Id,
-            UsePath = true,
-            Label = new LanguageMap
-            {
-                { "en", ["repository root"] }
-            },
-            Thumbnail = "some/location",
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
-            CustomerId = 10,
-            Hierarchy =
-            [
-                new Hierarchy
-                {
-                    Slug = "",
-                    Type = ResourceType.StorageCollection,
-                    Canonical = true
-                }
-            ]
-        });
-        
-        await dbContext.Manifests.AddAsync(new Models.Database.Collections.Manifest()
-        {
-            Id = "FirstChildManifest",
-            CustomerId = 10,
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Hierarchy =
-            [
-                new Hierarchy
-                {
-                    Slug = "iiif-manifest",
-                    Parent = RootCollection.Id,
-                    Type = ResourceType.IIIFManifest,
-                    Canonical = true
-                }
-            ],
-            LastProcessed = DateTime.UtcNow
-        });
-        
+        await dbContext.Manifests.AddTestManifest(customer: 10, slug: "iiif-manifest", id: "FirstChildManifest");
         await dbContext.SaveChangesAsync();
         
         // Act
