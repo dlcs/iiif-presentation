@@ -4,6 +4,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
+using Models.API.Manifest;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Repository.Manifests;
@@ -11,9 +12,9 @@ namespace Repository.Manifests;
 /// <summary>
 /// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
-public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
+public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
-    public IEnumerable<CanvasPainting> ParseItemsToCanvasPainting(Manifest manifest)
+    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 

@@ -1,10 +1,11 @@
-﻿using IIIF.Presentation.V3;
+﻿using Core.IIIF;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
-using IIIF.Serialisation;
 using Microsoft.Extensions.Logging.Abstractions;
-using Models.Database;
+using Models.API.Manifest;
 using Repository.Manifests;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Repository.Tests.Manifests;
 
@@ -14,31 +15,31 @@ public class ManifestItemsParserTests
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseItemsToCanvasPainting(new Manifest()).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), 123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseItemsToCanvasPainting(new Manifest { Items = [] }).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, 123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfCanvasHasNoAnnotationPages()
-        => sut.ParseItemsToCanvasPainting(new Manifest { Items = [new Canvas { Items = [] }] }).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, 123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfAnnotationPagesHaveNoAnnotations()
-        => sut.ParseItemsToCanvasPainting(new Manifest { Items = [new Canvas { Items = [new AnnotationPage()] }] })
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, 123)
             .Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfAnnotationPagesHaveOnlyNonPaintingAnnotation()
-        => sut.ParseItemsToCanvasPainting(new Manifest
+        => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
-            })
+            }, 123)
             .Should().BeEmpty();
 
     [Fact]
-    public void Parse_Throws_CanvasIdInvalidUri()
+    public async Task Parse_Throws_CanvasIdInvalidUri()
     {
         // Arrange
         var manifest = @"
@@ -77,17 +78,17 @@ public class ManifestItemsParserTests
     ]
 }";
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        Action action = () => sut.ParseItemsToCanvasPainting(deserialised);
+        Action action = () => sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         action.Should().Throw<UriFormatException>();
     }
     
     [Fact]
-    public void Parse_Throws_MissingBody()
+    public async Task Parse_Throws_MissingBody()
     {
         // Arrange
         var manifest = @"
@@ -119,10 +120,10 @@ public class ManifestItemsParserTests
     ]
 }";
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        Action action = () => sut.ParseItemsToCanvasPainting(deserialised);
+        Action action = () => sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         action.Should().Throw<InvalidOperationException>()
@@ -130,7 +131,7 @@ public class ManifestItemsParserTests
     }
     
     [Fact]
-    public void Parse_SingleImage()
+    public async Task Parse_SingleImage()
     {
         // https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json
         // Arrange
@@ -182,17 +183,17 @@ public class ManifestItemsParserTests
             }
         };
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleImage_WithThumbnail()
+    public async Task Parse_SingleImage_WithThumbnail()
     {
         // https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json (with added thumbnail)
         // Arrange
@@ -284,17 +285,17 @@ public class ManifestItemsParserTests
             }
         };
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleSound()
+    public async Task Parse_SingleSound()
     {
         // https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json
         // Arrange
@@ -349,17 +350,17 @@ public class ManifestItemsParserTests
             }
         };
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleVideo()
+    public async Task Parse_SingleVideo()
     {
         // https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json
         // Arrange
@@ -419,17 +420,17 @@ public class ManifestItemsParserTests
             }
         };
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleCanvas_WithChoices()
+    public async Task Parse_SingleCanvas_WithChoices()
     {
         // https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json (with some small changes)
         // Arrange
@@ -534,17 +535,17 @@ public class ManifestItemsParserTests
             }
         };
         
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
-    public void Parse_MultiImageComposition()
+    public async Task Parse_MultiImageComposition()
     {
         // https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json
         // Arrange
@@ -651,17 +652,17 @@ public class ManifestItemsParserTests
             }
         };
 
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SpatialRegion()
+    public async Task Parse_SpatialRegion()
     {
         // https://iiif.io/api/cookbook/recipe/0299-region/
         // Arrange
@@ -734,17 +735,17 @@ public class ManifestItemsParserTests
             },
         };
 
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_MultiImageCompositionAndChoice()
+    public async Task Parse_MultiImageCompositionAndChoice()
     {
         // Based on https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json
         // and https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json
@@ -922,10 +923,10 @@ public class ManifestItemsParserTests
             }
         };
 
-        var deserialised = manifest.FromJson<Manifest>();
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseItemsToCanvasPainting(deserialised);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);

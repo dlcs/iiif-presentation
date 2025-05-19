@@ -8,11 +8,11 @@ using CanvasPainting = Models.Database.CanvasPainting;
 namespace Repository.Manifests;
 
 /// <summary>
-/// Contains lgic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
+/// Contains logic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
 /// </summary>
-public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger)
+public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
-    public IEnumerable<CanvasPainting> ParseItemsToCanvasPainting(PresentationManifest presentationManifest, int customerId)
+    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
         
