@@ -18,17 +18,20 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger)
         
         var paintedResources = presentationManifest.PaintedResources;
         var canvasPaintings = new List<CanvasPainting>();
-        var count = 0;
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
-        
+
+        var count = 0;
         foreach (var paintedResource in paintedResources)
         {
-            // TODO - should this throw?
-            if (paintedResource.Asset == null) continue;
+            if (paintedResource.Asset == null)
+            {
+                logger.LogInformation("Manifest {ManifestId}:{Customer}, index {Index} ignored as no asset",
+                    presentationManifest.Id, customerId, count);
+                continue;
+            }
             
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            
             var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder);
 
             count++;
@@ -52,10 +55,16 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger)
             CanvasOrder = canvasOrder,
             AssetId = assetId,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
-            Ingesting = true,
+            Ingesting = true, // TODO - this needs to conditionally be set once #351 implemented
             StaticWidth = payloadCanvasPainting?.StaticWidth,
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,
+            Target = payloadCanvasPainting?.Target,
+            Thumbnail = payloadCanvasPainting?.Thumbnail == null
+                ? null
+                : Uri.TryCreate(payloadCanvasPainting.Thumbnail, UriKind.Absolute, out var thumbnail)
+                    ? thumbnail
+                    : null
         };
 
         if (specifiedCanvasId != null)
