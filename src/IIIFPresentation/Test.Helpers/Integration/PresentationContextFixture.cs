@@ -38,6 +38,7 @@ public class PresentationContextFixture : IAsyncLifetime
     private async Task SeedCustomer()
     {
         /* This will create
+         * customer 1:
          * - root/
          *   - FirstChildCollection/
          *     - SecondChildCollection/
@@ -46,6 +47,8 @@ public class PresentationContextFixture : IAsyncLifetime
          *   - IiifCollectionWithItems/
          *   - FirstChildManifest/
          *   - FirstChildManifestProcessing/
+         *  customer 10:
+         *  - root/
          */
         
         // Root collection
@@ -257,6 +260,33 @@ public class PresentationContextFixture : IAsyncLifetime
                     Slug = "iiif-manifest-processing",
                     Parent = RootCollection.Id,
                     Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ]
+        });
+        
+        await DbContext.Collections.AddAsync(new Collection()
+        {
+            Id = RootCollection.Id,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", ["repository root"] }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = 10,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "",
+                    Type = ResourceType.StorageCollection,
                     Canonical = true
                 }
             ]
