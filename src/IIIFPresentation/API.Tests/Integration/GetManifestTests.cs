@@ -164,6 +164,67 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.Headers.Location.Should().NotBeNull();
         response.Headers.Location!.AbsolutePath.Should().Be("/1/iiif-manifest");
     }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsCorrectRedirect_WhenSecondCustomer()
+    {
+        // Arrange
+        await dbContext.Collections.AddAsync(new Models.Database.Collections.Collection()
+        {
+            Id = RootCollection.Id,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", ["repository root"] }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = 10,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "",
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        });
+        
+        await dbContext.Manifests.AddAsync(new Models.Database.Collections.Manifest()
+        {
+            Id = "FirstChildManifest",
+            CustomerId = 10,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "iiif-manifest",
+                    Parent = RootCollection.Id,
+                    Type = ResourceType.IIIFManifest,
+                    Canonical = true
+                }
+            ],
+            LastProcessed = DateTime.UtcNow
+        });
+        
+        await dbContext.SaveChangesAsync();
+        
+        // Act
+        var response = await httpClient.GetAsync("10/manifests/FirstChildManifest");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.AbsolutePath.Should().Be("/10/iiif-manifest");
+    }
 
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithDbValues()

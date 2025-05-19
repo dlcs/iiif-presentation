@@ -5,7 +5,10 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
+using Models.Database.General;
+using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -17,6 +20,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private const int TotalDatabaseChildItems = 6;
+    private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -24,6 +28,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+        dbContext = storageFixture.DbFixture.DbContext;
+        
         storageFixture.DbFixture.CleanUp();
     }
     
@@ -166,6 +172,47 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location!.Should().Be("http://localhost/1");
+    }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsCorrectSeeOther_WhenSecondCustomer()
+    {
+        // Arrange
+        await dbContext.Collections.AddAsync(new Models.Database.Collections.Collection()
+        {
+            Id = RootCollection.Id,
+            UsePath = true,
+            Label = new LanguageMap
+            {
+                { "en", ["repository root"] }
+            },
+            Thumbnail = "some/location",
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            Tags = "some, tags",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = 10,
+            Hierarchy =
+            [
+                new Hierarchy
+                {
+                    Slug = "",
+                    Type = ResourceType.StorageCollection,
+                    Canonical = true
+                }
+            ]
+        });
+        
+        await dbContext.SaveChangesAsync();
+        
+        // Act
+        var response = await httpClient.GetAsync($"10/collections/{RootCollection.Id}");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/10");
     }
 
     [Fact]

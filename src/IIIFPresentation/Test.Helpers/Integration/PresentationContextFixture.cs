@@ -64,34 +64,6 @@ public class PresentationContextFixture : IAsyncLifetime
             Tags = "some, tags",
             IsStorageCollection = true,
             IsPublic = true,
-            CustomerId = 10,
-            Hierarchy =
-            [
-                new Hierarchy
-                {
-                    Slug = "",
-                    Type = ResourceType.StorageCollection,
-                    Canonical = true
-                }
-            ]
-        });
-        
-        // Root collection
-        await DbContext.Collections.AddAsync(new Collection()
-        {
-            Id = RootCollection.Id,
-            UsePath = true,
-            Label = new LanguageMap
-            {
-                { "en", ["repository root"] }
-            },
-            Thumbnail = "some/location",
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
-            CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
             CustomerId = CustomerId,
             Hierarchy =
             [
