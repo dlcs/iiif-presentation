@@ -47,7 +47,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ExternalItems_ReturnsManifest()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ExternalItems_ReturnsManifest);
+        var slug = TestIdentifiers.Id();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -111,7 +111,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ExternalItems_CreatedDBRecord()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ExternalItems_CreatedDBRecord);
+        var slug = TestIdentifiers.Id();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -184,7 +184,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ExternalItems_MultipleCanvases_CreatedDBRecord()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ExternalItems_MultipleCanvases_CreatedDBRecord);
+        var slug = TestIdentifiers.Id();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -294,7 +294,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ExternalItemsWithChoices_CreatedDBRecord()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ExternalItemsWithChoices_CreatedDBRecord);
+        var slug = TestIdentifiers.Id();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -400,11 +400,314 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     }
     
     [Fact]
+    public async Task CreateManifest_ExternalItems_MultipleImageComposition_CreatedDBRecord()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Id();
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://iiif.example/{slug}.json"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.example/{slug}.json""
+                        }},
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0002-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1000,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.example/{slug}.json#xywh=300,400,500,600""
+                        }}
+                    ]
+                }},
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        var hierarchy = fromDatabase.Hierarchy.Single();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        fromDatabase.Should().NotBeNull();
+        hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
+        hierarchy.Canonical.Should().BeTrue();
+
+        var canvasPainting1 = canvasPaintings.First();
+        canvasPainting1.Id.Should().NotBeNullOrEmpty();
+        canvasPainting1.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting1.CanvasOrder.Should().Be(0);
+        canvasPainting1.ChoiceOrder.Should().BeNull();
+        canvasPainting1.StaticWidth.Should().Be(1200);
+        canvasPainting1.StaticHeight.Should().Be(1800);
+        
+        var canvasPainting2 = canvasPaintings.Last();
+        canvasPainting2.Id.Should().NotBeNullOrEmpty();
+        canvasPainting2.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting2.CanvasOrder.Should().Be(1);
+        canvasPainting2.ChoiceOrder.Should().BeNull();
+        canvasPainting2.StaticWidth.Should().Be(1200);
+        canvasPainting2.StaticHeight.Should().Be(1000);
+        canvasPainting2.Target.Should().Be($"https://iiif.example/{slug}.json#xywh=300,400,500,600");
+        
+        canvasPainting2.Id.Should().Be(canvasPainting1.Id, "Items are on same canvas so have same id");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_ExternalItems_MultipleImageCompositionAndChoice_CreatedDBRecord()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Id();
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://iiif.example/{slug}.json"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.example/{slug}.json""
+                        }},
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0002-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1000,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.example/{slug}.json#xywh=300,400,500,600""
+                        }},
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/annotation/p0003-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""type"": ""Choice"",
+                                ""items"": [
+                                    {{
+                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg"",
+                                        ""type"": ""Image"",
+                                        ""format"": ""image/jpeg"",
+                                        ""width"": 2000,
+                                        ""height"": 1271,
+                                        ""label"": {{
+                                            ""en"": [
+                                                ""Natural Light""
+                                            ]
+                                        }},
+                                        ""service"": [
+                                            {{
+                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural"",
+                                                ""type"": ""ImageService3"",
+                                                ""profile"": ""level1""
+                                            }}
+                                        ]
+                                    }},
+                                    {{
+                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg"",
+                                        ""type"": ""Image"",
+                                        ""format"": ""image/jpeg"",
+                                        ""width"": 2001,
+                                        ""height"": 1272,
+                                        ""label"": {{
+                                            ""en"": [
+                                                ""X-Ray""
+                                            ]
+                                        }},
+                                        ""service"": [
+                                            {{
+                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray"",
+                                                ""type"": ""ImageService3"",
+                                                ""profile"": ""level1""
+                                            }}
+                                        ]
+                                    }}
+                                ]
+                            }},
+                            ""target"": ""https://iiif.example/{slug}.json#xywh=0,0,1091,1232""
+                        }}
+                    ]
+                }},
+            ]
+        }},
+        {{
+            ""id"": ""https://iiif.example/{slug}_1.json"",
+            ""type"": ""Canvas"",
+            ""height"": 1200,
+            ""width"": 1800,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }},
+                            ""target"": ""https://iiif.example/{slug}_1.json""
+                        }}
+                    ]
+                }},
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseCollection!.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == id);
+        var hierarchy = fromDatabase.Hierarchy.Single();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        fromDatabase.Should().NotBeNull();
+        hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
+        hierarchy.Canonical.Should().BeTrue();
+
+        var canvasPainting1 = canvasPaintings[0];
+        canvasPainting1.Id.Should().NotBeNullOrEmpty();
+        canvasPainting1.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting1.CanvasOrder.Should().Be(0);
+        canvasPainting1.ChoiceOrder.Should().BeNull();
+        canvasPainting1.StaticWidth.Should().Be(1200);
+        canvasPainting1.StaticHeight.Should().Be(1800);
+        
+        var canvasPainting2 = canvasPaintings[1];
+        canvasPainting2.Id.Should().NotBeNullOrEmpty();
+        canvasPainting2.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting2.CanvasOrder.Should().Be(1);
+        canvasPainting2.ChoiceOrder.Should().BeNull();
+        canvasPainting2.StaticWidth.Should().Be(1200);
+        canvasPainting2.StaticHeight.Should().Be(1000);
+        canvasPainting2.Target.Should().Be($"https://iiif.example/{slug}.json#xywh=300,400,500,600");
+
+        var canvasPainting3 = canvasPaintings[2];
+        canvasPainting3.Id.Should().NotBeNullOrEmpty();
+        canvasPainting3.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting3.CanvasOrder.Should().Be(2);
+        canvasPainting3.ChoiceOrder.Should().Be(1);
+        canvasPainting3.StaticWidth.Should().Be(2000);
+        canvasPainting3.StaticHeight.Should().Be(1271);
+        canvasPainting3.Target.Should().Be($"https://iiif.example/{slug}.json#xywh=0,0,1091,1232");
+        
+        var canvasPainting4 = canvasPaintings[3];
+        canvasPainting4.Id.Should().NotBeNullOrEmpty();
+        canvasPainting4.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
+        canvasPainting4.CanvasOrder.Should().Be(2);
+        canvasPainting4.ChoiceOrder.Should().Be(2);
+        canvasPainting4.StaticWidth.Should().Be(2001);
+        canvasPainting4.StaticHeight.Should().Be(1272);
+        canvasPainting4.Target.Should().Be(null);
+        
+        var canvasPainting5 = canvasPaintings[4];
+        canvasPainting5.Id.Should().NotBeNullOrEmpty();
+        canvasPainting5.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}_1.json");
+        canvasPainting5.CanvasOrder.Should().Be(3);
+        canvasPainting5.ChoiceOrder.Should().BeNull();
+        canvasPainting5.StaticWidth.Should().Be(1200);
+        canvasPainting5.StaticHeight.Should().Be(1800);
+        canvasPainting5.Target.Should().Be(null);
+
+        var sharedCanvasId = canvasPaintings.Where(c => c.CanvasOrder != 3).DistinctBy(cp => cp.Id).Select(cp => cp.Id);
+        sharedCanvasId.Should().HaveCount(1, "All items are on same canvas so have same id");
+        canvasPainting5.Id.Should()
+            .NotBe(sharedCanvasId.First(), "CP5 is on a different canvas, therefor different id");
+    }
+    
+    [Fact]
     public async Task PutFlatId_Insert_ExternalItems_ReturnsManifest()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_ExternalItems_ReturnsManifest)}";
-        var id = nameof(PutFlatId_Insert_ExternalItems_ReturnsManifest);
+        var (slug, id) = TestIdentifiers.SlugResource();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -470,8 +773,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     public async Task PutFlatId_Insert_ExternalItems_CreatedDBRecord()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_ExternalItems_CreatedDBRecord)}";
-        var id = nameof(PutFlatId_Insert_ExternalItems_CreatedDBRecord);
+        var (slug, id) = TestIdentifiers.SlugResource();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -530,7 +832,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
         canvasPainting.Id.Should().NotBeNullOrEmpty();
-        canvasPainting.CanvasOriginalId.Should().Be("https://iiif.example/slug_PutFlatId_Insert_ExternalItems_CreatedDBRecord.json");
+        canvasPainting.CanvasOriginalId.Should().Be($"https://iiif.example/{slug}.json");
     }
     
     [Fact]

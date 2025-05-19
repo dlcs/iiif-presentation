@@ -184,21 +184,22 @@ public class CanvasPaintingResolver(
         if (canvasPaintings.IsNullOrEmpty()) return null;
 
         logger.LogTrace("Adding {CanvasCounts} to Manifest", canvasPaintings.Count);
-        var requiredIds = canvasPaintings.GetRequiredNumberOfCanvases();
+        var requiredIds = canvasPaintings.GetRequiredNumberOfCanvasIds();
         var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, customerId, cancellationToken);
         if (canvasPaintingIds == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
-        // Build a dictionary of canvas_order:canvas_id, this is populated as we iterate over canvas paintings.
+        // Build a dictionary of canvas_grouping:canvas_id, this is populated as we iterate over canvas paintings.
         // We will also seed it with any 'new' items that are actually new Choices as these will have been prepopulated
         // with a canvas_id
         var canvasIds = canvasPaintings
             .Where(cp => !string.IsNullOrEmpty(cp.Id))
-            .GroupBy(cp => cp.CanvasOrder) // grouping by canvas order avoids issues with choices providing duplicate canvas ids
+            .GroupBy(cp => cp.GetGroupingForIdAssignment()) // grouping by canvas order avoids issues with choices providing duplicate canvas ids
             .ToDictionary(k => k.Key, v => v.First().Id); // the id will be the same in all items within a choice construct
         foreach (var cp in canvasPaintings)
         {
-            // CanvasPainting records that have the same CanvasOrder will share the same CanvasId
-            if (canvasIds.TryGetValue(cp.CanvasOrder, out var canvasOrderId))
+            // CanvasPainting records that have the same CanvasOriginalId or CanvasOrder will share the same CanvasId
+            var groupingValue = cp.GetGroupingForIdAssignment();
+            if (canvasIds.TryGetValue(groupingValue, out var canvasOrderId))
             {
                 cp.Id = canvasOrderId;
                 continue;
@@ -206,7 +207,7 @@ public class CanvasPaintingResolver(
 
             // If item has an id, it's an update for a Choice so use the existing canvas_id. Else grab a new one
             var canvasId = string.IsNullOrEmpty(cp.Id) ? canvasPaintingIds.Pop() : cp.Id;
-            canvasIds[cp.CanvasOrder] = canvasId;
+            canvasIds[groupingValue] = canvasId;
             cp.Id = canvasId;
         }
 
