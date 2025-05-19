@@ -6,7 +6,6 @@ using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
-using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
