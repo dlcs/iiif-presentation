@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
@@ -8,7 +7,6 @@ using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
@@ -501,7 +499,9 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     [Fact]
     public async Task CreateManifest_ExternalItems_MultipleImageCompositionAndChoice_CreatedDBRecord()
     {
-        // Arrange
+        // Verify that we can successfully handle a payload with 2 canvases
+        // - the first has 3 painting annos; first 2 are composite, the 3rd a choice of 2 (so 4 overall CanvasPainting)
+        // - the second has a single painting annotation
         var slug = TestIdentifiers.Id();
         var manifest = $@"
 {{
@@ -697,7 +697,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting5.StaticHeight.Should().Be(1800);
         canvasPainting5.Target.Should().Be(null);
 
-        var sharedCanvasId = canvasPaintings.Where(c => c.CanvasOrder != 3).DistinctBy(cp => cp.Id).Select(cp => cp.Id);
+        var sharedCanvasId = canvasPaintings.Where(c => c.CanvasOrder != 3).Select(cp => cp.Id).Distinct();
         sharedCanvasId.Should().HaveCount(1, "All items are on same canvas so have same id");
         canvasPainting5.Id.Should()
             .NotBe(sharedCanvasId.First(), "CP5 is on a different canvas, therefor different id");
@@ -1502,7 +1502,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
                                   }}
                                 ]
                             }},
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1""
+                            ""target"": ""{canvasOriginalId}""
                         }}
                     ]
                 }}
@@ -1546,5 +1546,191 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting.StaticWidth.Should().Be(200);
         canvasPainting.StaticHeight.Should().Be(200);
         canvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "Two"));
+    }
+
+    [Fact]
+    public async Task PutFlatId_Update_ExternalItems_RemoveItemFromExistingCanvas_UpdatesDBRecord()
+    {
+        // Initial state is 3 canvases - simulate removing a new painted anno to this
+        var id = TestIdentifiers.Id();
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        var canvasOriginalId = new Uri($"https://iiif.io/api/{id}");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, id: id, canvasOriginalId: canvasOriginalId,
+            canvasOrder: 0, label: new LanguageMap("en", "Original one"));
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, id: id, canvasOriginalId: canvasOriginalId,
+            canvasOrder: 1, label: new LanguageMap("en", "Original one"));
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, id: id, canvasOriginalId: canvasOriginalId,
+            canvasOrder: 2, label: new LanguageMap("en", "Original one"));
+        await dbContext.SaveChangesAsync();
+        var slug = dbManifest.Hierarchy.Single().Slug;
+        
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasOriginalId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/2/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                            }},
+                            ""target"": ""{canvasOriginalId}""
+                        }},
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-image/annotation/p0002-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                            }},
+                            ""target"": ""{canvasOriginalId}""
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == dbManifest.Id);
+        fromDatabase.Should().NotBeNull();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        canvasPaintings.Should().HaveCount(2, "There was 1 initially but 2 in payload");
+        
+        var canvasPainting1 = canvasPaintings.First();
+        canvasPainting1.Id.Should().NotBeNullOrEmpty();
+        canvasPainting1.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting1.CanvasOrder.Should().Be(0);
+        canvasPainting1.ChoiceOrder.Should().BeNull();
+        
+        var canvasPainting2 = canvasPaintings.Last();
+        canvasPainting2.Id.Should().Be(canvasPainting1.Id, "Items on same canvas share same id");
+        canvasPainting2.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting2.CanvasOrder.Should().Be(1, "Same canvasId but differing order");
+        canvasPainting1.ChoiceOrder.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task PutFlatId_Update_ExternalItems_AddItemToExistingCanvas_UpdatesDBRecord()
+    {
+        // Initial state is single canvas - simulate adding a new painted anno to this
+        var id = TestIdentifiers.Id();
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        var canvasOriginalId = new Uri($"https://iiif.io/api/{id}");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest,
+            canvasOriginalId: canvasOriginalId, canvasOrder: 0, label: new LanguageMap("en", "Original one"));
+        await dbContext.SaveChangesAsync();
+        var slug = dbManifest.Hierarchy.Single().Slug;
+        
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasOriginalId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/2/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-image/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                            }},
+                            ""target"": ""{canvasOriginalId}""
+                        }},
+                        {{
+                            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-image/annotation/p0002-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page2-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                            }},
+                            ""target"": ""{canvasOriginalId}""
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
+        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        var fromDatabase = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(c => c.Hierarchy)
+            .Single(c => c.Id == dbManifest.Id);
+        fromDatabase.Should().NotBeNull();
+        var canvasPaintings = fromDatabase.CanvasPaintings;
+
+        canvasPaintings.Should().HaveCount(2, "There was 1 initially but 2 in payload");
+        
+        var canvasPainting1 = canvasPaintings.First();
+        canvasPainting1.Id.Should().NotBeNullOrEmpty();
+        canvasPainting1.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting1.CanvasOrder.Should().Be(0);
+        canvasPainting1.ChoiceOrder.Should().BeNull();
+        
+        var canvasPainting2 = canvasPaintings.Last();
+        canvasPainting2.Id.Should().Be(canvasPainting1.Id, "Items on same canvas share same id");
+        canvasPainting2.CanvasOriginalId.Should().Be(canvasOriginalId);
+        canvasPainting2.CanvasOrder.Should().Be(1, "Same canvasId but differing order");
+        canvasPainting1.ChoiceOrder.Should().BeNull();
     }
 }

@@ -100,16 +100,19 @@ public class CanvasPaintingResolver(
 
         if (matching == null)
         {
-            // If this is a choice and there are other, existing items for the same canvas, then seed canvas_id
-            if (incoming.ChoiceOrder.HasValue && candidates.FirstOrDefault()?.Id is { Length: > 0 } existingId)
+            logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
+                incoming.ChoiceOrder);
+            
+            // If there are other candidates with an id then assign that to incoming. This will be due to a matching
+            // choice or composite canvas
+            if (candidates.FirstOrDefault()?.Id is { Length: > 0 } existingId)
             {
+                logger.LogTrace("Assigning id {CanvasId} to canvas {CanvasIndex}, choice {ChoiceIndex}", existingId,
+                    incoming.CanvasOrder, incoming.ChoiceOrder);
                 incoming.Id = existingId;
             }
 
             // Store it in a list for processing later (e.g. for bulk generation of UniqueIds)
-            logger.LogTrace("Adding canvas {CanvasIndex}, choice {ChoiceIndex}", incoming.CanvasOrder,
-                incoming.ChoiceOrder);
-
             toInsert.Add(incoming);
         }
         else
