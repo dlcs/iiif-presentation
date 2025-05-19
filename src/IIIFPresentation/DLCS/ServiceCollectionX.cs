@@ -43,6 +43,8 @@ public static class ServiceCollectionX
             .AddTransient<TimingHandler>()
             .AddHttpClient<IDlcsOrchestratorClient, DlcsOrchestratorClient>(client => {
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.OrchestratorDefaultTimeoutMs);
+                client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DlcsOrchestratorClient",
+                    Assembly.GetExecutingAssembly().GetName().Version?.ToString()));
             })
             .AddHttpMessageHandler<TimingHandler>();
         
