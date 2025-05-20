@@ -29,6 +29,11 @@ public class BatchCompletionMessage
     public DateTime Finished { get; set; }
 }
 
+/// <summary>
+/// Uses a non-standard version of the batch completion message that was used initially - this can be removed once
+/// protagonist has been updated to use the version specified above everywhere and just the <see cref="BatchCompletionMessage"/>
+/// used
+/// </summary>
 public class OldBatchCompletionMessage
 {
     public int Id { get; set; }
