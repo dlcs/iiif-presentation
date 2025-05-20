@@ -268,6 +268,65 @@ public class PathGeneratorTests
         id.Should().Be("http://base/123/canvases/test");
     }
     
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GenerateCanvasIdWithTarget_Correct_IfNoTarget(string? target)
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = target,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
+    }
+    
+    [Theory]
+    [InlineData("xywh=1,2,3,4")]
+    [InlineData("#xywh=1,2,3,4")]
+    [InlineData("https://cody.myt/random#xywh=1,2,3,4")]
+    public void GenerateCanvasIdWithTarget_Correct(string target)
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = target,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test#xywh=1,2,3,4");
+    }
+    
+    [Fact]
+    public void GenerateCanvasIdWithTarget_Correct_IfUriHasNoFragment()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = "https://cody.myt/random",
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
+    }
+    
     [Fact]
     public void GenerateAnnotationPagesId_Correct()
     {

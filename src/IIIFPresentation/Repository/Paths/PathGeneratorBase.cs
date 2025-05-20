@@ -1,4 +1,5 @@
-﻿using IIIF.ImageApi;
+﻿using Core.Helpers;
+using IIIF.ImageApi;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -71,6 +72,18 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
     public string GenerateCanvasId(CanvasPainting canvasPainting) => 
         presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.Canvas, 
             canvasPainting.CustomerId, canvasPainting.Id);
+
+    public string GenerateCanvasIdWithTarget(CanvasPainting canvasPainting)
+    {
+        var canvasId = GenerateCanvasId(canvasPainting);
+        if (string.IsNullOrEmpty(canvasPainting.Target)) return canvasId;
+        
+        // NOTE(DG) - we only currently only support mediaFragments
+        var relevantTarget = Uri.TryCreate(canvasPainting.Target, UriKind.Absolute, out var target)
+            ? target.Fragment
+            : canvasPainting.Target;
+        return string.IsNullOrEmpty(relevantTarget) ? canvasId : canvasId.ToConcatenated('#', relevantTarget);
+    }
 
     public string GenerateAnnotationPagesId(CanvasPainting canvasPainting) => 
         $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
