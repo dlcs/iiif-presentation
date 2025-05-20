@@ -394,6 +394,52 @@ public class BatchCompletionMessageHandlerTests
         // Assert
         handleMessage.Should().BeFalse("ReadFromS3 returned null, false expected");
     }
+    
+    [Fact]
+    public async Task HandleMessage_UpdatesBatchedImages_WhenOldStyleBatchCompletion()
+    {
+        // Arrange
+        const int batchId = 124;
+        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenOldStyleBatchCompletion);
+        const int space = 2;
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
+            {
+                Id = identifier
+            });
+
+        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var assetId = new AssetId(CustomerId, space, identifier);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var finished = DateTime.UtcNow.AddHours(-1);
+        var message = QueueHelper.CreateOldQueueMessage(batchId, CustomerId, finished);
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue();
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+            .MustHaveHappened();
+
+        var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Completed);
+        batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
+        batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
+        batch.Manifest!.LastProcessed.Should().NotBeNull();
+
+        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == assetId);
+        canvasPainting.Ingesting.Should().BeFalse();
+        canvasPainting.StaticWidth.Should().Be(75, "width taken from NQ manifest image->imageService");
+        canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
+        canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
+    }
 }
 
 public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
