@@ -964,6 +964,109 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      }
      
      [Fact]
+     public async Task CreateManifest_MultipleImageComposition_NoCanvasOrderSpecified()
+     {
+         var (slug, _, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+         var batchId = TestIdentifiers.BatchId();
+
+         List<DBCanvasPainting> expected =
+         [
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 0,
+                 Label = new LanguageMap("en", "Top Left"),
+                 Target = "xywh=0,0,200,200",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-0"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 1,
+                 Label = new LanguageMap("en", "Bottom Right"),
+                 Target = "xywh=800,800,100,50",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 2,
+                 Label = new LanguageMap("en", "Background"),
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-2"),
+                 Ingesting = true,
+             },
+         ];
+
+         // Manifest with 3 paintedResources. All share same canvasId as on same canvas but not a choice.
+         // One is background image (no target), 2 target specific area of canvas
+         var manifest = $$"""
+                           {
+                               "type": "Manifest",
+                               "slug": "{{slug}}",
+                               "parent": "http://localhost/{{Customer}}/collections/root",
+                               "paintedResources": [
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "target": "xywh=0,0,200,200",
+                                           "label": {"en": ["Top Left"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-0",
+                                           "batch": "{{batchId}}",
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "target": "xywh=800,800,100,50",
+                                           "label": {"en": ["Bottom Right"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-1"
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "label": {"en": ["Background"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-2"
+                                       }
+                                   }
+                               ]
+                           }
+                           """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests",
+                 manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var canvasPaintings = dbContext.CanvasPaintings
+             .Where(x => x.ManifestId == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last())
+             .ToList();
+
+         canvasPaintings.Should().BeEquivalentTo(expected,
+             cfg => cfg.Excluding(cp => cp.CanvasPaintingId)
+                 .Excluding(cp => cp.ManifestId)
+                 .Excluding(cp => cp.Modified)
+                 .Excluding(cp => cp.Created));
+     }
+     
+     [Fact]
      public async Task CreateManifest_MultipleImageCompositionAndChoice()
      {
          var (slug, _, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
