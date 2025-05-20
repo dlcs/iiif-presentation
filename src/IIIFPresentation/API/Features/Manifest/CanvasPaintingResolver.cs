@@ -27,7 +27,6 @@ public class CanvasPaintingResolver(
     public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
         int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
     {
-        // TODO - handle returns and caller sets. Update doesn't return and sets internally. Make consistent?
         var parser = GetParserForManifest(presentationManifest);
         return await HandleInsert(parser, customerId, presentationManifest, cancellationToken);
     }

@@ -1596,57 +1596,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/InvalidCanvasId");
     }
     
-    [Fact(Skip = "This is accepted now as multiple items can be on same canvas")]
-    public async Task CreateManifest_BadRequest_WhenCanvasIdDuplicated()
-    {
-        // Arrange
-        var slug = TestIdentifiers.Id();
-        var manifest = new PresentationManifest
-        {
-            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
-            Slug = slug,
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = $"https://iiif.io/{Customer}/canvases/duplicate"
-                    },
-                    Asset = new JObject
-                    {
-                        ["id"] = "1b",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                },
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "duplicate"
-                    },
-                    Asset = new JObject
-                    {
-                        ["id"] = "1b",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                }
-            ]
-        };
-        
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-        
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
-    }
-    
     [Fact]
     public async Task CreateManifest_BadRequest_WhenCanvasIdNotDuplicatedInCanvasOrder()
     {

@@ -78,7 +78,7 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
         var canvasId = GenerateCanvasId(canvasPainting);
         if (string.IsNullOrEmpty(canvasPainting.Target)) return canvasId;
         
-        // NOTE(DG) - we only currently only support mediaFragments
+        // NOTE(DG) - we currently only support mediaFragments
         var relevantTarget = Uri.TryCreate(canvasPainting.Target, UriKind.Absolute, out var target)
             ? target.Fragment
             : canvasPainting.Target;

@@ -53,7 +53,12 @@ public static class IIIFResponseX
         }
         catch (JsonException ex)
         {
-            logger?.LogError(ex, "An error occurred while deserializing the presentation request");
+            logger?.LogError(ex, "JsonException occurred while deserializing the presentation request");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception occurred while deserializing the presentation request");
             return null;
         }
     }
