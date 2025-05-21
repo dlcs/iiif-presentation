@@ -9,6 +9,22 @@ public static class QueueHelper
         var batchMessage = $@"
 {{
     ""id"":{batchId},
+    ""customer"": {customerId},
+    ""count"":1,
+    ""completed"":1,
+    ""errors"":0,
+    ""superseded"":false,
+    ""submitted"":""2024-12-19T21:03:31.57Z"",
+    ""finished"":""{finished ?? DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssK}""
+}}";
+        return new QueueMessage(batchMessage, new Dictionary<string, string>(), "foo");
+    }
+    
+    public static QueueMessage CreateOldQueueMessage(int batchId, int customerId, DateTime? finished = null)
+    {
+        var batchMessage = $@"
+{{
+    ""id"":{batchId},
     ""customerId"": {customerId},
     ""total"":1,
     ""success"":1,
