@@ -8,6 +8,7 @@ using DLCS.Models;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;

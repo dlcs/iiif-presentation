@@ -7,17 +7,20 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Batch = DLCS.Models.Batch;
+using DBCanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Tests.Integration;
 
@@ -30,99 +33,31 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     private const int Customer = 1;
     private readonly IAmazonS3 amazonS3;
     private const int NewlyCreatedSpace = 999;
-    private readonly IDlcsApiClient dlcsApiClient;
+    private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
 
     public ModifyManifestAssetCreationTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        dlcsApiClient = A.Fake<IDlcsApiClient>();
-        A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
+        
+        // Always return Space 999 when call to create space
+        A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
-        A.CallTo(() => dlcsApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        // Echo back "batch" value set in first Asset
+        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
                     ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
-
-        A.CallTo(() => dlcsApiClient.IngestAssets(Customer,
-            A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnError"),
-            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
-
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l => l.Any(x =>
-                    $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetailsMissing".Equals(x))),
-                A<CancellationToken>._))
-            .ReturnsLazily(() => []);
-
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l => l.Any(x =>
-                    $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetailsFail".Equals(x))),
-                A<CancellationToken>._))
-            .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
-
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-assetDetails".Equals(x))),
-                A<CancellationToken>._))
-            .ReturnsLazily(() =>
-            [
-                JObject.Parse(
-                    """
-                    {
-                           "@context": "https://localhost/contexts/Image.jsonld",
-                           "@id": "https://localhost:7230/customers/1/spaces/999/images/testAssetByPresentation-assetDetails",
-                           "@type": "vocab:Image",
-                           "id": "testAssetByPresentation-assetDetails",
-                           "space": 15,
-                           "imageService": "https://localhost/iiif-img/1/15/testAssetByPresentation-assetDetails",
-                           "thumbnailImageService": "https://localhost/thumbs/1/15/testAssetByPresentation-assetDetails",
-                           "created": "2025-01-20T15:54:43.290925Z",
-                           "origin": "https://example.com/photos/example.jpg",
-                           "maxUnauthorised": -1,
-                           "duration": 0,
-                           "width": 0,
-                           "height": 0,
-                           "ingesting": true,
-                           "error": "",
-                           "tags": [],
-                           "string1": "",
-                           "string2": "",
-                           "string3": "",
-                           "number1": 0,
-                           "number2": 0,
-                           "number3": 0,
-                           "roles": [],
-                           "batch": "https://localhost/customers/1/queue/batches/2137",
-                           "metadata": "https://localhost/customers/1/spaces/15/images/testAssetByPresentation-assetDetails/metadata",
-                           "storage": "https://localhost/customers/1/spaces/15/images/testAssetByPresentation-assetDetails/storage",
-                           "mediaType": "image/jpeg",
-                           "family": "I",
-                           "deliveryChannels": [
-                             {
-                               "@type": "vocab:DeliveryChannel",
-                               "channel": "iiif-img",
-                               "policy": "default"
-                             },
-                             {
-                               "@type": "vocab:DeliveryChannel",
-                               "channel": "thumbs",
-                               "policy": "https://localhost/customers/1/deliveryChannelPolicies/thumbs/default"
-                             }
-                           ]
-                         }
-                    """
-                )
-            ]);
         
         dbContext = storageFixture.DbFixture.DbContext;
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-            services => services.AddSingleton(dlcsApiClient));
+            services => services.AddSingleton(DLCSApiClient));
 
         storageFixture.DbFixture.CleanUp();
     }
@@ -130,9 +65,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     [Fact]
     public async Task CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader()
     {
-        const string postedAssetId = "theAssetId";
         // Arrange
-        var slug = nameof(CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader);
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -145,7 +79,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                     {
                         CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
                     },
-                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 123))
+                    Asset = new(new JProperty("id", assetId), new JProperty("batch", TestIdentifiers.BatchId()))
                 }
             }
         };
@@ -169,26 +103,22 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         responseManifest.Should().NotBeNull();
         responseManifest!.PaintedResources.Should().NotBeNull();
         responseManifest.PaintedResources!.Count.Should().Be(1);
-        responseManifest.PaintedResources.Single().Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
-        assetId!.Type.Should().Be(JTokenType.String);
-        assetId!.Value<string>().Should()
-            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
+        responseManifest.PaintedResources.Single().Asset!.TryGetValue("@id", out var asset).Should().BeTrue();
+        asset!.Type.Should().Be(JTokenType.String);
+        asset!.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{assetId}");
     }
     
     [Fact]
     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WithSpace()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithSpace);
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var space = 18;
-        var assetId = "testAssetByPresentation-withSpace";
         var batchId = TestIdentifiers.BatchId();
         var manifestWithSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
                              "label": {
                                  "en": [
                                      "post testing"
@@ -219,20 +149,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                          "batch": "{{batchId}}",
                                          "mediaType": "image/jpg",
                                          "space": {{space}},
-                                         "string1": "somestring",
-                                         "string2": "somestring2",
-                                         "string3": "somestring3",
-                                         "origin": "some/origin",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "origin": "some/origin"
                                      }
                                  }
                              ] 
@@ -284,9 +201,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ReturnsErrorAsset_IfGetAllImagesFails()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetAllImagesFails);
-        var space = 15;
-        var assetId = "testAssetByPresentation-assetDetailsFail";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Any(x =>
+                    $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                A<CancellationToken>._))
+            .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
+        
         var batchId = TestIdentifiers.BatchId();
         var manifestWithSpace =
             $$"""
@@ -294,7 +215,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                   "type": "Manifest",
                   "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
-                  "rights": "https://creativecommons.org/licenses/by/4.0/",
                   "label": {
                       "en": [
                           "I have assets"
@@ -342,9 +262,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ReturnsErrorAsset_IfGetAllImagesMissing()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ReturnsErrorAsset_IfGetAllImagesMissing);
-        var space = 15;
-        var assetId = "testAssetByPresentation-assetDetailsMissing";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Any(x =>
+                    $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                A<CancellationToken>._))
+            .ReturnsLazily(() => []);
         var batchId = TestIdentifiers.BatchId();
         var manifestWithSpace =
             $$"""
@@ -352,12 +276,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                   "type": "Manifest",
                   "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
-                  "rights": "https://creativecommons.org/licenses/by/4.0/",
-                  "label": {
-                      "en": [
-                          "I have assets"
-                      ]
-                  },
                   "paintedResources": [
                       {
                           "asset": {
@@ -400,9 +318,23 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ReturnsAssetDetails_FromAllImages()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ReturnsAssetDetails_FromAllImages);
-        var space = 15;
-        var assetId = "testAssetByPresentation-assetDetails";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l =>
+                    l.Any(x => $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($$"""
+                                {
+                                    "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
+                                    "batch": "https://localhost/customers/1/queue/batches/2137"
+                                }
+                                """
+                )
+            ]);
+        
         var batchId = TestIdentifiers.BatchId();
         var manifestWithSpace =
             $$"""
@@ -410,12 +342,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                   "type": "Manifest",
                   "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
-                  "rights": "https://creativecommons.org/licenses/by/4.0/",
-                  "label": {
-                      "en": [
-                          "I have assets"
-                      ]
-                  },
                   "paintedResources": [
                       {
                           "asset": {
@@ -431,7 +357,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -464,31 +389,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WithoutSpace()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WithoutSpace);
-        var assetId = "testAssetByPresentation-withoutSpace";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var batchId = TestIdentifiers.BatchId();
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
@@ -501,21 +408,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "string1": "somestring",
-                                         "string2": "somestring2",
-                                         "string3": "somestring3",
-                                         "origin": "some/origin",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "mediaType": "image/jpg"
                                      }
                                  }
                              ] 
@@ -524,7 +417,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -566,51 +458,19 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task? CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting()
     {
         // Arrange
-        var slug = nameof(CreateManifest_AllowsManifestCreation_WhenCalledWithoutCanvasPainting);
-        var assetId = "assetWithoutCanvasPainting";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var batchId = TestIdentifiers.BatchId();
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                 {
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "string1": "somestring",
-                                         "string2": "somestring2",
-                                         "string3": "somestring3",
-                                         "origin": "some/origin",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
+                                         "mediaType": "image/jpg"
                                      }
                                  }
                              ] 
@@ -661,35 +521,16 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_BadRequest_WhenCalledWithEmptyAsset()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenCalledWithEmptyAsset);
+        var slug = TestIdentifiers.Id();
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
                              "slug": "{{slug}}",
                              "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
                              "paintedResources": [
                                  {
-                                     "canvasPainting": {
-                                     },
-                                     "asset": {
-                                     }
+                                     "canvasPainting": { },
+                                     "asset": { }
                                  }
                              ] 
                          }
@@ -716,117 +557,39 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets()
      {
          // Arrange
-         var slug = nameof(CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets);
+         var slug = TestIdentifiers.Id();
          var batchId = TestIdentifiers.BatchId();
-         
+
          var manifestWithoutSpace = $$"""
-                          {
-                              "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
-                              "slug": "{{slug}}",
-                              "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
-                              "paintedResources": [
-                                  {
-                                     "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          }
-                                     },
-                                      "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-0",
-                                          "batch": "{{batchId}}",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
+                                      {
+                                          "type": "Manifest",
+                                          "slug": "{{slug}}",
+                                          "parent": "http://localhost/{{Customer}}/collections/root",
+                                          "paintedResources": [
                                               {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
+                                                  "asset": {
+                                                      "id": "testAssetByPresentation-multipleAssets-0",
+                                                      "batch": "{{batchId}}",
+                                                      "mediaType": "image/jpg"
+                                                  }
                                               },
                                               {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
-                                      }
-                                  },
-                                  {
-                                     "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          }
-                                     },
-                                      "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-1",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
+                                                  "asset": {
+                                                      "id": "testAssetByPresentation-multipleAssets-1",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
                                               },
                                               {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
+                                                 "asset": {
+                                                      "id": "testAssetByPresentation-multipleAssets-2",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
                                               }
-                                          ]
+                                          ] 
                                       }
-                                  },
-                                  {
-                                     "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          }
-                                     },
-                                      "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-2",
-                                          "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
-                                      }
-                                  }
-                              ] 
-                          }
-                          """;
+                                      """;
          
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
@@ -846,7 +609,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              .Include(m => m.Batches)
              .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
-         dbManifest.CanvasPaintings!.Count().Should().Be(3);
+         dbManifest.CanvasPaintings!.Should().HaveCount(3);
          var currentCanvasOrder = 0;
          dbManifest.Batches.Should().HaveCount(1);
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
@@ -865,31 +628,14 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
      {
          // Arrange
-         var slug = nameof(CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder);
+         var slug = TestIdentifiers.Id();
          var batchId = TestIdentifiers.BatchId();
          
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
                               "slug": "{{slug}}",
                               "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
@@ -909,20 +655,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "id": "testAssetByPresentation-multipleAssets-0",
                                           "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   },
                                   {
@@ -937,20 +670,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-1",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   },
                                   {
@@ -965,20 +685,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-2",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   }
                               ] 
@@ -1025,39 +732,17 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice()
      {
          // Arrange
-         var slug = nameof(CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice);
+         var slug = TestIdentifiers.Id();
          var batchId = TestIdentifiers.BatchId();
          
          var manifestWithoutSpace = $$"""
                           {
                               "type": "Manifest",
-                              "behavior": [
-                                  "public-iiif"
-                              ],
-                              "label": {
-                                  "en": [
-                                      "post testing"
-                                  ]
-                              },
                               "slug": "{{slug}}",
                               "parent": "http://localhost/{{Customer}}/collections/root",
-                              "thumbnail": [
-                                  {
-                                      "id": "https://example.org/img/thumb.jpg",
-                                      "type": "Image",
-                                      "format": "image/jpeg",
-                                      "width": 300,
-                                      "height": 200
-                                  }
-                              ],
                               "paintedResources": [
                                   {
                                      "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
                                         "canvasOrder": 1,
                                         "choiceOrder": 1
                                      },
@@ -1065,77 +750,28 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "id": "testAssetByPresentation-multipleAssets-0",
                                           "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   },
                                   {
                                      "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
                                           "canvasOrder": 1,
                                           "choiceOrder": 2
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-1",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   },
                                   {
                                      "canvasPainting":{
-                                         "label": {
-                                              "en": [
-                                                  "canvas testing"
-                                              ]
-                                          },
                                           "canvasOrder": 0
                                      },
                                       "asset": {
                                           "id": "testAssetByPresentation-multipleAssets-2",
                                           "mediaType": "image/jpg",
-                                          "string1": "somestring",
-                                          "string2": "somestring2",
-                                          "string3": "somestring3",
-                                          "origin": "some/origin",
-                                          "deliveryChannels": [
-                                              {
-                                                  "channel": "iiif-img",
-                                                  "policy": "default"
-                                              },
-                                              {
-                                                  "channel": "thumbs",
-                                                  "policy": "default"
-                                              }
-                                          ]
+                                          "origin": "some/origin"
                                       }
                                   }
                               ] 
@@ -1144,7 +780,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
-         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1181,70 +816,384 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
      }
+
+     [Fact]
+     public async Task CreateManifest_ReturnsError_WhenErrorFromDlcs()
+     {
+         // Arrange
+         var (slug, assetId) = TestIdentifiers.SlugResource();
+
+         A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
+             A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
+
+         var manifestWithoutSpace = $$"""
+                                      {
+                                          "type": "Manifest",
+                                          "slug": "{{slug}}",
+                                          "parent": "http://localhost/{{Customer}}/collections/root",
+                                          "paintedResources": [
+                                             {
+                                                  "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "mediaType": "image/jpg",
+                                                  }
+                                              }
+                                          ] 
+                                      }
+                                      """;
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests",
+                 manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         errorResponse!.Detail.Should().Be("DLCS exception");
+     }
+
+     [Fact]
+     public async Task CreateManifest_MultipleImageComposition()
+     {
+         var (slug, _, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+         var batchId = TestIdentifiers.BatchId();
+
+         List<DBCanvasPainting> expected =
+         [
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 0,
+                 Label = new LanguageMap("en", "Background"),
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-2"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 1,
+                 Label = new LanguageMap("en", "Bottom Right"),
+                 Target = "xywh=800,800,100,50",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 2,
+                 Label = new LanguageMap("en", "Top Left"),
+                 Target = "xywh=0,0,200,200",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-0"),
+                 Ingesting = true,
+             }
+         ];
+
+         // Manifest with 3 paintedResources. All share same canvasId as on same canvas but not a choice.
+         // One is background image (no target), 2 target specific area of canvas
+         var manifest = $$"""
+                           {
+                               "type": "Manifest",
+                               "slug": "{{slug}}",
+                               "parent": "http://localhost/{{Customer}}/collections/root",
+                               "paintedResources": [
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 2,
+                                           "target": "xywh=0,0,200,200",
+                                           "label": {"en": ["Top Left"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-0",
+                                           "batch": "{{batchId}}",
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 1,
+                                           "target": "xywh=800,800,100,50",
+                                           "label": {"en": ["Bottom Right"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-1"
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 0,
+                                           "label": {"en": ["Background"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-2"
+                                       }
+                                   }
+                               ]
+                           }
+                           """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests",
+                 manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var canvasPaintings = dbContext.CanvasPaintings
+             .Where(x => x.ManifestId == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last())
+             .ToList();
+
+         canvasPaintings.Should().BeEquivalentTo(expected,
+             cfg => cfg.Excluding(cp => cp.CanvasPaintingId)
+                 .Excluding(cp => cp.ManifestId)
+                 .Excluding(cp => cp.Modified)
+                 .Excluding(cp => cp.Created));
+     }
      
-    [Fact]
-    public async Task? CreateManifest_ReturnsError_WhenErrorFromDlcs()
-    {
-        // Arrange
-        var slug = nameof(CreateManifest_ReturnsError_WhenErrorFromDlcs);
-        var assetId = "returnError";
-        var manifestWithoutSpace = $$"""
-                         {
-                             "type": "Manifest",
-                             "behavior": [
-                                 "public-iiif"
-                             ],
-                             "label": {
-                                 "en": [
-                                     "post testing"
-                                 ]
-                             },
-                             "slug": "{{slug}}",
-                             "parent": "http://localhost/{{Customer}}/collections/root",
-                             "thumbnail": [
-                                 {
-                                     "id": "https://example.org/img/thumb.jpg",
-                                     "type": "Image",
-                                     "format": "image/jpeg",
-                                     "width": 300,
-                                     "height": 200
-                                 }
-                             ],
-                             "paintedResources": [
-                                {
-                                     "asset": {
-                                         "id": "{{assetId}}",
-                                         "mediaType": "image/jpg",
-                                         "string1": "somestring",
-                                         "string2": "somestring2",
-                                         "string3": "somestring3",
-                                         "origin": "some/origin",
-                                         "deliveryChannels": [
-                                             {
-                                                 "channel": "iiif-img",
-                                                 "policy": "default"
-                                             },
-                                             {
-                                                 "channel": "thumbs",
-                                                 "policy": "default"
-                                             }
-                                         ]
-                                     }
-                                 }
-                             ] 
-                         }
-                         """;
-        
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
-        
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-        
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-        errorResponse!.Detail.Should().Be("DLCS exception");
-    }
+     [Fact]
+     public async Task CreateManifest_MultipleImageComposition_NoCanvasOrderSpecified()
+     {
+         var (slug, _, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+         var batchId = TestIdentifiers.BatchId();
+
+         List<DBCanvasPainting> expected =
+         [
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 0,
+                 Label = new LanguageMap("en", "Top Left"),
+                 Target = "xywh=0,0,200,200",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-0"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 1,
+                 Label = new LanguageMap("en", "Bottom Right"),
+                 Target = "xywh=800,800,100,50",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 2,
+                 Label = new LanguageMap("en", "Background"),
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-2"),
+                 Ingesting = true,
+             },
+         ];
+
+         // Manifest with 3 paintedResources. All share same canvasId as on same canvas but not a choice.
+         // One is background image (no target), 2 target specific area of canvas
+         var manifest = $$"""
+                           {
+                               "type": "Manifest",
+                               "slug": "{{slug}}",
+                               "parent": "http://localhost/{{Customer}}/collections/root",
+                               "paintedResources": [
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "target": "xywh=0,0,200,200",
+                                           "label": {"en": ["Top Left"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-0",
+                                           "batch": "{{batchId}}",
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "target": "xywh=800,800,100,50",
+                                           "label": {"en": ["Bottom Right"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-1"
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "label": {"en": ["Background"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-2"
+                                       }
+                                   }
+                               ]
+                           }
+                           """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests",
+                 manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var canvasPaintings = dbContext.CanvasPaintings
+             .Where(x => x.ManifestId == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last())
+             .ToList();
+
+         canvasPaintings.Should().BeEquivalentTo(expected,
+             cfg => cfg.Excluding(cp => cp.CanvasPaintingId)
+                 .Excluding(cp => cp.ManifestId)
+                 .Excluding(cp => cp.Modified)
+                 .Excluding(cp => cp.Created));
+     }
+     
+     [Fact]
+     public async Task CreateManifest_MultipleImageCompositionAndChoice()
+     {
+         var (slug, _, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+         var batchId = TestIdentifiers.BatchId();
+
+         List<DBCanvasPainting> expected =
+         [
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 0,
+                 Label = new LanguageMap("en", "Background"),
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-0"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 1,
+                 Label = new LanguageMap("en", "Bottom Right"),
+                 Target = "xywh=800,800,100,50",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 2,
+                 ChoiceOrder = 1,
+                 Label = new LanguageMap("en", "Choice 1"),
+                 Target = "xywh=0,0,200,200",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-2"),
+                 Ingesting = true,
+             },
+             new()
+             {
+                 Id = canvasId,
+                 CanvasOrder = 2,
+                 ChoiceOrder = 2,
+                 Label = new LanguageMap("en", "Choice 2"),
+                 Target = "xywh=0,0,200,200",
+                 CustomerId = Customer,
+                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-3"),
+                 Ingesting = true,
+             }
+         ];
+
+         // Manifest with 4 paintedResources. All share same canvasId as on same canvas.
+         // 2 are in a choice and 2 are not, so ultimately this would be 3 painting annos on Canvas
+         var manifest = $$"""
+                           {
+                               "type": "Manifest",
+                               "slug": "{{slug}}",
+                               "parent": "http://localhost/{{Customer}}/collections/root",
+                               "paintedResources": [
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 0,
+                                           "label": {"en": ["Background"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-0",
+                                           "batch": "{{batchId}}",
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 1,
+                                           "target": "xywh=800,800,100,50",
+                                           "label": {"en": ["Bottom Right"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-1"
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 2,
+                                           "choiceOrder": 1,
+                                           "target": "xywh=0,0,200,200",
+                                           "label": {"en": ["Choice 1"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-2"
+                                       }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "{{canvasId}}",
+                                           "canvasOrder": 2,
+                                           "choiceOrder": 2,
+                                           "target": "xywh=0,0,200,200",
+                                           "label": {"en": ["Choice 2"]}
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-3"
+                                       }
+                                   }
+                               ]
+                           }
+                           """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests",
+                 manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var canvasPaintings = dbContext.CanvasPaintings
+             .Where(x => x.ManifestId == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last())
+             .ToList();
+
+         canvasPaintings.Should().BeEquivalentTo(expected,
+             cfg => cfg.Excluding(cp => cp.CanvasPaintingId)
+                 .Excluding(cp => cp.ManifestId)
+                 .Excluding(cp => cp.Modified)
+                 .Excluding(cp => cp.Created));
+     }
 }

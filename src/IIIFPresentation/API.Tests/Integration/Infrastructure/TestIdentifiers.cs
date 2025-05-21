@@ -10,6 +10,11 @@ namespace API.Tests.Integration.Infrastructure;
 public static class TestIdentifiers
 {
     /// <summary>
+    /// Helper method that returns single id
+    /// </summary>
+    public static string Id([CallerMemberName] string testMethod = "") => testMethod;
+    
+    /// <summary>
     /// Helper method that returns slug and id
     /// </summary>
     public static (string slug, string id) SlugResource([CallerMemberName] string testMethod = "")
@@ -19,14 +24,14 @@ public static class TestIdentifiers
     /// Helper method that returns slug, id and assetId values
     /// </summary>
     public static (string slug, string id, string assetId) SlugResourceAsset([CallerMemberName] string testMethod = "")
-        => (testMethod, $"{testMethod}_id", testMethod);
+        => (testMethod, $"{testMethod}_id", $"{testMethod}_a");
 
     /// <summary>
     /// Helper method that returns slug, id assetId and canvasId values
     /// </summary>
     public static (string slug, string id, string assetId, string canvasId) SlugResourceAssetCanvas(
         [CallerMemberName] string testMethod = "")
-        => (testMethod, $"{testMethod}_id", testMethod, $"{testMethod}_c");
+        => (testMethod, $"{testMethod}_id", $"{testMethod}_a", $"{testMethod}_c");
 
     private static int batchId = 1;
 

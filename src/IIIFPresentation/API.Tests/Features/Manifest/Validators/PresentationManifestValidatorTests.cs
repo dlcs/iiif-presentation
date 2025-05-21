@@ -47,23 +47,23 @@ public class PresentationManifestValidatorTests
     {
         var manifest = new PresentationManifest
         {
-            Items = new List<Canvas>()
-            {
-                new ()
+            Items =
+            [
+                new()
                 {
                     Id = "someId",
                 }
-            },
-            PaintedResources = new List<PaintedResource>()
-            {
-                new ()
+            ],
+            PaintedResources =
+            [
+                new()
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId"
                     }
                 }
-            },
+            ],
         };
         
         var result = sut.TestValidate(manifest);
@@ -86,23 +86,23 @@ public class PresentationManifestValidatorTests
         
         var manifest = new PresentationManifest
         {
-            Items = new List<Canvas>()
-            {
-                new ()
+            Items =
+            [
+                new()
                 {
                     Id = "someId",
                 }
-            },
-            PaintedResources = new List<PaintedResource>()
-            {
-                new ()
+            ],
+            PaintedResources =
+            [
+                new()
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId"
                     }
                 }
-            },
+            ],
         };
         
         var result = sutAllowedItemsAndPaintedResource.TestValidate(manifest);
@@ -125,7 +125,6 @@ public class PresentationManifestValidatorTests
                         ChoiceOrder = 1
                     }
                 },
-
                 new PaintedResource
                 {
                     CanvasPainting = new CanvasPainting
@@ -159,7 +158,6 @@ public class PresentationManifestValidatorTests
                         ChoiceOrder = 1
                     }
                 },
-
                 new PaintedResource
                 {
                     CanvasPainting = new CanvasPainting
@@ -181,8 +179,6 @@ public class PresentationManifestValidatorTests
     {
         var manifest = new PresentationManifest
         {
-            Slug = "someSlug",
-            Parent = "https://someParent",
             PaintedResources =
             [
                 new PaintedResource
@@ -193,7 +189,6 @@ public class PresentationManifestValidatorTests
                         CanvasOrder = 1
                     }
                 },
-
                 new PaintedResource
                 {
                     CanvasPainting = new CanvasPainting
@@ -202,24 +197,12 @@ public class PresentationManifestValidatorTests
                         CanvasOrder = 1
                     }
                 },
-                
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-3",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
-                    }
-                }
             ],
         };
         
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
-            .WithErrorMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
-        
-        result.Errors.Should().HaveCount(1);
+            .WithErrorMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
     }
     
     [Fact]
@@ -238,7 +221,6 @@ public class PresentationManifestValidatorTests
                         ChoiceOrder = 1
                     }
                 },
-
                 new PaintedResource
                 {
                     CanvasPainting = new CanvasPainting()
@@ -308,7 +290,7 @@ public class PresentationManifestValidatorTests
             [
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1"
                     }
@@ -316,7 +298,7 @@ public class PresentationManifestValidatorTests
 
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
                     }
@@ -369,7 +351,7 @@ public class PresentationManifestValidatorTests
             [
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
                         CanvasOrder = 1
@@ -378,11 +360,35 @@ public class PresentationManifestValidatorTests
 
                 new PaintedResource
                 {
-                    CanvasPainting = new CanvasPainting()
+                    CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
                     }
                 }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasOrder_DueToMissingCanvasPainting()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                },
+                new PaintedResource()
             ],
         };
         
@@ -405,7 +411,6 @@ public class PresentationManifestValidatorTests
                         CanvasId = "someCanvasId"
                     }
                 },
-
                 new PaintedResource
                 {
                     CanvasPainting = new CanvasPainting
@@ -413,6 +418,29 @@ public class PresentationManifestValidatorTests
                         CanvasId = null
                     }
                 }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'canvasId' is required on all resources when used in at least one");
+    }
+    
+    [Fact]
+    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasId_DueToMissingCanvasPainting()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId"
+                    }
+                },
+                new PaintedResource()
             ],
         };
         

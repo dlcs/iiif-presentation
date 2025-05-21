@@ -104,13 +104,6 @@ public class PresentationContext : DbContext
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
 
-            // ChoiceOrder is nullable in Entity but not in DB, to ease use in unique constraint, so use field
-            // 'internalChoiceOrder' for EF read/write
-            entity.Property(cp => cp.ChoiceOrder)
-                .IsRequired()
-                .HasField("internalChoiceOrder")
-                .UsePropertyAccessMode(PropertyAccessMode.Field);
-
             entity.HasIndex(cp => new
                     { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
                 .IsUnique()
@@ -122,7 +115,7 @@ public class PresentationContext : DbContext
                 .HasFilter("canvas_original_id is null");
 
             entity.Property(cp => cp.AssetId)
-                .HasConversion(id => id.ToString(), id => AssetId.FromString(id));
+                .HasConversion(id => id!.ToString(), id => AssetId.FromString(id));
 
             entity
                 .HasOne(cp => cp.Manifest)
