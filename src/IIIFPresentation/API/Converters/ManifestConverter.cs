@@ -75,7 +75,7 @@ public static class ManifestConverter
     private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
         IPathGenerator pathGenerator)
     {
-        // ToLookup, rather than ToDictionary - the former maintains order of input. The latter orders by key.
+        // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.
         // We need to maintain order by CanvasOrder > ChoiceOrder, NOT canvasId (even though we are grouping by that)
         return canvasPaintings
             .ToLookup(pr => pr.Id)

@@ -162,7 +162,6 @@ public class CanvasPaintingResolver(
                 // If there are multiple matching items then Canvas is a choice OR multi item canvas
                 // If incoming has a choice, attempt to match existing candidate that has that choice order.
                 // If incoming doesn't have a choice - then try to match on canvasOrder
-                // TODO is it safe to assume we have a usable CanvasOrder? do we need to defend against not having it, or it coming from "items" automatically?
                 logger.LogTrace("Found multiple canvas paintings for {CanvasLoggingId}", canvasLoggingId);
                 matching = incoming.ChoiceOrder.HasValue
                     ? candidates.FirstOrDefault(c => c.ChoiceOrder == incoming.ChoiceOrder)
@@ -191,12 +190,12 @@ public class CanvasPaintingResolver(
         if (canvasPaintingIds == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
         // Build a dictionary of canvas_grouping:canvas_id, this is populated as we iterate over canvas paintings.
-        // We will also seed it with any 'new' items that are actually new Choices as these will have been prepopulated
+        // We will also seed it with any 'new' items that are on the same canvas as these will have been prepopulated
         // with a canvas_id
         var canvasIds = canvasPaintings
             .Where(cp => !string.IsNullOrEmpty(cp.Id))
-            .GroupBy(cp => cp.GetGroupingForIdAssignment()) // grouping by canvas order avoids issues with choices providing duplicate canvas ids
-            .ToDictionary(k => k.Key, v => v.First().Id); // the id will be the same in all items within a choice construct
+            .GroupBy(cp => cp.GetGroupingForIdAssignment()) 
+            .ToDictionary(k => k.Key, v => v.First().Id); // the id will be the same in all items within a canvas
         foreach (var cp in canvasPaintings)
         {
             // CanvasPainting records that have the same CanvasOriginalId or CanvasOrder will share the same CanvasId

@@ -2,6 +2,8 @@
 
 namespace Core.Tests.Helpers;
 
+#nullable disable
+
 public class StringXTests
 {
     [Fact]
