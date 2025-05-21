@@ -24,7 +24,7 @@ public static class ServiceCollectionX
             {
                 client.BaseAddress = dlcsSettings.ApiUri;
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.ApiDefaultTimeoutMs);
-                client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DlcsApiClient", "1.0.0"));
+                client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PresentationDlcsApiClient", "1.0.0"));
             })
             .AddHttpMessageHandler<AmbientAuthHandler>()
             .AddHttpMessageHandler<TimingHandler>();
@@ -43,7 +43,7 @@ public static class ServiceCollectionX
             .AddHttpClient<IDlcsOrchestratorClient, DlcsOrchestratorClient>(client => {
                 client.Timeout = TimeSpan.FromMilliseconds(dlcsSettings.OrchestratorDefaultTimeoutMs);
                 client.DefaultRequestHeaders.UserAgent.Add(
-                    new ProductInfoHeaderValue("DlcsOrchestratorClient", "1.0.0"));
+                    new ProductInfoHeaderValue("PresentationDlcsOrchestratorClient", "1.0.0"));
             })
             .AddHttpMessageHandler<TimingHandler>();
         
