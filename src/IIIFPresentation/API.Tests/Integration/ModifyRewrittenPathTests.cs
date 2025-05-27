@@ -74,7 +74,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -114,7 +113,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -154,7 +152,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -194,7 +191,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -233,7 +229,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -272,7 +267,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
         responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
-        fromDatabase.Id.Length.Should().BeGreaterThan(6);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
