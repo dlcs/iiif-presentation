@@ -43,6 +43,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPaths()
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPaths);
+        var requestParent = $"http://no-customer.com/collections/{RootCollection.Id}";
         // Arrange
         var collection = new PresentationCollection
         {
@@ -53,7 +54,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             ],
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = $"http://no-customer.com/collections/{RootCollection.Id}",
+            Parent = requestParent,
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
@@ -67,12 +68,11 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
+        responseCollection.Parent.Should().Be(requestParent);
         responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
@@ -82,6 +82,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithAdditionalPathElement()
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithAdditionalPathElement);
+        var requestParent = $"http://example.com/foo/{Customer}/collections/{RootCollection.Id}";
         // Arrange
         var collection = new PresentationCollection
         {
@@ -92,7 +93,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             ],
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = $"http://example.com/foo/{Customer}/collections/{RootCollection.Id}",
+            Parent = requestParent
         };
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
@@ -106,12 +107,11 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
+        responseCollection.Parent.Should().Be(requestParent);
         responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
@@ -221,8 +221,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
+        
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
