@@ -17,10 +17,10 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
     private const char PathSeparator = '/';
     
     /// <summary>
-    /// Parses a full URI into  the required path segemnts, taking into account path rewrites
+    /// Parses a full URI into  the required path segements, taking into account path rewrites
     /// </summary>
     /// <param name="host"></param>
-    /// <param name="path">The path to match agains</param>
+    /// <param name="path">The path to match against</param>
     /// <param name="customer">The customer ID to use in the case that the path doesn't have one</param>
     public PathParts ParsePathWithRewrites(string host, string path, int customer)
     {
@@ -30,7 +30,6 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         
         // Not canonical - try and match to a path...
         var templates = settings.GetPathTemplatesForHost(host);
-        var replacementRegex = new Regex("^{(.+)}$");
         
 	    // First split the path into it's individual segments
         var pathSplit = path.Split(PathSeparator,
@@ -41,9 +40,9 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 		    // Split template into chunks
             var templateSplit = template.Value.Split(PathSeparator,
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
+            
             // work out if the template is a FQDN and remove the host if it is
-            if (templateSplit.First().Contains("http")) templateSplit = templateSplit.Skip(2).ToArray();
+            if (Uri.TryCreate(template.Value, UriKind.Absolute, out _)) templateSplit = templateSplit.Skip(2).ToArray();
 		    
 		    // Check lengths are same, if not don't compare, or it's possible to be just the host value
             if (pathSplit.Length != templateSplit.Length &&
@@ -52,7 +51,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             try
             {
                 var (customerId, resourceId) =
-                    MatchValuesInTemplate(pathSplit, templateSplit, replacementRegex, customer);
+                    MatchValuesInTemplate(pathSplit, templateSplit, GeneratedRegexes.ReplacementRegex(), customer);
                 if (resourceId != null)
                 {
                     return new PathParts(customerId, resourceId,
@@ -115,13 +114,13 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         return (customerIdFromPath ?? customer, resourceId);
     }
     
-    private static PathParts? ParseCanonical(string path)
+    private PathParts? ParseCanonical(string path)
     {
-        var canonicalRegex = new Regex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$");
-
-        if (!canonicalRegex.IsMatch(path)) return null;
+        if (!GeneratedRegexes.CanonicalRegex().IsMatch(path)) return null;
+        
+        logger.LogTrace("{Path} is a canonical regex", path);
 	
-        var match = canonicalRegex.Match(path);
+        var match = GeneratedRegexes.CanonicalRegex().Match(path);
         var customer = int.Parse(match.Groups[1].Value);
         
         return new PathParts(customer, match.Groups[3].Value, true);
@@ -129,3 +128,13 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 }
 
 public record PathParts(int? Customer, string? Resource, bool Hierarchical);
+
+internal partial class GeneratedRegexes
+{
+    [GeneratedRegex("^{(.+)}$")]
+    internal static partial Regex ReplacementRegex();
+        
+        
+    [GeneratedRegex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$")]
+    internal static partial Regex CanonicalRegex();
+}
