@@ -53,7 +53,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             try
             {
                 var (customerId, resourceId) =
-                    MatchValuesInTemplate(pathSplit, templateSplit, new Regex("^{(.+)}$"), customer);
+                    MatchValuesInTemplate(pathSplit, templateSplit, GeneratedRegexes.ReplacementRegex(), customer);
                 if (resourceId != null)
                 {
                     return new PathParts(customerId, resourceId,
@@ -122,13 +122,11 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
     private PathParts? ParseCanonical(string path)
     {
-        var canonicalRegex = new Regex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$");
-        
-        if (!canonicalRegex.IsMatch(path)) return null;
+        if (!GeneratedRegexes.CanonicalRegex().IsMatch(path)) return null;
 
         logger.LogTrace("{Path} is a canonical regex", path);
 
-        var match = canonicalRegex.Match(path);
+        var match = GeneratedRegexes.CanonicalRegex().Match(path);
         var customer = int.Parse(match.Groups[1].Value);
 
         return new PathParts(customer, match.Groups[3].Value, true);
