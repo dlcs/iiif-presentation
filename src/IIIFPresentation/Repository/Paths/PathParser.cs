@@ -1,9 +1,6 @@
 using Core.Exceptions;
-using System.Text.RegularExpressions;
 using Core.Helpers;
-using Core.Web;
 using IIIF.Presentation.V3;
-using Models.API.General;
 using Models.API.Manifest;
 using Models.DLCS;
 
