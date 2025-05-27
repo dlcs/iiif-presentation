@@ -53,7 +53,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             try
             {
                 var (customerId, resourceId) =
-                    MatchValuesInTemplate(pathSplit, templateSplit, GeneratedRegexes.ReplacementRegex(), customer);
+                    MatchValuesInTemplate(pathSplit, templateSplit, new Regex("^{(.+)}$"), customer);
                 if (resourceId != null)
                 {
                     return new PathParts(customerId, resourceId,
