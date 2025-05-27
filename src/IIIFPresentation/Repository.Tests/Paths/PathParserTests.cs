@@ -163,6 +163,7 @@ public class PathParserTests
     [InlineData("2/slug/slug", "slug/slug",false, 2)]
     [InlineData("1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug", false)]
     [InlineData("1/manifests/manifest", "manifest", true)]
+    [InlineData("1/manifests/hello-world", "hello-world", true)]
     [InlineData("1/collections/collection", "collection", true)]
     [InlineData("1/canvases/canvas", "canvas", true)]
     public void ParsePathWithRewrites_ParsesPathCorrectly_WithStandardDefaults(string path, string resource, bool canonical, int customer = 1)
@@ -174,7 +175,7 @@ public class PathParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Canonical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(canonical);
     }
     
     [Theory]
@@ -195,7 +196,7 @@ public class PathParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Canonical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(canonical);
     }
     
     [Theory]
@@ -215,7 +216,7 @@ public class PathParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Canonical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(canonical);
     }
     
     [Theory]
@@ -234,7 +235,7 @@ public class PathParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Canonical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(canonical);
     }
     
     [Theory]
@@ -254,7 +255,7 @@ public class PathParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Canonical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(canonical);
     }
     
     [Theory]

@@ -117,7 +117,7 @@ public static class PathParser
     public static PathParts ParsePathWithRewrites(TypedPathTemplateOptions settings, string host, string path, int customer, ILogger logger)
     {
         // Always try and parse canonical first
-        var canonical = ParseCanonical(path, customer);
+        var canonical = ParseCanonical(path);
         if (canonical != null) return canonical;
         
         // Not canonical - try and match to a path...
@@ -207,23 +207,19 @@ public static class PathParser
         return (customerIdFromPath ?? customer, resourceId);
     }
     
-    private static PathParts? ParseCanonical(string path, int customer)
+    private static PathParts? ParseCanonical(string path)
     {
-        var canonicalRegex = new Regex("^\\/?(\\d+?)\\/(manifests|collections|canvases)\\/([\\w\\d]+)$");
+        var canonicalRegex = new Regex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$");
 
         if (!canonicalRegex.IsMatch(path)) return null;
 	
-        var matches = canonicalRegex.Match(path);
-
-        if (matches.Groups[1] != null)
-        {
-            customer = int.Parse(matches.Groups[1].Value);
-        }
+        var match = canonicalRegex.Match(path);
+        var customer = int.Parse(match.Groups[1].Value);
         
-        return new PathParts(customer, matches.Groups[3].Value.ToString(), true);
+        return new PathParts(customer, match.Groups[3].Value, true);
     }
 
-    public record PathParts(int? Customer, string? Resource, bool Canonical);
+    public record PathParts(int? Customer, string? Resource, bool Hierarchical);
 
     public static Uri GetParentUriFromPublicId(string publicId) => 
         new(publicId[..publicId.LastIndexOf(PathSeparator)]);
