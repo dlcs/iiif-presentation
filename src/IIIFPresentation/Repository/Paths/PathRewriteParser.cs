@@ -60,7 +60,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while parsing path {Path}", path);
+                logger.LogError(e, "Error while parsing path {Path}, with template {Template}", path, template);
             }
         }
 	    

@@ -113,7 +113,7 @@ public class PathParserTests
     }
     
     [Theory]
-    [InlineData("https://foo.com/slug/slug", "slug")]
+    [InlineData("https://foo.com/foo/slug", "slug")]
     [InlineData("https://foo.com/slug", "slug")]
     [InlineData("https://foo.com", "")]
     public void GetSlugFromHierarchicalPath_RetrievesSlug(string path, string expected)
