@@ -2,6 +2,7 @@
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Models.API.General;
+using static Core.Web.TypedPathTemplateOptions;
 
 namespace Repository.Paths;
 
@@ -83,15 +84,15 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             {
                 // This is a template - get the value of it from the path value
                 var capturedValue = replacementRegex.Match(templatePart).Groups[1].Value;
-                if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.CustomerId)
+                if (capturedValue == SupportedTemplateOptions.CustomerId)
                 {
                     customerIdFromPath = int.Parse(valuePart);
                 }
-                else if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.ResourceId)
+                else if (capturedValue == SupportedTemplateOptions.ResourceId)
                 {
                     resourceId = valuePart;
                 }
-                else if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.HierarchyPath && 
+                else if (capturedValue == SupportedTemplateOptions.HierarchyPath && 
                          !SpecConstants.ProhibitedSlugs.Contains(valuePart))
                 {
                     // everything in the path after hierarchy goes into the path
@@ -108,7 +109,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
         // if the length is 1 less, and the template split is hierarchical, it means the root collection
         if (pathSplit.Length == templateSplit.Length - 1 &&
-            templateSplit.Contains($"{{{TypedPathTemplateOptions.SupportedTemplateOptions.HierarchyPath}}}") &&
+            templateSplit.Contains($"{{{SupportedTemplateOptions.HierarchyPath}}}") &&
             resourceId == null)
         {
             resourceId = string.Empty;
