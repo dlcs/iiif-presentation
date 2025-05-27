@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Manifest;
 using Repository;
+using Repository.Paths;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Helpers;
@@ -41,14 +42,10 @@ public class ParentSlugParserTests
         });
         
         var typedTemplateOptions = Options.Create(new TypedPathTemplateOptions());
+        var pathRewriteParser = new PathRewriteParser(typedTemplateOptions, new NullLogger<PathRewriteParser>());
 
-        var presentationPathGenerator =
-            new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-                httpContextAccessor);
-
-        var pathGenerator =
-            new HttpRequestBasedPathGenerator(options, presentationPathGenerator);
-        parentSlugParser = new ParentSlugParser(presentationContext, typedTemplateOptions, httpContextAccessor, new NullLogger<ParentSlugParser>());
+        parentSlugParser = new ParentSlugParser(presentationContext, typedTemplateOptions, httpContextAccessor,
+            pathRewriteParser, new NullLogger<ParentSlugParser>());
     }
 
     [Fact]

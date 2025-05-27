@@ -2,7 +2,6 @@
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
-using API.Infrastructure.Validation;
 using Core.Helpers;
 using Core.Web;
 using IIIF;
@@ -32,7 +31,9 @@ public interface IParentSlugParser
 }
 
 public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathTemplateOptions> options, 
-    IHttpContextAccessor contextAccessor, ILogger<ParentSlugParser> logger) : IParentSlugParser
+    IHttpContextAccessor contextAccessor, 
+    IPathRewriteParser pathRewriteParser, 
+    ILogger<ParentSlugParser> logger) : IParentSlugParser
 {
     private readonly TypedPathTemplateOptions settings = options.Value;
     
@@ -145,8 +146,9 @@ public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathT
 
         try
         {
-            var parentPath = PathParser.ParsePathWithRewrites(settings, publicIdParentUri.Host, publicIdParentUri.AbsolutePath,
-                customerId, logger);
+            var parentPath =
+                pathRewriteParser.ParsePathWithRewrites(publicIdParentUri.Host, publicIdParentUri.AbsolutePath,
+                    customerId);
             
             if (parentPath.Resource == null) return null;
             var publicIdParentHierarchy =
@@ -165,8 +167,7 @@ public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathT
         CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true) return null;
-        var parentPath = PathParser.ParsePathWithRewrites(settings, parentUri.Host, parentUri.AbsolutePath,
-            customerId, logger);
+        var parentPath = pathRewriteParser.ParsePathWithRewrites(parentUri.Host, parentUri.AbsolutePath, customerId);
 
         if (parentPath.Resource == null) return null;
 
