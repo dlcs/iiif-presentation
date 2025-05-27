@@ -19,7 +19,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
     private const char PathSeparator = '/';
 
     /// <summary>
-    /// Parses a full URI into  the required path segements, taking into account path rewrites
+    /// Parses a full URI into  the required path segments, taking into account path rewrites
     /// </summary>
     /// <param name="host"></param>
     /// <param name="path">The path to match against</param>
