@@ -87,7 +87,10 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
                 {
                     customerIdFromPath = int.Parse(valuePart);
                 }
-                else if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.ResourceId) resourceId = valuePart;
+                else if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.ResourceId)
+                {
+                    resourceId = valuePart;
+                }
                 else if (capturedValue == TypedPathTemplateOptions.SupportedTemplateOptions.HierarchyPath && 
                          !SpecConstants.ProhibitedSlugs.Contains(valuePart))
                 {
