@@ -111,5 +111,4 @@ public static class PathParser
 
     private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
     private static string ProhibitedCharacterDisplay = string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
-
 }
