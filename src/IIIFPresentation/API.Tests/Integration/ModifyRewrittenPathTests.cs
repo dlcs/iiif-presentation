@@ -42,7 +42,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPaths()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPaths);
+        var slug = TestIdentifiers.Id();
         var requestParent = $"http://no-customer.com/collections/{RootCollection.Id}";
         // Arrange
         var collection = new PresentationCollection
@@ -81,7 +81,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithAdditionalPathElement()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithAdditionalPathElement);
+        var slug = TestIdentifiers.Id();
         var requestParent = $"http://example.com/foo/{Customer}/collections/{RootCollection.Id}";
         // Arrange
         var collection = new PresentationCollection
@@ -120,7 +120,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicParentId()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicParentId);
+        var slug = TestIdentifiers.Id();
         // Arrange
         var collection = new PresentationCollection
         {
@@ -159,7 +159,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicParentIdAndAdditionalPathElement()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicParentIdAndAdditionalPathElement);
+        var slug = TestIdentifiers.Id();
         // Arrange
         var collection = new PresentationCollection
         {
@@ -198,7 +198,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicId()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicId);
+        var slug = TestIdentifiers.Id();
         // Arrange
         var collection = new PresentationCollection
         {
@@ -235,7 +235,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     [Fact]
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicIdAndAdditionalPathElement()
     {
-        var slug = nameof(CreateCollection_CreatesCollection_WhenRewrittenPathsWithPublicIdAndAdditionalPathElement);
+        var slug = TestIdentifiers.Id();
         // Arrange
         var collection = new PresentationCollection
         {
@@ -274,7 +274,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateManifest_CreatesManifest_WhenRewrittenPaths()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifest_WhenRewrittenPaths);
+        var slug = TestIdentifiers.Id();
         var manifest = new PresentationManifest
         {
             Parent = $"http://no-customer.com/collections/{RootCollection.Id}",
@@ -313,7 +313,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateManifest_CreatesManifest_WhenRewrittenPathsAndAdditionalPathElements()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifest_WhenRewrittenPathsAndAdditionalPathElements);
+        var slug = TestIdentifiers.Id();
         var manifest = new PresentationManifest
         {
             Parent = $"http://example.com/foo/1/collections/{RootCollection.Id}",
