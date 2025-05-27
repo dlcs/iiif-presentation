@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace Core.Helpers;
 
@@ -46,4 +47,24 @@ public static class StringX
     {
         return path.Split('/').Last();
     }
+    
+    /// <summary>
+    /// Build string concatenated with specified separator. Will ensure only 1 separator between elements 
+    /// </summary>
+    /// <param name="str">Initial string to add further strings to</param>
+    /// <param name="separator">Separator to place between initial string + further strings</param>
+    /// <param name="toAppend">List of strings to add, separated by separator</param>
+    public static string ToConcatenated(this string str, char separator, params string[] toAppend)
+    {
+        if (string.IsNullOrWhiteSpace(str)) return str;
+
+        var sb = new StringBuilder(str.TrimEnd(separator));
+        foreach (var s in toAppend)
+        {
+            sb.Append(separator);
+            sb.Append(s.TrimEnd(separator).TrimStart(separator));
+        }
+
+        return sb.ToString();
+    }    
 }

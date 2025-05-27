@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using IIIF.Presentation.V3;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -34,20 +35,18 @@ public static class PathParser
         if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
         {
             CheckForProhibitedCharacters(canvasId);
-
             return canvasId;
         }
 
         var convertedCanvasId = new Uri(canvasId).PathAndQuery;
         var customerCanvasesPath = $"/{customerId}/canvases/";
 
-        if (!convertedCanvasId.StartsWith(customerCanvasesPath) ||
-            convertedCanvasId.Length == customerCanvasesPath.Length)
-            throw new ArgumentException($"Canvas Id {convertedCanvasId} is not valid");
+        if (!convertedCanvasId.StartsWith(customerCanvasesPath) || convertedCanvasId.Equals(customerCanvasesPath))
+        {
+            throw new InvalidCanvasIdException(convertedCanvasId);
+        }
 
-        var actualCanvasId =
-            convertedCanvasId.Substring(customerCanvasesPath.Length,
-                convertedCanvasId.Length - customerCanvasesPath.Length);
+        var actualCanvasId = convertedCanvasId[customerCanvasesPath.Length..];
         CheckForProhibitedCharacters(actualCanvasId);
 
         return actualCanvasId;
@@ -55,9 +54,10 @@ public static class PathParser
 
     private static void CheckForProhibitedCharacters(string canvasId)
     {
-        if (prohibitedCharacters.Any(pc => canvasId.Contains(pc)))
+        if (ProhibitedCharacters.Any(canvasId.Contains))
         {
-            throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
+            throw new InvalidCanvasIdException(canvasId,
+                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
         }
     }
 
@@ -112,12 +112,7 @@ public static class PathParser
     public static Uri GetParentUriFromPublicId(string publicId) => 
         new(publicId[..publicId.LastIndexOf('/')]);
 
-    private static readonly List<char> prohibitedCharacters =
-    [
-        '/',
-        '=',
-        '=',
-        ',',
-    ];
-}
+    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
+    private static string ProhibitedCharacterDisplay = string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 
+}

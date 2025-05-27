@@ -16,52 +16,51 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
         
         if (!settings.IgnorePaintedResourcesWithItems)
         {
-            RuleFor(f => f.Items).Empty()
+            RuleFor(m => m.Items).Empty()
                 .When(f => !f.PaintedResources.IsNullOrEmpty())
                 .WithMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
         }
+
+        When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
+        RuleFor(c => c).SetValidator(new PresentationValidator());
+    }
+
+    // Validation rules specific to PaintedResources only
+    private void PaintedResourcesValidation()
+    {
+        RuleForEach(m => m.PaintedResources)
+            .Must(pr => pr.CanvasPainting?.CanvasId != null)
+            .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasId: not null }))
+            .WithMessage("'canvasId' is required on all resources when used in at least one");
         
-        RuleFor(f => f.PaintedResources)
-            .Must(lpr => lpr.Any(pr => pr.CanvasPainting.CanvasOrder != null) 
-                         != lpr.Any(pr => pr.CanvasPainting.CanvasOrder == null))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
+        RuleForEach(m => m.PaintedResources)
+            .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
+            .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
             .WithMessage("'canvasOrder' is required on all resources when used in at least one");
         
-        RuleFor(f => f.PaintedResources)
-            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
-                .GroupBy(pr => pr.CanvasPainting.CanvasOrder).Where(g => g.Count() > 1)
-                .Any(s => s.Any(g => g.CanvasPainting.ChoiceOrder == null)))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
-            .WithMessage("'choiceOrder' cannot be null within a duplicate 'canvasOrder'");
-
-        RuleFor(f => f.PaintedResources)
+        RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
-                .Any(s =>
+                .Where(g => g.Count() > 1)
+                .Any(grp => grp.Select(pr => pr.CanvasPainting.CanvasId).Distinct().Count() > 1))
+            .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
+
+        RuleFor(m => m.PaintedResources)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
+                .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
+                .Any(grp =>
                 {
-                    var distinctChoiceOrder = s.Select(pr => pr.CanvasPainting.ChoiceOrder).Distinct().Count();
-
-                    return distinctChoiceOrder != s.Count();
+                    var distinctChoiceOrder = grp.Select(pr => pr.CanvasPainting.ChoiceOrder).Distinct().Count();
+                    return distinctChoiceOrder != grp.Count();
                 }))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() &&
-                       f.PaintedResources.All(pr => pr.CanvasPainting?.ChoiceOrder != null))
+            .When(m => m.PaintedResources.All(pr => pr.CanvasPainting?.ChoiceOrder != null))
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
-
-        RuleFor(f => f.PaintedResources)
-            .Must(lpr =>
-                lpr!.All(
-                    // either both have value, or none
-                    pr => pr.CanvasPainting!.StaticHeight.HasValue == pr.CanvasPainting.StaticWidth.HasValue))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() && f.PaintedResources.All(pr => pr.CanvasPainting != null))
+        
+        RuleForEach(f => f.PaintedResources)
+            .Where(pr => pr.CanvasPainting != null)
+            .Must(pr => pr.CanvasPainting!.StaticHeight.HasValue == pr.CanvasPainting.StaticWidth.HasValue)
             .WithMessage(
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
-        
-        RuleFor(f => f.PaintedResources)
-            .Must(lpr => lpr.Any(pr => pr.CanvasPainting.CanvasId != null) 
-                         != lpr.Any(pr => pr.CanvasPainting.CanvasId == null))
-            .When(f => !f.PaintedResources.IsNullOrEmpty() && !f.PaintedResources.Any(pr => pr.CanvasPainting == null))
-            .WithMessage("'canvasId' is required on all resources when used in at least one");
-
-        RuleFor(c => c).SetValidator(new PresentationValidator());
     }
 }

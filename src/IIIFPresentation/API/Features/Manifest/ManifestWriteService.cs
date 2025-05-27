@@ -270,7 +270,7 @@ public class ManifestWriteService(
             ],
             CanvasPaintings = canvasPaintings,
             SpaceId = spaceId,
-            LastProcessed = canvasPaintings?.Any(cp => cp.AssetId != null) ?? false ? null : timeStamp
+            LastProcessed = RequiresFurtherProcessing(request.PresentationManifest) ? null : timeStamp,
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);
@@ -279,16 +279,26 @@ public class ManifestWriteService(
         return (saveErrors, dbManifest);
     }
 
+    /// <summary>
+    /// Check if manifest will require further processing. This is used to set .LastProcessed for a manifest. If further
+    /// processing is required this later processing will trigger update to field.
+    /// </summary>
+    private static bool RequiresFurtherProcessing(PresentationManifest presentationManifest) =>
+        presentationManifest.PaintedResources?.Any(pr => pr.Asset != null) ?? false;
+
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, CancellationToken cancellationToken)
     {
+        var presentationManifest = request.PresentationManifest;
         var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
-            request.PresentationManifest, existingManifest, cancellationToken);
+            presentationManifest, existingManifest, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
-        existingManifest.Label = request.PresentationManifest.Label;
+        existingManifest.Label = presentationManifest.Label;
+        existingManifest.LastProcessed = RequiresFurtherProcessing(presentationManifest) ? null : DateTime.UtcNow;
+        
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = parsedParentSlug.Slug;
         canonicalHierarchy.Parent = parsedParentSlug.Parent.Id;

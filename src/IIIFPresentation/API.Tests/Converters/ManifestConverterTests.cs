@@ -225,7 +225,7 @@ public class ManifestConverterTests
                     CanvasOrder = 2,
                     AssetId = new AssetId(1, 2, "assetId2"),
                     CustomerId = customer,
-                    Id = "assetId2"
+                    Id = "assetId1"
                 },
                 new CanvasPainting
                 {
@@ -312,6 +312,9 @@ public class ManifestConverterTests
     [Fact]
     public void SetGeneratedFields_SetsItems_IfNotSet()
     {
+        // PaintedResources has 2 canvases.
+        // The first with 3 painted anno: <image> <choice> <image>
+        // The second with 1 painted anno: <image>
         var iiifManifest = new PresentationManifest
         {
             PaintedResources =
@@ -320,24 +323,48 @@ public class ManifestConverterTests
                 {
                     Asset = new JObject
                     {
-                        ["id"] = "1b",
+                        ["id"] = "1-i",
                         ["mediaType"] = "image/jpeg"
                     },
                     CanvasPainting = new Models.API.Manifest.CanvasPainting
                     {
-                        CanvasOrder = 1, ChoiceOrder = 2, CanvasId = "foo"
+                        CanvasOrder = 0, CanvasId = "first"
                     }
                 },
                 new PaintedResource
                 {
                     Asset = new JObject
                     {
-                        ["id"] = "1a",
+                        ["id"] = "1-ii-b",
                         ["mediaType"] = "image/jpeg"
                     },
                     CanvasPainting = new Models.API.Manifest.CanvasPainting
                     {
-                        CanvasOrder = 1, ChoiceOrder = 1, CanvasId = "foo"
+                        CanvasOrder = 1, ChoiceOrder = 2, CanvasId = "first"
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1-ii-a",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                    CanvasPainting = new Models.API.Manifest.CanvasPainting
+                    {
+                        CanvasOrder = 1, ChoiceOrder = 1, CanvasId = "first"
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1-iii",
+                        ["mediaType"] = "image/jpeg"
+                    },
+                    CanvasPainting = new Models.API.Manifest.CanvasPainting
+                    {
+                        CanvasOrder = 2, CanvasId = "first"
                     }
                 },
                 new PaintedResource
@@ -349,7 +376,7 @@ public class ManifestConverterTests
                     },
                     CanvasPainting = new Models.API.Manifest.CanvasPainting
                     {
-                        CanvasOrder = 2, CanvasId = "foo"
+                        CanvasOrder = 3, CanvasId = "second"
                     }
                 },
             ]
@@ -361,11 +388,22 @@ public class ManifestConverterTests
             Id = "test-manifest",
             CanvasPaintings =
             [
+                new CanvasPainting { AssetId = new AssetId(1, 2, "1-i"), CanvasOrder = 0, Id = "first" },
                 new CanvasPainting
-                    { AssetId = new AssetId(1, 2, "1b"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                {
+                    AssetId = new AssetId(1, 2, "1-ii-b"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first",
+                    Target = "xywh=10,100,200,200"
+                },
                 new CanvasPainting
-                    { AssetId = new AssetId(1, 2, "1a"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
-                new CanvasPainting { AssetId = new AssetId(1, 2, "2"), CanvasOrder = 2, Id = "second" },
+                {
+                    AssetId = new AssetId(1, 2, "1-ii-a"), CanvasOrder = 1, ChoiceOrder = 1, Id = "first",
+                    Target = "xywh=0,0,200,200"
+                },
+                new CanvasPainting
+                {
+                    AssetId = new AssetId(1, 2, "1-iii"), CanvasOrder = 2, Id = "first", Target = "xywh=200,400,200,200"
+                },
+                new CanvasPainting { AssetId = new AssetId(1, 2, "2"), CanvasOrder = 3, Id = "alpha" },
             ],
             Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
         };
@@ -379,42 +417,50 @@ public class ManifestConverterTests
                 [
                     new AnnotationPage
                     {
-                        Id = "http://base/0/canvases/first/annopages/1",
+                        Id = "http://base/0/canvases/first/annopages/0",
                         Items =
                         [
                             new PaintingAnnotation
                             {
-                                Id = "http://base/0/canvases/first/annotations/1",
+                                Id = "http://base/0/canvases/first/annotations/0",
                                 Behavior = [Behavior.Processing],
                                 Target = new Canvas { Id = "http://base/0/canvases/first" },
-                                Body = new PaintingChoice
-                                {
-                                    Items =
-                                    [
-                                        new Image(), new Image()
-                                    ]
-                                }
-                            }
+                                Body = null,
+                            },
+                            new PaintingAnnotation
+                            {
+                                Id = "http://base/0/canvases/first/annotations/1",
+                                Behavior = [Behavior.Processing],
+                                Target = new Canvas { Id = "http://base/0/canvases/first#xywh=0,0,200,200" },
+                                Body = new PaintingChoice(),
+                            },
+                            new PaintingAnnotation
+                            {
+                                Id = "http://base/0/canvases/first/annotations/2",
+                                Behavior = [Behavior.Processing],
+                                Target = new Canvas { Id = "http://base/0/canvases/first#xywh=200,400,200,200" },
+                                Body = null,
+                            },
                         ]
                     }
                 ]
             },
             new()
             {
-                Id = "http://base/0/canvases/second",
+                Id = "http://base/0/canvases/alpha",
                 Items =
                 [
                     new AnnotationPage
                     {
-                        Id = "http://base/0/canvases/second/annopages/2",
+                        Id = "http://base/0/canvases/alpha/annopages/3",
                         Items =
                         [
                             new PaintingAnnotation
                             {
-                                Id = "http://base/0/canvases/second/annotations/2",
+                                Id = "http://base/0/canvases/alpha/annotations/3",
                                 Behavior = [Behavior.Processing],
-                                Target = new Canvas { Id = "http://base/0/canvases/second" },
-                                Body = new Image()
+                                Target = new Canvas { Id = "http://base/0/canvases/alpha" },
+                                Body = null,
                             }
                         ]
                     }
@@ -426,7 +472,12 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
         
         // Assert
-        result.Items.Should().BeEquivalentTo(expectedItems);
+        for (int i = 0; i < expectedItems.Count; i++)
+        {
+            // Comparing individually makes errors earlier to grok
+            result.Items[i].Should().BeEquivalentTo(expectedItems[i], opts => opts.RespectingRuntimeTypes(),
+                $"Item {i} should be equivalent");
+        }
     }
     
     [Fact]

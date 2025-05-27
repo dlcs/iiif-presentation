@@ -76,6 +76,11 @@ public interface IPathGenerator
     string GenerateCanvasId(CanvasPainting canvasPainting);
     
     /// <summary>
+    /// Get canvas id for specified <see cref="CanvasPainting"/> with canvasPainting Target appended
+    /// </summary>
+    string GenerateCanvasIdWithTarget(CanvasPainting canvasPainting);
+    
+    /// <summary>
     /// Get AnnotationPage id for specified <see cref="CanvasPainting"/>
     /// </summary>
     string GenerateAnnotationPagesId(CanvasPainting canvasPainting);
