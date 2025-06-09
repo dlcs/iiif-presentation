@@ -1294,13 +1294,14 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         responseManifest.Should().NotBeNull();
         responseManifest!.PaintedResources.Should().NotBeNull();
         responseManifest.PaintedResources!.Count.Should().Be(2);
+        
         responseManifest.PaintedResources.First().CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/canvasId");
         responseManifest.PaintedResources.First().Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
         assetId!.Type.Should().Be(JTokenType.String);
         assetId.Value<string>().Should()
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
         
-        responseManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should().NotBeNull();
+        responseManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should().NotBeNullOrEmpty();
         responseManifest.PaintedResources.Last().Asset!.TryGetValue("@id", out var secondAssetId).Should().BeTrue();
         secondAssetId!.Type.Should().Be(JTokenType.String);
         secondAssetId.Value<string>().Should()
