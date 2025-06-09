@@ -1251,9 +1251,9 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     [Fact]
     public async Task CreateManifest_CreatesManifest_WhenWithAndWithoutCanvasId()
     {
-        const string postedAssetId = "theAssetId";
+        const string postedAssetId = "AnAssetId";
         // Arrange
-        var slug = nameof(CreateManifest_CreateSpace_ForSpacelessAssets_WhenNoSpaceHeader);
+        var slug = nameof(CreateManifest_CreatesManifest_WhenWithAndWithoutCanvasId);
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -1266,11 +1266,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                     {
                         CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
                     },
-                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 123))
+                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", 124))
                 },
                 new ()
                 {
-                    Asset = new(new JProperty("id", $"{postedAssetId}-2"), new JProperty("batch", 123))
+                    Asset = new(new JProperty("id", $"{postedAssetId}-2"), new JProperty("batch", 124))
                 }
             }
         };
