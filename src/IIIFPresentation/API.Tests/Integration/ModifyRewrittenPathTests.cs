@@ -144,8 +144,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
