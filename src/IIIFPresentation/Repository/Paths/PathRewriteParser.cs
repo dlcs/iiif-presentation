@@ -44,7 +44,11 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             // work out if the template is a FQDN and remove the host if it is
-            if (Uri.TryCreate(template.Value, UriKind.Absolute, out _)) templateSplit = templateSplit.Skip(2).ToArray();
+            if (Uri.TryCreate(template.Value, UriKind.Absolute, out var uriResult) &&
+                (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+            {
+                templateSplit = templateSplit.Skip(2).ToArray();
+            }
 
             // Check lengths are same, if not don't compare, or it's possible to be just the host value
             if (pathSplit.Length != templateSplit.Length &&
