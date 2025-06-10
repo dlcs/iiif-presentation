@@ -1,22 +1,15 @@
-﻿using IIIF.ImageApi;
+﻿using Core.Helpers;
+using IIIF.ImageApi;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 
 namespace Repository.Paths;
 
-public abstract class PathGeneratorBase : IPathGenerator
+public abstract class PathGeneratorBase(IPresentationPathGenerator presentationPathGenerator) : IPathGenerator
 {
-    private const string ManifestsSlug = "manifests";
-    private const string CollectionsSlug = "collections";
-    private const string CanvasesSlug = "canvases";
     private const string AnnotationPagesSlug = "annopages";
     private const string PaintingAnnotationSlug = "annotations";
-    
-    /// <summary>
-    /// Base url for IIIF Presentation
-    /// </summary>
-    protected abstract string PresentationUrl { get; }
     
     /// <summary>
     /// Base url for DLCS Protagonist API
@@ -24,19 +17,25 @@ public abstract class PathGeneratorBase : IPathGenerator
     protected abstract Uri DlcsApiUrl { get; }
 
     public string GenerateHierarchicalFromFullPath(int customerId, string? fullPath) =>
-        $"{PresentationUrl}/{customerId}{(fullPath is {Length: > 0} ? $"/{fullPath.TrimStart('/')}" : string.Empty)}";
+        presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, 
+            customerId, fullPath);
 
-    public string GenerateFlatCollectionId(Collection collection) => 
-        $"{PresentationUrl}/{collection.CustomerId}/collections/{collection.Id}";
+    public string GenerateFlatCollectionId(Collection collection) =>
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
+            collection.CustomerId, collection.Id);
     
     public string GenerateHierarchicalId(Hierarchy hierarchy) =>
-        GenerateHierarchicalFromFullPath(hierarchy.CustomerId, hierarchy.FullPath);
+        presentationPathGenerator.GetHierarchyPresentationPathForRequest(PresentationResourceType.ResourcePublic, 
+            hierarchy.CustomerId, hierarchy.FullPath);
     
     public string GenerateFlatId(Hierarchy hierarchy) =>
-        $"{PresentationUrl}/{hierarchy.CustomerId}/{GetSlug(hierarchy.Type)}/{hierarchy.ResourceId}";
+        presentationPathGenerator.GetFlatPresentationPathForRequest(GetResourceType(hierarchy.Type), 
+            hierarchy.CustomerId, hierarchy.ResourceId);
     
     public string GenerateFlatParentId(Hierarchy hierarchy) =>
-        $"{PresentationUrl}/{hierarchy.CustomerId}/{CollectionsSlug}/{hierarchy.Parent}";
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.CollectionPrivate,
+            hierarchy.CustomerId,
+            hierarchy.Parent);
     
     public string GenerateFlatCollectionViewId(Collection collection, int currentPage, int pageSize, 
         string? orderQueryParam) =>
@@ -67,13 +66,27 @@ public abstract class PathGeneratorBase : IPathGenerator
         => $"{(!string.IsNullOrEmpty(parentPath) ? $"{parentPath}/" : string.Empty)}{hierarchy.Slug}";
     
     public string GenerateFlatManifestId(Manifest manifest) =>
-        $"{PresentationUrl}/{manifest.CustomerId}/{ManifestsSlug}/{manifest.Id}";
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.ManifestPrivate, 
+            manifest.CustomerId, manifest.Id);
 
-    public string GenerateCanvasId(CanvasPainting canvasPainting)
-        => $"{PresentationUrl}/{canvasPainting.CustomerId}/{CanvasesSlug}/{canvasPainting.Id}";
+    public string GenerateCanvasId(CanvasPainting canvasPainting) => 
+        presentationPathGenerator.GetFlatPresentationPathForRequest(PresentationResourceType.Canvas, 
+            canvasPainting.CustomerId, canvasPainting.Id);
 
-    public string GenerateAnnotationPagesId(CanvasPainting canvasPainting)
-        => $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
+    public string GenerateCanvasIdWithTarget(CanvasPainting canvasPainting)
+    {
+        var canvasId = GenerateCanvasId(canvasPainting);
+        if (string.IsNullOrEmpty(canvasPainting.Target)) return canvasId;
+        
+        // NOTE(DG) - we currently only support mediaFragments
+        var relevantTarget = Uri.TryCreate(canvasPainting.Target, UriKind.Absolute, out var target)
+            ? target.Fragment
+            : canvasPainting.Target;
+        return string.IsNullOrEmpty(relevantTarget) ? canvasId : canvasId.ToConcatenated('#', relevantTarget);
+    }
+
+    public string GenerateAnnotationPagesId(CanvasPainting canvasPainting) => 
+        $"{GenerateCanvasId(canvasPainting)}/{AnnotationPagesSlug}/{canvasPainting.CanvasOrder}";
 
     public string GeneratePaintingAnnotationId(CanvasPainting canvasPainting)
         => $"{GenerateCanvasId(canvasPainting)}/{PaintingAnnotationSlug}/{canvasPainting.CanvasOrder}";
@@ -100,22 +113,15 @@ public abstract class PathGeneratorBase : IPathGenerator
         return uriBuilder.Uri;
     }
 
-    public string? GetModifiedImageRequest(string? existing, int customerId, int spaceId, int width, int height)
+    public string? GetModifiedImageRequest(string? existing, int width, int height)
     {
-        const string dlcsImagePath = "iiif-img";
-        if (existing is null)
-            return null;
+        if (string.IsNullOrEmpty(existing)) return existing;
+        if (!ImageRequest.TryParse(existing, out var imageRequest)) return existing;
 
-        var uriPrefix = string.Empty;
-        if (Uri.TryCreate(existing, UriKind.Absolute, out var uri))
-            uriPrefix = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped) + "/";
-        var prefix = $"{uriPrefix}{dlcsImagePath}/{customerId}/{spaceId}/";
-
-        var ir = ImageRequest.Parse(existing, prefix);
-        ir.Size = new() {Width = width, Height = height};
-        return ir.ToString();
+        imageRequest.Size = new() { Width = width, Height = height };
+        return imageRequest.ToString();
     }
 
-    private string GetSlug(ResourceType resourceType) 
-        => resourceType == ResourceType.IIIFManifest ? ManifestsSlug : CollectionsSlug;
+    private string GetResourceType(ResourceType resourceType) 
+        => resourceType == ResourceType.IIIFManifest ? PresentationResourceType.ManifestPrivate : PresentationResourceType.CollectionPrivate;
 }

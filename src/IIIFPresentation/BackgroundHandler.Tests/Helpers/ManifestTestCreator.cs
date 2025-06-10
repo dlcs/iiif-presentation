@@ -279,4 +279,57 @@ public class ManifestTestCreator
             ],
             Label = new("en", $"{id}_Image")
         };
+    
+    public static Manifest GenerateMinimalNamedQueryManifest(AssetId fullAssetId, Uri presentationUrl, string? bodyId = null)
+    {
+        var qualifiedAssetId = $"{presentationUrl}iiif-img/{fullAssetId}";
+        var canvasId = $"{qualifiedAssetId}/canvas/c/1";
+        return new Manifest
+        {
+            Items = new List<Canvas>
+            {
+                new()
+                {
+                    Id = canvasId,
+                    Width = 100,
+                    Height = 100,
+                    Items =
+                    [
+                        new()
+                        {
+                            Id = $"{canvasId}/page",
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = $"{canvasId}/page/image",
+                                    Body = new Image
+                                    {
+                                        Id = bodyId ?? $"{qualifiedAssetId}/full/100,100/0/default.jpg",
+                                        Width = 100,
+                                        Height = 100,
+                                        Service =
+                                        [
+                                            new ImageService3
+                                            {
+                                                Width = 75,
+                                                Height = 75
+                                            }
+                                        ]
+                                    },
+                                    Service =
+                                    [
+                                        new ImageService3
+                                        {
+                                            Profile = "level2"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        };
+    }
 }

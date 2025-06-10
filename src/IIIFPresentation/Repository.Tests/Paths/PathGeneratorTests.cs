@@ -1,4 +1,5 @@
-﻿using Models.Database;
+﻿using Core.Web;
+using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
@@ -8,8 +9,9 @@ namespace Repository.Tests.Paths;
 
 public class PathGeneratorTests
 {
-    private readonly IPathGenerator pathGenerator = new TestPathGenerator();
-    
+    private readonly IPathGenerator pathGenerator =
+        new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()));
+
     [Fact]
     public void GenerateHierarchicalId_CreatesIdWhenNoFullPath()
     {
@@ -266,6 +268,65 @@ public class PathGeneratorTests
         id.Should().Be("http://base/123/canvases/test");
     }
     
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GenerateCanvasIdWithTarget_Correct_IfNoTarget(string? target)
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = target,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
+    }
+    
+    [Theory]
+    [InlineData("xywh=1,2,3,4")]
+    [InlineData("#xywh=1,2,3,4")]
+    [InlineData("https://cody.myt/random#xywh=1,2,3,4")]
+    public void GenerateCanvasIdWithTarget_Correct(string target)
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = target,
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test#xywh=1,2,3,4");
+    }
+    
+    [Fact]
+    public void GenerateCanvasIdWithTarget_Correct_IfUriHasNoFragment()
+    {
+        // Arrange
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "test",
+            CustomerId = 123,
+            Target = "https://cody.myt/random",
+        };
+
+        // Act
+        var id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting);
+
+        // Assert
+        id.Should().Be("http://base/123/canvases/test");
+    }
+    
     [Fact]
     public void GenerateAnnotationPagesId_Correct()
     {
@@ -379,7 +440,7 @@ public class PathGeneratorTests
     [Fact]
     public void GetModifiedImageRequest_ReturnsNull_IfExistingIsNull()
     {
-        pathGenerator.GetModifiedImageRequest(null, 1, 2, 3, 4)
+        pathGenerator.GetModifiedImageRequest(null, 1, 2)
             .Should().BeNull("null in, null out");
     }
 
@@ -390,7 +451,7 @@ public class PathGeneratorTests
         const int spaceId = 456;
         var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, 100, 100)
+        pathGenerator.GetModifiedImageRequest(requestPath, 100, 100)
             .Should().Be(requestPath, "same size params should result in reconstructed identical URI");
     }
 
@@ -403,7 +464,7 @@ public class PathGeneratorTests
         const int height = 50;
         var requestPath = $"iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+        pathGenerator.GetModifiedImageRequest(requestPath, width, height)
             .Should().Contain($"/{width},{height}/");
     }
 
@@ -418,17 +479,61 @@ public class PathGeneratorTests
         var requestPath =
             $"{server}/iiif-img/{customerId}/{spaceId}/manifest_345/full/100,100/0/default.jpg";
 
-        pathGenerator.GetModifiedImageRequest(requestPath, customerId, spaceId, width, height)
+        pathGenerator.GetModifiedImageRequest(requestPath, width, height)
             .Should().Contain($"/{width},{height}/")
             .And.StartWith(server);
+    }
+    
+    [Theory]
+    [InlineData("asset/iiif-img/1/2/foo/full/max/0/default.jpg", "asset/iiif-img/1/2/foo/full/75,50/0/default.jpg")]
+    [InlineData("https://dlcs.example/asset/iiif-img/1/2/foo/full/max/0/default.jpg", "https://dlcs.example/asset/iiif-img/1/2/foo/full/75,50/0/default.jpg")]
+    [InlineData("img/foo/full/!400,400/0/default.jpg", "img/foo/full/75,50/0/default.jpg")]
+    [InlineData("https://dlcs.example/img/foo/full/!400,400/0/default.jpg", "https://dlcs.example/img/foo/full/75,50/0/default.jpg")]
+    public void GetModifiedImageRequest_SetsSizeParam_WhenRewritten(string input, string expected)
+    {
+        // Verify that we can handle image paths for "rewritten" (non standard) asset paths
+        const int customerId = 123;
+        const int spaceId = 456;
+        const int width = 75;
+        const int height = 50;
+
+        pathGenerator.GetModifiedImageRequest(input, width, height)
+            .Should().Be(expected);
     }
     
     private static List<Hierarchy> GetDefaultHierarchyList(string? fullPath = null) =>  
         [new() { Slug = "slug", FullPath = fullPath }];
 }
 
-public class TestPathGenerator : PathGeneratorBase
+public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
 {
-    protected override string PresentationUrl => "http://base";
     protected override Uri DlcsApiUrl => new("https://dlcs.test");
+}
+
+public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
+    : IPresentationPathGenerator
+{
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
+    }
+
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    {
+        return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
+    }
+
+    private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
+        string? resourceId = null)
+    {
+        var host = presentationUrl;
+        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
+
+        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
+            customerId.ToString(), hierarchyPath, resourceId);
+        
+        return Uri.IsWellFormedUriString(path, UriKind.Absolute)
+            ? path // template contains https://foo.com
+            : presentationUrl + path;
+    }
 }

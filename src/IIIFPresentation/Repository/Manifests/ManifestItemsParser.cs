@@ -4,16 +4,17 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
-using Models.Database;
+using Models.API.Manifest;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Repository.Manifests;
 
 /// <summary>
 /// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
-public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
+public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
-    public IEnumerable<CanvasPainting> ParseItemsToCanvasPainting(Manifest manifest)
+    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
@@ -47,7 +48,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
 
                         if (resource is Image or Video or Sound)
                         {
-                            var cp = CreatePartialCanvasPainting(resource, canvas.Id!, choiceCanvasOrder, target,
+                            var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
                                 canvas, choiceOrder);
 
                             choiceOrder++;
@@ -89,7 +90,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id!, canvasOrder, target, canvas);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -151,7 +152,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger)
         return Uri.TryCreate(thumbnail, UriKind.Absolute, out var thumbnailUri) ? thumbnailUri : null;
     }
 
-    private string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
+    private static string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
     {
         switch (target)
         {

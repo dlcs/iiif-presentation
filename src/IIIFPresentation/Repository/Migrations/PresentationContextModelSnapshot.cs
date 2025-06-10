@@ -49,7 +49,6 @@ namespace Repository.Migrations
                         .HasColumnName("canvas_original_id");
 
                     b.Property<int?>("ChoiceOrder")
-                        .IsRequired()
                         .HasColumnType("integer")
                         .HasColumnName("choice_order");
 

@@ -1,5 +1,7 @@
 ﻿using API.Helpers;
+using API.Paths;
 using API.Tests.Integration.Infrastructure;
+using Core.Web;
 using DLCS;
 using FakeItEasy;
 using Microsoft.AspNetCore.Http;
@@ -38,7 +40,12 @@ public class ParentSlugParserTests
             ApiUri = new Uri("http://localhost")
         });
 
-        var pathGenerator = new HttpRequestBasedPathGenerator(httpContextAccessor, options);
+        var presentationPathGenerator =
+            new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
+                httpContextAccessor);
+
+        var pathGenerator =
+            new HttpRequestBasedPathGenerator(options, presentationPathGenerator);
         parentSlugParser = new ParentSlugParser(presentationContext, pathGenerator, httpContextAccessor, new NullLogger<ParentSlugParser>());
     }
 

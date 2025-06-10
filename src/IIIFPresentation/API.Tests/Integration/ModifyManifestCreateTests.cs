@@ -41,8 +41,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private const int InvalidSpaceCustomer = 34512;
     private const int NewlyCreatedSpace = 999;
 
-    public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory,
-        ITestOutputHelper testOutputHelper)
+    public ModifyManifestCreateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
@@ -1559,7 +1558,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_BadRequest_WhenCanvasIdIncorrectFormat()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdIncorrectFormat);
+        var slug = TestIdentifiers.Id();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1573,7 +1572,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = $"https://iiif.io/incorrect"
+                        CanvasId = "https://iiif.io/incorrect"
                     },
                     Asset = new JObject
                     {
@@ -1598,70 +1597,13 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task CreateManifest_BadRequest_WhenCanvasIdDuplicated()
-    {
-        // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdDuplicated);
-        var manifest = new PresentationManifest
-        {
-            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
-            Behavior = [
-                Behavior.IsPublic
-            ],
-            Slug = slug,
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = $"https://iiif.io/{Customer}/canvases/duplicate"
-                    },
-                    Asset = new JObject
-                    {
-                        ["id"] = "1b",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                },
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "duplicate"
-                    },
-                    Asset = new JObject
-                    {
-                        ["id"] = "1b",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                }
-            ]
-        };
-        
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
-        
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DuplicateCanvasId");
-    }
-    
-    [Fact]
     public async Task CreateManifest_BadRequest_WhenCanvasIdNotDuplicatedInCanvasOrder()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenCanvasIdNotDuplicatedInCanvasOrder);
+        var slug = TestIdentifiers.Id();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
-            Behavior = [
-                Behavior.IsPublic
-            ],
             Slug = slug,
             PaintedResources =
             [
@@ -1706,7 +1648,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CanvasOrderHasDifferentCanvasId");
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
     }
     
     [Fact]

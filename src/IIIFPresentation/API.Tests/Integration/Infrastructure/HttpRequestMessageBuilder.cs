@@ -19,4 +19,9 @@ public static class HttpRequestMessageBuilder
         
         return requestMessage;
     }
+    
+    public static void AddHostExampleHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Host", "example.com");
+    }
 }

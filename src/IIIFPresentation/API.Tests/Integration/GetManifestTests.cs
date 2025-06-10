@@ -99,6 +99,57 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
     }
+    
+    [Fact]
+    public async Task Get_Hierarchical_ReturnsNotFound_WhenAuthAndShowExtrasHeaders_IfNotFound()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/no-here");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+    
+    [Fact]
+    public async Task Get_Hierarchical_ReturnsNotFound_WhenNoAuth_IfNotFound()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/no-here");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+    
+    [Fact]
+    public async Task Get_Hierarchical_ReturnsSeeOther_WhenAuthAndShowExtrasHeaders()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.Should().Be("http://localhost/1/manifests/FirstChildManifest");
+    }
+    
+    [Fact]
+    public async Task Get_Flat_ReturnsNotFound_WhenNotExtraHeaders()
+    {
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/manifests/no-here");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsRedirect_WhenNoExtraHeaders()
@@ -223,17 +274,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         paintedResource.CanvasPainting.Label.Should().BeEquivalentTo(new LanguageMap("en", "foo"));
         paintedResource.Asset.Should().BeEquivalentTo(sampleAsset);
         manifest.Ingesting.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Get_IiifManifest_Hierarchical_Returns_TrailingSlashRedirect()
-    {
-        // Arrange and Act
-        var response = await httpClient.GetAsync("1/iiif-manifest/");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Found);
-        response.Headers.Location!.Should().Be("/1/iiif-manifest");
     }
 
     [Fact]

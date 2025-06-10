@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
@@ -57,6 +58,8 @@ public class BatchCompletionMessageHandler(
         
         // batch isn't tracked by presentation, so nothing to do
         if (batch == null) return;
+
+        var sw = Stopwatch.StartNew();
         
         // Other batches haven't completed, so no point populating items until all are complete
         if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId &&
@@ -68,7 +71,7 @@ public class BatchCompletionMessageHandler(
         else
         {
             logger.LogInformation(
-                "Attempting to complete assets in batch {BatchId} for customer {CustomerId} with the manifest {ManifestId}",
+                "Attempting to complete assets in batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}",
                 batch.Id, batch.CustomerId, batch.ManifestId);
 
             var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
@@ -94,7 +97,9 @@ public class BatchCompletionMessageHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogTrace("updating batch {BatchId} has been completed", batch.Id);
+        logger.LogTrace(
+            "Updating batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}. Completed in {Elapsed}ms",
+            batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
     }
 
     private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest? namedQueryManifest, 
@@ -235,8 +240,7 @@ public class BatchCompletionMessageHandler(
                 image.Width = staticWidth;
                 image.Height = staticHeight;
 
-                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, canvasPainting.AssetId!.Customer,
-                    canvasPainting.AssetId!.Space, staticWidth, staticHeight);
+                image.Id = pathGenerator.GetModifiedImageRequest(image.Id, staticWidth, staticHeight);
             }
         }
     }

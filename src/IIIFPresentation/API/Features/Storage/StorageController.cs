@@ -46,10 +46,12 @@ public class StorageController(
         {
             case ResourceType.IIIFManifest:
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+                {
                     return hierarchy.ManifestId == null
                         ? this.PresentationNotFound()
-                        : SeeOther($"manifests/{hierarchy.ManifestId}");
-                
+                        : SeeOther(pathGenerator.GenerateFlatId(hierarchy));
+                }
+
                 var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
                 return storedManifest == null ? this.PresentationNotFound() : this.PresentationContent(storedManifest);
 
@@ -61,9 +63,9 @@ public class StorageController(
 
                 if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
                 {
-                    var relativeUrl = pathGenerator.GenerateFlatCollectionId(storageRoot.Collection);
-                    relativeUrl = QueryHelpers.AddQueryString(relativeUrl, Request.Query);
-                    return SeeOther(relativeUrl);
+                    var absoluteUri = pathGenerator.GenerateFlatId(hierarchy);
+                    absoluteUri = QueryHelpers.AddQueryString(absoluteUri, Request.Query);
+                    return SeeOther(absoluteUri);
                 }
 
                 return storageRoot.StoredCollection == null

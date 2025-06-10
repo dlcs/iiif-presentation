@@ -13,7 +13,7 @@ public static class PresentationX
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent)).GetLastPathElement();
 
     /// <summary>
-    /// Whether the parent is in a flat or hierarichical form
+    /// Whether the parent is in a flat or hierarchical form
     /// </summary>
     public static bool ParentIsFlatForm(this IPresentation presentation, string baseUrl, int customerId) =>
         presentation.Parent.ThrowIfNullOrEmpty(nameof(presentation.Parent))

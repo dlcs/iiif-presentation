@@ -10,8 +10,6 @@ using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using FluentValidation;
-using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

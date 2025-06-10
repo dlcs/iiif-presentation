@@ -76,6 +76,11 @@ public interface IPathGenerator
     string GenerateCanvasId(CanvasPainting canvasPainting);
     
     /// <summary>
+    /// Get canvas id for specified <see cref="CanvasPainting"/> with canvasPainting Target appended
+    /// </summary>
+    string GenerateCanvasIdWithTarget(CanvasPainting canvasPainting);
+    
+    /// <summary>
     /// Get AnnotationPage id for specified <see cref="CanvasPainting"/>
     /// </summary>
     string GenerateAnnotationPagesId(CanvasPainting canvasPainting);
@@ -104,10 +109,8 @@ public interface IPathGenerator
     ///     Parses an image request URI and rewrites it using provided width and height values
     /// </summary>
     /// <param name="existing">Existing image request uri</param>
-    /// <param name="customerId">existing image request customer id segment</param>
-    /// <param name="spaceId">existing image request space id segment</param>
     /// <param name="width">new width to use</param>
     /// <param name="height">new height to use</param>
     /// <returns></returns>
-    string? GetModifiedImageRequest(string? existing, int customerId, int spaceId, int width, int height);
+    string? GetModifiedImageRequest(string? existing, int width, int height);
 }

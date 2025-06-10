@@ -54,18 +54,7 @@ public class CanvasPainting : IIdentifiable
     /// Multiple choice bodies share same value of canvas_order. When the successive content resources are items in a
     /// Choice body, canvas_order holds constant and this row increments.
     /// </summary>
-    /// <remarks>
-    /// This is nullable in the entity but cannot be null in DB as it's part of PK. In DB use -1 to represent null value
-    /// </remarks>
-    public int? ChoiceOrder
-    {
-        get => internalChoiceOrder == NoChoiceOrderValue ? null : internalChoiceOrder;
-        set => internalChoiceOrder = value ?? NoChoiceOrderValue;
-    }
-    
-    // Note - this is value stored in DB
-    private int internalChoiceOrder; 
-    private const int NoChoiceOrderValue = -1;
+    public int? ChoiceOrder { get; set; }
 
     /// <summary>
     /// Optional URI of a thumbnail for canvas. 
@@ -150,6 +139,7 @@ public static class CanvasPaintingX
         canvasPainting.Target = updated.Target;
         canvasPainting.Modified = DateTime.UtcNow;
         canvasPainting.AssetId = updated.AssetId;
+        canvasPainting.Ingesting = updated.Ingesting;
         if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
         return canvasPainting;
     } 

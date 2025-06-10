@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using IIIF.Presentation.V3;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -34,18 +35,18 @@ public static class PathParser
         if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
         {
             CheckForProhibitedCharacters(canvasId);
-
             return canvasId;
         }
 
         var convertedCanvasId = new Uri(canvasId).PathAndQuery;
-        var startsWith = $"/{customerId}/canvases/";
+        var customerCanvasesPath = $"/{customerId}/canvases/";
 
-        if (!convertedCanvasId.StartsWith(startsWith) || convertedCanvasId.Length == startsWith.Length)
-            throw new ArgumentException($"Canvas Id {convertedCanvasId} is not valid");
+        if (!convertedCanvasId.StartsWith(customerCanvasesPath) || convertedCanvasId.Equals(customerCanvasesPath))
+        {
+            throw new InvalidCanvasIdException(convertedCanvasId);
+        }
 
-        var actualCanvasId =
-            convertedCanvasId.Substring(startsWith.Length, convertedCanvasId.Length - startsWith.Length);
+        var actualCanvasId = convertedCanvasId[customerCanvasesPath.Length..];
         CheckForProhibitedCharacters(actualCanvasId);
 
         return actualCanvasId;
@@ -53,14 +54,37 @@ public static class PathParser
 
     private static void CheckForProhibitedCharacters(string canvasId)
     {
-        if (prohibitedCharacters.Any(pc => canvasId.Contains(pc)))
+        if (ProhibitedCharacters.Any(canvasId.Contains))
         {
-            throw new ArgumentException($"canvas Id {canvasId} contains a prohibited character");
+            throw new InvalidCanvasIdException(canvasId,
+                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
         }
     }
 
     public static string GetHierarchicalFullPathFromPath(string presentationParent, int customerId) =>
         presentationParent.Trim('/').TrimExpect($"{customerId}").Trim('/');
+
+    /// <summary>
+    /// Gets a hierarchical path from a full array of path elements
+    /// </summary>
+    public static string GetHierarchicalPath(string[] pathElements) =>
+        string.Join('/', pathElements.Skip(2).SkipLast(1)); // skip customer id and trailing whitespace 
+
+    /// <summary>
+    /// Gets the resource id from a full array of path elements
+    /// </summary>
+    public static string GetResourceIdFromPath(string[] pathElements) =>
+        pathElements.SkipLast(1).Last(); // miss the trailing whitespace and use the last path element
+
+    /// <summary>
+    /// This is the index of a customer id from a full path
+    /// </summary>
+    public static int FullPathCustomerIdIndex => 1;
+    
+    /// <summary>
+    /// Index of the element used for the type of path
+    /// </summary>
+    public static int FullPathTypeIndex => 2;
 
     /// <summary>
     ///     Will ensure <paramref name="input" /> starts with entire <paramref name="expectation" />
@@ -88,12 +112,7 @@ public static class PathParser
     public static Uri GetParentUriFromPublicId(string publicId) => 
         new(publicId[..publicId.LastIndexOf('/')]);
 
-    private static readonly List<char> prohibitedCharacters =
-    [
-        '/',
-        '=',
-        '=',
-        ',',
-    ];
-}
+    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
+    private static string ProhibitedCharacterDisplay = string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 
+}
