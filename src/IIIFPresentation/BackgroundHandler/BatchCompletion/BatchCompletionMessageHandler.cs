@@ -36,7 +36,7 @@ public class BatchCompletionMessageHandler(
         {
             try
             {
-                var batchCompletionMessage = DeserializeMessage(message);
+                var batchCompletionMessage = DeserializeMessage(message, logger);
 
                 await TryUpdateManifest(batchCompletionMessage, cancellationToken);
                 return true;
@@ -245,9 +245,22 @@ public class BatchCompletionMessageHandler(
         }
     }
     
-    private static BatchCompletionMessage DeserializeMessage(QueueMessage message)
+    private static BatchCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)
     {
-        var deserialized = JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions);
-        return deserialized.ThrowIfNull(nameof(deserialized));
+        BatchCompletionMessage? deserializedBatchCompletionMessage;
+        
+        try
+        {
+            deserializedBatchCompletionMessage =
+                JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions);
+        }
+        catch (Exception)
+        {
+            logger.LogWarning("Could not deserialize message - attempting to deserialize using the old style format");
+            var deserialized = JsonSerializer.Deserialize<OldBatchCompletionMessage>(message.Body, JsonSerializerOptions);
+            deserializedBatchCompletionMessage = deserialized?.ConvertBatchCompletionMessage();
+        }
+        
+        return deserializedBatchCompletionMessage.ThrowIfNull(nameof(deserializedBatchCompletionMessage));
     }
 }

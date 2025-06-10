@@ -164,6 +164,21 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.Headers.Location.Should().NotBeNull();
         response.Headers.Location!.AbsolutePath.Should().Be("/1/iiif-manifest");
     }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsCorrectRedirect_WhenSecondCustomer()
+    {
+        // Arrange
+        await dbContext.Manifests.AddTestManifest(customer: 10, slug: "iiif-manifest", id: "FirstChildManifest");
+        await dbContext.SaveChangesAsync();
+        
+        // Act
+        var response = await httpClient.GetAsync("10/manifests/FirstChildManifest");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.AbsolutePath.Should().Be("/10/iiif-manifest");
+    }
 
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithDbValues()

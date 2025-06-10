@@ -167,6 +167,17 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location!.Should().Be("http://localhost/1");
     }
+    
+    [Fact]
+    public async Task Get_RootFlat_ReturnsCorrectSeeOther_WhenSecondCustomer()
+    {
+        // Act
+        var response = await httpClient.GetAsync($"10/collections/{RootCollection.Id}");
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/10");
+    }
 
     [Fact]
     public async Task Get_RootFlat_ReturnsNotFound_WhenNoAuthOrCsHeaderAndNotPublic()
