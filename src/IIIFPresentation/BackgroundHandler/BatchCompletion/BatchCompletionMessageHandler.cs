@@ -120,7 +120,9 @@ public class BatchCompletionMessageHandler(
             foreach (var canvas in canvases)
             {
                 var assetId = canvas.GetAssetIdFromNamedQueryCanvasId();
-                var canvasPaintingForAsset = canvasPaintings.FirstOrDefault(cp => cp.AssetId == assetId);
+                
+                // TODO - don't rewrite these ids here as it restricts to 1 asset per manifest 
+                /*var canvasPaintingForAsset = canvasPaintings.FirstOrDefault(cp => cp.AssetId == assetId);
                 if (canvasPaintingForAsset == null)
                 {
                     logger.LogWarning("Unable to find CanvasPainting record for manifest {CustomerId}:{ManifestId}",
@@ -135,7 +137,7 @@ public class BatchCompletionMessageHandler(
                 canvas.GetFirstAnnotationPage()!.Id = pathGenerator.GenerateAnnotationPagesId(canvasPaintingForAsset);
                 var paintingAnnotation = canvas.GetFirstPaintingAnnotation().ThrowIfNull("canvas.PaintingAnnotation");
                 paintingAnnotation.Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForAsset);
-                paintingAnnotation.Target = new Canvas { Id = canvas.Id };
+                paintingAnnotation.Target = new Canvas { Id = canvas.Id };*/
                 finalDictionary[assetId] = canvas;
             }
             return finalDictionary;
