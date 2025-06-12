@@ -30,13 +30,11 @@ public interface IParentSlugParser
         where T : JsonLdBase, IPresentation;
 }
 
-public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathTemplateOptions> options, 
+public class ParentSlugParser(PresentationContext dbContext,
     IHttpContextAccessor contextAccessor, 
     IPathRewriteParser pathRewriteParser, 
     ILogger<ParentSlugParser> logger) : IParentSlugParser
 {
-    private readonly TypedPathTemplateOptions settings = options.Value;
-    
     public async Task<ParsedParentSlugResult<T>> Parse<T>(T presentation,
         int customerId, string? id, CancellationToken cancellationToken = default)
         where T : JsonLdBase, IPresentation

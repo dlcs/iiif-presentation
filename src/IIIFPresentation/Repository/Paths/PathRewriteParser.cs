@@ -144,6 +144,9 @@ internal partial class GeneratedRegexes
     [GeneratedRegex("^{(.+)}$")]
     internal static partial Regex ReplacementRegex();
     
+    /// <note>
+    /// The string values in this regex should match the values found in <see cref="SpecConstants"/>
+    /// </note>
     [GeneratedRegex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$")]
     internal static partial Regex CanonicalRegex();
 }

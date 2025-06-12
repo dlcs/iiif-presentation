@@ -44,7 +44,7 @@ public class ParentSlugParserTests
         var typedTemplateOptions = Options.Create(new TypedPathTemplateOptions());
         var pathRewriteParser = new PathRewriteParser(typedTemplateOptions, new NullLogger<PathRewriteParser>());
 
-        parentSlugParser = new ParentSlugParser(presentationContext, typedTemplateOptions, httpContextAccessor,
+        parentSlugParser = new ParentSlugParser(presentationContext, httpContextAccessor,
             pathRewriteParser, new NullLogger<ParentSlugParser>());
     }
 

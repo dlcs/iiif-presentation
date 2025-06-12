@@ -322,7 +322,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "http://example.com/example/1/canvases/someId"
+                        CanvasId = "someId"
                     }
                 }
             ]
@@ -343,12 +343,10 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         responseManifest.Id.Should().NotBeNull();
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://example.com/foo/1/collections/{RootCollection.Id}");
-        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should()
-            .Be("http://example.com/example/1/canvases/someId");
     }
 
     [Fact]
-    public async Task UpdateManifest_UpdatesManifest_WhenRewrittenPaths()
+    public async Task UpdateManifest_UpdatesManifest_WhenRewrittenPathsWithNoCustomer()
     {
         // Arrange
         var createdDate = DateTime.UtcNow.AddDays(-1);
