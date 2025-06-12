@@ -1,602 +1,382 @@
-﻿using System.Diagnostics;
-using Core.Helpers;
+﻿using Core.Helpers;
+using Core.IIIF;
+using IIIF;
+using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
-using IIIF.Presentation.V3.Strings;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace BackgroundHandler.Helpers;
 
-public static class ManifestMerger 
+public interface IManifestMerger
 {
     /// <summary>
-    /// Merges a generated DLCS manifest with the current manifest in S3
+    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
+    /// instructions.
+    /// CanvasPaintings may be updated as part of processing
     /// </summary>
-    public static Manifest Merge(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
-        Dictionary<AssetId, Canvas> canvasDictionary)
-    {
-        // Ensure collection non-null
-        baseManifest.Items ??= [];
-
-        var indexedBaseManifestCanvases =
-            baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
-        // get everything in the right order, then group by so we can tell where one choice ends and the next begins
-        var orderedCanvasPaintings = canvasPaintings?.OrderBy(cp => cp.CanvasOrder).ThenBy(cp => cp.ChoiceOrder)
-            .GroupBy(cp => cp.CanvasOrder).ToList() ?? [];
-        
-        // We want to use the canvas order set from painted resource, rather than the order set from the named query
-        foreach (var groupedCanvasPaintings in
-                 orderedCanvasPaintings.Select((item, index) => (Item: item, Index: index)))
-        {
-            _ = groupedCanvasPaintings.Item.TryGetNonEnumeratedCount(out var totalGroupedItems);
-            foreach (var canvasPainting in groupedCanvasPaintings.Item)
-            {
-                if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryItem)) continue;
-
-                var existingCanvas =
-                    indexedBaseManifestCanvases.FirstOrDefault(bm => bm.Canvas.Id == namedQueryItem.Id);
-
-                // remove canvas metadata as it's not required
-                namedQueryItem.Metadata = null;
-
-                if (totalGroupedItems == 1)
-                {
-                    AddOrUpdateIndividualCanvas(baseManifest, existingCanvas, namedQueryItem, canvasPainting);
-                }
-                else
-                {
-                    if (existingCanvas.Canvas?.Id != null)
-                    {
-                        UpdateChoice(baseManifest, groupedCanvasPaintings.Index, namedQueryItem, canvasPainting);
-                    }
-                    else
-                    {
-                        AddChoice(baseManifest, groupedCanvasPaintings.Index, namedQueryItem, canvasPainting);
-                    }
-                    
-                }
-            }
-        }
-        
-        return baseManifest;
-    }
-
-    private static void UpdateChoice(Manifest baseManifest, int index, Canvas namedQueryCanvas, 
-        CanvasPainting canvasPainting)
-    {
-        // grab the body of the selected resource and base manifest to update
-        var baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
-        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-        var basePaintingChoice = paintingAnnotation!.Body as PaintingChoice;
-        
-        var namedQueryAnnotation = namedQueryCanvas.GetFirstPaintingAnnotation();
-
-        var basePaintingChoiceIndex = basePaintingChoice?.Items?.OfType<ResourceBase>().ToList()
-            .FindIndex(pa => pa.Id == namedQueryCanvas.Id);
-
-        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
-
-        if (namedQueryBodyObj is ResourceBase namedQueryResource)
-            namedQueryResource.Label = canvasPainting.Label;
-
-        // this is moving a resource to a choice order
-        if (basePaintingChoiceIndex is -1 or null)
-        {
-            // this is replacing the existing resource in items with a painting choice
-            baseManifest.Items = 
-            [
-                new Canvas
-                {
-                    Items =
-                    [
-                        new AnnotationPage
-                        {
-                            Id = namedQueryCanvas.GetFirstAnnotationPage()?.Id,
-                            Label = namedQueryCanvas.GetFirstAnnotationPage()?.Label,
-                            Items = []
-                        }
-                    ],
-                    Width = namedQueryCanvas.Width,
-                    Height = namedQueryCanvas.Height,
-                    Duration = namedQueryCanvas.Duration,
-                    Behavior = namedQueryCanvas.Behavior,
-                    Rendering = namedQueryCanvas.Rendering,
-                    Thumbnail = namedQueryCanvas.Thumbnail
-                }
-            ];
-
-            // If NQ body is choice, use it - otherwise create new
-            // and init with the non-choice IPaintable as sole item
-            basePaintingChoice = namedQueryBodyObj as PaintingChoice
-                                 ?? new()
-                                 {
-                                     Items = [namedQueryBodyObj]
-                                 };
-            
-            // update the identifier and label of the canvas based on the identifier and label of the first choice
-            baseManifest.Items[index].Id = namedQueryCanvas.Id;
-            baseManifest.Items[index].Label = SetCanvasLabel(canvasPainting);
-
-            paintingAnnotation.Body = basePaintingChoice;
-            paintingAnnotation.Id ??= namedQueryAnnotation.Id;
-            paintingAnnotation.Label = null;
-            paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
-            baseManifest.GetCurrentCanvasAnnotationPage(index).Items!.Add(paintingAnnotation);
-        }
-        else
-        {
-            // Implied by basePaintingChoiceIndex having a >-1 value
-            Debug.Assert(basePaintingChoice?.Items is not null, "basePaintingChoice?.Items is not null");
-
-            // update the manifest with the updated resource(s)
-            if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
-                basePaintingChoice.Items = CombineChoices(basePaintingChoice.Items, namedQueryChoiceItems,
-                    basePaintingChoiceIndex.Value);
-            else
-                basePaintingChoice.Items![basePaintingChoiceIndex.Value] = namedQueryBodyObj;
-
-            basePaintingChoice.Service ??= namedQueryAnnotation.Service;
-            paintingAnnotation.Body = basePaintingChoice;
-            baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-            var currentCanvas = baseManifest.Items[index];
-            currentCanvas.Duration ??= namedQueryCanvas.Duration;
-            currentCanvas.Behavior = namedQueryCanvas.Behavior;
-            currentCanvas.Rendering =
-                CombineRendering(currentCanvas.Rendering, namedQueryCanvas.Rendering);
-            currentCanvas.Thumbnail = namedQueryCanvas.Thumbnail;
-        }
-    }
-
-    private static List<ExternalResource>? CombineRendering(List<ExternalResource>? existing,
-        List<ExternalResource>? incoming)
-    {
-        if (existing is null) return incoming;
-        return incoming is null ? existing : existing.Concat(incoming).ToList();
-    }
-
-    /// <summary>
-    ///     Replaces <paramref name="items" /> item at index <paramref name="index" />
-    ///     with the items within provided <paramref name="choice" />
-    /// </summary>
-    /// <param name="items">Existing <see cref="PaintingChoice.Items" /></param>
-    /// <param name="choice">
-    ///     NQ-supplied <see cref="PaintingChoice.Items" /> as update to an item at <paramref name="index" />
+    /// <param name="baseManifest">Initial manifest to project content resources onto</param>
+    /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
+    /// <param name="canvasPaintings">
+    /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
     /// </param>
-    /// <param name="index">index of the element of <paramref name="items" /> to be updated(replaced with contents)</param>
-    /// <returns>List of <see cref="IPaintable"/> where <paramref name="index"/>-element of <paramref name="items"/>
-    /// is replaced by enumerated items from <paramref name="choice"/></returns>
-    private static List<IPaintable> CombineChoices(List<IPaintable> items, List<IPaintable> choice, int index)
-        => [..items[..index], ..choice, ..items[(index + 1)..]];
-
-    private static void AddChoice(Manifest baseManifest, int index,
-        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
-    {
-        List<AnnotationPage> baseManifestPaintingAnnotations;
-        var namedQueryAnnotationPage = namedQueryCanvas.GetFirstAnnotationPage();
-        var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
-        
-        // is this the first item in a new choice order?
-        if (baseManifest.Items?.Count == index)
-        {
-            // if it is, set up the first annotation page with objects and then populate
-            baseManifest.Items ??= [];
-            baseManifestPaintingAnnotations = CreateInitialAnnotationPageList(namedQueryAnnotationPage);
-
-            baseManifest.Items.Add(new()
-            {
-                Items = baseManifestPaintingAnnotations,
-                Height = namedQueryCanvas.Height,
-                Width = namedQueryCanvas.Width,
-                Duration = namedQueryCanvas.Duration,
-                Behavior = namedQueryCanvas.Behavior,
-                Rendering = namedQueryCanvas.Rendering,
-                Thumbnail = namedQueryCanvas.Thumbnail
-            });
-            
-            // set the identifier and label of the canvas based on the identifier and label of the first choice
-            baseManifest.Items[index].Id ??= namedQueryCanvas.Id;
-            baseManifest.Items[index].Label ??= SetCanvasLabel(canvasPainting);
-        }
-        else
-        {
-            // otherwise, just use the already created choice order
-           baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
-        }
-
-        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation()
-            .ThrowIfNull("baseManifestPaintingAnnotation.GetFirstPaintingAnnotation()");
-        
-        // use the labels from the first choice as the annotation
-        paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
-        paintingAnnotation.Label = null;
-        paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
-
-        // convert the namedQuery manifest resource into a painting choice on the base manifest
-        // if no defaults are set for the base resource, set them (this happens on the first choice order)
-        var basePaintingChoice = paintingAnnotation.Body as PaintingChoice
-                                 ?? new()
-                                 {
-                                     Items = []
-                                 };
-
-        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
-
-        if (namedQueryBodyObj is ResourceBase namedQueryResource)
-            namedQueryResource.Label = canvasPainting.Label;
-
-        // add the new resource(s) to the base resource choice, then update the manifest with the changes
-        if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
-        {
-            foreach (var nqItem in namedQueryChoiceItems)
-                basePaintingChoice.Items!.Add(nqItem);
-        }
-        else
-            basePaintingChoice.Items!.Add(namedQueryBodyObj);
-
-
-        basePaintingChoice.Service ??= namedQueryAnnotation.Service;
-        paintingAnnotation.Body = basePaintingChoice;
-        baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-    }
-    
-    private static List<AnnotationPage> CreateInitialAnnotationPageList(AnnotationPage? annotationPage)
-    {
-        return 
-        [
-            new AnnotationPage
-            {
-                Id = annotationPage?.Id,
-                Label = annotationPage?.Label,
-                Items = [new PaintingAnnotation()]
-            }
-        ];
-    }
-
-    private static void AddOrUpdateIndividualCanvas(Manifest baseManifest, (Canvas? Canvas, int Index) existingCanvas,
-        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
-    {
-        // set the label to the correct canvas label
-        namedQueryCanvas.Label = SetCanvasLabel(canvasPainting);
-
-        if (existingCanvas.Canvas != null)
-        {
-            baseManifest.Items![existingCanvas.Index] = namedQueryCanvas;
-        }
-        else
-        {
-            baseManifest.Items!.Add(namedQueryCanvas);
-        }
-    }
-
-    private static LanguageMap? SetCanvasLabel(CanvasPainting canvasPainting)
-        => canvasPainting.CanvasLabel ?? canvasPainting.Label;
+    /// <returns>Populated manifest</returns>
+    Manifest BuildFinalManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings);
 }
 
-// TODO - make this non static and pass in ILogger
-public class ManifestBuilder(
-    IPathGenerator pathGenerator,
-    ILogger<ManifestBuilder> logger)
+public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger> logger) : IManifestMerger
 {
     /// <summary>
-    /// Merges a generated DLCS manifest with the current manifest in S3
+    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
+    /// instructions.
+    /// CanvasPaintings may be updated as part of processing
     /// </summary>
-    public Manifest Build(Manifest baseManifest, List<CanvasPainting>? canvasPaintings, 
-        Dictionary<AssetId, Canvas> canvasDictionary)
+    /// <param name="baseManifest">Initial manifest to project content resources onto</param>
+    /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
+    /// <param name="canvasPaintings">
+    /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
+    /// </param>
+    /// <returns>Populated manifest</returns>
+    public Manifest BuildFinalManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings)
     {
-        // TODO - is this possible?
+        ValidateManifests(baseManifest, namedQueryManifest);
+
         if (canvasPaintings.IsNullOrEmpty())
         {
             logger.LogInformation("No canvas paintings found for manifest {ManifestId}", baseManifest.Id);
             return baseManifest;
         }
+
+        var canvasDictionary = BuildAssetIdToCanvasLookup(namedQueryManifest!);
+        BuildItems(baseManifest, canvasPaintings, canvasDictionary);
+        SetManifestContext(baseManifest, namedQueryManifest!);
+
+        return baseManifest;
+    }
+    
+    private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
+    {
+        // Ensure NQ has items or we can't do anything
+        if (namedQueryManifest?.Items == null)
+        {
+            logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
+                namedQueryManifest?.Id ?? "no-id");
+            throw new ArgumentNullException(nameof(namedQueryManifest));
+        }
         
+        if (baseManifest.Items.IsNullOrEmpty()) return;
+        
+        // Safety check - this is temporary. The Manifest comes from the staging area and should contain no items.
+        // this will change in the future but this check ensures we don't do that without making changes
+        logger.LogWarning("BaseManifest for for manifest {ManifestId} contains Items!", baseManifest.Id);
+        throw new InvalidOperationException(
+            $"{baseManifest.Id} contains items. Generating manifest from paintedResources with items is not currently supported");
+    }
+
+    private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
+    {
+        try
+        {
+            return namedQueryManifest
+                .Items!
+                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
+            throw;
+        }
+    }
+    
+    /// <summary>
+    /// Merges a generated DLCS manifest with the current manifest in S3
+    /// </summary>
+    private void BuildItems(Manifest baseManifest, List<CanvasPainting> canvasPaintings, 
+        Dictionary<AssetId, Canvas> canvasDictionary)
+    {
         // Ensure collection non-null
         baseManifest.Items ??= [];
         
-        /*
-         * Get all of the canvasPaintings in the order that we want to process them. This will be
-         * .OrderBy(c => c.CanvasOrder).ThenBy(c => c.ChoiceOrder)
-         * Then iterate over CanvasId at a time - this is the part that determines whether we construct a new
-         * canvas or not.
-         * Per canvas
-         *   - find the appropriate CanvasPainting based on that
-         *   - build that canvas, copying over relevant bits from the NQ canvas
-         *   - this could be Renderings or Annotations
-         *   - could also be many on the same, OR a choice (or combination of)
-         */
-        
+        // Get the canvasPaintings in the order we want to process them (Canvas => Choice) but group by CanvasId as
+        // canvases with differing orders can share an id
         var canvasGrouping = canvasPaintings
             .OrderBy(cp => cp.CanvasOrder)
             .ThenBy(cp => cp.ChoiceOrder ?? 0)
             .ToLookup(cp => cp.Id, cp => cp);
+        
         logger.LogDebug("Processing {CanvasCount} canvases on Manifest {ManifestId}", canvasGrouping.Count,
             baseManifest.Id);
         
-        // Each grouping provides an 'instruction' on how to paint the CanvasPaintings onto canvas
+        // Each grouping provides an 'instruction' on how to paint the CanvasPaintings onto canvas.
+        // All canvasPaintings in single grouping will be on single canvas
         foreach (var canvasInstruction in canvasGrouping)
         {
-            logger.LogTrace("Processing {CanvasId} for Manifest {ManifestId}", canvasInstruction.Key, baseManifest.Id);
+            var singleItemCanvas = canvasInstruction.Count() == 1;
+            logger.LogTrace("Processing {CanvasId}. SingleItem: {SingleItemCanvas}", canvasInstruction.Key,
+                singleItemCanvas);
 
-            // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
-            var canvasPaintingForIds = canvasInstruction.First();
-            var canvas = new Canvas
-            {
-                Id = pathGenerator.GenerateCanvasId(canvasPaintingForIds),
-                // TODO - set the following from DB or NQ 
-                // Label = set this using first non-null?
-                // Rendering = set this, could be combined if multiple
-                // Width = namedQueryCanvas.Width - what, if multiple?,
-                // Height = namedQueryCanvas.Height - what, if multiple?,
-                // Duration = namedQueryCanvas.Duration - what, if multiple?,
-                // Behavior = namedQueryCanvas.Behavior - if 'file',
-                // Rendering = namedQueryCanvas.Rendering - maybe combined?
-                // Thumbnail = namedQueryCanvas.Thumbnail - use first?
-                Items =
-                [
-                    new()
-                    {
-                        Id = pathGenerator.GenerateAnnotationPagesId(canvasPaintingForIds),
-                        Items =
-                        [
-                        ]
-                    }
-                ],
-            };
+            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, singleItemCanvas);
+            baseManifest.Items.Add(canvas);
         }
-
-        var indexedBaseManifestCanvases =
-            baseManifest.Items.Select((canvas, index) => (Canvas: canvas, Index: index)).ToList();
-        // get everything in the right order, then group by so we can tell where one choice ends and the next begins
-        var orderedCanvasPaintings = canvasPaintings?.OrderBy(cp => cp.CanvasOrder).ThenBy(cp => cp.ChoiceOrder)
-            .GroupBy(cp => cp.CanvasOrder).ToList() ?? [];
-        
-        // We want to use the canvas order set from painted resource, rather than the order set from the named query
-        foreach (var groupedCanvasPaintings in
-                 orderedCanvasPaintings.Select((item, index) => (Item: item, Index: index)))
-        {
-            _ = groupedCanvasPaintings.Item.TryGetNonEnumeratedCount(out var totalGroupedItems);
-            foreach (var canvasPainting in groupedCanvasPaintings.Item)
-            {
-                if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryItem)) continue;
-
-                var existingCanvas =
-                    indexedBaseManifestCanvases.FirstOrDefault(bm => bm.Canvas.Id == namedQueryItem.Id);
-
-                // remove canvas metadata as it's not required
-                namedQueryItem.Metadata = null;
-
-                if (totalGroupedItems == 1)
-                {
-                    AddOrUpdateIndividualCanvas(baseManifest, existingCanvas, namedQueryItem, canvasPainting);
-                }
-                else
-                {
-                    if (existingCanvas.Canvas?.Id != null)
-                    {
-                        UpdateChoice(baseManifest, groupedCanvasPaintings.Index, namedQueryItem, canvasPainting);
-                    }
-                    else
-                    {
-                        AddChoice(baseManifest, groupedCanvasPaintings.Index, namedQueryItem, canvasPainting);
-                    }
-                    
-                }
-            }
-        }
-        
-        return baseManifest;
     }
 
-    private static void UpdateChoice(Manifest baseManifest, int index, Canvas namedQueryCanvas, 
-        CanvasPainting canvasPainting)
+    private Canvas GenerateCanvas(Dictionary<AssetId, Canvas> canvasDictionary,
+        IGrouping<string, CanvasPainting> canvasInstruction, bool singleItemCanvas)
     {
-        // grab the body of the selected resource and base manifest to update
-        var baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
-        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation();
-        var basePaintingChoice = paintingAnnotation!.Body as PaintingChoice;
-        
-        var namedQueryAnnotation = namedQueryCanvas.GetFirstPaintingAnnotation();
+        // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
+        var firstCanvasPaintingInCanvas = canvasInstruction.First();
 
-        var basePaintingChoiceIndex = basePaintingChoice?.Items?.OfType<ResourceBase>().ToList()
-            .FindIndex(pa => pa.Id == namedQueryCanvas.Id);
+        // Instantiate a new Canvas, this is what we are building
+        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas), };
 
-        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
-
-        if (namedQueryBodyObj is ResourceBase namedQueryResource)
-            namedQueryResource.Label = canvasPainting.Label;
-
-        // this is moving a resource to a choice order
-        if (basePaintingChoiceIndex is -1 or null)
+        // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
+        var annoPage = new AnnotationPage
         {
-            // this is replacing the existing resource in items with a painting choice
-            baseManifest.Items = 
-            [
-                new Canvas
-                {
-                    Items =
-                    [
-                        new AnnotationPage
-                        {
-                            Id = namedQueryCanvas.GetFirstAnnotationPage()?.Id,
-                            Label = namedQueryCanvas.GetFirstAnnotationPage()?.Label,
-                            Items = []
-                        }
-                    ],
-                    Width = namedQueryCanvas.Width,
-                    Height = namedQueryCanvas.Height,
-                    Duration = namedQueryCanvas.Duration,
-                    Behavior = namedQueryCanvas.Behavior,
-                    Rendering = namedQueryCanvas.Rendering,
-                    Thumbnail = namedQueryCanvas.Thumbnail
-                }
-            ];
+            Id = pathGenerator.GenerateAnnotationPagesId(firstCanvasPaintingInCanvas),
+            Items = []
+        };
+        
+        // Iterate through the canvasPaintings to be rendered on this Canvas
+        foreach (var canvasOrderGroup in canvasInstruction.GroupBy(ci => ci.CanvasOrder))
+        {
+            var canvasOrderCount = canvasOrderGroup.Count();
+            logger.LogTrace("Processing CanvasOrder {CanvasOrder}, contains {Count} items", canvasInstruction.Key,
+                canvasOrderCount);
 
-            // If NQ body is choice, use it - otherwise create new
-            // and init with the non-choice IPaintable as sole item
-            basePaintingChoice = namedQueryBodyObj as PaintingChoice
-                                 ?? new()
-                                 {
-                                     Items = [namedQueryBodyObj]
-                                 };
-            
-            // update the identifier and label of the canvas based on the identifier and label of the first choice
-            baseManifest.Items[index].Id = namedQueryCanvas.Id;
-            baseManifest.Items[index].Label = SetCanvasLabel(canvasPainting);
+            var isChoice = canvasOrderCount > 1;
+            var currentPaintingAnno = new PaintingAnnotation
+            {
+                Id = pathGenerator.GeneratePaintingAnnotationId(firstCanvasPaintingInCanvas),
+            };
 
-            paintingAnnotation.Body = basePaintingChoice;
-            paintingAnnotation.Id ??= namedQueryAnnotation.Id;
-            paintingAnnotation.Label = null;
-            paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
-            baseManifest.GetCurrentCanvasAnnotationPage(index).Items!.Add(paintingAnnotation);
+            if (!isChoice)
+            {
+                ProcessNonChoice(canvasDictionary, canvasOrderGroup.Single(), canvas, currentPaintingAnno,
+                    singleItemCanvas);
+            }
+            else
+            {
+                ProcessChoice(canvasDictionary, canvasOrderGroup, canvas, currentPaintingAnno);
+            }
+
+            annoPage.Items!.Add(currentPaintingAnno);
+        }
+
+        // TODO - do we need to set CanvasLabel?
+
+        canvas.Items = [annoPage];
+        return canvas;
+    }
+
+    private void ProcessNonChoice(Dictionary<AssetId, Canvas> canvasDictionary, CanvasPainting canvasPainting,
+        Canvas canvas, PaintingAnnotation currentPaintingAnno, bool singleItemCanvas)
+    {
+        if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryCanvas))
+        {
+            logger.LogWarning(
+                "Could not find NQ canvas for Asset {AssetId} from CanvasPainting {CanvasPaintingId}",
+                canvasPainting.AssetId, canvasPainting.Id);
+            return;
+        }
+
+        var body = GetSafeFirstPaintingAnnotationBody(namedQueryCanvas);
+        HandleCanvasPainting(canvasPainting, canvas, namedQueryCanvas, body);
+
+        currentPaintingAnno.Target = new Canvas
+        {
+            Id = pathGenerator.GenerateCanvasIdWithTarget(canvasPainting),
+        };
+
+        // If this is a single item canvas then the .Label will be for the Canvas, rather than paintingAnno.
+        // UNLESS there's a specific .CanvasLabel
+        if (singleItemCanvas && canvasPainting.CanvasLabel == null)
+        {
+            canvas.Label = canvasPainting.Label;
         }
         else
         {
-            // Implied by basePaintingChoiceIndex having a >-1 value
-            Debug.Assert(basePaintingChoice?.Items is not null, "basePaintingChoice?.Items is not null");
-
-            // update the manifest with the updated resource(s)
-            if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
-                basePaintingChoice.Items = CombineChoices(basePaintingChoice.Items, namedQueryChoiceItems,
-                    basePaintingChoiceIndex.Value);
-            else
-                basePaintingChoice.Items![basePaintingChoiceIndex.Value] = namedQueryBodyObj;
-
-            basePaintingChoice.Service ??= namedQueryAnnotation.Service;
-            paintingAnnotation.Body = basePaintingChoice;
-            baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-            var currentCanvas = baseManifest.Items[index];
-            currentCanvas.Duration ??= namedQueryCanvas.Duration;
-            currentCanvas.Behavior = namedQueryCanvas.Behavior;
-            currentCanvas.Rendering =
-                CombineRendering(currentCanvas.Rendering, namedQueryCanvas.Rendering);
-            currentCanvas.Thumbnail = namedQueryCanvas.Thumbnail;
+            currentPaintingAnno.Label = canvasPainting.Label;
         }
+
+        currentPaintingAnno.Body = body;
     }
 
-    private static List<ExternalResource>? CombineRendering(List<ExternalResource>? existing,
-        List<ExternalResource>? incoming)
+    private void ProcessChoice(Dictionary<AssetId, Canvas> canvasDictionary,
+        IGrouping<int, CanvasPainting> canvasOrderGroup, Canvas canvas, PaintingAnnotation currentPaintingAnno)
     {
-        if (existing is null) return incoming;
-        return incoming is null ? existing : existing.Concat(incoming).ToList();
+        var paintingChoice = new PaintingChoice { Items = [] };
+        foreach (var choice in canvasOrderGroup)
+        {
+            if (!canvasDictionary.TryGetValue(choice.AssetId!, out var namedQueryCanvas))
+            {
+                logger.LogWarning(
+                    "Could not find NQ canvas for Asset {AssetId} from CanvasPainting {CanvasPaintingId}",
+                    choice.AssetId, choice.Id);
+                continue;
+            }
+            
+            var body = GetSafeFirstPaintingAnnotationBody(namedQueryCanvas);
+            HandleCanvasPainting(choice, canvas, namedQueryCanvas, body);
+
+            if (body is PaintingChoice namedQueryPaintingChoice)
+            {
+                paintingChoice.Items.AddRange(namedQueryPaintingChoice.Items!);
+            }
+            else
+            {
+                paintingChoice.Items.Add(body);
+            }
+
+            // For assets making up a Choice, the first non-null value will be assumed to be the target of
+            // the Choice annotation.
+            if (choice.Target != null && currentPaintingAnno.Target == null)
+            {
+                logger.LogTrace("Setting target from choice {ChoiceOrder}", choice.ChoiceOrder);
+                currentPaintingAnno.Target = new Canvas
+                {
+                    Id = pathGenerator.GenerateCanvasIdWithTarget(choice),
+                };
+            }
+        }
+
+        // If we didn't set a target from a choice, set to canvasId (the entire Canvas)
+        currentPaintingAnno.Target ??= new Canvas { Id = canvas.Id, };
+        currentPaintingAnno.Body = paintingChoice;
+    }
+
+    private void HandleCanvasPainting(CanvasPainting canvasPainting, Canvas workingCanvas, Canvas namedQueryCanvas,
+        IPaintable body)
+    {
+        // Renderings are accumulated
+        if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for AssetId {AssetId} has rendering", canvasPainting.AssetId);
+            workingCanvas.Rendering ??= [];
+            workingCanvas.Rendering.AddRange(namedQueryCanvas.Rendering);
+        }
+
+        // Any custom behaviours are added but only unique values
+        if (!namedQueryCanvas.Behavior.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for AssetId {AssetId} has behaviour", canvasPainting.AssetId);
+            workingCanvas.Behavior = (workingCanvas.Behavior ?? []).Union(namedQueryCanvas.Behavior).ToList();
+        }
+
+        // Canvas gets the first non-null thumbnail
+        if (workingCanvas.Thumbnail.IsNullOrEmpty() && !namedQueryCanvas.Thumbnail.IsNullOrEmpty())
+        {
+            logger.LogTrace("Using Thumbnail from NQ Canvas for AssetId {AssetId}", canvasPainting.AssetId);
+            workingCanvas.Thumbnail = namedQueryCanvas.Thumbnail;
+        }
+
+        // Canvas gets the first non-null CanvasLabel
+        if (workingCanvas.Label == null && canvasPainting.CanvasLabel != null)
+        {
+            logger.LogTrace("Using CanvasLabel from {CanvasPaintingId} for Canvas.Label", canvasPainting.Id);
+            workingCanvas.Label = canvasPainting.CanvasLabel;
+        }
+
+        // Use first canvas to set temporal and spatial dimensions - do this with first possible only.
+        // Once one dimension is set consider all set
+        if (workingCanvas.DimensionsAreUnset())
+        {
+            workingCanvas.Duration = namedQueryCanvas.Duration;
+            workingCanvas.Height = namedQueryCanvas.Height;
+            workingCanvas.Width = namedQueryCanvas.Width;
+        }
+        
+        UpdateCanvasPainting(canvasPainting, namedQueryCanvas, body);
+    }
+
+    private void UpdateCanvasPainting(CanvasPainting canvasPainting, Canvas namedQueryCanvas, IPaintable body)
+    {
+        var thumbnailPath = namedQueryCanvas.Thumbnail?.OfType<Image>().GetThumbnailPath();
+
+        canvasPainting.Thumbnail = thumbnailPath != null ? new Uri(thumbnailPath) : null;
+        canvasPainting.Duration = namedQueryCanvas.Duration;
+        canvasPainting.Ingesting = false;
+        canvasPainting.Modified = DateTime.UtcNow;
+
+        if (canvasPainting is { StaticWidth: null, StaticHeight: null })
+        {
+            // #232: set static width/height if not provided.
+            // if canvas painting comes with statics, use them
+            // otherwise, if we can find dimensions within, use those
+            // ReSharper disable once InvertIf
+            if (namedQueryCanvas.GetCanvasDimensions() is var (width, height))
+            {
+                canvasPainting.StaticWidth = width;
+                canvasPainting.StaticHeight = height;
+            }
+        }
+        else if (canvasPainting is { StaticWidth: { } staticWidth, StaticHeight: { } staticHeight }
+                 && body is Image image)
+        {
+            // #232: if static_width/height provided in canvasPainting
+            // then don't use ones from NQ
+            // and set the body to those dimensions + resized id (image request uri)
+            logger.LogTrace("CanvasPainting {Id} has static width and height, updating body",
+                canvasPainting.CanvasPaintingId);
+            image.Width = staticWidth;
+            image.Height = staticHeight;
+            image.Id = pathGenerator.GetModifiedImageRequest(image.Id, staticWidth, staticHeight);
+        }
+    }
+    
+    private void SetManifestContext(Manifest baseManifest, Manifest namedQueryManifest)
+    {
+        // Grab any contexts from NQ manifest
+        IEnumerable<string> contexts = namedQueryManifest.Context switch
+        {
+            null => [],
+            string str => [str],
+            IEnumerable<string> enumerable => enumerable,
+            JArray jArray => jArray.Values<string>(),
+            JValue { Type: JTokenType.String } jValue when jValue.ToString() is { } plain => [plain],
+            _ => []
+        };
+        
+        // skip the default one
+        contexts = contexts.Where(c => !Context.Presentation3Context.Equals(c));
+
+        // ensure if any
+        foreach (var context in contexts)
+        {
+            logger.LogTrace("Adding context {Context} to {ManifestId}", context, baseManifest.Id);
+            baseManifest.EnsureContext(context);
+        }
     }
 
     /// <summary>
-    ///     Replaces <paramref name="items" /> item at index <paramref name="index" />
-    ///     with the items within provided <paramref name="choice" />
+    /// Get first <see cref="PaintingAnnotation"/> from canvas, throwing if not found
     /// </summary>
-    /// <param name="items">Existing <see cref="PaintingChoice.Items" /></param>
-    /// <param name="choice">
-    ///     NQ-supplied <see cref="PaintingChoice.Items" /> as update to an item at <paramref name="index" />
-    /// </param>
-    /// <param name="index">index of the element of <paramref name="items" /> to be updated(replaced with contents)</param>
-    /// <returns>List of <see cref="IPaintable"/> where <paramref name="index"/>-element of <paramref name="items"/>
-    /// is replaced by enumerated items from <paramref name="choice"/></returns>
-    private static List<IPaintable> CombineChoices(List<IPaintable> items, List<IPaintable> choice, int index)
-        => [..items[..index], ..choice, ..items[(index + 1)..]];
-
-    private static void AddChoice(Manifest baseManifest, int index,
-        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
-    {
-        List<AnnotationPage> baseManifestPaintingAnnotations;
-        var namedQueryAnnotationPage = namedQueryCanvas.GetFirstAnnotationPage();
-        var namedQueryAnnotation = namedQueryAnnotationPage?.GetFirstPaintingAnnotation();
-        
-        // is this the first item in a new choice order?
-        if (baseManifest.Items?.Count == index)
-        {
-            // if it is, set up the first annotation page with objects and then populate
-            baseManifest.Items ??= [];
-            baseManifestPaintingAnnotations = CreateInitialAnnotationPageList(namedQueryAnnotationPage);
-
-            baseManifest.Items.Add(new()
-            {
-                Items = baseManifestPaintingAnnotations,
-                Height = namedQueryCanvas.Height,
-                Width = namedQueryCanvas.Width,
-                Duration = namedQueryCanvas.Duration,
-                Behavior = namedQueryCanvas.Behavior,
-                Rendering = namedQueryCanvas.Rendering,
-                Thumbnail = namedQueryCanvas.Thumbnail
-            });
-            
-            // set the identifier and label of the canvas based on the identifier and label of the first choice
-            baseManifest.Items[index].Id ??= namedQueryCanvas.Id;
-            baseManifest.Items[index].Label ??= SetCanvasLabel(canvasPainting);
-        }
-        else
-        {
-            // otherwise, just use the already created choice order
-           baseManifestPaintingAnnotations = baseManifest.Items![index].Items!;
-        }
-
-        var paintingAnnotation = baseManifestPaintingAnnotations.GetFirstPaintingAnnotation()
-            .ThrowIfNull("baseManifestPaintingAnnotation.GetFirstPaintingAnnotation()");
-        
-        // use the labels from the first choice as the annotation
-        paintingAnnotation.Id ??= namedQueryAnnotation?.Id;
-        paintingAnnotation.Label = null;
-        paintingAnnotation.Target ??=  new Canvas { Id = baseManifest.Items![index].Id };
-
-        // convert the namedQuery manifest resource into a painting choice on the base manifest
-        // if no defaults are set for the base resource, set them (this happens on the first choice order)
-        var basePaintingChoice = paintingAnnotation.Body as PaintingChoice
-                                 ?? new()
-                                 {
-                                     Items = []
-                                 };
-
-        var namedQueryBodyObj = namedQueryAnnotation!.Body.ThrowIfNull("namedQueryAnnotation.Body");
-
-        if (namedQueryBodyObj is ResourceBase namedQueryResource)
-            namedQueryResource.Label = canvasPainting.Label;
-
-        // add the new resource(s) to the base resource choice, then update the manifest with the changes
-        if (namedQueryBodyObj is PaintingChoice {Items: {Count: > 0} namedQueryChoiceItems})
-        {
-            foreach (var nqItem in namedQueryChoiceItems)
-                basePaintingChoice.Items!.Add(nqItem);
-        }
-        else
-            basePaintingChoice.Items!.Add(namedQueryBodyObj);
-
-
-        basePaintingChoice.Service ??= namedQueryAnnotation.Service;
-        paintingAnnotation.Body = basePaintingChoice;
-        baseManifest.GetCurrentCanvasAnnotationPage(index).Items![0] = paintingAnnotation;
-    }
+    private static PaintingAnnotation GetSafeFirstPaintingAnnotation(Canvas canvas) =>
+        (canvas.Items?[0].Items?[0] as PaintingAnnotation).ThrowIfNull("PaintingAnnotation");
     
-    private static List<AnnotationPage> CreateInitialAnnotationPageList(AnnotationPage? annotationPage)
+    /// <summary>
+    /// Get first <see cref="IPaintable"/> from canvas, throwing if not found.
+    /// If <see cref="IPaintable"/> is <see cref="Image"/> the returned object will be a clone as we may update some
+    /// properties on it (id and dimensions) if static_width and static_height have been set. Cloning will avoid
+    /// any issues
+    /// </summary>
+    private static IPaintable GetSafeFirstPaintingAnnotationBody(Canvas canvas)
     {
-        return 
-        [
-            new AnnotationPage
+        var paintable = GetSafeFirstPaintingAnnotation(canvas).Body.ThrowIfNull("PaintingAnnotation.Body");
+        return paintable is Image image
+            ? new Image
             {
-                Id = annotationPage?.Id,
-                Label = annotationPage?.Label,
-                Items = [new PaintingAnnotation()]
+                Id = image.Id,
+                Format = image.Format,
+                Width = image.Width,
+                Height = image.Height,
+                Service = image.Service,
             }
-        ];
+            : paintable;
     }
-
-    private static void AddOrUpdateIndividualCanvas(Manifest baseManifest, (Canvas? Canvas, int Index) existingCanvas,
-        Canvas namedQueryCanvas, CanvasPainting canvasPainting)
-    {
-        // set the label to the correct canvas label
-        namedQueryCanvas.Label = SetCanvasLabel(canvasPainting);
-
-        if (existingCanvas.Canvas != null)
-        {
-            baseManifest.Items![existingCanvas.Index] = namedQueryCanvas;
-        }
-        else
-        {
-            baseManifest.Items!.Add(namedQueryCanvas);
-        }
-    }
-
-    private static LanguageMap? SetCanvasLabel(CanvasPainting canvasPainting)
-        => canvasPainting.CanvasLabel ?? canvasPainting.Label;
 }

@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3;
+﻿using Core.Helpers;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 
@@ -31,6 +32,11 @@ public static class ManifestX
         return manifest.Items![index].Items![0];
     }
 
+    /// <summary>
+    /// Returns true if Duration, Width and Height are all unset
+    /// </summary>
+    public static bool DimensionsAreUnset(this Canvas canvas) =>
+        !canvas.Width.HasValue && !canvas.Height.HasValue && !canvas.Duration.HasValue;
 
     public static (int width, int height)? GetCanvasDimensions(this Canvas canvas)
     {
