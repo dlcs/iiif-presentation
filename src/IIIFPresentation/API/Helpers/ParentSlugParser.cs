@@ -171,7 +171,7 @@ public class ParentSlugParser(PresentationContext dbContext, IOptions<TypedPathT
 
         if (parentPath.Resource == null) return null;
 
-        if (parentPath.Hierarchical)
+        if (!parentPath.Hierarchical)
         {
             return await dbContext.RetrieveCollectionAsync(customerId, parentPath.Resource,
                 cancellationToken: cancellationToken);

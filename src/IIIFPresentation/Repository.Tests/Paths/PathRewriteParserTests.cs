@@ -61,15 +61,15 @@ public class PathRewriteParserTests
     }
     
     [Theory]
-    [InlineData("1/slug/slug", "slug/slug",false)]
-    [InlineData("/1/slug/slug", "slug/slug", false)]
-    [InlineData("2/slug/slug", "slug/slug",false, 2)]
-    [InlineData("1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug", false)]
-    [InlineData("1/manifests/manifest", "manifest", true)]
-    [InlineData("1/manifests/hello-world", "hello-world", true)]
-    [InlineData("1/collections/collection", "collection", true)]
-    [InlineData("1/canvases/canvas", "canvas", true)]
-    public void ParsePathWithRewrites_ParsesPathCorrectly_WithStandardDefaults(string path, string resource, bool canonical, int customer = 1)
+    [InlineData("1/slug/slug", "slug/slug",true)]
+    [InlineData("/1/slug/slug", "slug/slug", true)]
+    [InlineData("2/slug/slug", "slug/slug",true, 2)]
+    [InlineData("1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug", true)]
+    [InlineData("1/manifests/manifest", "manifest", false)]
+    [InlineData("1/manifests/hello-world", "hello-world", false)]
+    [InlineData("1/collections/collection", "collection", false)]
+    [InlineData("1/canvases/canvas", "canvas", false)]
+    public void ParsePathWithRewrites_ParsesPathCorrectly_WithStandardDefaults(string path, string resource, bool hierarchical, int customer = 1)
     {
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("default-host.com", path,
@@ -78,19 +78,19 @@ public class PathRewriteParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Hierarchical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(hierarchical);
     }
     
     [Theory]
-    [InlineData("foo/1/slug/slug", "slug/slug",false)]
-    [InlineData("/foo/1/slug/slug", "slug/slug", false)]
-    [InlineData("/foo/2/slug/slug", "slug/slug",false, 2)]
-    [InlineData("foo/1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",false)]
-    [InlineData("foo/1/manifests/manifest", "manifest",true)]
-    [InlineData("foo/1/collections/collection", "collection", true)]
-    [InlineData("foo/1/canvases/canvas", "canvas",true)]
+    [InlineData("foo/1/slug/slug", "slug/slug",true)]
+    [InlineData("/foo/1/slug/slug", "slug/slug", true)]
+    [InlineData("/foo/2/slug/slug", "slug/slug",true, 2)]
+    [InlineData("foo/1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",true)]
+    [InlineData("foo/1/manifests/manifest", "manifest",false)]
+    [InlineData("foo/1/collections/collection", "collection", false)]
+    [InlineData("foo/1/canvases/canvas", "canvas",false)]
     public void ParsePathWithRewrites_ParsesPathCorrectly_WithAdditionalPathElement(string path, string resource,
-        bool canonical, int customer = 1)
+        bool hierarchical, int customer = 1)
     {
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("foo.com", path,
@@ -99,17 +99,17 @@ public class PathRewriteParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Hierarchical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(hierarchical);
     }
     
     [Theory]
-    [InlineData("slug/slug", "slug/slug", false)]
-    [InlineData("/slug/slug", "slug/slug",false)]
-    [InlineData("slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",false)]
-    [InlineData("manifests/manifest", "manifest",true)]
-    [InlineData("collections/collection", "collection",true)]
-    [InlineData("canvases/canvas", "canvas",true)]
-    public void ParsePathWithRewrites_ParsesPathCorrectly_WithNoCustomer(string path, string resource, bool canonical, 
+    [InlineData("slug/slug", "slug/slug", true)]
+    [InlineData("/slug/slug", "slug/slug",true)]
+    [InlineData("slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",true)]
+    [InlineData("manifests/manifest", "manifest",false)]
+    [InlineData("collections/collection", "collection",false)]
+    [InlineData("canvases/canvas", "canvas",false)]
+    public void ParsePathWithRewrites_ParsesPathCorrectly_WithNoCustomer(string path, string resource, bool hierarchical, 
         int customer = 1)
     {
         // Arrange and Act
@@ -119,17 +119,17 @@ public class PathRewriteParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Hierarchical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(hierarchical);
     }
     
     [Theory]
-    [InlineData("foo/slug/slug", "slug/slug",1, false)]
-    [InlineData("/foo/slug/slug", "slug/slug",1, false)]
-    [InlineData("foo/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",1, false)]
-    [InlineData("foo/manifests/manifest", "manifest",1, true)]
-    [InlineData("foo/collections/collection", "collection",1, true)]
-    [InlineData("foo/canvases/canvas", "canvas",1, true)]
-    public void ParsePathWithRewrites_ParsesPathCorrectly_WithNoCustomerAndAdditionalPathElement(string path, string resource, int customer, bool canonical)
+    [InlineData("foo/slug/slug", "slug/slug",1, true)]
+    [InlineData("/foo/slug/slug", "slug/slug",1, true)]
+    [InlineData("foo/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug",1, true)]
+    [InlineData("foo/manifests/manifest", "manifest",1, false)]
+    [InlineData("foo/collections/collection", "collection",1, false)]
+    [InlineData("foo/canvases/canvas", "canvas",1, false)]
+    public void ParsePathWithRewrites_ParsesPathCorrectly_WithNoCustomerAndAdditionalPathElement(string path, string resource, int customer, bool hierarchical)
     {
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("additional-path-no-customer.com", path, customer);
@@ -137,18 +137,18 @@ public class PathRewriteParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Hierarchical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(hierarchical);
     }
     
     [Theory]
-    [InlineData("1/slug/slug", "slug/slug",false)]
-    [InlineData("/1/slug/slug", "slug/slug", false)]
-    [InlineData("2/slug/slug", "slug/slug",false, 2)]
-    [InlineData("1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug", false)]
-    [InlineData("1/manifests/manifest", "manifest", true)]
-    [InlineData("1/collections/collection", "collection", true)]
-    [InlineData("1/canvases/canvas", "canvas", true)]
-    public void ParsePathWithRewrites_ParsesPathCorrectly_WithFullyQualifiedPath(string path, string resource, bool canonical, int customer = 1)
+    [InlineData("1/slug/slug", "slug/slug",true)]
+    [InlineData("/1/slug/slug", "slug/slug", true)]
+    [InlineData("2/slug/slug", "slug/slug",true, 2)]
+    [InlineData("1/slug/slug/slug/slug/slug", "slug/slug/slug/slug/slug", true)]
+    [InlineData("1/manifests/manifest", "manifest", false)]
+    [InlineData("1/collections/collection", "collection", false)]
+    [InlineData("1/canvases/canvas", "canvas", false)]
+    public void ParsePathWithRewrites_ParsesPathCorrectly_WithFullyQualifiedPath(string path, string resource, bool hierarchical, int customer = 1)
     {
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("fully-qualified.com", path, customer);
@@ -156,6 +156,6 @@ public class PathRewriteParserTests
         // Asset
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
-        parsedPath.Hierarchical.Should().Be(canonical);
+        parsedPath.Hierarchical.Should().Be(hierarchical);
     }
 }

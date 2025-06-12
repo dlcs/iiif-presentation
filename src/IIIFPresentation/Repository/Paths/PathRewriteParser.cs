@@ -57,11 +57,11 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             try
             {
                 var (customerId, resourceId) =
-                    MatchValuesInTemplate(pathSplit, templateSplit, GeneratedRegexes.ReplacementRegex(), customer);
+                    MatchValuesInTemplate(pathSplit, templateSplit, customer);
                 if (resourceId != null)
                 {
                     return new PathParts(customerId, resourceId,
-                        template.Key != PresentationResourceType.ResourcePublic);
+                        template.Key == PresentationResourceType.ResourcePublic);
                 }
             }
             catch (Exception e)
@@ -70,12 +70,11 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             }
         }
 
-        return new PathParts(null, null, false);
+        return new PathParts(null, null, true);
     }
 
     private static (int customerId, string? resourceId) MatchValuesInTemplate(string[] pathSplit,
-        string[] templateSplit,
-        Regex replacementRegex, int customer)
+        string[] templateSplit, int customer)
     {
         int? customerIdFromPath = null;
         string? resourceId = null;
@@ -84,12 +83,13 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         {
             var templatePart = templateSplit[i];
             var valuePart = pathSplit[i];
-
+            
+            var match = GeneratedRegexes.ReplacementRegex().Match(templatePart);
             // Check if this is a replacement value - if so get value from provided path 
-            if (replacementRegex.IsMatch(templatePart))
+            if (match.Success)
             {
                 // This is a template - get the value of it from the path value
-                var capturedValue = replacementRegex.Match(templatePart).Groups[1].Value;
+                var capturedValue = match.Groups[1].Value;
                 if (capturedValue == SupportedTemplateOptions.CustomerId)
                 {
                     customerIdFromPath = int.Parse(valuePart);
@@ -126,14 +126,14 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
     private PathParts? ParseCanonical(string path)
     {
-        if (!GeneratedRegexes.CanonicalRegex().IsMatch(path)) return null;
-
-        logger.LogTrace("{Path} is a canonical regex", path);
-
         var match = GeneratedRegexes.CanonicalRegex().Match(path);
+
+        if (!match.Success) return null;
+
+        logger.LogTrace("{Path} is a canonical path", path);
         var customer = int.Parse(match.Groups[1].Value);
 
-        return new PathParts(customer, match.Groups[3].Value, true);
+        return new PathParts(customer, match.Groups[3].Value, false);
     }
 }
 
@@ -143,8 +143,7 @@ internal partial class GeneratedRegexes
 {
     [GeneratedRegex("^{(.+)}$")]
     internal static partial Regex ReplacementRegex();
-        
-        
+    
     [GeneratedRegex("^\\/?(\\d+)\\/(manifests|collections|canvases)\\/(.+)$")]
     internal static partial Regex CanonicalRegex();
 }
