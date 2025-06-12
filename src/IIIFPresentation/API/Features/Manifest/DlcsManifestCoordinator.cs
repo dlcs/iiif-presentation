@@ -121,10 +121,20 @@ public class DlcsManifestCoordinator(
         }
 
         var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
-        
-        var dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
+
+        IList<JObject> dlcsAssets = [];
+
+        try
+        {
+
+            dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
                 assetsToCheckDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
-        
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to retrieve DLCS assets");
+        }
+
         var dlcsAssetIds = dlcsAssets.Select(a => a.GetAssetId(customerId)).ToList();
 
         if (dlcsAssets.Any())
@@ -132,7 +142,7 @@ public class DlcsManifestCoordinator(
             await dlcsApiClient.UpdateAssetManifest(customerId, dlcsAssetIds, OperationType.Add, [manifestId],
                 cancellationToken);
         }
-        
+
         if (assetsInDatabase.Count + dlcsAssets.Count == assets.Count) return ([], assets);
 
         var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssetIds);

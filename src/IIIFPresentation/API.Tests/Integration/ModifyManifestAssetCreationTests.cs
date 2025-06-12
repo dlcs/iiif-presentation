@@ -123,9 +123,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var manifestWithSpace = $$"""
                                   {
                                       "type": "Manifest",
-                                      "behavior": [
-                                          "public-iiif"
-                                      ],
                                       "label": {
                                           "en": [
                                               "post testing"
@@ -326,24 +323,25 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ReturnsAssetDetails_FromAllImages()
     {
         // Arrange
-        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (slug, _,   assetId) = TestIdentifiers.SlugResourceAsset();
 
-        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
-                A<CancellationToken>._))
-            .ReturnsLazily(() =>
-            [
-                JObject.Parse($$"""
-                                {
-                                    "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
-                                    "batch": "https://localhost/customers/1/queue/batches/2137"
-                                }
-                                """
-                )
-            ]);
-
-        var batchId = TestIdentifiers.BatchId();
+          A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                  A<IList<string>>.That.Matches(l =>
+                      l.Any(x => $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                  A<CancellationToken>._)).ReturnsLazily(() => new List<JObject>()).Once().Then
+              .ReturnsLazily(() =>
+              [
+                  JObject.Parse($$"""
+                                  {
+                                      "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
+                                      "id": "{{assetId}}",
+                                      "space": 999,
+                                      "batch": "https://localhost/customers/1/queue/batches/2137"
+                                  }
+                                  """
+                  )
+              ]);
+          
         var manifestWithSpace =
             $$"""
               {
@@ -354,7 +352,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                       {
                           "asset": {
                               "id": "{{assetId}}",
-                              "batch": {{batchId}},
+                              "batch": {{TestIdentifiers.BatchId()}},
                               "origin": "https://example.com/photos/example.jpg",
                               "mediaType": "image/jpeg"
                           }
@@ -371,6 +369,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
@@ -388,8 +387,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         responseManifest.PaintedResources.Should().NotBeNull();
         responseManifest.PaintedResources.Should().HaveCount(1);
-        responseManifest.PaintedResources!.Single().Asset.Should().NotBeNull();
-        responseManifest.PaintedResources!.Single().Asset!.GetValue("batch")!.Value<string>().Should()
+        responseManifest.PaintedResources!.First().Asset.Should().NotBeNull();
+        responseManifest.PaintedResources!.First().Asset!.GetValue("batch")!.Value<string>().Should()
             .Be("https://localhost/customers/1/queue/batches/2137");
     }
 
@@ -402,25 +401,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var manifestWithoutSpace = $$"""
                                      {
                                          "type": "Manifest",
-                                         "behavior": [
-                                             "public-iiif"
-                                         ],
-                                         "label": {
-                                             "en": [
-                                                 "post testing"
-                                             ]
-                                         },
                                          "slug": "{{slug}}",
                                          "parent": "http://localhost/{{Customer}}/collections/root",
-                                         "thumbnail": [
-                                             {
-                                                 "id": "https://example.org/img/thumb.jpg",
-                                                 "type": "Image",
-                                                 "format": "image/jpeg",
-                                                 "width": 300,
-                                                 "height": 200
-                                             }
-                                         ],
                                          "paintedResources": [
                                              {
                                                 "canvasPainting":{
@@ -1284,7 +1266,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var assetId = "testAssetByPresentation-only-calls-new";
         
         await dbContext.SaveChangesAsync();
-        var batchId = 7;
+        var batchId = TestIdentifiers.BatchId();
 
         var manifestWithoutSpace = $$"""
                           {
