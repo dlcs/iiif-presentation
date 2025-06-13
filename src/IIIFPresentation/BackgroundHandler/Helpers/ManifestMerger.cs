@@ -146,7 +146,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         foreach (var canvasOrderGroup in canvasInstruction.GroupBy(ci => ci.CanvasOrder))
         {
             var canvasOrderCount = canvasOrderGroup.Count();
-            logger.LogTrace("Processing CanvasOrder {CanvasOrder}, contains {Count} items", canvasInstruction.Key,
+            logger.LogTrace("Processing Canvas {CanvasId}, contains {Count} items", canvasInstruction.Key,
                 canvasOrderCount);
 
             var isChoice = canvasOrderCount > 1;

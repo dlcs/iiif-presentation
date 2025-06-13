@@ -33,7 +33,7 @@ public class BatchCompletionMessageHandler(
 
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
-        using (LogContextHelpers.SetServiceName(nameof(BatchCompletionMessageHandler)))
+        using (LogContextHelpers.SetServiceName(nameof(BatchCompletionMessageHandler), message.MessageId))
         {
             try
             {
@@ -95,7 +95,7 @@ public class BatchCompletionMessageHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogTrace(
+        logger.LogInformation(
             "Updating batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}. Completed in {Elapsed}ms",
             batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
     }
