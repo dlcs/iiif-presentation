@@ -37,8 +37,12 @@ public class BatchCompletionPathRewriteTests
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
     {
+        // The context from dbFixture doesn't track changes so setup/assert
         dbContext = dbFixture.DbContext;
-        dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
+        
+        // The context used by SUT should track to mimic context config in actual use
+        var sutContext = dbFixture.GetNewPresentationContext();
+        
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
@@ -81,7 +85,7 @@ public class BatchCompletionPathRewriteTests
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
             new NullLogger<BatchCompletionMessageHandler>());
     }
     
