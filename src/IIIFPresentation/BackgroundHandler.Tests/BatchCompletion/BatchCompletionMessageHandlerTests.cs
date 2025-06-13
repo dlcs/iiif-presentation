@@ -21,6 +21,7 @@ using Models.Database.General;
 using Models.DLCS;
 using Repository;
 using Repository.Paths;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using A = FakeItEasy.A;
@@ -38,7 +39,6 @@ public class BatchCompletionMessageHandlerTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly BackgroundHandlerSettings backgroundHandlerSettings;
-    private readonly IManifestMerger manifestMerger;
     private const int CustomerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -51,7 +51,6 @@ public class BatchCompletionMessageHandlerTests
         
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
-        manifestMerger = A.Fake<IManifestMerger>();
 
         backgroundHandlerSettings = new BackgroundHandlerSettings
         {
@@ -62,6 +61,8 @@ public class BatchCompletionMessageHandlerTests
         var presentationGenerator =
             new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
         var pathGenerator = new TestPathGenerator(presentationGenerator);
+        
+        var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
             new NullLogger<BatchCompletionMessageHandler>());
@@ -94,8 +95,8 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_UpdatesBatchedImages_WhenBatchTracked()
     {
         // Arrange
-        const int batchId = 100;
-        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenBatchTracked);
+        var batchId = TestIdentifiers.BatchId();
+        var identifier = TestIdentifiers.Id();
         const int space = 2;
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
@@ -140,10 +141,10 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_UpdatesBatchedImages_WhenStaticSize()
     {
         // Arrange
-        const int batchId = 101;
-        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenStaticSize);
+        var batchId = TestIdentifiers.BatchId();
+        var identifier = TestIdentifiers.Id();
         const int space = 2;
-        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
+        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new()
@@ -190,10 +191,10 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_UpdatesBatchedImages_WhenStaticSize_HandlingRewrittenPaths()
     {
         // Arrange
-        const int batchId = 102;
-        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenStaticSize_HandlingRewrittenPaths);
+        var batchId = TestIdentifiers.BatchId();
+        var identifier = TestIdentifiers.Id();
         const int space = 2;
-        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
+        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new()
@@ -241,14 +242,15 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting()
     {
         // Arrange
-        const int batchId = 2;
-        const string identifier = nameof(HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting);
+        var batchId = TestIdentifiers.BatchId();
+        var identifier = TestIdentifiers.Id();
+        var otherBatchId = TestIdentifiers.BatchId();
         const int space = 2;
 
         var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
         var assetId = new AssetId(CustomerId, space, identifier);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
-        await dbContext.Batches.AddTestBatch(batchId + 1, manifest.Entity);
+        await dbContext.Batches.AddTestBatch(otherBatchId, manifest.Entity);
         await dbContext.SaveChangesAsync();
 
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
@@ -266,11 +268,10 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_SavesResultingManifest_ToS3()
     {
         // Arrange
-        const int batchId = -1;
-        const string identifier = nameof(HandleMessage_SavesResultingManifest_ToS3);
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         const int space = 2;
-        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
-        const string canvasPaintingId = $"cp_{identifier}";
+        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
@@ -317,11 +318,10 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_PreserveNonStandardContext()
     {
         // Arrange
-        const int batchId = -321;
-        const string identifier = nameof(HandleMessage_PreserveNonStandardContext);
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         const int space = 2;
-        const string flatId = $"https://localhost:5000/1/manifests/{identifier}";
-        const string canvasPaintingId = $"cp_{identifier}";
+        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new()
@@ -374,10 +374,9 @@ public class BatchCompletionMessageHandlerTests
     public async Task HandleMessage_ReturnsFalse_NoException_WhenStagingMissing()
     {
         // Arrange
-        const int batchId = -123;
-        const string identifier = nameof(HandleMessage_ReturnsFalse_NoException_WhenStagingMissing);
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         const int space = 3;
-        const string canvasPaintingId = $"cp_{identifier}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => (IIIFManifest?)null);

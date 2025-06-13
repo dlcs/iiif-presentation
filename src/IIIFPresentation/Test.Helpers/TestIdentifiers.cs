@@ -13,6 +13,12 @@ public static class TestIdentifiers
     /// Helper method that returns single id
     /// </summary>
     public static string Id([CallerMemberName] string testMethod = "") => testMethod;
+
+    /// <summary>
+    /// Helper method that returns single id
+    /// </summary>
+    public static (string id, string canvasPaintingId) IdCanvasPainting([CallerMemberName] string testMethod = "")
+        => (testMethod, $"cp_{testMethod}");
     
     /// <summary>
     /// Helper method that returns slug and id
