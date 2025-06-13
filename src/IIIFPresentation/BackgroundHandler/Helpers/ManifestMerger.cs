@@ -142,7 +142,9 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             Items = []
         };
         
-        // Iterate through the canvasPaintings to be rendered on this Canvas
+        // Iterate through the canvasPaintings to be rendered on this Canvas. Group by CanvasOrder as:
+        // multiple orders can share an Id (for composite)
+        // each CanvasOrder might have multiple items (for choice) 
         foreach (var canvasOrderGroup in canvasInstruction.GroupBy(ci => ci.CanvasOrder))
         {
             var canvasOrderCount = canvasOrderGroup.Count();
@@ -168,8 +170,12 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             annoPage.Items!.Add(currentPaintingAnno);
         }
 
-        // TODO - do we need to set CanvasLabel?
-
+        if (canvas.Label == null)
+        {
+            logger.LogTrace("Canvas has no label, attempting to set to first non-null Label");
+            canvas.Label = canvasInstruction.FirstOrDefault(ci => ci.Label != null)?.Label;
+        }
+        
         canvas.Items = [annoPage];
         return canvas;
     }
@@ -194,14 +200,17 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         };
 
         // If this is a single item canvas then the .Label will be for the Canvas, rather than paintingAnno.
-        // UNLESS there's a specific .CanvasLabel
-        if (singleItemCanvas && canvasPainting.CanvasLabel == null)
+        // UNLESS there's a specific .CanvasLabel as that will already have been set
+        if (canvasPainting.Label != null)
         {
-            canvas.Label = canvasPainting.Label;
-        }
-        else
-        {
-            currentPaintingAnno.Label = canvasPainting.Label;
+            if (singleItemCanvas && canvasPainting.CanvasLabel == null)
+            {
+                canvas.Label = canvasPainting.Label;
+            }
+            else
+            {
+                (body as ResourceBase)!.Label = canvasPainting.Label;
+            }
         }
 
         currentPaintingAnno.Body = body;
@@ -211,36 +220,40 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         IGrouping<int, CanvasPainting> canvasOrderGroup, Canvas canvas, PaintingAnnotation currentPaintingAnno)
     {
         var paintingChoice = new PaintingChoice { Items = [] };
-        foreach (var choice in canvasOrderGroup)
+        foreach (var canvasPaintingChoice in canvasOrderGroup)
         {
-            if (!canvasDictionary.TryGetValue(choice.AssetId!, out var namedQueryCanvas))
+            if (!canvasDictionary.TryGetValue(canvasPaintingChoice.AssetId!, out var namedQueryCanvas))
             {
                 logger.LogWarning(
                     "Could not find NQ canvas for Asset {AssetId} from CanvasPainting {CanvasPaintingId}",
-                    choice.AssetId, choice.Id);
+                    canvasPaintingChoice.AssetId, canvasPaintingChoice.Id);
                 continue;
             }
             
             var body = GetSafeFirstPaintingAnnotationBody(namedQueryCanvas);
-            HandleCanvasPainting(choice, canvas, namedQueryCanvas, body);
+            HandleCanvasPainting(canvasPaintingChoice, canvas, namedQueryCanvas, body);
 
-            if (body is PaintingChoice namedQueryPaintingChoice)
+            // We might have 1 or more IPaintable elements (e.g. if NQ resource is already a choice, flatten it)
+            var paintables = GetPaintablesForChoice(body);
+            if (canvasPaintingChoice.Label != null)
             {
-                paintingChoice.Items.AddRange(namedQueryPaintingChoice.Items!);
+                logger.LogTrace("CanvasPainting {CanvasPaintingId} has label, setting on choice paintables",
+                    canvasPaintingChoice.Id);
+                foreach (var resourceBase in paintables.OfType<ResourceBase>())
+                {
+                    resourceBase.Label = canvasPaintingChoice.Label;
+                }
             }
-            else
-            {
-                paintingChoice.Items.Add(body);
-            }
+            paintingChoice.Items.AddRange(paintables);
 
             // For assets making up a Choice, the first non-null value will be assumed to be the target of
             // the Choice annotation.
-            if (choice.Target != null && currentPaintingAnno.Target == null)
+            if (canvasPaintingChoice.Target != null && currentPaintingAnno.Target == null)
             {
-                logger.LogTrace("Setting target from choice {ChoiceOrder}", choice.ChoiceOrder);
+                logger.LogTrace("Setting target from choice {ChoiceOrder}", canvasPaintingChoice.ChoiceOrder);
                 currentPaintingAnno.Target = new Canvas
                 {
-                    Id = pathGenerator.GenerateCanvasIdWithTarget(choice),
+                    Id = pathGenerator.GenerateCanvasIdWithTarget(canvasPaintingChoice),
                 };
             }
         }
@@ -248,6 +261,12 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         // If we didn't set a target from a choice, set to canvasId (the entire Canvas)
         currentPaintingAnno.Target ??= new Canvas { Id = canvas.Id, };
         currentPaintingAnno.Body = paintingChoice;
+        return;
+
+        List<IPaintable> GetPaintablesForChoice(IPaintable body)
+            => body is PaintingChoice namedQueryPaintingChoice
+                ? namedQueryPaintingChoice.Items!
+                : [body];
     }
 
     private void HandleCanvasPainting(CanvasPainting canvasPainting, Canvas workingCanvas, Canvas namedQueryCanvas,
@@ -275,7 +294,8 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             workingCanvas.Thumbnail = namedQueryCanvas.Thumbnail;
         }
 
-        // Canvas gets the first non-null CanvasLabel
+        // Canvas always gets the first non-null canvasPainting.CanvasLabel value, it might get canvasPainting.Label if
+        // there is no canvasLabel but logic is dependent on single-item or multi-item canvases (and not handled here!)
         if (workingCanvas.Label == null && canvasPainting.CanvasLabel != null)
         {
             logger.LogTrace("Using CanvasLabel from {CanvasPaintingId} for Canvas.Label", canvasPainting.Id);
@@ -291,10 +311,14 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             workingCanvas.Width = namedQueryCanvas.Width;
         }
         
-        UpdateCanvasPainting(canvasPainting, namedQueryCanvas, body);
+        AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
     }
 
-    private void UpdateCanvasPainting(CanvasPainting canvasPainting, Canvas namedQueryCanvas, IPaintable body)
+    /// <summary>
+    /// Mark CanvasPainting as processed. Also align CanvasPainting and NQ paintable, depending on what CP record
+    /// instructs. In some instances we update paintable, in others  
+    /// </summary>
+    private void AlignCanvasPaintingAndBody(CanvasPainting canvasPainting, Canvas namedQueryCanvas, IPaintable body)
     {
         var thumbnailPath = namedQueryCanvas.Thumbnail?.OfType<Image>().GetThumbnailPath();
 
