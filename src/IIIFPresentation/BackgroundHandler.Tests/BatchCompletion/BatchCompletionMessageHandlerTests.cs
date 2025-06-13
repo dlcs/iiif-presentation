@@ -25,6 +25,7 @@ using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
@@ -135,7 +136,7 @@ public class BatchCompletionMessageHandlerTests
         canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
 
-    [Fact]
+    [Fact(Skip = "Moved to ManifestMerger")]
     public async Task HandleMessage_UpdatesBatchedImages_WhenStaticSize()
     {
         // Arrange
@@ -185,7 +186,7 @@ public class BatchCompletionMessageHandlerTests
         image.Height.Should().Be(80, "height taken from statics set on canvasPainting");
     }
     
-    [Fact]
+    [Fact(Skip = "Moved to ManifestMerger")]
     public async Task HandleMessage_UpdatesBatchedImages_WhenStaticSize_HandlingRewrittenPaths()
     {
         // Arrange
@@ -289,8 +290,9 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         ResourceBase? resourceBase = null;
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._)).Invokes(
-            (ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+                flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
                 resourceBase = arg1);
 
         // Act
@@ -298,7 +300,8 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue("Message successfully handled");
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, manifest, flatId, false, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+                flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest)resourceBase!;
         var expectedCanvasId = $"https://localhost:5000/1/canvases/{canvasPaintingId}";
@@ -312,7 +315,7 @@ public class BatchCompletionMessageHandlerTests
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
 
-    [Fact]
+    [Fact(Skip = "Moved to ManifestMerger")]
     public async Task HandleMessage_PreserveNonStandardContext()
     {
         // Arrange
