@@ -38,6 +38,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly BackgroundHandlerSettings backgroundHandlerSettings;
+    private readonly IManifestMerger manifestMerger;
     private const int CustomerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -46,6 +47,7 @@ public class BatchCompletionMessageHandlerTests
         dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
+        manifestMerger = A.Fake<IManifestMerger>();
 
         backgroundHandlerSettings = new BackgroundHandlerSettings
         {
@@ -57,7 +59,7 @@ public class BatchCompletionMessageHandlerTests
             new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
         var pathGenerator = new TestPathGenerator(presentationGenerator);
 
-        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3, pathGenerator,
+        sut = new BatchCompletionMessageHandler(dbFixture.DbContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace API.Tests.Integration.Infrastructure;
+namespace Test.Helpers;
 
 /// <summary>
 /// Helper methods for generating test identifiers, allows for distinct values per test method via

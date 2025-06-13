@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 

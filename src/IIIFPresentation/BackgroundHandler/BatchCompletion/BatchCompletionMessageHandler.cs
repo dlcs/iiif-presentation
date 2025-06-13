@@ -80,7 +80,6 @@ public class BatchCompletionMessageHandler(
             var namedQueryManifest =
                 await dlcsOrchestratorClient.RetrieveAssetsForManifest(batch.CustomerId, batches,
                     cancellationToken);
-            
 
             try
             {
@@ -101,16 +100,16 @@ public class BatchCompletionMessageHandler(
             batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
     }
     
-    private async Task UpdateManifestInS3(Manifest namedQueryManifest, Batch batch, CancellationToken cancellationToken)
+    private async Task UpdateManifestInS3(Manifest? namedQueryManifest, Batch batch, CancellationToken cancellationToken)
     {
         var dbManifest = batch.Manifest!;
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
 
         var mergedManifest = manifestMerger.BuildFinalManifest(
-            namedQueryManifest,
             manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
+            namedQueryManifest,
             dbManifest.CanvasPaintings);
-        
+
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             false, cancellationToken);
 
