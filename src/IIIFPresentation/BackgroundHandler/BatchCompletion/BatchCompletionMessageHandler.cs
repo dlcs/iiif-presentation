@@ -105,7 +105,7 @@ public class BatchCompletionMessageHandler(
         var dbManifest = batch.Manifest!;
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
 
-        var mergedManifest = manifestMerger.BuildFinalManifest(
+        var mergedManifest = manifestMerger.ProcessCanvasPaintings(
             manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
             namedQueryManifest,
             dbManifest.CanvasPaintings);

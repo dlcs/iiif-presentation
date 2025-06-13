@@ -25,16 +25,16 @@ public interface IManifestMerger
     /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
     /// </param>
     /// <returns>Populated manifest</returns>
-    Manifest BuildFinalManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+    Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings);
 }
 
 public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger> logger) : IManifestMerger
 {
     /// <summary>
-    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
-    /// instructions.
-    /// CanvasPaintings may be updated as part of processing
+    /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the
+    /// provided baseManifest.
+    /// CanvasPaintings are updated as part of processing
     /// </summary>
     /// <param name="baseManifest">Initial manifest to project content resources onto</param>
     /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
@@ -42,7 +42,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
     /// </param>
     /// <returns>Populated manifest</returns>
-    public Manifest BuildFinalManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+    public Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings)
     {
         ValidateManifests(baseManifest, namedQueryManifest);
