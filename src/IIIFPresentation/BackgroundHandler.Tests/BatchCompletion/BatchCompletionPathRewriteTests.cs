@@ -9,7 +9,6 @@ using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
@@ -18,7 +17,6 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using A = FakeItEasy.A;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
 using ResourceBase = IIIF.Presentation.V3.ResourceBase;
 

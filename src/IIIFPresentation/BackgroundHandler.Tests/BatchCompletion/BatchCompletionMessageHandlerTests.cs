@@ -24,9 +24,7 @@ using Repository.Paths;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using A = FakeItEasy.A;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
-using Times = FakeItEasy.Times;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
