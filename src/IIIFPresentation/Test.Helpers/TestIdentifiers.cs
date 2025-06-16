@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using Models.DLCS;
 
 namespace Test.Helpers;
 
@@ -38,6 +39,13 @@ public static class TestIdentifiers
     public static (string slug, string id, string assetId, string canvasId) SlugResourceAssetCanvas(
         [CallerMemberName] string testMethod = "")
         => (testMethod, $"{testMethod}_id", $"{testMethod}_a", $"{testMethod}_c");
+
+    /// <summary>
+    /// Helper method that returns new <see cref="AssetId"/> for specified customer and space
+    /// </summary>
+    public static AssetId AssetId([CallerMemberName] string asset = "", int customer = 1, int space = 2,
+        string? postfix = null) =>
+        new(customer, space, $"{asset}{postfix}");
 
     private static int batchId = 1;
 

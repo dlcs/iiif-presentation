@@ -1,4 +1,6 @@
-﻿using IIIF.ImageApi.V3;
+﻿using IIIF;
+using IIIF.ImageApi.V2;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -13,17 +15,22 @@ public static class ManifestTestCreatorX
     public static Manifest Build(this GenerateManifestOptions options) => ManifestTestCreator.GenerateManifest(options);
 
     public static GenerateManifestOptions WithCanvas(this GenerateManifestOptions options,
-        Action<GenerateCanvasOptions> configure) => options.WithCanvas(null, configure);
+        Action<GenerateCanvasOptions> configure) => options.WithCanvas((string?)null, configure);
 
     public static GenerateManifestOptions WithCanvas(this GenerateManifestOptions options,
         string? id, Action<GenerateCanvasOptions> configure)
     {
         options.Canvases ??= [];
-        var canvas = new GenerateCanvasOptions {Id = id};
+        var canvas = new GenerateCanvasOptions { Id = id };
         configure(canvas);
         options.Canvases.Add(canvas);
         return options;
     }
+
+    public static GenerateManifestOptions WithCanvas(this GenerateManifestOptions options,
+        AssetId? id, Action<GenerateCanvasOptions> configure)
+        // Canvas.Id is parsed to find the asset-id so needs to be in set format
+        => options.WithCanvas($"https://dlcs.test/iiif-img/{id}/canvas/c/", configure);
 
     public static GenerateCanvasOptions With(this GenerateCanvasOptions options, GenerateCanvasOptions.Content type) =>
         options.WithMultiple(type);
@@ -102,6 +109,16 @@ public class ManifestTestCreator
             Label = new("canvasPaintingLabel", "generated canvas painting label")
         }).ToList();
     }
+    
+    public static List<CanvasPainting> GenerateCanvasPaintings(params AssetId[] idList)
+    {
+        var canvasOrder = 0;
+        return idList.Select(id => new CanvasPainting
+        {
+            Id = id.ToString(), AssetId = id, CanvasOrder = canvasOrder++,
+            Label = new("canvasPaintingLabel", "generated canvas painting label")
+        }).ToList();
+    }
 
     public static Manifest GenerateManifest(GenerateManifestOptions options)
     {
@@ -126,7 +143,7 @@ public class ManifestTestCreator
         var id = options.Id;
         return new()
         {
-            Id = $"{id}",
+            Id = id,
             Label = new("en", $"{id}"),
             Width = 110,
             Height = 110,
@@ -145,13 +162,13 @@ public class ManifestTestCreator
             [
                 new AnnotationPage
                 {
-                    Id = $"{id}_AnnotationPage",
+                    Id = $"{id}/page",
                     Label = new("en", $"{id}_AnnotationPage"),
                     Items =
                     [
                         new PaintingAnnotation
                         {
-                            Id = $"{id}_PaintingAnnotation",
+                            Id = $"{id}/page/image",
                             Label = new("en", $"PaintingAnnotation_{id}_PaintingAnnotation"),
                             Body = GenerateAnnotationBody(options),
                             Service = new()
@@ -286,13 +303,33 @@ public class ManifestTestCreator
         var canvasId = $"{qualifiedAssetId}/canvas/c/1";
         return new Manifest
         {
-            Items = new List<Canvas>
-            {
+            Items =
+            [
                 new()
                 {
                     Id = canvasId,
                     Width = 100,
                     Height = 100,
+                    Thumbnail =
+                    [
+                        new Image
+                        {
+                            Id = "this-does-not-matter",
+                            Service =
+                            [
+                                new ImageService2
+                                {
+                                    Profile = ImageService2.Level0Profile,
+                                },
+
+                                new ImageService3
+                                {
+                                    Profile = ImageService3.Level0Profile,
+                                }
+                            ]
+                        }
+                    ],
+                    Metadata = [new("en", "Reference1", "foo")],
                     Items =
                     [
                         new()
@@ -308,28 +345,30 @@ public class ManifestTestCreator
                                         Id = bodyId ?? $"{qualifiedAssetId}/full/100,100/0/default.jpg",
                                         Width = 100,
                                         Height = 100,
+                                        Format = "image/jpeg",
                                         Service =
                                         [
+                                            new ImageService2
+                                            {
+                                                Width = 75,
+                                                Height = 75,
+                                                Profile = ImageService2.Level2Profile
+                                            },
                                             new ImageService3
                                             {
                                                 Width = 75,
-                                                Height = 75
+                                                Height = 75,
+                                                Profile = ImageService3.Level2Profile
                                             }
                                         ]
                                     },
-                                    Service =
-                                    [
-                                        new ImageService3
-                                        {
-                                            Profile = "level2"
-                                        }
-                                    ]
+                                    Target = new Canvas { Id = canvasId }
                                 }
                             ]
                         }
                     ]
                 }
-            }
+            ]
         };
     }
 }

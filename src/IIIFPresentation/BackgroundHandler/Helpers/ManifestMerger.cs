@@ -67,7 +67,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         {
             logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
                 namedQueryManifest?.Id ?? "no-id");
-            throw new ArgumentNullException(nameof(namedQueryManifest));
+            throw new ArgumentNullException("namedQueryManifest.Items");
         }
         
         if (baseManifest.Items.IsNullOrEmpty()) return;
@@ -154,7 +154,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             var isChoice = canvasOrderCount > 1;
             var currentPaintingAnno = new PaintingAnnotation
             {
-                Id = pathGenerator.GeneratePaintingAnnotationId(firstCanvasPaintingInCanvas),
+                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()),
             };
 
             if (!isChoice)

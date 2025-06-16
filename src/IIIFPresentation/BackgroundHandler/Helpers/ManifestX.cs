@@ -1,5 +1,4 @@
-﻿using Core.Helpers;
-using IIIF.Presentation.V3;
+﻿using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 
@@ -26,6 +25,9 @@ public static class ManifestX
     {
         return canvas.Items?[0];
     }
+    
+    public static PaintingAnnotation GetPaintingAnno(this Canvas canvas, int index)
+        => canvas.Items[0].Items?[index] as PaintingAnnotation;
     
     public static AnnotationPage GetCurrentCanvasAnnotationPage(this Manifest manifest, int index)
     {
