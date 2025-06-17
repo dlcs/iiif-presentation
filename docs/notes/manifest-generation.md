@@ -1,6 +1,6 @@
 # Manifest Generation
 
-This doc contains some implementation details around how Manifests are genrrated from NamedQuery. 
+This doc contains some implementation details around how Manifests are generated from NamedQuery. 
 
 This isn't exhaustive, as always the code will reflect what's actually happening.
 
