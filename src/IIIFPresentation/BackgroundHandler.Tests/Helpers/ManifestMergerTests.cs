@@ -3,12 +3,13 @@ using BackgroundHandler.Helpers;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.BatchCompletion;
 using FluentAssertions;
+using IIIF;
+using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Models.DLCS;
 using Test.Helpers;
 using Canvas = IIIF.Presentation.V3.Canvas;
 using Manifest = IIIF.Presentation.V3.Manifest;
@@ -50,6 +51,26 @@ public class ManifestMergerTests
     }
     
     [Fact]
+    public void ProcessCanvasPaintings_Throws_IfBaseManifest_HasItems()
+    {
+        // Arrange
+        var blankManifest = new Manifest
+        {
+            Id = "https://foo",
+            Items = [new Canvas()]
+        };
+        var namedQueryManifest = new Manifest { Items = [new Canvas()] };
+
+        // Act
+        Action action = () => sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, null);
+
+        // Assert
+        action.Should()
+            .ThrowExactly<InvalidOperationException>()
+            .WithMessage("https://foo contains items. Generating manifest from paintedResources with items is not currently supported");
+    }
+    
+    [Fact]
     public void ProcessCanvasPaintings_ReturnsBaseManifest_IfNoCanvasPaintings()
     {
         // Arrange
@@ -72,11 +93,62 @@ public class ManifestMergerTests
         finalManifest.Should().Be(baseManifest);
     }
     
-    /* TODO
-     - test that non-blank manifest has _stuff_ persisted
-     - CanvasPainting is marked as processed etc
-     - Tests removed from BackgroundHandler
-     */
+    [Fact]
+    public void ProcessCanvasPaintings_MaintainsEverythingInBaseManifest()
+    {
+        // Arrange
+        var baseManifest = new Manifest
+        {
+            Id = "https://foo",
+            Metadata = [new("label1", "value1")],
+            Rights = "http://rightsstatements.org/vocab/NKC/1.0/",
+            Provider =
+            [
+                new Agent
+                {
+                    Id = "https://agent",
+                    Label = new("label1", "value1"),
+                    Homepage =
+                    [
+                        new ExternalResource("Text")
+                        {
+                            Id = "https://external-resource",
+                            Format = "text/html"
+                        }
+                    ],
+                    Logo =
+                    [
+                        new Image
+                        {
+                            Id = "https://logo.png",
+                            Format = "image/png"
+                        }
+                    ]
+                }
+            ],
+            SeeAlso =
+            [
+                new ExternalResource("DataSet")
+                {
+                    Id = "https://external-resource",
+                    Format = "application/json"
+                }
+            ]
+        };
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Should().BeEquivalentTo(baseManifest, options => options.Excluding(m => m.Items));
+    }
     
     [Fact]
     public void ProcessCanvasPaintings_GeneratesExpectedManifest_SingleImage()
@@ -132,27 +204,6 @@ public class ManifestMergerTests
             .ContainKey("canvasPaintingLabel", "'Label' used to label Image as 'CanvasLabel' present");
 
     }
-
-    /*[Fact]
-    public void Merge_MergesFullManifestWithGeneratedManifest()
-    {
-        // Arrange
-        var assetId = $"1/2/{nameof(Merge_MergesFullManifestWithGeneratedManifest)}";
-        var blankManifest = ManifestTestCreator.New().WithCanvas(assetId, c => c.WithImage()).Build();
-        blankManifest.Items[0].Width = 200;
-        blankManifest.Items[0].Height = 200;
-        var namedQueryManifest = ManifestTestCreator.New(assetId).WithCanvas(c => c.WithImage()).Build();
-        var itemDictionary = namedQueryManifest.Items.ToDictionary(i => AssetId.FromString(i.Id), i => i);
-
-        // Act
-        var mergedManifest = ManifestMerger.Merge(blankManifest, ManifestTestCreator.GenerateCanvasPaintings([assetId]),
-            itemDictionary);
-
-        // Assert
-        mergedManifest.Items.Should().HaveCount(1);
-        mergedManifest.Items[0].Width.Should().Be(110);
-        mergedManifest.Items[0].Height.Should().Be(110);
-    }*/
 
     [Fact]
     public void ProcessCanvasPaintings_ShouldNotUpdateAttachedManifestThumbnail()
@@ -317,7 +368,7 @@ public class ManifestMergerTests
         canvasPaintings[0].CanvasOrder = 0;
         canvasPaintings[0].ChoiceOrder = 1;
         canvasPaintings[0].CanvasLabel =
-            new LanguageMap("canvas0Choice0CanvasLabel", "generated canvas painting label");
+            new LanguageMap("canvas0Choice1CanvasLabel", "generated canvas painting label");
 
         // Second canvas, second choice
         canvasPaintings[1].Id = "second";
@@ -351,16 +402,15 @@ public class ManifestMergerTests
         mergedManifest.Items.Should().HaveCount(3, "5 canvas paintings but 3 unique Ids");
         mergedManifest.Thumbnail.Should().BeNull();
 
-        // should be 1 + 3 then 4 + 2 then 5
-        // Validate first canvas (2 choices)
+        // Assert first canvas (2 choices)
         var firstCanvas = mergedManifest.Items[0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
         firstCanvas.Label.Keys.Should()
-            .Contain("canvas0Choice0CanvasLabel", "First non-null canvasLabel in choice used");
+            .Contain("canvas0Choice1CanvasLabel", "First non-null canvasLabel in choice used");
         firstCanvas.Thumbnail.Single().Id.Should()
             .Contain(canvas0Choice1.ToString(), "Thumbnail of first item in choice used");
 
-        // Validate second canvas (2 choices)
+        // Assert second canvas (2 choices)
         var secondCanvas = mergedManifest.Items[1];
         secondCanvas.Id.Should().Be("https://localhost:5000/0/canvases/second", "canvasId correct");
         secondCanvas.Label.Keys.Should()
@@ -368,13 +418,13 @@ public class ManifestMergerTests
         secondCanvas.Thumbnail.Single().Id.Should().Contain(canvas1Choice2.ToString(),
             "Thumbnail of second item in choice used as first is null");
 
-        // Validate third canvas (single item)
+        // Assert third canvas (single item)
         var thirdCanvas = mergedManifest.Items[2];
         thirdCanvas.Id.Should().Contain("https://localhost:5000/0/canvases/third", "canvasId correct");
         thirdCanvas.Label.Should().BeNull("Only label from CanvasPainting used");
         thirdCanvas.Thumbnail.Single().Id.Should().Contain(canvas2NoChoice.ToString(), "Thumbnail of single item used");
 
-        var firstCanvasAnnotationPage = mergedManifest.GetCurrentCanvasAnnotationPage(0);
+        var firstCanvasAnnotationPage = mergedManifest.GetCanvasAnnotationPage(0);
         firstCanvasAnnotationPage.Id.Should().Be("https://localhost:5000/0/canvases/first/annopages/0",
             "AnnoPage id based on canvas");
 
@@ -390,7 +440,7 @@ public class ManifestMergerTests
         firstAnnotationBody.Items[0].As<Image>().Label.Keys.Should().Contain("canvasPaintingLabel", "Choice label set");
         firstAnnotationBody.Items[1].As<Image>().Id.Should().Contain(canvas0Choice2.ToString(), "Choices are in correct order");
 
-        var secondAnnotationBody = mergedManifest.GetCurrentCanvasAnnotationPage(1).Items[0].As<PaintingAnnotation>()
+        var secondAnnotationBody = mergedManifest.GetCanvasAnnotationPage(1).Items[0].As<PaintingAnnotation>()
             .Body.As<PaintingChoice>();
         secondAnnotationBody.Items[0].As<Image>().Id.Should().Contain(canvas1Choice1.ToString());
         secondAnnotationBody.Items[1].As<Image>().Id.Should().Contain(canvas1Choice2.ToString());
@@ -533,22 +583,162 @@ public class ManifestMergerTests
         paintingChoice.Items[1].As<Image>().Label.Should().BeNull("No label on second choice");
         paintingChoice.Items[1].As<Image>().Id.Should().Contain(canvas1Choice2.ToString());
     }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_IgnoresCanvasPaintings_IfAssetNotFound()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetIdFound = TestIdentifiers.AssetId();
+        var assetIdNotFound = TestIdentifiers.AssetId(postfix: "_notfound");
+
+        // Only 'assetIdFound' is in NQ result
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetIdFound, c => c.WithImage())
+            .Build();
+
+        // NOTE - added as assetIdTwo, assetIdOne so that 'two' has lower CanvasOrder
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetIdFound, assetIdNotFound);
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(2, "Two canvas paintings");
+        mergedManifest.Items[1].GetFirstPaintingAnnotation().Body.Should().BeNull("No NQ painting anno found");
+        
+        var foundCanvasPainting = canvasPaintings.Single(cp => cp.AssetId == assetIdFound);
+        foundCanvasPainting.Ingesting.Should().BeFalse("CP for asset found and marked as ingested");
+        foundCanvasPainting.Thumbnail.Should().NotBeNull("Thumbnail set from NQ");
+        
+        canvasPaintings.Single(cp => cp.AssetId == assetIdNotFound).Ingesting.Should()
+            .BeTrue("CP for asset not found therefor not marked as ingested");
+    }
 
     [Fact]
-    public void ProcessCanvasPaintings_UpdatesCanvasPaintings_WithDimensions()
+    public void ProcessCanvasPaintings_UpdatesCanvasPaintings_WithSpatialDimensions()
     {
-        
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var canvasPainting = canvasPaintings.Single();
+
+        // Act
+        sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        canvasPainting.StaticWidth.Should().Be(100, "width taken from NQ manifest image->imageService");
+        canvasPainting.StaticHeight.Should().Be(100, "height taken from NQ manifest image->imageService");
+        canvasPainting.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        canvasPainting.Ingesting.Should().BeFalse("CanvasPainting ingested");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_UpdatesCanvasPaintings_WithTemporalDimensions()
+    {
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithSound())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var canvasPainting = canvasPaintings.Single();
+
+        // Act
+        sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        canvasPainting.Duration.Should().Be(15000, "duration taken from NQ manifest sound");
+        canvasPainting.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        canvasPainting.Ingesting.Should().BeFalse("CanvasPainting ingested");
     }
     
     [Fact]
     public void ProcessCanvasPaintings_UpdatesCanvas_WithDimensions_IfStaticWidthAndHeight()
     {
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        canvasPaintings[0].StaticHeight = 200;
+        canvasPaintings[0].StaticWidth = 220;
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        var image = mergedManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
+        image!.Id.Should()
+            .Be($"https://dlcs.test/iiif-img/{assetId}/full/220,200/0/default.jpg",
+                "w,h set from statics set on canvasPainting");
+        image.Width.Should().Be(220, "width taken from statics set on canvasPainting");
+        image.Height.Should().Be(200, "height taken from statics set on canvasPainting");
+        canvasPaintings[0].Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        canvasPaintings[0].Ingesting.Should().BeFalse("CanvasPainting ingested");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_UpdatesCanvas_WithDimensions_IfStaticWidthAndHeight_RewrittenPath()
+    {
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
         
+        // Fake the image.id like it has been rewritten
+        var nqImage = namedQueryManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
+        nqImage.Id = $"https://other.host/image/{assetId.Asset}/full/100,100/0/default.jpg";
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        canvasPaintings[0].StaticHeight = 200;
+        canvasPaintings[0].StaticWidth = 220;
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        var image = mergedManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
+        image!.Id.Should()
+            .Be($"https://other.host/image/{assetId.Asset}/full/220,200/0/default.jpg",
+                "w,h set from statics set on canvasPainting");
+        image.Width.Should().Be(220, "width taken from statics set on canvasPainting");
+        image.Height.Should().Be(200, "height taken from statics set on canvasPainting");
+        canvasPaintings[0].Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        canvasPaintings[0].Ingesting.Should().BeFalse("CanvasPainting ingested");
     }
 
     [Fact]
     public void ProcessCanvasPaintings_PreservesNonStandardContext()
     {
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        const string nonStandardContext = "https://iiif.wellcomecollection.org/extensions/born-digital/context.json";
+        namedQueryManifest.EnsureContext(nonStandardContext);
         
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Context.As<string>().Should()
+            .Be(nonStandardContext, "non standard context from NQ maintained");
     }
 }

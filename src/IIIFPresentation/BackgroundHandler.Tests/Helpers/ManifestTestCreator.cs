@@ -1,5 +1,4 @@
-﻿using IIIF;
-using IIIF.ImageApi.V2;
+﻿using IIIF.ImageApi.V2;
 using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -115,7 +114,7 @@ public class ManifestTestCreator
         var canvasOrder = 0;
         return idList.Select(id => new CanvasPainting
         {
-            Id = id.ToString(), AssetId = id, CanvasOrder = canvasOrder++,
+            Id = id.ToString(), AssetId = id, CanvasOrder = canvasOrder++, Ingesting = true,
             Label = new("canvasPaintingLabel", "generated canvas painting label")
         }).ToList();
     }
@@ -141,12 +140,15 @@ public class ManifestTestCreator
     public static Canvas GenerateCanvas(GenerateCanvasOptions options)
     {
         var id = options.Id;
+        var temporal = options.ContentType is GenerateCanvasOptions.Content.Sound or GenerateCanvasOptions.Content.Video;
+        var spatial = options.ContentType is GenerateCanvasOptions.Content.Image or GenerateCanvasOptions.Content.Video;
         return new()
         {
             Id = id,
             Label = new("en", $"{id}"),
-            Width = 110,
-            Height = 110,
+            Duration = temporal ? 15000 : null,
+            Width = spatial ? 110 : null,
+            Height = spatial ? 110 : null,
             Metadata = GenerateMetadata(),
             Rendering = GenerateAnnotationRendering(options),
             Thumbnail =
@@ -275,7 +277,7 @@ public class ManifestTestCreator
     private static Image GenerateImage(GenerateCanvasOptions options) =>
         new()
         {
-            Id = options.Id,
+            Id = options.Id.Replace("/canvas/c/", "/full/100,100/0/default.jpg"),
             Width = 100,
             Height = 100
         };
@@ -314,7 +316,7 @@ public class ManifestTestCreator
                     [
                         new Image
                         {
-                            Id = "this-does-not-matter",
+                            Id = "https://this-does-not-matter",
                             Service =
                             [
                                 new ImageService2

@@ -29,7 +29,7 @@ public static class ManifestX
     public static PaintingAnnotation GetPaintingAnno(this Canvas canvas, int index)
         => canvas.Items[0].Items?[index] as PaintingAnnotation;
     
-    public static AnnotationPage GetCurrentCanvasAnnotationPage(this Manifest manifest, int index)
+    public static AnnotationPage GetCanvasAnnotationPage(this Manifest manifest, int index)
     {
         return manifest.Items![index].Items![0];
     }
