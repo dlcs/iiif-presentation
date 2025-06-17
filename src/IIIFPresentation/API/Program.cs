@@ -82,6 +82,10 @@ builder.Services.AddAws(builder.Configuration, builder.Environment);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
+    
+    // https://github.com/dotnet/dotnet-docker/issues/6491
+    opts.KnownNetworks.Clear();
+    opts.KnownProxies.Clear();
 });
 
 builder.Services.ConfigureHttpJsonOptions(options =>
