@@ -2139,7 +2139,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         ]);
         await dbContext.SaveChangesAsync();
         
-        var batchId = 1020;
+        var batchId = TestIdentifiers.BatchId();
         var manifestWithoutSpace = $$"""
                          {
                              "type": "Manifest",
