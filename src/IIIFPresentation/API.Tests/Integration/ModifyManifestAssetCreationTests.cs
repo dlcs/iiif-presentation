@@ -219,7 +219,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                   "type": "Manifest",
                   "parent": "http://localhost/{{Customer}}/collections/root",
                   "slug": "{{slug}}",
-                  "rights": "https://creativecommons.org/licenses/by/4.0/",
                   "label": {
                       "en": [
                           "I have assets"
@@ -323,7 +322,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     public async Task CreateManifest_ReturnsAssetDetails_FromAllImages()
     {
         // Arrange
-        var (slug, _,   assetId) = TestIdentifiers.SlugResourceAsset();
+        var (slug, _, assetId) = TestIdentifiers.SlugResourceAsset();
 
           A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
                   A<IList<string>>.That.Matches(l =>

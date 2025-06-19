@@ -171,10 +171,16 @@ public class ManifestWriteService(
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
-
+            
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
+
+            if (dlcsInteractionResult.CanBeBuiltUpfront)
+            {
+                throw new NotImplementedException(
+                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
+            }
 
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
             
@@ -230,6 +236,12 @@ public class ManifestWriteService(
             var (error, dbManifest) =
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
+            
+            if (dlcsInteractionResult.CanBeBuiltUpfront)
+            {
+                throw new NotImplementedException(
+                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
+            }
 
             var saveToStaging = ShouldSaveToStaging(request);
             await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);

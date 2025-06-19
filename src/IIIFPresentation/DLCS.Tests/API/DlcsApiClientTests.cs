@@ -304,6 +304,36 @@ public class DlcsApiClientTests
         assets.Single().Id.Should().Be("someAssetId");
     }
     
+    [Fact]
+    public async Task UpdateAssetWithManifest_ReturnsMultipleAssetIds_WhenMultipleSuccess()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => """
+                                {
+                                 "@type": "Collection",
+                                 "totalItems": 1,
+                                 "pageSize": 1,
+                                 "member": [
+                                  { "id": "someAssetId" }
+                                 ]
+                                 }
+                                """).StatusCode(200);
+        var sut = GetClient(stub);
+
+        var assets = await sut.UpdateAssetManifest(customerId, 
+            [
+                new AssetId(customerId, 1, "someString"),
+                new AssetId(customerId, 1, "someString")
+            ],
+            OperationType.Add, ["first"], CancellationToken.None);
+
+        assets.Should().HaveCount(2);
+        assets.First().Id.Should().Be("someAssetId");
+        assets.Last().Id.Should().Be("someAssetId");
+    }
+    
     [Theory]
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.Conflict)]
@@ -312,7 +342,6 @@ public class DlcsApiClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 4;
-        const int batchId = 2137;
         stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
             .Response((_, _) => "{\"description\":\"I am broken\"}")
             .StatusCode((int) httpStatusCode);

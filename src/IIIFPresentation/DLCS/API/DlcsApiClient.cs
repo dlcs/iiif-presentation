@@ -152,26 +152,40 @@ internal class DlcsApiClient(
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
             customerId, operationType.ToString());
         
-        var allImages = new BulkPatchAssets
+        var chunkedImageList = assets.Chunk(settings.MaxBatchSize);
+        var assetsResponse = new ConcurrentBag<Asset>();
+
+        var tasks = chunkedImageList.Select(async chunkedImages =>
         {
-            Field = "manifests",
-            Members = assets.Select(a => new IdentifierOnly(){Id = a.ToString()}).ToList(),
-            Operation = operationType,
-            Value = manifests
-        };
+            var allImages = new BulkPatchAssets
+            {
+                Field = "manifests",
+                Members = assets.Select(a => new IdentifierOnly(a)).ToList(),
+                Operation = operationType,
+                Value = manifests
+            };
         
-        var endpoint = $"/customers/{customerId}/allImages";
+            var endpoint = $"/customers/{customerId}/allImages";
 
-        var assetsResponse = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Patch, endpoint, allImages, cancellationToken);
-        if (assetsResponse == null)
+            var response = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Patch, endpoint, allImages, cancellationToken);
+            if (response == null)
+            {
+                logger.LogError("Could not understand the patch all assets response for customer {CustomerId}", customerId);
+                throw new DlcsException("Failed to create batch", HttpStatusCode.InternalServerError);
+            }
+            
+            foreach (var responseMember in response.Members)
+            {
+                assetsResponse.Add(responseMember);
+            }
+        });
+        
+        await Task.WhenAll(tasks);
+        
+        // this is extremely unlikely to happen, as the DLCS should have already been checked at this point
+        if (assetsResponse.Count != assets.Count)
         {
-            logger.LogError("Could not understand the patch all assets response for customer {CustomerId}", customerId);
-            throw new DlcsException("Failed to create batch", HttpStatusCode.InternalServerError);
-        }
-
-        if (assetsResponse.Members.Length != assets.Count)
-        {
-            var missingAssets = assets.Where(a => assetsResponse.Members.All(ar => a.Asset != ar.Id)).ToList();
+            var missingAssets = assets.Where(a => assetsResponse.All(ar => a.Asset != ar.Id)).ToList();
 
             logger.LogError(
                 "Received less assets than expected when patching customer images for {CustomerId}, assets missing - {MissingAssets}",
@@ -179,7 +193,7 @@ internal class DlcsApiClient(
             throw new DlcsException($"Could not find assets [{missingAssets}] in DLCS", HttpStatusCode.InternalServerError);
         }
         
-        return assetsResponse.Members;
+        return assetsResponse.ToArray();
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,

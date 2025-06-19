@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
+using Models.DLCS;
 
 namespace DLCS.Models;
 
@@ -30,7 +31,7 @@ public enum OperationType
     Replace,
 }
 
-public class IdentifierOnly
+public class IdentifierOnly(AssetId id)
 {
-    public string Id { get; set; }
+    public string Id { get; set; } = id.ToString();
 }
