@@ -1,5 +1,4 @@
-﻿using BackgroundHandler.Settings;
-using DLCS;
+﻿using DLCS;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
 

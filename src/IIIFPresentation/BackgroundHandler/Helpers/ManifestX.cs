@@ -26,11 +26,19 @@ public static class ManifestX
         return canvas.Items?[0];
     }
     
-    public static AnnotationPage GetCurrentCanvasAnnotationPage(this Manifest manifest, int index)
+    public static PaintingAnnotation GetPaintingAnno(this Canvas canvas, int index)
+        => canvas.Items[0].Items?[index] as PaintingAnnotation;
+    
+    public static AnnotationPage GetCanvasAnnotationPage(this Manifest manifest, int index)
     {
         return manifest.Items![index].Items![0];
     }
 
+    /// <summary>
+    /// Returns true if Duration, Width and Height are all unset
+    /// </summary>
+    public static bool DimensionsAreUnset(this Canvas canvas) =>
+        !canvas.Width.HasValue && !canvas.Height.HasValue && !canvas.Duration.HasValue;
 
     public static (int width, int height)? GetCanvasDimensions(this Canvas canvas)
     {

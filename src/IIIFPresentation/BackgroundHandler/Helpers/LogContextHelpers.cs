@@ -1,13 +1,18 @@
 ﻿using Serilog.Context;
+using Serilog.Core.Enrichers;
 
 namespace BackgroundHandler.Helpers;
 
 public static class LogContextHelpers
 {
     /// <summary>
-    /// Add "ServiceName" property to log context, which is then output as part of default log template.
-    /// This is useful to filter logs as there can multiple processes running at the same time 
+    /// Add "ServiceName" and optional "CorrelationId" properties to log context, which is then output as part of
+    /// default log template.
+    /// This is useful for filtering logs 
     /// </summary>
-    public static IDisposable SetServiceName(string serviceName) =>
-        LogContext.PushProperty("ServiceName", serviceName, false);
+    public static IDisposable SetServiceName(string serviceName, string? messageId = null) =>
+        LogContext.Push(
+            new PropertyEnricher("ServiceName", serviceName),
+            new PropertyEnricher("CorrelationId", messageId)
+        );
 }
