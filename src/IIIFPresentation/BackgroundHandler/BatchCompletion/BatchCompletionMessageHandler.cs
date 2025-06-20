@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
 using Services.Manifests.AWS;
-using Services.Manifests.Database;
 
 namespace BackgroundHandler.BatchCompletion;
 
@@ -16,7 +15,6 @@ public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
     IManifestS3Manager manifestS3Manager,
-    IManifestDatabaseManager manifestDatabaseManager,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
@@ -58,7 +56,7 @@ public class BatchCompletionMessageHandler(
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))
         {
-            manifestDatabaseManager.CompleteBatch(batch, batchCompletionMessage.Finished, false);
+            CompleteBatch(batch, batchCompletionMessage.Finished, false);
         }
         else
         {
@@ -74,7 +72,7 @@ public class BatchCompletionMessageHandler(
 
             try
             {
-                manifestDatabaseManager.CompleteBatch(batch, batchCompletionMessage.Finished, true);
+                CompleteBatch(batch, batchCompletionMessage.Finished, true);
                 await manifestS3Manager.UpdateManifestInS3(namedQueryManifest, batch.Manifest!, cancellationToken);
             }
             catch (Exception e)
@@ -108,5 +106,19 @@ public class BatchCompletionMessageHandler(
         }
         
         return deserializedBatchCompletionMessage.ThrowIfNull(nameof(deserializedBatchCompletionMessage));
+    }
+    
+    private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
+    {
+        var processed = DateTime.UtcNow;
+        
+        batch.Processed = processed;
+        batch.Finished = finished;
+        batch.Status = BatchStatus.Completed;
+
+        if (finalBatch)
+        {
+            batch.Manifest!.LastProcessed = processed;
+        }
     }
 }

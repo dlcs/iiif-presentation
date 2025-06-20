@@ -20,7 +20,6 @@ using Models.DLCS;
 using Repository;
 using Services.Manifests;
 using Services.Manifests.AWS;
-using Services.Manifests.Database;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -63,9 +62,8 @@ public class BatchCompletionMessageHandlerTests
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, manifestMerger);
-        var manifestDatabaseManager = new ManifestDatabaseManager();
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, manifestS3Manager, manifestDatabaseManager,
+        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
