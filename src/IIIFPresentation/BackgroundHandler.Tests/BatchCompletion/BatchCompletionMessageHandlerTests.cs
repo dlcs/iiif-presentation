@@ -9,10 +9,9 @@ using BackgroundHandler.Tests.infrastructure;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
+using Manifests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,7 +19,6 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
-using Repository.Paths;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -243,9 +241,4 @@ public class BatchCompletionMessageHandlerTests
         canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
         canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
-}
-
-public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
-{
-    protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

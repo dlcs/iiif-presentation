@@ -2,7 +2,7 @@
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 
-namespace BackgroundHandler.Helpers;
+namespace Manifests.Helpers;
 
 public static class ManifestX
 {

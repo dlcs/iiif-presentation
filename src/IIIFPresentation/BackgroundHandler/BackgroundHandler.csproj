@@ -15,6 +15,7 @@
     <ItemGroup>
       <ProjectReference Include="..\AWS\AWS.csproj" />
       <ProjectReference Include="..\DLCS\DLCS.csproj" />
+      <ProjectReference Include="..\Manifests\Manifests.csproj" />
       <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

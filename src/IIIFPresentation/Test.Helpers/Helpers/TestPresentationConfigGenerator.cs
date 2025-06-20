@@ -1,20 +1,17 @@
-﻿using BackgroundHandler.Settings;
+﻿using Core.Web;
 using Manifests.Paths;
-using Microsoft.Extensions.Options;
 using Repository.Paths;
 
-namespace BackgroundHandler.Helpers;
+namespace Test.Helpers.Helpers;
 
-public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandlerSettings> settings)
+public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
     : IPresentationPathGenerator
 {
-    private readonly BackgroundHandlerSettings settings = settings.Value;
-
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
     }
-    
+
     public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
     {
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
@@ -23,14 +20,14 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandle
     private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
         string? resourceId = null)
     {
-        var presentationUrl = settings.GetCustomerSpecificPresentationUrl(customerId);
-        var template = settings.PathRules.GetPathTemplateForHostAndType(presentationUrl.Host, presentationServiceType);
+        var host = presentationUrl;
+        var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
 
         var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
             customerId.ToString(), hierarchyPath, resourceId);
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com
-            : new Uri(presentationUrl, path).ToString();
+            : presentationUrl + path;
     }
 }

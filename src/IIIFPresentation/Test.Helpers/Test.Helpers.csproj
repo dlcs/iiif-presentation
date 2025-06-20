@@ -26,6 +26,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Manifests\Manifests.csproj" />
       <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

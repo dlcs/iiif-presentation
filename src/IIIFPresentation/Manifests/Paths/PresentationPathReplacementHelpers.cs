@@ -1,4 +1,4 @@
-﻿namespace Repository.Paths;
+﻿namespace Manifests.Paths;
 
 /// <summary>
 /// A collection of methods to make dealing with presentation paths, and path replacements, easier

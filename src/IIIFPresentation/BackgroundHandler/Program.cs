@@ -4,6 +4,7 @@ using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
 using Core.Web;
 using DLCS;
+using Manifests.Helpers;
 using Repository.Paths;
 using Serilog;
 

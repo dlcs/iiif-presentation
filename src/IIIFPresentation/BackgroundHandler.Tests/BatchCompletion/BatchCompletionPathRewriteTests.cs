@@ -9,6 +9,7 @@ using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
+using Manifests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
