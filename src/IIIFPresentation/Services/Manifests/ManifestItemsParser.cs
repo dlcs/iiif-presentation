@@ -4,13 +4,14 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
+using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Repository.Manifests;
+namespace Services.Manifests;
 
 /// <summary>
-/// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
+/// Contains logic for parsing a Services "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
 public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {

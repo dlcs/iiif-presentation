@@ -13,12 +13,11 @@ using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
-using Repository.Manifests;
 using Repository.Paths;
 using Serilog;
+using Services.Manifests;
 
 const string corsPolicyName = "CorsPolicy";
 

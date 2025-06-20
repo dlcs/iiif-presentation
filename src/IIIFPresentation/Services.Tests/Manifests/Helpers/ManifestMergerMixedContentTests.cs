@@ -1,15 +1,14 @@
 ﻿using Core.Web;
-using FluentAssertions;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
-using Manifests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Services.Manifests;
+using Services.Manifests.Helpers;
 using Test.Helpers;
 using Test.Helpers.Helpers;
-using Xunit;
 
-namespace Manifests.Tests.Helpers;
+namespace Services.Tests.Manifests.Helpers;
 
 public class ManifestMergerMixedContentTests
 {

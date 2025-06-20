@@ -11,7 +11,6 @@ using FakeItEasy;
 using FluentAssertions;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using Manifests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -19,6 +18,9 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
+using Services.Manifests;
+using Services.Manifests.AWS;
+using Services.Manifests.Database;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -60,8 +62,10 @@ public class BatchCompletionMessageHandlerTests
         var pathGenerator = new TestPathGenerator(presentationGenerator);
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, manifestMerger);
+        var manifestDatabaseManager = new ManifestDatabaseManager();
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, manifestS3Manager, manifestDatabaseManager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 

@@ -1,14 +1,15 @@
 ﻿using Core.Helpers;
+using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Repository.Manifests;
+namespace Services.Manifests;
 
 /// <summary>
-/// Contains logic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
+/// Contains logic for parsing a Services "paintedResources" property into <see cref="CanvasPainting"/> entities
 /// </summary>
 public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {

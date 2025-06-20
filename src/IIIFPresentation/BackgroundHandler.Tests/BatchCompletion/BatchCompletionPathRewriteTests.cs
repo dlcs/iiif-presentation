@@ -9,12 +9,14 @@ using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using Manifests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.DLCS;
 using Repository;
+using Services.Manifests;
+using Services.Manifests.AWS;
+using Services.Manifests.Database;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -84,7 +86,10 @@ public class BatchCompletionPathRewriteTests
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, manifestMerger);
+        var manifestDatabaseManager = new ManifestDatabaseManager();
+
+        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, manifestS3Manager, manifestDatabaseManager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
     

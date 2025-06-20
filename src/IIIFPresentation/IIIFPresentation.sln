@@ -36,9 +36,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DLCS.Tests", "DLCS.Tests\DL
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Models.Tests", "Models.Tests\Models.Tests.csproj", "{014F61F4-AEA0-4799-83EC-A1DE24AE7748}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Manifests", "Manifests\Manifests.csproj", "{D2E7B88F-1381-4B0D-9219-D9F5190E5572}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Services", "Services\Services.csproj", "{D2E7B88F-1381-4B0D-9219-D9F5190E5572}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Manifests.Tests", "Manifests.Tests\Manifests.Tests.csproj", "{7E043BBA-5548-4CB5-A204-1F4D376DDD26}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Services.Tests", "Services.Tests\Services.Tests.csproj", "{7E043BBA-5548-4CB5-A204-1F4D376DDD26}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

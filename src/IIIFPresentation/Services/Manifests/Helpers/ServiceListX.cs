@@ -3,7 +3,7 @@ using IIIF;
 using IIIF.ImageApi.V2;
 using IIIF.ImageApi.V3;
 
-namespace Manifests.Helpers;
+namespace Services.Manifests.Helpers;
 
 public static class ServiceListX
 {

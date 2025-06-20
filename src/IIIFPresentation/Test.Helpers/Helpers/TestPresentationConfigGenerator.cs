@@ -1,5 +1,5 @@
-﻿using Core.Web;
-using Manifests.Paths;
+﻿using Core.Paths;
+using Core.Web;
 using Repository.Paths;
 
 namespace Test.Helpers.Helpers;

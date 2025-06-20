@@ -9,9 +9,10 @@ using Microsoft.Extensions.Logging;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Manifests.Helpers;
+namespace Services.Manifests;
 
 public interface IManifestMerger
 {

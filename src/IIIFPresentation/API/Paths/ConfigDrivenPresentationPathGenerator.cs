@@ -1,7 +1,7 @@
 ﻿using API.Helpers;
 using API.Infrastructure.Requests;
+using Core.Paths;
 using Core.Web;
-using Manifests.Paths;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
 

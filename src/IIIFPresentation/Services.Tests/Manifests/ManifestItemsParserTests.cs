@@ -4,10 +4,10 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.API.Manifest;
-using Repository.Manifests;
+using Services.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Repository.Tests.Manifests;
+namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
