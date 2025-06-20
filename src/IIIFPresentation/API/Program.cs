@@ -69,6 +69,7 @@ builder.Services
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
+    .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddHttpContextAccessor()

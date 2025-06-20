@@ -1,4 +1,6 @@
-﻿namespace Repository.Paths;
+﻿using static Core.Web.TypedPathTemplateOptions;
+
+namespace Repository.Paths;
 
 /// <summary>
 /// A collection of methods to make dealing with presentation paths, and path replacements, easier
@@ -20,9 +22,9 @@ public static class PresentationPathReplacementHelpers
         string? resourceId = null)
     {
         return template
-            .Replace("{customerId}", customer ?? string.Empty)
-            .Replace("{hierarchyPath}", hierarchyPath?.TrimStart('/') ?? string.Empty)
-            .Replace("{resourceId}", resourceId ?? string.Empty)
+            .Replace($"{{{SupportedTemplateOptions.CustomerId}}}", customer ?? string.Empty)
+            .Replace($"{{{SupportedTemplateOptions.HierarchyPath}}}", hierarchyPath?.TrimStart('/') ?? string.Empty)
+            .Replace($"{{{SupportedTemplateOptions.ResourceId}}}", resourceId ?? string.Empty)
             .TrimEnd('/');
     }
 }

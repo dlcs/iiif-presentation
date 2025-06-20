@@ -1,5 +1,7 @@
-﻿using Core.Exceptions;
+using Core.Web;
+using Core.Exceptions;
 using IIIF.Presentation.V3;
+using Microsoft.Extensions.Logging.Abstractions;
 using Models.API.Manifest;
 using Models.DLCS;
 using Repository.Paths;
@@ -101,14 +103,6 @@ public class PathParserTests
         act.Should().Throw<InvalidCanvasIdException>()
             .WithMessage(expectedError);
     }
-
-    [Fact]
-    public void GetHierarchicalSlugFromPath_ReturnsSlugFromPath()
-    {
-        var slug = PathParser.GetHierarchicalFullPathFromPath("/1/slug/slug", 1);
-        
-        slug.Should().Be("slug/slug");
-    }
     
     [Fact]
     public void GetParentUriFromPublicId_ReturnsSlugFromPath()
@@ -116,5 +110,18 @@ public class PathParserTests
         var slug = PathParser.GetParentUriFromPublicId("https://dlcs.example/1/slug/slug");
         
         slug.Should().Be("https://dlcs.example/1/slug");
+    }
+    
+    [Theory]
+    [InlineData("https://foo.com/foo/slug", "slug")]
+    [InlineData("https://foo.com/slug", "slug")]
+    [InlineData("https://foo.com", "")]
+    public void GetSlugFromHierarchicalPath_RetrievesSlug(string path, string expected)
+    {
+        // Arrange and Act
+        var slug = PathParser.GetSlugFromHierarchicalPath(path, 1);
+        
+        // Asset
+        slug.Should().Be(expected);
     }
 }
