@@ -85,7 +85,8 @@ public class BatchCompletionPathRewriteTests
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger);
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new NullLogger<ManifestS3Manager>());
 
         sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());

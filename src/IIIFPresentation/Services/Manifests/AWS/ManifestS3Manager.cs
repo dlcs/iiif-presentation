@@ -2,6 +2,7 @@
 using Core.Helpers;
 using DLCS.API;
 using IIIF.Presentation.V3;
+using Microsoft.Extensions.Logging;
 using Repository.Paths;
 
 namespace Services.Manifests.AWS;
@@ -13,13 +14,16 @@ public class ManifestS3Manager(
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IManifestMerger manifestMerger) : IManifestStorageManager
+    IManifestMerger manifestMerger,
+    ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
     /// <summary>
     /// Updates a manifest from the staging environment
     /// </summary>
     public async Task UpdateManifestInStorage(List<int> batches, Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
     {
+        logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
+        
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
         
         var namedQueryManifest =
