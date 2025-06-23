@@ -38,7 +38,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
-    .AddSingleton<IManifestS3Manager, ManifestS3Manager>()
+    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();

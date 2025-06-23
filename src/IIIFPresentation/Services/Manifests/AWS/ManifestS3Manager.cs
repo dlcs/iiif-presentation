@@ -1,20 +1,30 @@
 ﻿using AWS.Helpers;
 using Core.Helpers;
+using DLCS.API;
 using IIIF.Presentation.V3;
-using Models.Database.General;
 using Repository.Paths;
-using Services.Manifests.Helpers;
 
 namespace Services.Manifests.AWS;
 
+/// <summary>
+/// Responsible for managing manifests in S3
+/// </summary>
 public class ManifestS3Manager(
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
-    IManifestMerger manifestMerger) : IManifestS3Manager
+    IDlcsOrchestratorClient dlcsOrchestratorClient,
+    IManifestMerger manifestMerger) : IManifestStorageManager
 {
-    public async Task UpdateManifestInS3(Manifest? namedQueryManifest, Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
+    /// <summary>
+    /// Updates a manifest from the staging environment
+    /// </summary>
+    public async Task UpdateManifestInStorage(List<int> batches, Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
     {
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
+        
+        var namedQueryManifest =
+            await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, batches,
+                cancellationToken);
 
         var mergedManifest = manifestMerger.ProcessCanvasPaintings(
             manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
@@ -28,8 +38,8 @@ public class ManifestS3Manager(
     }
 }
 
-public interface IManifestS3Manager
+public interface IManifestStorageManager
 {
-    public Task UpdateManifestInS3(Manifest? namedQueryManifest, Models.Database.Collections.Manifest dbManifest,
+    public Task UpdateManifestInStorage(List<int> batches, Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
 }

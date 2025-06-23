@@ -13,8 +13,7 @@ namespace BackgroundHandler.BatchCompletion;
 
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
-    IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IManifestS3Manager manifestS3Manager,
+    IManifestStorageManager manifestS3Manager,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
@@ -66,19 +65,15 @@ public class BatchCompletionMessageHandler(
 
             var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
 
-            var namedQueryManifest =
-                await dlcsOrchestratorClient.RetrieveAssetsForManifest(batch.CustomerId, batches,
-                    cancellationToken);
-
             try
             {
                 CompleteBatch(batch, batchCompletionMessage.Finished, true);
-                await manifestS3Manager.UpdateManifestInS3(namedQueryManifest, batch.Manifest!, cancellationToken);
+                await manifestS3Manager.UpdateManifestInStorage(batches, batch.Manifest!, cancellationToken);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error updating completing batch {BatchId} for manifest {ManifestId}", batch.Id,
-                    namedQueryManifest.Id);
+                    batch.ManifestId);
                 throw;
             }
         }
