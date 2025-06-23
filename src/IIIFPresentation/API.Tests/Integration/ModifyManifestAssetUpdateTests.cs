@@ -1548,7 +1548,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 3).Should().NotBeNull("asset added to manifest");
         
         A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
-            A<List<AssetId>>.That.Matches(a => a.Single().Asset == $"fromDlcs_{assetId}_2"), 
+            A<List<string>>.That.Matches(a => a.Single() == $"{Customer}/{NewlyCreatedSpace}/fromDlcs_{assetId}_2"), 
             A<OperationType>.That.Matches(a => a == OperationType.Add),
             A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
         
@@ -2109,7 +2109,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.Batches.Should().HaveCount(2, "batch created for asset 2");
         
         A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
-            A<List<AssetId>>.That.Matches(a => a.Single().Asset == $"{assetId}_1"),
+            A<List<string>>.That.Matches(a => a.Single() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_1"),
             A<OperationType>.That.Matches(a => a == OperationType.Remove),
             A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
     }

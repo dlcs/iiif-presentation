@@ -4,7 +4,6 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Stubbery;
 
@@ -297,7 +296,7 @@ public class DlcsApiClientTests
                                 """).StatusCode(200);
         var sut = GetClient(stub);
 
-        var assets = await sut.UpdateAssetManifest(customerId, [new AssetId(customerId, 1, "someString")],
+        var assets = await sut.UpdateAssetManifest(customerId, [$"{customerId}/1/someString"],
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(1);
@@ -324,14 +323,45 @@ public class DlcsApiClientTests
 
         var assets = await sut.UpdateAssetManifest(customerId, 
             [
-                new AssetId(customerId, 1, "someString"),
-                new AssetId(customerId, 1, "someString")
+                $"{customerId}/1/someString",
+                $"{customerId}/1/someString"
             ],
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(2);
         assets.First().Id.Should().Be("someAssetId");
         assets.Last().Id.Should().Be("someAssetId");
+    }
+    
+    [Fact]
+    public async Task UpdateAssetWithManifest_ThrowsError_WhenAssetsReturnedDiffersFromAssetsAsked()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => """
+                                {
+                                 "@type": "Collection",
+                                 "totalItems": 1,
+                                 "pageSize": 1,
+                                 "member": [
+                                  { "id": "someString", "space": 1 },
+                                  { "id": "someAssetId2", "space": 1 }
+                                 ]
+                                 }
+                                """).StatusCode(200);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.UpdateAssetManifest(customerId, 
+            [
+                $"{customerId}/1/someString",
+                $"{customerId}/1/someString2"
+            ],
+            OperationType.Add, ["first"], CancellationToken.None);
+
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "Could not find assets [4/1/someString2] in DLCS" &&
+                        e.StatusCode == HttpStatusCode.InternalServerError);
     }
     
     [Theory]
@@ -347,7 +377,7 @@ public class DlcsApiClientTests
             .StatusCode((int) httpStatusCode);
         var sut = GetClient(stub);
 
-        Func<Task> action = () => sut.UpdateAssetManifest(customerId, [new AssetId(customerId, 1, "someString")],
+        Func<Task> action = () => sut.UpdateAssetManifest(customerId, [$"{customerId}/1/someString"],
             OperationType.Add, ["first"], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);

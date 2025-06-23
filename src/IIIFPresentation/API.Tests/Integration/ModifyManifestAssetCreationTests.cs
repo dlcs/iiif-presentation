@@ -1318,6 +1318,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
         
         A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer, 
-                A<List<AssetId>>._, A<OperationType>._, A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+                A<List<string>>._, A<OperationType>._, A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
     }
 }
