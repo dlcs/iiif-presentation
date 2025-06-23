@@ -81,6 +81,6 @@ The general hierarchy of dependencies from lowest to highest are as follows:
 |Hierarchy|
 |---|
 | Core, Models |
-| AWS, Repository |
+| AWS, Repository, DLCS |
 | Services |
 | API, BackgroundHandler |
