@@ -11,7 +11,7 @@ using CanvasPainting = Models.Database.CanvasPainting;
 namespace Services.Manifests;
 
 /// <summary>
-/// Contains logic for parsing a Services "items" property into <see cref="CanvasPainting"/> entities
+/// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
 public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
