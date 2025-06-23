@@ -73,7 +73,7 @@ The IIIF Presentation solution is made up of a series of C# projects, scripts an
 | Core | Low-level module that provides helper functions to all projects  |
 | DLCS | Contains calling code for the DLCS to allow images to be ingested and retrieved |
 | Models | POCO's used throughout the solution |
-| Repository | Used primarily to provide access to the database context, as well as various helper functions and  |
+| Repository | Used primarily to provide access to the database context, as well as various helper functions and some data access classes |
 | Services | Contains functions that are shared by running applications only, such as the API and BackgroundHandler |
 
 The general hierarchy of dependencies from lowest to highest are as follows:
