@@ -23,7 +23,7 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
     public EntityResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
-    public bool CanBeBuiltUpfront = canBeBuiltUpfront;
+    public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
     
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
         
@@ -173,7 +173,6 @@ public class DlcsManifestCoordinator(
         }
         
         var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
-        //var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
         
         return (untrackedAssets, dlcsAssetIds);
     }
