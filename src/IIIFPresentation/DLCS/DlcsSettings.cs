@@ -47,7 +47,7 @@ public class DlcsSettings
     /// <summary>
     /// The name of the query used for retrieving images
     /// </summary>
-    public string ManifestNamedQueryName { get; set; } = "batch-query";
+    public string ManifestNamedQueryName { get; set; } = "manifest-query";
 
     /// <summary>
     ///     The maximum number of images that can be requested

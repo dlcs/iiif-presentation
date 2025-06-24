@@ -114,7 +114,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
@@ -158,7 +158,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
@@ -202,7 +202,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;

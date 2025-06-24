@@ -28,7 +28,7 @@ public class ManifestS3Manager(
         manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location");
         
         var namedQueryManifest =
-            await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, batches,
+            await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
                 cancellationToken);
 
         var mergedManifest = manifestMerger.ProcessCanvasPaintings(

@@ -87,7 +87,7 @@ public class BatchCompletionMessageHandlerTests
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() =>
-                dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+                dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     
@@ -110,7 +110,7 @@ public class BatchCompletionMessageHandlerTests
 
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         var batch = await dbContext.Batches.Include(b => b.Manifest).SingleAsync(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
@@ -141,7 +141,7 @@ public class BatchCompletionMessageHandlerTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         ResourceBase? resourceBase = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
@@ -189,7 +189,7 @@ public class BatchCompletionMessageHandlerTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
 
         // Act
@@ -221,7 +221,7 @@ public class BatchCompletionMessageHandlerTests
         var finished = DateTime.UtcNow.AddHours(-1);
         var message = QueueHelper.CreateOldQueueMessage(batchId, CustomerId, finished);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
 
         // Act
@@ -229,7 +229,7 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappened();
 
         var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
