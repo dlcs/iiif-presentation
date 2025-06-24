@@ -172,20 +172,20 @@ public class DlcsManifestCoordinator(
             return ([], dlcsAssetIds);
         }
         
-        var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
-        var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
+        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
+        //var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
         
         return (untrackedAssets, dlcsAssetIds);
     }
 
 
-    private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
+    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
     {
         var combinedAssets = dlcsAssets.ToList();
-        combinedAssets.AddRange(assetsInDatabase.Select(a => a.AssetId));
-
+        combinedAssets.AddRange(assetsInDatabase.Select(a => a.AssetId)!);
+        
         var trackedAssets = assets.Where(a =>
-            combinedAssets.Any(b =>
+            !combinedAssets.Any(b =>
                 b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
                 b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
         return trackedAssets;
@@ -196,11 +196,6 @@ public class DlcsManifestCoordinator(
             .Select(p => p.Asset)
             .OfType<JObject>()
             .ToList() ?? [];
-    
-    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<JObject> trackedAssets) =>
-        assets.Where(
-                a => trackedAssets.All(b => b.TryGetValue(AssetProperties.Id) != a.TryGetValue(AssetProperties.Id)))
-            .ToList();
     
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
