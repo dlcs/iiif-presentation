@@ -16,7 +16,8 @@ public static class RequestBodyX
     /// <returns>
     /// A response showing whether there were errors in the conversion, and the converted collection
     /// </returns>
-    public static TryConvertIIIFResult<T> ConvertCollectionToIIIF<T>(this string requestBody, ILogger logger) where T : JsonLdBase
+    public static TryConvertIIIFResult<T> ConvertCollectionToIIIF<T>(this string requestBody, ILogger logger)
+        where T : JsonLdBase
     {
         try
         {
@@ -45,11 +46,11 @@ public static class RequestBodyX
     {
         try
         {
-            var collection = await requestBody.ToPresentation<T>();
+            var presentation = await requestBody.ToPresentation<T>();
             
-            return collection == null
+            return presentation == null
                 ? TryConvertIIIFResult<T>.Failure()
-                : TryConvertIIIFResult<T>.Success(collection);
+                : TryConvertIIIFResult<T>.Success(presentation);
         }
         catch (Exception ex)
         {
