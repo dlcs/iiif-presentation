@@ -15,7 +15,7 @@ public class BulkPatchAssets
     public required List<string>? Value { get; set; }
     
     [JsonPropertyName("member")]
-    public List<IdentifierOnly> Members { get; set; }
+    public required List<IdentifierOnly> Members { get; set; }
 }
 
 public enum OperationType

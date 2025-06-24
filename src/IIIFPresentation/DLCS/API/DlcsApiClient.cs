@@ -81,12 +81,12 @@ internal class DlcsApiClient(
             assets.Count);
         var queuePath = $"/customers/{customerId}/queue";
         
-        var chunkedImageList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
-        var tasks = chunkedImageList.Select(async chunkedImages =>
+        var tasks = chunkedAssetList.Select(async chunkedAssets =>
         {
-            var hydraImages = new HydraCollection<T>(chunkedImages);
+            var hydraImages = new HydraCollection<T>(chunkedAssets);
 
             var batch = await CallDlcsApiFor<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)
@@ -151,20 +151,19 @@ internal class DlcsApiClient(
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
             customerId, operationType.ToString());
         
-        var chunkedImageList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
         var assetsResponse = new ConcurrentBag<Asset>();
+        var endpoint = $"/customers/{customerId}/allImages";
 
-        var tasks = chunkedImageList.Select(async chunkedImages =>
+        var tasks = chunkedAssetList.Select(async chunkedAssets =>
         {
             var allImages = new BulkPatchAssets
             {
                 Field = "manifests",
-                Members = assets.Select(a => new IdentifierOnly(a)).ToList(),
+                Members = chunkedAssets.Select(a => new IdentifierOnly(a)).ToList(),
                 Operation = operationType,
                 Value = manifests
             };
-        
-            var endpoint = $"/customers/{customerId}/allImages";
 
             var response = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Patch, endpoint, allImages, cancellationToken);
             if (response == null)

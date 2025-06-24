@@ -279,7 +279,7 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task UpdateAssetWithManifest_ReturnsAssetIds_WhenSuccess()
+    public async Task UpdateAssetWithManifest_ReturnsAssets_WhenSuccess()
     {
         using var stub = new ApiStub();
         const int customerId = 4;
@@ -304,7 +304,7 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task UpdateAssetWithManifest_ReturnsMultipleAssetIds_WhenMultipleSuccess()
+    public async Task UpdateAssetWithManifest_ReturnsMultipleAssets_WhenMultipleSuccess()
     {
         using var stub = new ApiStub();
         const int customerId = 4;
