@@ -181,14 +181,13 @@ public class DlcsManifestCoordinator(
 
     private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
     {
+        var combinedAssets = dlcsAssets.ToList();
+        combinedAssets.AddRange(assetsInDatabase.Select(a => a.AssetId));
+
         var trackedAssets = assets.Where(a =>
-            assetsInDatabase.Any(b =>
-                b.AssetId.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() && 
-                b.AssetId.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
-        trackedAssets.AddRange(assets.Where(a =>
-            dlcsAssets.Any(b =>
+            combinedAssets.Any(b =>
                 b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
-                b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())));
+                b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
         return trackedAssets;
     }
 
