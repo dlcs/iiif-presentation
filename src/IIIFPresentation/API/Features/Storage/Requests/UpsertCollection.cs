@@ -43,7 +43,7 @@ public class UpsertCollectionHandler(
     PresentationContext dbContext,
     IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)

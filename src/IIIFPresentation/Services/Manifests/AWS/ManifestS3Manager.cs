@@ -20,7 +20,28 @@ public class ManifestS3Manager(
     /// <summary>
     /// Updates a manifest from the staging environment
     /// </summary>
-    public async Task UpdateManifestInStorage(List<int> batches, Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
+    public async Task CreateManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, 
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("creating manifest {Manifest} in S3", dbManifest.Id);
+        
+        var namedQueryManifest =
+            await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
+                cancellationToken);
+
+        var mergedManifest = manifestMerger.ProcessCanvasPaintings(
+            manifest,
+            namedQueryManifest,
+            dbManifest.CanvasPaintings);
+
+        await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+            false, cancellationToken);
+    }
+    
+    /// <summary>
+    /// Updates a manifest from the staging environment
+    /// </summary>
+    public async Task UpdateManifestInStorage(Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
         
@@ -40,11 +61,14 @@ public class ManifestS3Manager(
             false, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
-    }
+    }          
 }
 
 public interface IManifestStorageManager
 {
-    public Task UpdateManifestInStorage(List<int> batches, Models.Database.Collections.Manifest dbManifest,
+    public Task UpdateManifestInStorage(Models.Database.Collections.Manifest dbManifest,
+        CancellationToken cancellationToken);
+    
+    public Task CreateManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
 }

@@ -18,6 +18,7 @@ using Repository;
 using Repository.Paths;
 using Serilog;
 using Services.Manifests;
+using Services.Manifests.AWS;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -54,6 +55,7 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
 builder.Services
     .AddDlcsApiClient(dlcs)
+    .AddDlcsOrchestratorClient(dlcs)
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
@@ -69,6 +71,8 @@ builder.Services
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();

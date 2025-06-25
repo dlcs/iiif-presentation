@@ -18,7 +18,7 @@ public class DeleteCollection (int customerId, string collectionId) : IRequest<R
 
 public class DeleteCollectionHandler(
     PresentationContext dbContext,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteCollectionType>>
 {

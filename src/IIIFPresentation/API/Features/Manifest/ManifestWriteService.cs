@@ -17,6 +17,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.AWS;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -81,13 +82,14 @@ public interface IManifestWrite
 public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IManifestRead manifestRead,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
+    IManifestStorageManager manifestStorageManager,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -176,13 +178,8 @@ public class ManifestWriteService(
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            if (dlcsInteractionResult.CanBeBuiltUpfront)
-            {
-                throw new NotImplementedException(
-                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
-            }
-
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
+            await SaveToS3(dbManifest!, request, saveToStaging, dlcsInteractionResult.CanBeBuiltUpfront,
+                cancellationToken);
             
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
@@ -237,14 +234,8 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
             
-            if (dlcsInteractionResult.CanBeBuiltUpfront)
-            {
-                throw new NotImplementedException(
-                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
-            }
-
             var saveToStaging = ShouldSaveToStaging(request);
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
+            await SaveToS3(dbManifest!, request, saveToStaging, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, 
@@ -349,11 +340,18 @@ public class ManifestWriteService(
     }
 
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool saveToStaging,
-        CancellationToken cancellationToken)
+        bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
- 
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            saveToStaging, cancellationToken);
+
+        if (canBeBuiltUpfront && saveToStaging) //todo: modify saveToStaging?
+        {
+            await manifestStorageManager.CreateManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+        }
+        else
+        {
+            await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+                saveToStaging, cancellationToken);
+        }
     }
 }
