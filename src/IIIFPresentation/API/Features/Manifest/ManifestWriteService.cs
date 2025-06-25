@@ -184,9 +184,11 @@ public class ManifestWriteService(
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
+
                 request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
                     ? WriteResult.Accepted
-                    : WriteResult.Created);
+                    : WriteResult.Created,
+                dbManifest?.Etag);
         }
     }
 
@@ -198,7 +200,7 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
-        if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
+        if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
@@ -244,7 +246,8 @@ public class ManifestWriteService(
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
                 request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
                     ? WriteResult.Accepted
-                    : WriteResult.Updated);
+                    : WriteResult.Updated,
+                dbManifest?.Etag);
         }
     }
 

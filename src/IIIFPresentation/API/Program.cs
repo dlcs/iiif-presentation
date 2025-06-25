@@ -62,7 +62,6 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
-    .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()

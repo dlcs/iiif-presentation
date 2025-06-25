@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography;
-using API.Infrastructure.Helpers;
-using Microsoft.AspNetCore.Http.Headers;
+﻿using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
 using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
@@ -27,15 +25,6 @@ public class ETagCachingAttribute : ActionFilterAttribute
     {
         var request = context.HttpContext.Request;
         var response = context.HttpContext.Response;
-        var eTagManager = context.HttpContext.RequestServices.GetService<IETagManager>()!;
-
-        // For more info on this technique, see https://stackoverflow.com/a/65901913 and https://www.madskristensen.net/blog/send-etag-headers-in-aspnet-core/ and https://gist.github.com/madskristensen/36357b1df9ddbfd123162cd4201124c4
-        var originalStream = response.Body;
-        using MemoryStream memoryStream = new();
-
-        response.Body = memoryStream;
-        _ = await next();
-        memoryStream.Position = 0;
 
         if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status201Created or StatusCodes.Status202Accepted)
         {
@@ -50,7 +39,8 @@ public class ETagCachingAttribute : ActionFilterAttribute
             };
             
             // This request generates a hash from the response - this would come from S3 in live
-            responseHeaders.ETag ??= GenerateETag(memoryStream, request.Path, eTagManager); 
+            responseHeaders.ETag ??=
+                context.HttpContext.Items["__etag"] is Guid etag ? new EntityTagHeaderValue($"\"{etag:N}\"") : null;
 
             var requestHeaders = request.GetTypedHeaders();
 
@@ -69,22 +59,9 @@ public class ETagCachingAttribute : ActionFilterAttribute
             }
         }
 
-        await memoryStream
-            .CopyToAsync(
-                originalStream); // Writes anything the later middleware wrote to the body (and by extension our `memoryStream`) to the original response body stream, so that it will be sent back to the client as the response body.
+        _ = await next();
     }
-
-    private static EntityTagHeaderValue GenerateETag(Stream stream, string path, IETagManager eTagManager)
-    {
-        var hashBytes = MD5.HashData(stream);
-        stream.Position = 0;
-        var hashString = Convert.ToBase64String(hashBytes);
-
-        var entityTagHeader = new EntityTagHeaderValue($"\"{hashString}\"");
-
-        eTagManager.UpsertETag(path, entityTagHeader.Tag.ToString());
-        return entityTagHeader;
-    }
+    
 
     private static bool IsClientCacheValid(RequestHeaders reqHeaders, ResponseHeaders resHeaders)
     {

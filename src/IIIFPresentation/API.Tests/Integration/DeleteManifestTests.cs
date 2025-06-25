@@ -21,7 +21,6 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
-    private readonly IETagManager etagManager;
     private const int Customer = 1;
 
     public DeleteManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -31,8 +30,6 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
-
-        etagManager = (IETagManager) factory.Services.GetRequiredService(typeof(IETagManager));
 
         storageFixture.DbFixture.CleanUp();
     }

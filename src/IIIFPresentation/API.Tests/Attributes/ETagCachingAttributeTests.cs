@@ -18,26 +18,7 @@ public class ETagCachingAttributeTests
 
     private static ResultExecutingContext CreateResultExecutingContext(HttpContext context) =>
         new ResultExecutingContext(CreateActionContext(context), [], new ObjectResult(null), new object());
-
-    private class StubETagManager : IETagManager
-    {
-        public bool TryGetETag(string resourcePath, out string? eTag)
-        {
-            eTag = null;
-            return false;
-        }
-
-        public bool TryGetETag<T>(T resource, out string? eTag) where T : IHierarchyResource
-        {
-            eTag = null;
-            return false;
-        }
-
-        public void UpsertETag(string resourcePath, string eTag)
-        {
-
-        }
-    }
+    
 
     [Fact]
     // https://github.com/dlcs/iiif-presentation/pull/141
@@ -46,7 +27,6 @@ public class ETagCachingAttributeTests
         // Arrange
         var filter = new ETagCachingAttribute();
         var services = new ServiceCollection();
-        services.AddSingleton<IETagManager>(new StubETagManager());
 
         var context = CreateResultExecutingContext(new DefaultHttpContext
         {
@@ -69,7 +49,6 @@ public class ETagCachingAttributeTests
     {
         var filter = new ETagCachingAttribute();
         var services = new ServiceCollection();
-        services.AddSingleton<IETagManager>(new StubETagManager());
 
         var context = CreateResultExecutingContext(new DefaultHttpContext
         {
@@ -92,7 +71,6 @@ public class ETagCachingAttributeTests
         // See limit in API.Attributes.ETagCachingAttribute.IsEtagSupported
         var filter = new ETagCachingAttribute();
         var services = new ServiceCollection();
-        services.AddSingleton<IETagManager>(new StubETagManager());
         
         var context = CreateResultExecutingContext(new DefaultHttpContext
         {
@@ -121,8 +99,6 @@ public class ETagCachingAttributeTests
         var filter = new ETagCachingAttribute();
         var services = new ServiceCollection();
         
-        services.AddSingleton<IETagManager>(new StubETagManager());
-
         var context = CreateResultExecutingContext(new DefaultHttpContext
         {
             RequestServices = services.BuildServiceProvider(),
