@@ -3,7 +3,7 @@ using Models.Database.General;
 
 namespace Models.Database.Collections;
 
-public class Collection : IHierarchyResource
+public class Collection : IHierarchyResource, IHaveEtag
 {
     public required string Id { get; set; }
 
@@ -73,6 +73,8 @@ public class Collection : IHierarchyResource
     /// Navigation property for any children, when this Collection is the parent
     /// </summary>
     public IEnumerable<Hierarchy>? Children { get; set; }
+
+    public Guid Etag { get; set; }
 }
 
 public static class CollectionX

@@ -4,7 +4,7 @@ using Models.Database.General;
 
 namespace Models.Database.Collections;
 
-public class Manifest : IHierarchyResource
+public class Manifest : IHierarchyResource, IHaveEtag
 {
     public required string Id { get; set; }
     
@@ -52,6 +52,8 @@ public class Manifest : IHierarchyResource
     /// A timestamp denoting when this batch was last processed into a user viewable format
     /// </summary>
     public DateTime? LastProcessed { get; set; }
+
+    public Guid Etag { get; set; }
 }
 
 public static class ManifestX
