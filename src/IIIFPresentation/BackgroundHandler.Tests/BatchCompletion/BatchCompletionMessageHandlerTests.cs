@@ -9,10 +9,8 @@ using BackgroundHandler.Tests.infrastructure;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,7 +18,8 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
-using Repository.Paths;
+using Services.Manifests;
+using Services.Manifests.AWS;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -62,8 +61,10 @@ public class BatchCompletionMessageHandlerTests
         var pathGenerator = new TestPathGenerator(presentationGenerator);
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new NullLogger<ManifestS3Manager>());
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -243,9 +244,4 @@ public class BatchCompletionMessageHandlerTests
         canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
         canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
-}
-
-public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
-{
-    protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

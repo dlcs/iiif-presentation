@@ -7,7 +7,7 @@ using IIIF.Presentation.V3.Strings;
 using Models.Database;
 using Models.DLCS;
 
-namespace BackgroundHandler.Tests.Helpers;
+namespace Test.Helpers.Helpers;
 
 public static class ManifestTestCreatorX
 {

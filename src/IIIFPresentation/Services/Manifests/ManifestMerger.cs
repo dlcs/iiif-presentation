@@ -5,12 +5,14 @@ using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using Microsoft.Extensions.Logging;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace BackgroundHandler.Helpers;
+namespace Services.Manifests;
 
 public interface IManifestMerger
 {

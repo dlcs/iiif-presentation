@@ -1,20 +1,18 @@
-﻿using AWS.Settings;
-using BackgroundHandler.Helpers;
-using BackgroundHandler.Settings;
-using BackgroundHandler.Tests.BatchCompletion;
-using FluentAssertions;
+﻿using Core.Web;
 using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Services.Manifests;
+using Services.Manifests.Helpers;
 using Test.Helpers;
+using Test.Helpers.Helpers;
 using Canvas = IIIF.Presentation.V3.Canvas;
 using Manifest = IIIF.Presentation.V3.Manifest;
 
-namespace BackgroundHandler.Tests.Helpers;
+namespace Services.Tests.Manifests.Helpers;
 
 public class ManifestMergerTests
 {
@@ -22,13 +20,8 @@ public class ManifestMergerTests
 
     public ManifestMergerTests()
     {
-        var backgroundHandlerSettings = new BackgroundHandlerSettings
-        {
-            PresentationApiUrl = new Uri("https://localhost:5000"),
-            AWS = new AWSSettings(),
-        };
         var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
+            new TestPresentationConfigGenerator("https://localhost:5000", new TypedPathTemplateOptions());
         var pathGenerator = new TestPathGenerator(presentationGenerator);
         
         sut = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());

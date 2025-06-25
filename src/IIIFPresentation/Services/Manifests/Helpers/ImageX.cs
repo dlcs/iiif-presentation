@@ -1,6 +1,6 @@
 ﻿using IIIF.Presentation.V3.Content;
 
-namespace BackgroundHandler.Helpers;
+namespace Services.Manifests.Helpers;
 
 public static class ImageX
 {

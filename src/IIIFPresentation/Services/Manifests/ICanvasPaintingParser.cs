@@ -1,7 +1,7 @@
 ﻿using Models.API.Manifest;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Repository.Manifests;
+namespace Services.Manifests;
 
 /// <summary>
 /// For classes that parse <see cref="PresentationManifest"/> to extract <see cref="CanvasPainting"/> objects.

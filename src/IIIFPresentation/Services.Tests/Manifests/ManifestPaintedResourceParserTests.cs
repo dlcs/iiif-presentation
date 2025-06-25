@@ -4,11 +4,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
-using Repository.Manifests;
+using Services.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
-namespace Repository.Tests.Manifests;
+namespace Services.Tests.Manifests;
 
 public class ManifestPaintedResourceParserTests
 {
