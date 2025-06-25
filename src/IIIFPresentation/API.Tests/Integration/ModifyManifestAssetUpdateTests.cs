@@ -309,6 +309,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
              canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
              canvasPainting.AssetId.ToString().Should()
                  .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-{currentCanvasOrder}");
+             canvasPainting.Ingesting.Should().BeTrue();
              currentCanvasOrder++;
          }
      }
@@ -1596,7 +1597,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 Target = "xywh=0,0,200,200",
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1604,7 +1605,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 1,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-3"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1714,7 +1715,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 Target = "xywh=0,0,200,200",
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1732,7 +1733,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 2,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-3"),
-                Ingesting = true,
+                Ingesting = false,
             }
         ];
 
@@ -1827,7 +1828,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 0,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {

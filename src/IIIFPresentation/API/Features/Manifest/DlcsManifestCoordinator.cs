@@ -89,12 +89,26 @@ public class DlcsManifestCoordinator(
         await UpdateDlcsAssets(request, manifestId, cancellationToken, checkedAssets.dlcsAssetIds);
 
         await RemoveUnusedAssets(dbManifest, assets, manifestId, cancellationToken);
+        
+        SetUntrackedAssetsToIngesting(request, checkedAssets.untrackedAssets);
 
         var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets,
             cancellationToken);
         
         var canBeBuiltUpfront = checkedAssets.untrackedAssets.Count == 0 && assets.Count > 0;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront);
+    }
+
+    private static void SetUntrackedAssetsToIngesting(WriteManifestRequest request,
+        List<JObject> untrackedAssets)
+    {
+        foreach (var paintedResource in untrackedAssets.SelectMany(untrackedAsset =>
+                     request.PresentationManifest.PaintedResources.Where(pr =>
+                         pr.Asset.GetAssetId(request.CustomerId) == untrackedAsset.GetAssetId(request.CustomerId))))
+        {
+            paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
+            paintedResource.CanvasPainting.Ingesting = true;
+        }
     }
 
     private async Task UpdateDlcsAssets(WriteManifestRequest request, string manifestId,
@@ -178,11 +192,12 @@ public class DlcsManifestCoordinator(
     }
 
 
-    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
+    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, 
+        List<AssetId> dlcsAssets)
     {
         var combinedAssets = dlcsAssets.ToList();
         combinedAssets.AddRange(assetsInDatabase.Select(a => a.AssetId)!);
-        
+
         var trackedAssets = assets.Where(a =>
             !combinedAssets.Any(b =>
                 b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&

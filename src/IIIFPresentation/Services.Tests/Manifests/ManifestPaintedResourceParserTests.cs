@@ -64,7 +64,7 @@ public class ManifestPaintedResourceParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true,
+                Ingesting = false,
             },
         };
         
@@ -94,7 +94,7 @@ public class ManifestPaintedResourceParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -103,7 +103,7 @@ public class ManifestPaintedResourceParserTests
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true,
+                Ingesting = false,
             },
         };
         
@@ -130,6 +130,7 @@ public class ManifestPaintedResourceParserTests
                         StaticWidth = 513,
                         Label = new LanguageMap("en", "label"),
                         Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
                     }
                 }
             ]
@@ -176,6 +177,7 @@ public class ManifestPaintedResourceParserTests
                         StaticWidth = 513,
                         Label = new LanguageMap("en", "label"),
                         Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
                     }
                 },
                 new PaintedResource
@@ -189,6 +191,7 @@ public class ManifestPaintedResourceParserTests
                         StaticWidth = 12,
                         Label = new LanguageMap("en", "label2"),
                         Thumbnail = "https://localhost/thumbnail2",
+                        Ingesting = true
                     }
                 }
             ]
@@ -208,7 +211,7 @@ public class ManifestPaintedResourceParserTests
                 Thumbnail = new Uri("https://localhost/thumbnail"),
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true,
+                Ingesting = true
             },
             new()
             {
@@ -222,7 +225,7 @@ public class ManifestPaintedResourceParserTests
                 Thumbnail = new Uri("https://localhost/thumbnail2"),
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true,
+                Ingesting = true
             },
         };
         
@@ -250,6 +253,7 @@ public class ManifestPaintedResourceParserTests
                         StaticWidth = 513,
                         Label = new LanguageMap("en", "label"),
                         Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
                     }
                 },
                 new PaintedResource
@@ -264,6 +268,7 @@ public class ManifestPaintedResourceParserTests
                         StaticWidth = 12,
                         Label = new LanguageMap("en", "label2"),
                         Thumbnail = "https://localhost/thumbnail2",
+                        Ingesting = true
                     }
                 }
             ]
@@ -346,7 +351,7 @@ public class ManifestPaintedResourceParserTests
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = "#xywh=200,2000,200,200",
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -356,7 +361,7 @@ public class ManifestPaintedResourceParserTests
                 CanvasOrder = 2,
                 ChoiceOrder = null,
                 Target = "#xywh=0,0,200,200",
-                Ingesting = true,
+                Ingesting = false,
             },
         };
         
@@ -383,6 +388,7 @@ public class ManifestPaintedResourceParserTests
                         CanvasOrder = 18,
                         CanvasLabel = new LanguageMap("en", "ms125 9r fragments and multi-spectral"),
                         Label = new LanguageMap("en", "ms125 9r background"),
+                        Ingesting = true
                     },
                 },
                 new PaintedResource
@@ -394,6 +400,7 @@ public class ManifestPaintedResourceParserTests
                         CanvasOrder = 19,
                         Label = new LanguageMap("en", "ms125 9r fragment 3"),
                         Target = "xywh=800,1000,900,900",
+                        Ingesting = true
                     }
                 },
                 new PaintedResource
@@ -406,6 +413,7 @@ public class ManifestPaintedResourceParserTests
                         ChoiceOrder = 1,
                         Label = new LanguageMap("en", "ms125 9r fragment 2 natural"),
                         Target = "xywh=300,500,650,900",
+                        Ingesting = true
                     }
                 },
                 new PaintedResource
@@ -418,6 +426,7 @@ public class ManifestPaintedResourceParserTests
                         ChoiceOrder = 2,
                         Label = new LanguageMap("en", "ms125 9r fragment 2 IR"),
                         Target = "xywh=300,500,650,900",
+                        Ingesting = true
                     }
                 },
                 new PaintedResource
@@ -429,6 +438,7 @@ public class ManifestPaintedResourceParserTests
                         CanvasOrder = 21,
                         Label = new LanguageMap("en", "ms125 9r fragment 1"),
                         Target = "xywh=100,100,1000,500",
+                        Ingesting = true
                     }
                 }
             ]
