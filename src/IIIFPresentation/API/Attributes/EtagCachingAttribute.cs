@@ -40,7 +40,9 @@ public class ETagCachingAttribute : ActionFilterAttribute
             
             // This request generates a hash from the response - this would come from S3 in live
             responseHeaders.ETag ??=
-                context.HttpContext.Items["__etag"] is Guid etag ? new EntityTagHeaderValue($"\"{etag:N}\"") : null;
+                context.HttpContext.Items["__etag"] is Guid etag && etag != Guid.Empty 
+                    ? new EntityTagHeaderValue($"\"{etag:N}\"")
+                    : null;
 
             var requestHeaders = request.GetTypedHeaders();
 
