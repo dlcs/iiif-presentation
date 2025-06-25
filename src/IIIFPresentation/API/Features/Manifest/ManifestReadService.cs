@@ -83,7 +83,7 @@ public class ManifestReadService(
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
                 FullPath = pathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
-            });
+            }, dbManifest.Etag);
         }
 
         var getAssets = GetAssets(customerId, dbManifest, cancellationToken);
@@ -115,6 +115,6 @@ public class ManifestReadService(
             manifest.CurrentlyIngesting = true;
         }
 
-        return FetchEntityResult<PresentationManifest>.Success(manifest);
+        return FetchEntityResult<PresentationManifest>.Success(manifest, dbManifest.Etag);
     }
 }

@@ -77,7 +77,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
             var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
                 request.RequestModifiers.Page, total, items, parentCollection, pathGenerator, orderByParameter);
 
-            return FetchEntityResult<PresentationCollection>.Success(presentationCollection);
+            return FetchEntityResult<PresentationCollection>.Success(presentationCollection, collection.Etag);
         }
 
         var s3Collection =
@@ -88,6 +88,6 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
 
         var s3PresentationCollection = s3Collection.SetIIIFGeneratedFields(collection,  parentCollection, pathGenerator);
         
-        return FetchEntityResult<PresentationCollection>.Success(s3PresentationCollection);
+        return FetchEntityResult<PresentationCollection>.Success(s3PresentationCollection, collection.Etag);
     }
 }

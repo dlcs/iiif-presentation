@@ -67,9 +67,9 @@ public static class ControllerBaseX
     where TEnum : Enum =>
     entityResult.WriteResult switch
     {
-        WriteResult.Updated => controller.PresentationContent(entityResult.Entity),
-        WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted),
-        WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created),
+        WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
+        WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted, entityResult.ETag),
+        WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
         WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
         WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
             (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
@@ -168,14 +168,19 @@ public static class ControllerBaseX
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, correct IIIF ContentType and specified
     /// statuscode 
     /// </summary>
-    public static ContentResult PresentationContent(this ControllerBase _, JsonLdBase descriptionResource,
-        int statusCode = 200)
-        => new()
+    public static ContentResult PresentationContent(this ControllerBase controller, JsonLdBase descriptionResource,
+        int statusCode = 200, Guid? etag = null)
+    {
+        if(etag.HasValue)
+            controller.HttpContext.Items["__etag"] = etag.Value;
+        
+        return new ContentResult
         {
             Content = descriptionResource.AsJson(),
             ContentType = ContentTypes.V3,
-            StatusCode = statusCode,
+            StatusCode = statusCode
         };
+    }
 
     /// <summary>
     /// Create an <see cref="ObjectResult"/> that produced a 403 response
@@ -187,12 +192,12 @@ public static class ControllerBaseX
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, specified status code and Location header set
     /// </summary>
     public static ActionResult PresentationWithLocationHeader(this ControllerBase controller, string? uri,
-        JsonLdBase descriptionResource, int statusCode)
+        JsonLdBase descriptionResource, int statusCode, Guid? etag)
     {
         if (descriptionResource is ResourceBase { Id: { Length: > 0 } id }) uri = id;
 
         controller.Response.Headers.Location = uri;
 
-        return PresentationContent(controller, descriptionResource, statusCode);
+        return PresentationContent(controller, descriptionResource, statusCode, etag);
     }
 }

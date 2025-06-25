@@ -50,7 +50,7 @@ public class ManifestController(
                 : this.PresentationNotFound();
         
         var statusCode = entityResult.Entity!.CurrentlyIngesting ? HttpStatusCode.Accepted : HttpStatusCode.OK;
-        return this.PresentationContent(entityResult.Entity, (int)statusCode);
+        return this.PresentationContent(entityResult.Entity, (int)statusCode, entityResult.ETag);
     }
 
     /// <summary>

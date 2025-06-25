@@ -53,7 +53,7 @@ public class StorageController(
                 }
 
                 var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
-                return storedManifest == null ? this.PresentationNotFound() : this.PresentationContent(storedManifest);
+                return storedManifest == null ? this.PresentationNotFound() : this.PresentationContent(storedManifest, etag: hierarchy.Manifest?.Etag);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
@@ -69,8 +69,8 @@ public class StorageController(
                 }
 
                 return storageRoot.StoredCollection == null
-                    ? this.PresentationContent(storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items))
-                    : this.PresentationContent(storageRoot.StoredCollection);
+                    ? this.PresentationContent(storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items), etag: hierarchy.Collection?.Etag)
+                    : this.PresentationContent(storageRoot.StoredCollection, etag: hierarchy.Collection?.Etag);
 
             default:
                 return this.PresentationProblem("Cannot fulfill this resource type", null,

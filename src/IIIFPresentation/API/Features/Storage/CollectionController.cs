@@ -51,7 +51,7 @@ public class CollectionController(
         
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
-            return entityResult.EntityNotFound ? this.PresentationNotFound() : this.PresentationContent(entityResult.Entity);
+            return entityResult.EntityNotFound ? this.PresentationNotFound() : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
         }
 
         return entityResult.Entity?.Behavior.IsPublic() ?? false

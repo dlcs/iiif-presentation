@@ -84,7 +84,7 @@ public class PostHierarchicalCollectionHandler(
         }
 
         collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
-        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
+        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
