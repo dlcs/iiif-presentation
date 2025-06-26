@@ -20,11 +20,12 @@ public class ManifestS3Manager(
     /// <summary>
     /// Updates a manifest from the staging environment
     /// </summary>
-    public async Task CreateManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, 
+    public async Task<Manifest> CreateManifestInStorage(Manifest manifest,
+        Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("creating manifest {Manifest} in S3", dbManifest.Id);
-        
+
         var namedQueryManifest =
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
                 cancellationToken);
@@ -36,18 +37,21 @@ public class ManifestS3Manager(
 
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             false, cancellationToken);
+
+        return mergedManifest;
     }
-    
+
     /// <summary>
     /// Updates a manifest from the staging environment
     /// </summary>
-    public async Task UpdateManifestInStorage(Models.Database.Collections.Manifest dbManifest, CancellationToken cancellationToken)
+    public async Task UpdateManifestInStorage(Models.Database.Collections.Manifest dbManifest,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
-        
+
         var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
         manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location");
-        
+
         var namedQueryManifest =
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
                 cancellationToken);
@@ -61,7 +65,7 @@ public class ManifestS3Manager(
             false, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
-    }          
+    }
 }
 
 public interface IManifestStorageManager
@@ -69,6 +73,6 @@ public interface IManifestStorageManager
     public Task UpdateManifestInStorage(Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
     
-    public Task CreateManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+    public Task<Manifest> CreateManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
 }

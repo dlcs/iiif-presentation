@@ -180,11 +180,13 @@ public class ManifestWriteService(
 
             await SaveToS3(dbManifest!, request, saveToStaging, dlcsInteractionResult.CanBeBuiltUpfront,
                 cancellationToken);
-            
+
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Created);
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Created);
         }
     }
 
@@ -238,9 +240,11 @@ public class ManifestWriteService(
             await SaveToS3(dbManifest!, request, saveToStaging, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, 
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Updated);
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Updated);
         }
     }
 
@@ -344,9 +348,10 @@ public class ManifestWriteService(
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
 
-        if (canBeBuiltUpfront && saveToStaging) //todo: modify saveToStaging?
+        if (canBeBuiltUpfront)
         {
-            await manifestStorageManager.CreateManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            var manifest = await manifestStorageManager.CreateManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            request.PresentationManifest.Items = manifest.Items;
         }
         else
         {

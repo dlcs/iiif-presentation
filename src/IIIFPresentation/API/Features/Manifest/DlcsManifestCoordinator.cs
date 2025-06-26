@@ -99,6 +99,10 @@ public class DlcsManifestCoordinator(
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront);
     }
 
+    /// <summary>
+    /// Makes sure that all assets which have been ingested into the DLCS are marked as ingesting
+    /// in the <see cref="Models.API.Manifest.CanvasPainting"/>> record
+    /// </summary>
     private static void SetUntrackedAssetsToIngesting(WriteManifestRequest request,
         List<JObject> untrackedAssets)
     {
