@@ -86,9 +86,9 @@ public class DlcsManifestCoordinator(
         var checkedAssets =
             await FindAssetsThatRequireAdditionalWork(assets, dbManifest, request.CustomerId, cancellationToken);
         
-        await UpdateDlcsAssets(request, manifestId, cancellationToken, checkedAssets.dlcsAssetIds);
+        await UpdateDlcsAssets(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
 
-        await RemoveUnusedAssets(dbManifest, assets, manifestId, cancellationToken);
+        await RemoveUnusedAssets(dbManifest, assets, cancellationToken);
         
         SetUntrackedAssetsToIngesting(request, checkedAssets.untrackedAssets);
 
@@ -116,7 +116,7 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task UpdateDlcsAssets(WriteManifestRequest request, string manifestId,
-        CancellationToken cancellationToken, List<AssetId> dlcsAssets)
+        List<AssetId> dlcsAssets, CancellationToken cancellationToken)
     {
         if (dlcsAssets.Count != 0)
         {
@@ -127,7 +127,7 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task RemoveUnusedAssets(Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, 
-        string manifestId, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         if (dbManifest == null) return;
 
