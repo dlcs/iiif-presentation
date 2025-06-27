@@ -106,7 +106,7 @@ public class UpsertCollectionHandler(
         }
         else
         {
-            if (EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
+            if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
                 return ErrorHelper.EtagNonMatching<PresentationCollection>();
             
             if (isStorageCollection != databaseCollection.IsStorageCollection)
