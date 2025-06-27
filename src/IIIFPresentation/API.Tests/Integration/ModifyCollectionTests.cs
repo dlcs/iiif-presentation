@@ -40,6 +40,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
+
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
@@ -1153,7 +1154,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1239,7 +1240,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1361,7 +1362,7 @@ $$"""
         
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection, dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1433,7 +1434,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1494,7 +1495,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1641,7 +1642,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1860,9 +1861,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            "1/collections/FirstChildCollection", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
-
+            "1/collections/FirstChildCollection", updatedCollection.AsJson(), Guid.NewGuid());
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
@@ -1950,7 +1950,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentCollection.Id}", updatedCollection.AsJson());
+            $"1/collections/{parentCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1986,7 +1986,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -2021,7 +2021,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);

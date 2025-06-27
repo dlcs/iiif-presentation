@@ -134,7 +134,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanChangeLabel()
     {
         const int customer = 1234892;
-        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
         
         const string newLabel = "this is the new label";
@@ -149,7 +149,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         };
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
+            $"{customer}/collections/{RootCollection.Id}", collection.AsJson(), dbContext.GetETag(dbCollection));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update label");
@@ -164,7 +164,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanMakePrivate()
     {
         const int customer = 1234891;
-        await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
+        var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
         
         var collection = new PresentationCollection
@@ -177,7 +177,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         };
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{customer}/collections/{RootCollection.Id}", collection.AsJson());
+            $"{customer}/collections/{RootCollection.Id}", collection.AsJson(), dbContext.GetETag(dbCollection));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update public/private");
@@ -216,7 +216,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
 
         var asJson = collection.AsJson();
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{customer}/collections/{RootCollection.Id}", asJson);
+            $"{customer}/collections/{RootCollection.Id}", asJson, dbContext.GetETag(dbCollection));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Can update thumbnail");

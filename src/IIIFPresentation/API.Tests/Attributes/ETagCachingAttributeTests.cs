@@ -45,14 +45,16 @@ public class ETagCachingAttributeTests
     }
 
     [Fact]
-    public async Task Should_Generate_Etag_For_Small_Content()
+    public async Task Takes_ETag_From_Context()
     {
         var filter = new ETagCachingAttribute();
         var services = new ServiceCollection();
+        var guid = Guid.NewGuid();
 
         var context = CreateResultExecutingContext(new DefaultHttpContext
         {
-            RequestServices = services.BuildServiceProvider()
+            RequestServices = services.BuildServiceProvider(),
+            Items = {{"__etag", guid}}
         });
 
         // Act
@@ -61,7 +63,7 @@ public class ETagCachingAttributeTests
         // Assert
         
         // This ETag is of an empty body.
-        Assert.Single(context.HttpContext.Response.Headers.ETag, "\"1B2M2Y8AsgTpgAmY7PhCfg==\"");
+        Assert.Single(context.HttpContext.Response.Headers.ETag, $"\"{guid:N}\"");
     }
     
     [Fact(Skip = "public caching is currently disabled")]

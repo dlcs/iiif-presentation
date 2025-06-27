@@ -357,7 +357,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson());
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
         HttpRequestMessageBuilder.AddHostNoCustomerHeader(requestMessage);
         
         // Act
@@ -386,7 +386,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson());
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
         
         // Act

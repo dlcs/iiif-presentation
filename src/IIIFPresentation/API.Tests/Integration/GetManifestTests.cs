@@ -344,7 +344,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        response.Headers.Should().NotContainKey(HeaderNames.ETag, "should not be modified when ingesting");
         response.Headers.Vary.Should().HaveCount(2);
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
