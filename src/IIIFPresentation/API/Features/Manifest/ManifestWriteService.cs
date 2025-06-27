@@ -350,7 +350,7 @@ public class ManifestWriteService(
 
         if (canBeBuiltUpfront)
         {
-            var manifest = await manifestStorageManager.CreateManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
             request.PresentationManifest.Items = manifest.Items;
         }
         else
