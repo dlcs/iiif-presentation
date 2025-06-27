@@ -131,10 +131,10 @@ public class DlcsManifestCoordinator(
     {
         if (dbManifest == null) return;
 
-        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings;
+        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings ?? [];
         var assetIds = assets.Select(a => a.GetAssetId(dbManifest.CustomerId));
 
-        var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId));
+        var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)).ToList();
 
         if (assetsToRemove.Any())
         {
@@ -196,17 +196,17 @@ public class DlcsManifestCoordinator(
     }
 
 
-    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, 
-        List<AssetId> dlcsAssets)
+    private static List<JObject> GetUntrackedAssets(List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, 
+        List<AssetId> dlcsAssetIds)
     {
-        var combinedAssets = dlcsAssets.ToList();
-        combinedAssets.AddRange(assetsInDatabase.Select(a => a.AssetId)!);
+        var knownAssets = dlcsAssetIds.ToList();
+        knownAssets.AddRange(assetsInDatabase.Select(a => a.AssetId)!);
 
-        var trackedAssets = assets.Where(a =>
-            !combinedAssets.Any(b =>
+        var untrackedAssets = payloadAssets.Where(a =>
+            !knownAssets.Any(b =>
                 b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
                 b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
-        return trackedAssets;
+        return untrackedAssets;
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
