@@ -86,7 +86,7 @@ public class DlcsManifestCoordinator(
         var checkedAssets =
             await FindAssetsThatRequireAdditionalWork(assets, dbManifest, request.CustomerId, cancellationToken);
         
-        await UpdateDlcsAssets(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
+        await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
 
         await RemoveUnusedAssets(dbManifest, assets, cancellationToken);
         
@@ -115,13 +115,13 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private async Task UpdateDlcsAssets(WriteManifestRequest request, string manifestId,
-        List<AssetId> dlcsAssets, CancellationToken cancellationToken)
+    private async Task UpdateAssetsWithManifestId(WriteManifestRequest request, string manifestId,
+        List<AssetId> assetsToUpdate, CancellationToken cancellationToken)
     {
-        if (dlcsAssets.Count != 0)
+        if (assetsToUpdate.Count != 0)
         {
             await dlcsApiClient.UpdateAssetManifest(request.CustomerId,
-                dlcsAssets.Select(x => x.ToString()).ToList(), OperationType.Add, [manifestId],
+                assetsToUpdate.Select(x => x.ToString()).ToList(), OperationType.Add, [manifestId],
                 cancellationToken);
         }
     }
@@ -153,6 +153,7 @@ public class DlcsManifestCoordinator(
     {
         var assetIds = assets.Select(a => a.GetAssetId(customerId));
         List<CanvasPainting> assetsInDatabase = [];
+        List<AssetId> assetsTrackedElsewhere = [];
 
         if (dbManifest != null)
         {
@@ -160,8 +161,11 @@ public class DlcsManifestCoordinator(
                     cp.AssetId != null && assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId)
                 .ToList();
 
+            assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest.Id)
+                .Select(a => a.AssetId!).ToList();
+
             // all assets are tracked
-            if (assetsInDatabase.Count == assets.Count)
+            if (assetsInDatabase.Count == assets.Count && !assetsTrackedElsewhere.Any())
             {
                 logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
                 return ([], []);
@@ -181,18 +185,18 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(ex, "Failed to retrieve DLCS assets");
         }
-
-        var dlcsAssetIds = dlcsAssets.Select(a => a.GetAssetId(customerId)).ToList();
+        
+        assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
 
         if (assetsInDatabase.Count + dlcsAssets.Count == assets.Count)
         {
             logger.LogTrace("all assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
-            return ([], dlcsAssetIds);
+            return ([], assetsTrackedElsewhere);
         }
         
-        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
+        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, assetsTrackedElsewhere);
         
-        return (untrackedAssets, dlcsAssetIds);
+        return (untrackedAssets, assetsTrackedElsewhere);
     }
 
 
