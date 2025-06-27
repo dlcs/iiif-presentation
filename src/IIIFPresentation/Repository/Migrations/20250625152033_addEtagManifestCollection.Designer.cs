@@ -150,7 +150,7 @@ namespace Repository.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("uuid")
                         .HasColumnName("etag")
-                        .HasComputedColumnSql("deterministic_uuid_sha256(\"Modified\", \"Id\")", true);
+                        .HasComputedColumnSql("deterministic_uuid_sha256(\"modified\", \"id\")", true);
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean")
@@ -218,7 +218,7 @@ namespace Repository.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("uuid")
                         .HasColumnName("etag")
-                        .HasComputedColumnSql("deterministic_uuid_sha256(\"LastProcessed\", \"Id\")", true);
+                        .HasComputedColumnSql("deterministic_uuid_sha256(\"last_processed\", \"id\")", true);
 
                     b.Property<string>("Label")
                         .HasColumnType("text")
