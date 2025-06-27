@@ -23,7 +23,7 @@ public class JObjectXTests
     }
     
     [Fact]
-    public void TryGetRequiredValue_ReturnsValue_IfFound()
+    public void TryGetValue_ReturnsValue_IfFound()
     {
         var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
 
@@ -31,7 +31,7 @@ public class JObjectXTests
     }
     
     [Fact]
-    public void TryGetRequiredValue_Throws_IfNotFound()
+    public void TryGetValue_DoesNotThrow_IfNotFound()
     {
         var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
 
