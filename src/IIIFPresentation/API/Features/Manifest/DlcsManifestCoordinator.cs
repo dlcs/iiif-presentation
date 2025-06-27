@@ -163,7 +163,7 @@ public class DlcsManifestCoordinator(
             // all assets are tracked
             if (assetsInDatabase.Count == assets.Count)
             {
-                logger.LogTrace("all assets tracked in database for {ManifestId}", dbManifest.Id);
+                logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
                 return ([], []);
             }
         }
