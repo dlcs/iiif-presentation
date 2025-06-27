@@ -3,7 +3,7 @@ using Models.Database.General;
 
 namespace Models.Database.Collections;
 
-public class Collection : IHierarchyResource, IHaveEtag
+public class Collection : IHierarchyResource
 {
     public required string Id { get; set; }
 

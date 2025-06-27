@@ -4,7 +4,7 @@ using Models.Database.General;
 
 namespace Models.Database.Collections;
 
-public class Manifest : IHierarchyResource, IHaveEtag
+public class Manifest : IHierarchyResource
 {
     public required string Id { get; set; }
     
