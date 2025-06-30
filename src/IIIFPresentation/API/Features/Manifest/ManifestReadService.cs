@@ -110,11 +110,13 @@ public class ManifestReadService(
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, assets,
             m => Enumerable.Single<Hierarchy>(m.Hierarchy!, h => h.Canonical));
 
+        Guid? etag = dbManifest.Etag;
         if (dbManifest.IsIngesting())
         {
             manifest.CurrentlyIngesting = true;
+            etag = null;
         }
 
-        return FetchEntityResult<PresentationManifest>.Success(manifest, dbManifest.Etag);
+        return FetchEntityResult<PresentationManifest>.Success(manifest, etag);
     }
 }
