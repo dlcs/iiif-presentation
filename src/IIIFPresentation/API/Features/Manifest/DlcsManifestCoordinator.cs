@@ -188,7 +188,7 @@ public class DlcsManifestCoordinator(
         
         assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
 
-        if (assetsInDatabase.Count + dlcsAssets.Count == assets.Count)
+        if (assetsTrackedElsewhere.Count == assets.Count)
         {
             logger.LogTrace("all assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
             return ([], assetsTrackedElsewhere);
