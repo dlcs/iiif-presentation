@@ -64,6 +64,7 @@ public class CanvasPainting
     public int? StaticWidth { get; set; }
     public int? StaticHeight { get; set; }
     public double? Duration { get; set; }
+    public bool Reingest { get; set; }
 
     [JsonIgnore] public bool Ingesting { get; set; }
 }

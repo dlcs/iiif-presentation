@@ -84,7 +84,8 @@ public class DlcsManifestCoordinator(
         }
 
         var checkedAssets =
-            await FindAssetsThatRequireAdditionalWork(assets, dbManifest, request.CustomerId, cancellationToken);
+            await FindAssetsThatRequireAdditionalWork(assets, request, dbManifest, request.CustomerId,
+                cancellationToken);
         
         await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
 
@@ -148,31 +149,41 @@ public class DlcsManifestCoordinator(
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
     
-    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(List<JObject> assets, 
-        Models.Database.Collections.Manifest? dbManifest, int customerId, CancellationToken cancellationToken = default)
+    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(
+        List<JObject> assets, WriteManifestRequest request, Models.Database.Collections.Manifest? dbManifest, 
+        int customerId, CancellationToken cancellationToken = default)
     {
-        var assetIds = assets.Select(a => a.GetAssetId(customerId));
+        var assetIds = request.PresentationManifest.PaintedResources!.ToDictionary(pr =>
+            pr.Asset!.GetAssetId(customerId), pr => pr.CanvasPainting?.Reingest ?? false);
         List<CanvasPainting> assetsInDatabase = [];
         List<AssetId> assetsTrackedElsewhere = [];
 
         if (dbManifest != null)
         {
-            assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
-                    cp.AssetId != null && assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId)
-                .ToList();
+            try
+            {
+                assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
+                    cp.AssetId != null && assetIds.Any(a => a.Key == cp.AssetId && a.Value) &&
+                    cp.CustomerId == customerId).ToList();
+            }
+            // todo: remove
+            catch (Exception ex)
+            {
+                throw ex;
+            }
 
             assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest.Id)
                 .Select(a => a.AssetId!).ToList();
 
             // all assets are tracked
-            if (assetsInDatabase.Count == assets.Count && !assetsTrackedElsewhere.Any())
+            if (assetsInDatabase.Count == assetIds.Count && !assetsTrackedElsewhere.Any())
             {
                 logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
                 return ([], []);
             }
         }
 
-        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
+        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a.Key && !a.Value)).ToList();
 
         IList<JObject> dlcsAssets = [];
 
