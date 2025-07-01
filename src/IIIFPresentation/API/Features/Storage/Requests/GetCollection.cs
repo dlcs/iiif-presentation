@@ -1,10 +1,13 @@
-﻿using API.Converters;
+﻿using System.Collections.Immutable;
+using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
+using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Primitives;
 using Models.API.Collection;
 using Repository;
 using Repository.Collections;
@@ -16,6 +19,7 @@ namespace API.Features.Storage.Requests;
 public class GetCollection(
     int customerId,
     string id,
+    StringValues ifNoneMatch,
     int page,
     int pageSize,
     string? orderBy = null,
@@ -24,7 +28,9 @@ public class GetCollection(
     public int CustomerId { get; } = customerId;
 
     public string Id { get; } = id;
-    
+
+    public IImmutableSet<Guid> IfNoneMatch { get; } = ifNoneMatch.AsETagValues();
+
     public RequestModifiers RequestModifiers { get; } = new()
     {
         PageSize = pageSize,
@@ -40,9 +46,13 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        var collection = await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.Id, cancellationToken: cancellationToken);
-        
+        var collection = await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.Id,
+            cancellationToken: cancellationToken);
+
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
+
+        if (request.IfNoneMatch.Contains(collection.Etag))
+            return FetchEntityResult<PresentationCollection>.Matched(collection.Etag);
 
         var hierarchy = collection.Hierarchy.GetCanonical();
 
@@ -51,7 +61,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         var orderByParameter = request.RequestModifiers.OrderBy != null
             ? $"{(request.RequestModifiers.Descending ? "orderByDescending" : "orderBy")}={request.RequestModifiers.OrderBy}"
             : null;
-        
+
         if (hierarchy.Parent != null)
         {
             collection.Hierarchy.GetCanonical().FullPath =
@@ -83,11 +93,11 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         var s3Collection =
             await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection.GetResourceBucketKey(),
                 cancellationToken);
-        
+
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
-        var s3PresentationCollection = s3Collection.SetIIIFGeneratedFields(collection,  parentCollection, pathGenerator);
-        
+        var s3PresentationCollection = s3Collection.SetIIIFGeneratedFields(collection, parentCollection, pathGenerator);
+
         return FetchEntityResult<PresentationCollection>.Success(s3PresentationCollection, collection.Etag);
     }
 }

@@ -1,4 +1,5 @@
-﻿using API.Converters;
+﻿using System.Collections.Immutable;
+using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
@@ -29,7 +30,8 @@ public interface IManifestRead
     /// <summary>
     /// Attempt to read manifest from storage
     /// </summary>
-    public Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId, bool pathOnly,
+    public Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
+        IImmutableSet<Guid> ifNoneMatch, bool pathOnly,
         CancellationToken cancellationToken);
 }
 
@@ -68,12 +70,16 @@ public class ManifestReadService(
         }
     }
 
-    public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId, bool pathOnly, CancellationToken cancellationToken)
+    public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
+        IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
         var dbManifest = await dbContext.RetrieveManifestAsync(customerId, manifestId, withBatches: true,
             cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
+
+        if (ifNoneMatch.Contains(dbManifest.Etag))
+            return FetchEntityResult<PresentationManifest>.Matched(dbManifest.Etag);
 
         var fetchFullPath = ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId,
             dbContext, cancellationToken);

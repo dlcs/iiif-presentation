@@ -26,7 +26,12 @@ public class FetchEntityResult<T>
     ///     If true an error occured resources count not be found
     /// </summary>
     public bool EntityNotFound { get; private init; }
-    
+
+    /// <summary>
+    ///     If true entity is NOT returned, because ETag was matched. <see cref="ETag"/> is not null.
+    /// </summary>
+    public bool ETagMatch { get; private init; }
+
     public Guid? ETag { get; private init; }
 
     public static FetchEntityResult<T> Failure(string? errorMessage)
@@ -44,4 +49,8 @@ public class FetchEntityResult<T>
         return new FetchEntityResult<T> { Entity = entity, ETag = etag };
     }
 
+    public static FetchEntityResult<T> Matched(Guid etag)
+    {
+        return new FetchEntityResult<T> { ETag = etag, ETagMatch = true };
+    }
 }

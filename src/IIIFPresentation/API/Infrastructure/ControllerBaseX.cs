@@ -1,6 +1,7 @@
 using System.Net;
 using System.Runtime.InteropServices.JavaScript;
 using API.Features.Storage.Helpers;
+using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using Core;
 using Core.Helpers;
@@ -60,32 +61,39 @@ public static class ControllerBaseX
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
     public static IActionResult ModifyResultToHttpResult<T, TEnum>(this ControllerBase controller,
-    ModifyEntityResult<T, TEnum> entityResult, 
-    string? instance,
-    string? errorTitle)
-    where T : JsonLdBase 
-    where TEnum : Enum =>
-    entityResult.WriteResult switch
-    {
-        WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
-        WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Accepted, entityResult.ETag),
-        WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(), entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
-        WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
-        WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance, 
-            (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
-        WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance, 
-            (int)HttpStatusCode.BadRequest, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
-        WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.Conflict, 
-            $"{errorTitle}: Conflict", controller.GetErrorType(entityResult.ErrorType)),
-        WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.BadRequest,
-            $"{errorTitle}: Validation failed"),
-        WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InsufficientStorage,
-            $"{errorTitle}: Storage limit exceeded"),
-        WriteResult.PreConditionFailed => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.PreconditionFailed, 
-            $"{errorTitle}: Pre-condition failed", controller.GetErrorType(entityResult.ErrorType)),
-        _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
-    };
-    
+        ModifyEntityResult<T, TEnum> entityResult,
+        string? instance,
+        string? errorTitle)
+        where T : JsonLdBase
+        where TEnum : Enum =>
+        entityResult.WriteResult switch
+        {
+            WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
+            WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
+                entityResult.Entity, (int)HttpStatusCode.Accepted, entityResult.ETag),
+            WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
+                entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
+            WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
+            WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
+            WriteResult.BadRequest => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.BadRequest, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
+            WriteResult.Conflict => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.Conflict,
+                $"{errorTitle}: Conflict", controller.GetErrorType(entityResult.ErrorType)),
+            WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.BadRequest,
+                $"{errorTitle}: Validation failed"),
+            WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.InsufficientStorage,
+                $"{errorTitle}: Storage limit exceeded"),
+            WriteResult.PreConditionFailed => controller.PresentationProblem(entityResult.Error, instance,
+                (int)HttpStatusCode.PreconditionFailed,
+                $"{errorTitle}: Pre-condition failed", controller.GetErrorType(entityResult.ErrorType)),
+            _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError,
+                errorTitle, controller.GetErrorType(entityResult.ErrorType)),
+        };
+
     /// <summary>
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
     /// </summary>
@@ -96,7 +104,7 @@ public static class ControllerBaseX
         return controller.PresentationProblem(message, null, (int)HttpStatusCode.BadRequest, "Bad request",
             GetErrorType(controller, ModifyCollectionType.ValidationFailed));
     }
-    
+
     /// <summary>
     /// Evaluates incoming orderBy and orderByDescending fields to get a suitable
     /// ordering field and its direction.
@@ -110,7 +118,8 @@ public static class ControllerBaseX
         {
             orderByField = orderBy;
         }
-        else if (orderByDescending.HasText() && OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
+        else if (orderByDescending.HasText() &&
+                 OrderByHelper.AllowedOrderByFields.Contains(orderByDescending.ToLower()))
         {
             orderByField = orderByDescending;
             descending = true;
@@ -153,8 +162,8 @@ public static class ControllerBaseX
 
     public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>
         $"{controller.Request.GetDisplayUrl()}/errors/{type?.GetType().Name}/{type}";
-    
-    
+
+
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
     /// </summary>
@@ -168,18 +177,16 @@ public static class ControllerBaseX
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, correct IIIF ContentType and specified
     /// statuscode 
     /// </summary>
-    public static ContentResult PresentationContent(this ControllerBase controller, JsonLdBase descriptionResource,
+    public static ContentResult PresentationContent(this ControllerBase _, JsonLdBase descriptionResource,
         int statusCode = 200, Guid? etag = null)
     {
-        if(etag.HasValue)
-            controller.HttpContext.Items["__etag"] = etag.Value;
-        
-        return new ContentResult
-        {
-            Content = descriptionResource.AsJson(),
-            ContentType = ContentTypes.V3,
-            StatusCode = statusCode
-        };
+        var result = etag.HasValue ? new CacheableContentResult { ETag = etag.Value } : new ContentResult();
+
+        result.Content = descriptionResource.AsJson();
+        result.ContentType = ContentTypes.V3;
+        result.StatusCode = statusCode;
+
+        return result;
     }
 
     /// <summary>

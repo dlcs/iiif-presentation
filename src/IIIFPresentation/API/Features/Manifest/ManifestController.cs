@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using API.Attributes;
 using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
@@ -7,6 +6,7 @@ using API.Features.Storage.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using IIIF;
@@ -25,31 +25,38 @@ public class ManifestController(
     IOptions<ApiSettings> options,
     IAuthenticator authenticator,
     IMediator mediator,
+    IETagCache eTagCache,
     ILogger<ManifestController> logger)
-    : PresentationController(options.Value, mediator, logger)
+    : PresentationController(options.Value, mediator, eTagCache, logger)
 {
     [HttpGet("manifests/{id}")]
-    [ETagCaching]
     [VaryHeader]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
         var pathOnly = !Request.HasShowExtraHeader() ||
                        await authenticator.ValidateRequest(Request) != AuthResult.Success;
 
-        var entityResult = await Mediator.Send(new GetManifest(customerId, id, pathOnly));
-        if (entityResult.EntityNotFound)
-            return this.PresentationNotFound();
+        var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch, pathOnly));
 
-        if (entityResult.Error)
-            return this.PresentationProblem(entityResult.ErrorMessage,
-                statusCode: (int) HttpStatusCode.InternalServerError);
+        switch (entityResult)
+        {
+            case { EntityNotFound: true }: return this.PresentationNotFound();
+            case { Error: true }:
+                return this.PresentationProblem(entityResult.ErrorMessage,
+                    statusCode: (int)HttpStatusCode.InternalServerError);
+            case { ETagMatch: true, ETag: { } etag }: return new NotModifiedResult(etag);
+            case { Entity: not null }: break;
+
+            default: return this.PresentationNotFound();
+        }
+
 
         if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
-            return entityResult.Entity?.FullPath is {Length: > 0} fullPath
+            return entityResult.Entity.FullPath is { Length: > 0 } fullPath
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
-        
-        var statusCode = entityResult.Entity!.CurrentlyIngesting ? HttpStatusCode.Accepted : HttpStatusCode.OK;
+
+        var statusCode = entityResult.Entity.CurrentlyIngesting ? HttpStatusCode.Accepted : HttpStatusCode.OK;
         return this.PresentationContent(entityResult.Entity, (int)statusCode, entityResult.ETag);
     }
 
@@ -58,7 +65,6 @@ public class ManifestController(
     /// </summary>
     [Authorize]
     [HttpPost("manifests")]
-    [ETagCaching]
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
         [FromServices] PresentationManifestValidator validator,
@@ -75,7 +81,6 @@ public class ManifestController(
     /// </summary>
     [Authorize]
     [HttpPut("manifests/{id}")]
-    [ETagCaching]
     public async Task<IActionResult> UpsertManifest(
         [FromRoute] int customerId,
         [FromRoute] string id,
@@ -96,12 +101,13 @@ public class ManifestController(
 
         return await HandleDelete(new DeleteManifest(customerId, id));
     }
-    
+
     private async Task<IActionResult> ManifestUpsert<T, TEnum>(
         Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
         PresentationManifestValidator validator,
         string? instance = null,
         string? errorTitle = "Operation failed",
+        string? invalidatesEtag = null,
         CancellationToken cancellationToken = default)
         where T : JsonLdBase
         where TEnum : Enum
@@ -113,7 +119,7 @@ public class ManifestController(
 
         if (presentationManifest.Error)
         {
-            return this.PresentationProblem("Could not deserialize manifest", null, (int) HttpStatusCode.BadRequest,
+            return this.PresentationProblem("Could not deserialize manifest", null, (int)HttpStatusCode.BadRequest,
                 "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
         }
 
@@ -123,7 +129,7 @@ public class ManifestController(
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance, errorTitle,
-            cancellationToken);
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance,
+            errorTitle, invalidatesEtag, cancellationToken);
     }
 }

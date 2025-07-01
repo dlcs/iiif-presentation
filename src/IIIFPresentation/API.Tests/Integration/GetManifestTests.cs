@@ -17,6 +17,7 @@ using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using EntityTagHeaderValue = System.Net.Http.Headers.EntityTagHeaderValue;
 
 namespace API.Tests.Integration;
 
@@ -307,6 +308,34 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be("http://localhost/1/iiif-manifest", "requested by hierarchical URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Hierarchical_Returns304ForPreviouslyReturnedETag()
+    {
+        // First call (no etag)
+        // Arrange and Act
+        var response = await httpClient.GetAsync("1/iiif-manifest");
+
+        var manifest = await response.ReadAsPresentationJsonAsync<Manifest>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        manifest.Should().NotBeNull();
+        manifest!.Type.Should().Be("Manifest");
+        manifest.Id.Should().Be("http://localhost/1/iiif-manifest", "requested by hierarchical URI");
+        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        
+        // Second call (with etag)
+        // Arrange and Act
+        var request = new HttpRequestMessage(HttpMethod.Get, "1/iiif-manifest");
+        request.Headers.IfNoneMatch.Add(response.Headers.ETag!);
+        response = await httpClient.SendAsync(request);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotModified);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
     }
 
     [Fact]

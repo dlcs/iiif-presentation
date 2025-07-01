@@ -1,5 +1,4 @@
 using System.Net;
-using API.Attributes;
 using API.Auth;
 using API.Converters;
 using API.Features.Manifest.Requests;
@@ -7,6 +6,7 @@ using API.Features.Storage.Requests;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using MediatR;
@@ -26,19 +26,23 @@ namespace API.Features.Storage;
 public class StorageController(
     IAuthenticator authenticator,
     PresentationContext dbContext,
+    IETagCache eTagCache,
     IOptions<ApiSettings> options,
     IPathGenerator pathGenerator,
     IMediator mediator,
     ILogger<StorageController> logger)
-    : PresentationController(options.Value, mediator, logger)
+    : PresentationController(options.Value, mediator, eTagCache, logger)
 {
     [HttpGet("{*slug}")]
-    [ETagCaching]
     [VaryHeader]
     public async Task<IActionResult> GetHierarchical(int customerId, string slug = "")
     {
+        var ifNoneMatch = Request.Headers.IfNoneMatch.AsETagValues();
+        if (EtagCache.IfNoneMatchForPath(slug, ifNoneMatch, out var matchedTag))
+            return new NotModifiedResult(matchedTag.Value);
+
         var hierarchy = await dbContext.RetrieveHierarchy(customerId, slug);
-        
+
         if (hierarchy == null) return this.PresentationNotFound();
         hierarchy.FullPath = slug;
 
@@ -52,8 +56,15 @@ public class StorageController(
                         : SeeOther(pathGenerator.GenerateFlatId(hierarchy));
                 }
 
-                var storedManifest = await mediator.Send(new GetManifestHierarchical(hierarchy));
-                return storedManifest == null ? this.PresentationNotFound() : this.PresentationContent(storedManifest, etag: hierarchy.Manifest?.Etag);
+                var storedManifest = await Mediator.Send(new GetManifestHierarchical(hierarchy));
+                if (storedManifest == null)
+                    return this.PresentationNotFound();
+
+                var mEtag = hierarchy.Manifest?.Etag;
+                if (mEtag.HasValue)
+                    EtagCache.SetEtagForPath(slug, mEtag.Value);
+
+                return this.PresentationContent(storedManifest, etag: mEtag);
 
             case ResourceType.IIIFCollection:
             case ResourceType.StorageCollection:
@@ -68,9 +79,14 @@ public class StorageController(
                     return SeeOther(absoluteUri);
                 }
 
+                var cEtag = hierarchy.Collection?.Etag;
+                if (cEtag.HasValue)
+                    EtagCache.SetEtagForPath(slug, cEtag.Value);
+
                 return storageRoot.StoredCollection == null
-                    ? this.PresentationContent(storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items), etag: hierarchy.Collection?.Etag)
-                    : this.PresentationContent(storageRoot.StoredCollection, etag: hierarchy.Collection?.Etag);
+                    ? this.PresentationContent(
+                        storageRoot.Collection.ToHierarchicalCollection(pathGenerator, storageRoot.Items), etag: cEtag)
+                    : this.PresentationContent(storageRoot.StoredCollection, etag: cEtag);
 
             default:
                 return this.PresentationProblem("Cannot fulfill this resource type", null,
@@ -80,7 +96,6 @@ public class StorageController(
 
     [Authorize]
     [HttpPost("{*slug}")]
-    [ETagCaching]
     public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
