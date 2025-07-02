@@ -18,11 +18,11 @@ public class DlcsOrchestratorClientTests
         using var stub = new ApiStub();
         const int customerId = 3;
         stub.Get(
-            $"/iiif-resource/v3/{customerId}/batch-query/1,2",
+            $"/iiif-resource/v3/{customerId}/manifest-query/first",
             (_, _) => string.Empty).StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
         
-        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
+        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, "first", CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "Could not find a DlcsError in response" && e.StatusCode == httpStatusCode);
     }
@@ -35,11 +35,11 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 4;
-        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1,2", (_, _) => "{\"description\":\"I am broken\"}")
+        stub.Get($"/iiif-resource/v3/{customerId}/manifest-query/first", (_, _) => "{\"description\":\"I am broken\"}")
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
         
-        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, [1, 2], CancellationToken.None);
+        Func<Task> action = () => sut.RetrieveAssetsForManifest(customerId, "first", CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
@@ -49,13 +49,13 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 5;
-        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
+        stub.Get($"/iiif-resource/v3/{customerId}/manifest-query/first",
                 (_, _) => "{\"id\":\"some/id\", \"type\": \"Manifest\" }")
             .StatusCode(200);
         var sut = GetClient(stub);
         var expected = new Manifest() { Id = "some/id" }; 
         
-        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, "first", CancellationToken.None);
 
         retrievedManifest.Should().BeEquivalentTo(expected);
     }
@@ -65,7 +65,7 @@ public class DlcsOrchestratorClientTests
     {
         using var stub = new ApiStub();
         const int customerId = -5;
-        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
+        stub.Get($"/iiif-resource/v3/{customerId}/manifest-query/first",
                 (_, _) => "{\"id\":\"some/id\", \"type\": \"Manifest\" }")
             .StatusCode(200);
         var sut = GetClient(stub, settings =>
@@ -75,7 +75,7 @@ public class DlcsOrchestratorClientTests
         });
         var expected = new Manifest() { Id = "some/id" }; 
         
-        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+        var retrievedManifest = await sut.RetrieveAssetsForManifest(customerId, "first", CancellationToken.None);
 
         retrievedManifest.Should().BeEquivalentTo(expected);
     }
@@ -86,7 +86,7 @@ public class DlcsOrchestratorClientTests
         using var stub = new ApiStub();
         const int customerId = 6;
         string? passedQueryParam = null;
-        stub.Get($"/iiif-resource/v3/{customerId}/batch-query/1",
+        stub.Get($"/iiif-resource/v3/{customerId}/manifest-query/first",
                 (req, _) =>
                 {
                     passedQueryParam = req.Query["cacheBust"];
@@ -95,7 +95,7 @@ public class DlcsOrchestratorClientTests
             .StatusCode(200);
         var sut = GetClient(stub);
         
-        await sut.RetrieveAssetsForManifest(customerId, [1], CancellationToken.None);
+        await sut.RetrieveAssetsForManifest(customerId, "first", CancellationToken.None);
 
         passedQueryParam.Should().NotBeNull("?cacheBust query param passed to avoid caching issues");
     }

@@ -35,7 +35,7 @@ public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
     IdentityManager identityManager,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
     : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
 {

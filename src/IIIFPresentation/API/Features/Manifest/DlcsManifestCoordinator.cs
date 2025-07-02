@@ -23,7 +23,7 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
     public EntityResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
-    public bool CanBeBuiltUpfront = canBeBuiltUpfront;
+    public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
     
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
         
@@ -84,55 +84,76 @@ public class DlcsManifestCoordinator(
         }
 
         var checkedAssets =
-            await FindTrackedAssets(assets, dbManifest, request.CustomerId, cancellationToken);
+            await FindAssetsThatRequireAdditionalWork(assets, dbManifest, request.CustomerId, cancellationToken);
         
-        await UpdateDlcsAssets(request, manifestId, cancellationToken, checkedAssets);
+        await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
 
-        await RemoveUnusedAssets(dbManifest, assets, manifestId, cancellationToken);
+        await RemoveUnusedAssets(dbManifest, assets, cancellationToken);
+        
+        SetUntrackedAssetsToIngesting(request, checkedAssets.untrackedAssets);
 
-        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets, cancellationToken);
+        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets,
+            cancellationToken);
         
         var canBeBuiltUpfront = checkedAssets.untrackedAssets.Count == 0 && assets.Count > 0;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront);
     }
 
-    private async Task UpdateDlcsAssets(WriteManifestRequest request, string manifestId,
-        CancellationToken cancellationToken, (List<JObject> untrackedAssets, List<AssetId> dlcsAssets) checkedAssets)
+    /// <summary>
+    /// Makes sure that all assets which have been ingested into the DLCS are marked as ingesting
+    /// in the <see cref="Models.API.Manifest.CanvasPainting"/>> record
+    /// </summary>
+    private static void SetUntrackedAssetsToIngesting(WriteManifestRequest request,
+        List<JObject> untrackedAssets)
     {
-        if (checkedAssets.dlcsAssets.Count != 0)
+        foreach (var paintedResource in untrackedAssets.SelectMany(untrackedAsset =>
+                     request.PresentationManifest.PaintedResources.Where(pr =>
+                         pr.Asset.GetAssetId(request.CustomerId) == untrackedAsset.GetAssetId(request.CustomerId))))
         {
-            await dlcsApiClient.UpdateAssetManifest(request.CustomerId, checkedAssets.dlcsAssets, OperationType.Add, [manifestId],
+            paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
+            paintedResource.CanvasPainting.Ingesting = true;
+        }
+    }
+
+    private async Task UpdateAssetsWithManifestId(WriteManifestRequest request, string manifestId,
+        List<AssetId> assetsToUpdate, CancellationToken cancellationToken)
+    {
+        if (assetsToUpdate.Count != 0)
+        {
+            await dlcsApiClient.UpdateAssetManifest(request.CustomerId,
+                assetsToUpdate.Select(x => x.ToString()).ToList(), OperationType.Add, [manifestId],
                 cancellationToken);
         }
     }
 
-    private async Task RemoveUnusedAssets(Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, string ManifestId, CancellationToken cancellationToken)
+    private async Task RemoveUnusedAssets(Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, 
+        CancellationToken cancellationToken)
     {
         if (dbManifest == null) return;
-        
-        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings.Where(c => c.ManifestId == ManifestId);
+
+        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings ?? [];
         var assetIds = assets.Select(a => a.GetAssetId(dbManifest.CustomerId));
 
-        var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId));
+        var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)).ToList();
 
         if (assetsToRemove.Any())
         {
-            await RemoveManifestsFromAssets(dbManifest,
-                canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)), cancellationToken);
+            await RemoveManifestsFromAssets(dbManifest, assetsToRemove, cancellationToken);
         }
     }
 
     private async Task RemoveManifestsFromAssets(Models.Database.Collections.Manifest dbManifest, 
         IEnumerable<CanvasPainting> canvasPaintingsToRemove, CancellationToken cancellationToken) =>
         await dlcsApiClient.UpdateAssetManifest(dbManifest.CustomerId,
-        canvasPaintingsToRemove.Select(cp => cp.AssetId).ToList()!, OperationType.Remove,
+        canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
     
-    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssets)> FindTrackedAssets(List<JObject> assets, 
+    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(List<JObject> assets, 
         Models.Database.Collections.Manifest? dbManifest, int customerId, CancellationToken cancellationToken = default)
     {
         var assetIds = assets.Select(a => a.GetAssetId(customerId));
         List<CanvasPainting> assetsInDatabase = [];
+        List<AssetId> assetsTrackedElsewhere = [];
 
         if (dbManifest != null)
         {
@@ -140,8 +161,15 @@ public class DlcsManifestCoordinator(
                     cp.AssetId != null && assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId)
                 .ToList();
 
+            assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest.Id)
+                .Select(a => a.AssetId!).ToList();
+
             // all assets are tracked
-            if (assetsInDatabase.Count == assets.Count) return ([], []);
+            if (assetsInDatabase.Count == assets.Count && !assetsTrackedElsewhere.Any())
+            {
+                logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
+                return ([], []);
+            }
         }
 
         var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
@@ -157,29 +185,31 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(ex, "Failed to retrieve DLCS assets");
         }
-
-        var dlcsAssetIds = dlcsAssets.Select(a => a.GetAssetId(customerId)).ToList();
-
-        if (assetsInDatabase.Count + dlcsAssets.Count == assets.Count) return ([], dlcsAssetIds);
         
-        var trackedAssets = CombineTrackedAssets(assets, assetsInDatabase, dlcsAssetIds);
-        var untrackedAssets = GetUntrackedAssets(assets, trackedAssets);
+        assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
+
+        if (assetsTrackedElsewhere.Count == assets.Count)
+        {
+            logger.LogTrace("All assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
+            return ([], assetsTrackedElsewhere);
+        }
         
-        return (untrackedAssets, dlcsAssetIds);
+        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, assetsTrackedElsewhere);
+        
+        return (untrackedAssets, assetsTrackedElsewhere);
     }
 
 
-    private static List<JObject> CombineTrackedAssets(List<JObject> assets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssets)
+    private static List<JObject> GetUntrackedAssets(List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, 
+        List<AssetId> dlcsAssetIds)
     {
-        var trackedAssets = assets.Where(a =>
-            assetsInDatabase.Any(b =>
-                b.AssetId.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() && 
-                b.AssetId.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
-        trackedAssets.AddRange(assets.Where(a =>
-            dlcsAssets.Any(b =>
-                b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
-                b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())));
-        return trackedAssets;
+        var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
+
+        var untrackedAssets = payloadAssets.Where(a =>
+            !knownAssets.Any(b =>
+                b.Asset == a.GetRequiredValue(AssetProperties.Id).ToString() &&
+                b.Space == a.GetRequiredValue(AssetProperties.Space).Value<int>())).ToList();
+        return untrackedAssets;
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
@@ -187,11 +217,6 @@ public class DlcsManifestCoordinator(
             .Select(p => p.Asset)
             .OfType<JObject>()
             .ToList() ?? [];
-    
-    private static List<JObject> GetUntrackedAssets(List<JObject> assets, List<JObject> trackedAssets) =>
-        assets.Where(
-                a => trackedAssets.All(b => b.TryGetValue(AssetProperties.Id) != a.TryGetValue(AssetProperties.Id)))
-            .ToList();
     
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)

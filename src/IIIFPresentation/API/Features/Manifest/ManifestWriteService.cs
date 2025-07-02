@@ -17,6 +17,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.AWS;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -81,13 +82,14 @@ public interface IManifestWrite
 public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IManifestRead manifestRead,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
+    IManifestStorageManager manifestStorageManager,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -154,7 +156,7 @@ public class ManifestWriteService(
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
-        var saveToStaging = ShouldSaveToStaging(request);
+        var hasAssets = PaintedResourcesHasAssets(request);
         // can't have both items and painted resources, so items take precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
@@ -176,22 +178,19 @@ public class ManifestWriteService(
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            if (dlcsInteractionResult.CanBeBuiltUpfront)
-            {
-                throw new NotImplementedException(
-                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
-            }
+            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
+                cancellationToken);
 
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
-            
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Created);
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Created);
         }
     }
 
-    private static bool ShouldSaveToStaging(WriteManifestRequest request)
+    private static bool PaintedResourcesHasAssets(WriteManifestRequest request)
     {
         return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
     }
@@ -237,19 +236,15 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
             if (error != null) return error;
             
-            if (dlcsInteractionResult.CanBeBuiltUpfront)
-            {
-                throw new NotImplementedException(
-                    "All assets are tracked, but the ability to generate items from the API is not yet implemented");
-            }
-
-            var saveToStaging = ShouldSaveToStaging(request);
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
+            var hasAssets = PaintedResourcesHasAssets(request);
+            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, 
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Updated);
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Updated);
         }
     }
 
@@ -348,12 +343,20 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool saveToStaging,
-        CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+        bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
- 
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            saveToStaging, cancellationToken);
+
+        if (canBeBuiltUpfront)
+        {
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            request.PresentationManifest.Items = manifest.Items;
+        }
+        else
+        {
+            await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+                hasAssets, cancellationToken);
+        }
     }
 }

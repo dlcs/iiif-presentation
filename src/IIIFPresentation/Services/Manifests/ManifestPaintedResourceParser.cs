@@ -56,7 +56,7 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) 
             CanvasOrder = canvasOrder,
             AssetId = assetId,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
-            Ingesting = true, // TODO - this needs to conditionally be set once #351 implemented
+            Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,

@@ -1,6 +1,5 @@
 ﻿using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
-using Models.DLCS;
 
 namespace DLCS.Models;
 
@@ -16,7 +15,7 @@ public class BulkPatchAssets
     public required List<string>? Value { get; set; }
     
     [JsonPropertyName("member")]
-    public List<IdentifierOnly> Members { get; set; }
+    public required List<IdentifierOnly> Members { get; set; }
 }
 
 public enum OperationType
@@ -31,7 +30,7 @@ public enum OperationType
     Replace,
 }
 
-public class IdentifierOnly(AssetId id)
+public class IdentifierOnly(string id)
 {
-    public string Id { get; set; } = id.ToString();
+    public string Id { get; set; } = id;
 }
