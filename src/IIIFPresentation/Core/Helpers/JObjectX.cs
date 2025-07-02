@@ -12,12 +12,4 @@ public static class JObjectX
         => !jObject.TryGetValue(property, out var val) 
             ? throw new InvalidOperationException($"Object missing '{property}' property") 
             : val;
-    
-    /// <summary>
-    /// Get specified property value from jObject. Null if not found
-    /// </summary>
-    public static JToken? TryGetValue(this JObject jObject, string property) 
-        => !jObject.TryGetValue(property, out var val) 
-            ? null
-            : val;
 }

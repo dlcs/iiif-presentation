@@ -18,13 +18,13 @@ public class ManifestS3Manager(
     ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
     /// <summary>
-    /// Upserts a manifest from the standard environment
+    /// Writes a manifest to the final manifest location
     /// </summary>
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
         Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("creating manifest {Manifest} in S3", dbManifest.Id);
+        logger.LogInformation("Creating manifest {Manifest} in S3", dbManifest.Id);
 
         var mergedManifest = await UpsertManifest(manifest, dbManifest, cancellationToken);
 

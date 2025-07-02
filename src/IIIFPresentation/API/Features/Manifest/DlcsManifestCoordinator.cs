@@ -190,7 +190,7 @@ public class DlcsManifestCoordinator(
 
         if (assetsTrackedElsewhere.Count == assets.Count)
         {
-            logger.LogTrace("all assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
+            logger.LogTrace("All assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
             return ([], assetsTrackedElsewhere);
         }
         
@@ -203,13 +203,12 @@ public class DlcsManifestCoordinator(
     private static List<JObject> GetUntrackedAssets(List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, 
         List<AssetId> dlcsAssetIds)
     {
-        var knownAssets = dlcsAssetIds.ToList();
-        knownAssets.AddRange(assetsInDatabase.Select(a => a.AssetId)!);
+        var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
 
         var untrackedAssets = payloadAssets.Where(a =>
             !knownAssets.Any(b =>
-                b.Asset == a.TryGetValue(AssetProperties.Id)?.ToString() &&
-                b.Space == a.TryGetValue(AssetProperties.Space)?.Value<int>())).ToList();
+                b.Asset == a.GetRequiredValue(AssetProperties.Id).ToString() &&
+                b.Space == a.GetRequiredValue(AssetProperties.Space).Value<int>())).ToList();
         return untrackedAssets;
     }
 
