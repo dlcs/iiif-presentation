@@ -1,4 +1,6 @@
-﻿namespace Core.Paths;
+﻿using Core.Web;
+
+namespace Core.Paths;
 
 /// <summary>
 /// A collection of methods to make dealing with presentation paths, and path replacements, easier
