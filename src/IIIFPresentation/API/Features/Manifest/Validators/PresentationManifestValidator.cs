@@ -29,11 +29,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     private void PaintedResourcesValidation()
     {
         RuleForEach(m => m.PaintedResources)
-            .Must(pr => pr.CanvasPainting?.CanvasId != null)
-            .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasId: not null }))
-            .WithMessage("'canvasId' is required on all resources when used in at least one");
-        
-        RuleForEach(m => m.PaintedResources)
             .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
             .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
             .WithMessage("'canvasOrder' is required on all resources when used in at least one");

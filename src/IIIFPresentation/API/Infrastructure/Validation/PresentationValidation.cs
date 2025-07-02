@@ -1,4 +1,5 @@
 ﻿using API.Helpers;
+using Core.Helpers;
 using Models.API;
 using Models.Database.Collections;
 using Repository.Helpers;
@@ -13,15 +14,15 @@ public static class PresentationValidation
     /// </summary>
     /// <param name="presentation">Current <see cref="IPresentation"/> object</param>
     /// <param name="parent">Parent <see cref="Collection"/> object</param>
-    /// <param name="baseUri">The base uri used to validate whether the parent is valid</param>
-    /// <param name="customerId">The customer id</param>
-    /// <param name="pathGenerator">Helps generate paths for collections</param>
+    /// <param name="customerId">The customer id of the request</param>
     /// <returns>true if parent and invalid URI, else false</returns>
-    public static bool IsParentInvalid(this IPresentation presentation, Collection parent, string baseUri, int customerId,
-        IPathGenerator pathGenerator)
+    public static bool IsParentInvalid(this IPresentation presentation, Collection parent, int customerId)
     {
         if (presentation.Parent == null) return false;
-        return presentation.ParentIsFlatForm(baseUri, customerId) ? !pathGenerator.GenerateFlatCollectionId(parent).Equals(presentation.Parent) :
-            !pathGenerator.GenerateHierarchicalId(parent.Hierarchy.GetCanonical()).Equals(presentation.Parent);
+        if (parent.CustomerId != customerId) return false;
+
+        return presentation.ParentIsFlatForm()
+            ? !parent.Id.Equals(presentation.Parent.GetLastPathElement())
+            : !parent.Hierarchy.GetCanonical().Slug.Equals(PathParser.GetSlugFromHierarchicalPath(presentation.Parent, customerId));
     }
 }

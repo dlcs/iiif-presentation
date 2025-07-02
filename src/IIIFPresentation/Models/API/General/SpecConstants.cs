@@ -1,6 +1,6 @@
 ﻿using System.Collections.Frozen;
 
-namespace API.Infrastructure.Validation;
+namespace Models.API.General;
 
 public static class SpecConstants
 {

@@ -70,6 +70,7 @@ builder.Services
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
+    .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()

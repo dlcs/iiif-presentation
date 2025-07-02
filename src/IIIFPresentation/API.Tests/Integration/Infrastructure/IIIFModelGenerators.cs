@@ -14,7 +14,9 @@ public static class IIIFModelGenerators
         => new()
         {
             Slug = slug ?? manifest.Hierarchy.Single().Slug,
-            Parent = $"http://localhost/{manifest.CustomerId}/collections/{ parent ?? manifest.Hierarchy.Single().Parent}",
+            Parent = Uri.IsWellFormedUriString(parent, UriKind.Absolute) ? 
+                parent :  
+                $"http://localhost/{manifest.CustomerId}/collections/{parent ?? manifest.Hierarchy.Single().Parent}",
             Label = label
         };
 }
