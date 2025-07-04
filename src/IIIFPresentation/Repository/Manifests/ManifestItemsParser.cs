@@ -121,7 +121,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
     private CanvasPainting CreatePartialCanvasPainting(ResourceBase resource,
         string? canvasOriginalId,
         int canvasOrder,
-        IStructuralLocation? target,
+        ResourceBase? target,
         Canvas currentCanvas,
         int? choiceOrder = null)
     {
@@ -152,7 +152,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
         return Uri.TryCreate(thumbnail, UriKind.Absolute, out var thumbnailUri) ? thumbnailUri : null;
     }
 
-    private static string? TargetAsString(IStructuralLocation? target, Canvas currentCanvas)
+    private static string? TargetAsString(ResourceBase? target, Canvas currentCanvas)
     {
         switch (target)
         {
