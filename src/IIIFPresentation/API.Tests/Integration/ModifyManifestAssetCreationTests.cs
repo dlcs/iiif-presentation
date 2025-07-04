@@ -1197,4 +1197,67 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                  .Excluding(cp => cp.Modified)
                  .Excluding(cp => cp.Created));
      }
+     
+     [Fact]
+     public async Task CreateManifest_CreatesManifest_WhenWithAndWithoutCanvasId()
+     {
+         // Arrange
+         var (slug, _, postedAssetId) = TestIdentifiers.SlugResourceAsset();
+         var batchId = TestIdentifiers.BatchId();
+         
+         var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources = new List<PaintedResource>()
+            {
+                new ()
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "specified"
+                    },
+                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", batchId))
+                },
+                new ()
+                {
+                    Asset = new(new JProperty("id", $"{postedAssetId}-2"), new JProperty("batch", batchId))
+                }
+            }
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Location.Should().NotBeNull();
+
+        requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Should().NotBeNull();
+        responseManifest!.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources!.Count.Should().Be(2);
+
+        responseManifest.PaintedResources.First().CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/specified");
+        responseManifest.PaintedResources.First().Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
+        assetId!.Type.Should().Be(JTokenType.String);
+        assetId.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
+
+        responseManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should().NotBeNullOrEmpty();
+        responseManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should()
+            .NotBe(responseManifest.PaintedResources.First().CanvasPainting.CanvasId);
+        responseManifest.PaintedResources.Last().Asset!.TryGetValue("@id", out var secondAssetId).Should().BeTrue();
+        secondAssetId!.Type.Should().Be(JTokenType.String);
+        secondAssetId.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}-2");
+    }
 }
