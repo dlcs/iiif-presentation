@@ -84,7 +84,7 @@ public class DlcsManifestCoordinator(
         }
 
         var checkedAssets =
-            await FindAssetsThatRequireAdditionalWork(assets, request, dbManifest, request.CustomerId,
+            await FindAssetsThatRequireAdditionalWork(assets, request.PresentationManifest, dbManifest, request.CustomerId,
                 cancellationToken);
         
         await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
@@ -150,10 +150,10 @@ public class DlcsManifestCoordinator(
     [dbManifest.Id], cancellationToken);
     
     private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(
-        List<JObject> assets, WriteManifestRequest request, Models.Database.Collections.Manifest? dbManifest, 
+        List<JObject> assets, PresentationManifest presentationManifest, Models.Database.Collections.Manifest? dbManifest, 
         int customerId, CancellationToken cancellationToken = default)
     {
-        var assetIds = request.PresentationManifest.PaintedResources!.ToDictionary(pr =>
+        var assetIdsNotNeedingReingestion = presentationManifest.PaintedResources!.ToDictionary(pr =>
             pr.Asset!.GetAssetId(customerId), pr => pr.CanvasPainting?.Reingest ?? false);
         List<CanvasPainting> assetsInDatabase = [];
         List<AssetId> assetsTrackedElsewhere = [];
@@ -163,10 +163,10 @@ public class DlcsManifestCoordinator(
             try
             {
                 assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
-                    cp.AssetId != null && assetIds.Any(a => a.Key == cp.AssetId && a.Value) &&
+                    cp.AssetId != null && assetIdsNotNeedingReingestion.Any(a => a.Key == cp.AssetId && a.Value) &&
                     cp.CustomerId == customerId).ToList();
             }
-            // todo: remove
+            // todo: remove 
             catch (Exception ex)
             {
                 throw ex;
@@ -176,21 +176,35 @@ public class DlcsManifestCoordinator(
                 .Select(a => a.AssetId!).ToList();
 
             // all assets are tracked
-            if (assetsInDatabase.Count == assetIds.Count && !assetsTrackedElsewhere.Any())
+            if (assetsInDatabase.Count == assetIdsNotNeedingReingestion.Count && !assetsTrackedElsewhere.Any())
             {
                 logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
                 return ([], []);
             }
         }
 
-        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a.Key && !a.Value)).ToList();
+        var assetsToCheckDlcs = assetIdsNotNeedingReingestion.Where(a => assetsInDatabase.All(b => b.AssetId != a.Key && !a.Value)).ToList();
 
         IList<JObject> dlcsAssets = [];
+        
+        //todo: add notes in for the reingest stuff
+        
+        // if "reingest" = true
+        //                * If asset is in CanvasPaintings already AND for same manifest = create batch, no "manifest" no need to PATCH
+        //     * If asset is in CanvasPaintings already for a different manifest = create batch, no "manifest" AND PATCH
+        //     * If asset is not CanvasPaintings already AND in DLCS = create batch with "manifest" no need to PATCH
+        //     * If asset is not CanvasPaintings already AND NOT in DLCS = create batch with "manifest" no need to PATCH
+        //
+        // if "reingest" = false
+        //                 * If asset is in CanvasPaintings already AND for same manifest = no-op
+        //     * If asset is in CanvasPaintings already for a different manifest = PATCH
+        //     * If asset is not CanvasPaintings already AND in DLCS = PATCH
+        //     * If asset is not CanvasPaintings already AND NOT in DLCS = create batch with "manifest"
 
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                assetsToCheckDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
+                assetsToCheckDlcs.Select(a => a.Key.ToString()).ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
