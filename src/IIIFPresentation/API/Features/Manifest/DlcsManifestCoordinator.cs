@@ -187,20 +187,6 @@ public class DlcsManifestCoordinator(
 
         IList<JObject> dlcsAssets = [];
         
-        //todo: add notes in for the reingest stuff
-        
-        // if "reingest" = true
-        //                * If asset is in CanvasPaintings already AND for same manifest = create batch, no "manifest" no need to PATCH
-        //     * If asset is in CanvasPaintings already for a different manifest = create batch, no "manifest" AND PATCH
-        //     * If asset is not CanvasPaintings already AND in DLCS = create batch with "manifest" no need to PATCH
-        //     * If asset is not CanvasPaintings already AND NOT in DLCS = create batch with "manifest" no need to PATCH
-        //
-        // if "reingest" = false
-        //                 * If asset is in CanvasPaintings already AND for same manifest = no-op
-        //     * If asset is in CanvasPaintings already for a different manifest = PATCH
-        //     * If asset is not CanvasPaintings already AND in DLCS = PATCH
-        //     * If asset is not CanvasPaintings already AND NOT in DLCS = create batch with "manifest"
-
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
