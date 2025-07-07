@@ -83,7 +83,6 @@ public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
-    IETagManager eTagManager,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IManifestRead manifestRead,
