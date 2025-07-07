@@ -185,7 +185,7 @@ this will create the following in DB:
 | manifest_id | canvas_id | canvas_original_id | asset_id     | canvas_order | choice_order |
 | ----------- | --------- | ------------------ | ------------ | ------------ | ------------ |
 | abc1        | alpha     | `null`             | 99/10/first  | 0            | `null`       |
-| abc1        | beta      | `null`             | 99/10/second | 0            | `null`       |
+| abc1        | beta      | `null`             | 99/10/second | 1            | `null`       |
 
 If I follow up by PUTting
 
@@ -298,7 +298,7 @@ The result of this operation is that the above payload is stored in S3 exactly a
 | manifest_id | canvas_id | canvas_original_id                             | asset_id     | canvas_order | choice_order |
 | ----------- | --------- | ---------------------------------------------- | ------------ | ------------ | ------------ |
 | abc1        | alpha     | https://presentation.example/99/canvases/alpha | 99/10/first  | 0            | `null`       |
-| abc1        | beta      | https://presentation.example/99/canvases/beta  | 99/10/second | 0            | `null`       |
+| abc1        | beta      | https://presentation.example/99/canvases/beta  | 99/10/second | 1            | `null`       |
 
 ### 2. Ingest assets and decorate with JSON in single transaction
 
@@ -385,6 +385,134 @@ this will create the following in DB:
 | manifest_id | canvas_id | canvas_original_id | asset_id     | canvas_order | choice_order |
 | ----------- | --------- | ------------------ | ------------ | ------------ | ------------ |
 | def2        | alpha     | `null`             | 99/10/first  | 0            | `null`       |
-| def2        | beta      | `null`             | 99/10/second | 0            | `null`       |
+| def2        | beta      | `null`             | 99/10/second | 1            | `null`       |
 
 The final Manifest will be the above but with the respective PaintingAnnotation properties populated with content-resources for ingested assets.
+
+### 3. Mix of "items" only and "paintedResources" in single transaction
+
+Use case - I have an automated process that takes images from _{source system}_ and metadata from _{metadata system}_ and I want to generate a Manifest from these in one single payload. In addition to that I want to include some pure IIIF Canvases.
+
+Single payload, contains both `"paintedResources"` and `"items"` to create 3 canvases:
+* Canvas1, `alpha`, will contain `"rendering"` and `"seeAlso"` from JSON. Painting annotations will come from Protagonist.
+* Canvas2, `beta`, will be as provided in JSON.
+* Canvas3, `gamma`, will only contain content from Protagonist.
+
+```json
+{
+    "type": "Manifest",
+    "slug": "three-example",
+    "parent": "-container-",
+    "label": { "en": ["Example Three"] },
+    "items": [
+        {
+            "id": "alpha", // Short form - will be set by API
+            "type": "Canvas",
+            "rendering": [ // "rendering" added via vanilla JSON
+                {
+                    "id": "https://customer.example/svg/first",
+                    "type": "Image",
+                    "label": {
+                        "en": [
+                            "SVG XML for page text"
+                        ]
+                    },
+                    "format": "image/svg+xml"
+                }
+            ],
+            "seeAlso": [ // "seeAlso" added via vanilla JSON
+                {
+                    "id": "https://customer.example/text/alto/alpha",
+                    "type": "Dataset",
+                    "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+                    "label": {
+                        "none": [
+                            "METS-ALTO XML"
+                        ]
+                    },
+                    "format": "application/xml+alto"
+                }
+            ]
+            // No "items" - inclusion would invalidate. NOTE this means we can't exactly replicate example-1 in single payload
+        },
+        {
+            // This entire canvas is treated as JSON only
+            "id": "beta",
+            "type": "Canvas",
+            "metadata": [
+                {
+                    "label": { "en": ["Something"] },
+                    "value": { "en": ["Another thing"] }
+                }
+            ],
+            "items": [
+                {
+                    "id": "https://customer.example/canvas/beta",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "https://customer.example/canvas/beta/annotations/1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "http://customer.example/static_images/full/120,180/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "height": 180,
+                                "width": 120,
+                                "service": [ {} ] // standard IIIF, omitted
+                            },
+                            "target": "https://customer.example/canvas/beta"
+                        },
+                        {
+                            "id": "https://customer.example/canvas/beta/annotations/2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "type": "TextualBody",
+                                "format": "text/html",
+                                "value": "<p style='font-size:1000px; background-color: rgba(16, 16, 16, 0.5); padding:300px'>Something informative.</p>",
+                                "language": "en"
+                            },
+                            "target": "https://customer.example/canvas/beta/canvas#xywh=5500,12200,8000,5000"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "paintedResources": [
+        {
+            "canvasPainting": {
+                "canvasId": "alpha",
+                "canvasOrder": 0
+            },
+            "asset": {
+                "id": "first",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/first.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "gamma",
+                "canvasOrder": 2
+            },
+            "asset": {
+                "id": "second",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/second.tiff"
+            }
+        }
+    ]
+}
+```
+
+this will create the following in DB:
+
+| manifest_id | canvas_id | canvas_original_id                   | asset_id     | canvas_order | choice_order |
+| ----------- | --------- | ------------------------------------ | ------------ | ------------ | ------------ |
+| ghi3        | alpha     | `null`                               | 99/10/first  | 0            | `null`       |
+| ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 1            | `null`       |
+| ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 2            | `null`       |
+| ghi3        | gamma     | `null`                               | 99/10/second | 3            | `null`       |
