@@ -69,7 +69,7 @@ public static class ServiceCollectionX
         services
             .AddSingleton<IBucketReader, S3BucketReader>()
             .AddSingleton<IBucketWriter, S3BucketWriter>()
-            .AddSingleton<IIIFS3Service>();
+            .AddSingleton<IIIIFS3Service, IIIFS3Service>();
 
         services
             .SetupAWS(configuration, webHostEnvironment)

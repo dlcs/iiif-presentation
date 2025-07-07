@@ -13,12 +13,12 @@ using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
-using Repository.Manifests;
 using Repository.Paths;
 using Serilog;
+using Services.Manifests;
+using Services.Manifests.AWS;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -55,6 +55,7 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
 builder.Services
     .AddDlcsApiClient(dlcs)
+    .AddDlcsOrchestratorClient(dlcs)
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
@@ -71,6 +72,8 @@ builder.Services
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();

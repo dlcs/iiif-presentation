@@ -14,6 +14,8 @@ using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.DLCS;
 using Repository;
+using Services.Manifests;
+using Services.Manifests.AWS;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -83,7 +85,10 @@ public class BatchCompletionPathRewriteTests
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new NullLogger<ManifestS3Manager>());
+
+        sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
     
@@ -109,7 +114,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
@@ -153,7 +158,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
@@ -197,7 +202,7 @@ public class BatchCompletionPathRewriteTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;

@@ -1,6 +1,6 @@
-﻿using static Core.Web.TypedPathTemplateOptions;
+﻿using Core.Web;
 
-namespace Repository.Paths;
+namespace Core.Paths;
 
 /// <summary>
 /// A collection of methods to make dealing with presentation paths, and path replacements, easier

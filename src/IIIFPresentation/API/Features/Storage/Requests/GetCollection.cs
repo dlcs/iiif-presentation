@@ -34,7 +34,7 @@ public class GetCollection(
     };
 }
 
-public class GetCollectionHandler(PresentationContext dbContext, IIIFS3Service iiifS3, IPathGenerator pathGenerator) 
+public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator) 
     : IRequestHandler<GetCollection, FetchEntityResult<PresentationCollection>>
 {
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,

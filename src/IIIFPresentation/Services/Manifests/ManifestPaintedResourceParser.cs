@@ -1,11 +1,12 @@
 ﻿using Core.Helpers;
+using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using CanvasPainting = Models.Database.CanvasPainting;
 
-namespace Repository.Manifests;
+namespace Services.Manifests;
 
 /// <summary>
 /// Contains logic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
@@ -55,7 +56,7 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) 
             CanvasOrder = canvasOrder,
             AssetId = assetId,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
-            Ingesting = true, // TODO - this needs to conditionally be set once #351 implemented
+            Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,

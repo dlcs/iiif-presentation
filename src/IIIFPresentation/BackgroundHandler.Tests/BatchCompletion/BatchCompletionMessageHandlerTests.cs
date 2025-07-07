@@ -9,10 +9,8 @@ using BackgroundHandler.Tests.infrastructure;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
-using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,7 +18,8 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
-using Repository.Paths;
+using Services.Manifests;
+using Services.Manifests.AWS;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -62,8 +61,10 @@ public class BatchCompletionMessageHandlerTests
         var pathGenerator = new TestPathGenerator(presentationGenerator);
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new NullLogger<ManifestS3Manager>());
 
-        sut = new BatchCompletionMessageHandler(sutContext, dlcsClient, iiifS3, pathGenerator, manifestMerger,
+        sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -86,7 +87,7 @@ public class BatchCompletionMessageHandlerTests
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() =>
-                dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+                dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     
@@ -109,7 +110,7 @@ public class BatchCompletionMessageHandlerTests
 
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         var batch = await dbContext.Batches.Include(b => b.Manifest).SingleAsync(b => b.Id == batchId);
         batch.Status.Should().Be(BatchStatus.Completed);
@@ -140,7 +141,7 @@ public class BatchCompletionMessageHandlerTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
         ResourceBase? resourceBase = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
@@ -188,7 +189,7 @@ public class BatchCompletionMessageHandlerTests
 
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
 
         // Act
@@ -220,7 +221,7 @@ public class BatchCompletionMessageHandlerTests
         var finished = DateTime.UtcNow.AddHours(-1);
         var message = QueueHelper.CreateOldQueueMessage(batchId, CustomerId, finished);
 
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
 
         // Act
@@ -228,7 +229,7 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<List<int>>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappened();
 
         var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
@@ -243,9 +244,4 @@ public class BatchCompletionMessageHandlerTests
         canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
         canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
-}
-
-public class TestPathGenerator(IPresentationPathGenerator presentationPathGenerator) : PathGeneratorBase(presentationPathGenerator)
-{
-    protected override Uri DlcsApiUrl => new("https://dlcs.test");
 }

@@ -56,3 +56,31 @@ VALUES (gen_random_uuid(), 1, 'batch-query', true, 'batch=p1')
 ```
 
 **NOTE:** the presentation API assumes the name of this named query is `batch-query` by default, so if this is changed the presentation will need an updated setting to track.
+
+
+### Architecture
+
+The IIIF Presentation solution is made up of a series of C# projects, scripts and databases this section is a quick discussion of the code make-up and architecture for future reference
+
+#### C# Projects
+
+| name | description |
+|---|---|
+| Utils/Migrator | Used to update the database when there is a pending migration that needs to be applied.  The API can also do this when configured |
+| API | Contains the Web API application that users interact with |
+| AWS | Module that contains calls and helper functions that interact with AWS |
+| BackgroundHandler | Contains anything that needs to occur after actions from third-party services have completed, such as interactions with Protagonist |
+| Core | Low-level module that provides helper functions to all projects  |
+| DLCS | Contains calling code for the DLCS to allow images to be ingested and retrieved |
+| Models | POCO's used throughout the solution |
+| Repository | Used primarily to provide access to the database context, as well as various helper functions and some data access classes |
+| Services | Contains functions that are shared by running applications only, such as the API and BackgroundHandler |
+
+The general hierarchy of dependencies from lowest to highest are as follows:
+
+|Hierarchy|
+|---|
+| Core, Models |
+| AWS, Repository, DLCS |
+| Services |
+| API, BackgroundHandler |

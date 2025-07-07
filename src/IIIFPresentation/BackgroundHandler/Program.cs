@@ -6,6 +6,8 @@ using Core.Web;
 using DLCS;
 using Repository.Paths;
 using Serilog;
+using Services.Manifests;
+using Services.Manifests.AWS;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();

@@ -32,6 +32,17 @@ public interface IDlcsApiClient
 
     Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default);
+    
+    
+    /// <summary>
+    /// Updates an asset with a new manifest
+    /// </summary>
+    /// <param name="customerId">the customer id</param>
+    /// <param name="assets">assets to update</param>
+    /// <param name="operationType">whether to add, remove or replace</param>
+    /// <param name="manifests">manifests to update</param>
+    public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType, 
+        List<string> manifests, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -70,12 +81,12 @@ internal class DlcsApiClient(
             assets.Count);
         var queuePath = $"/customers/{customerId}/queue";
         
-        var chunkedImageList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
-        var tasks = chunkedImageList.Select(async chunkedImages =>
+        var tasks = chunkedAssetList.Select(async chunkedAssets =>
         {
-            var hydraImages = new HydraCollection<T>(chunkedImages);
+            var hydraImages = new HydraCollection<T>(chunkedAssets);
 
             var batch = await CallDlcsApiFor<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)
@@ -132,6 +143,55 @@ internal class DlcsApiClient(
         }
 
         return results;
+    }
+    
+    public async Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType, List<string> manifests,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
+            customerId, operationType.ToString());
+        
+        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
+        var assetsResponse = new ConcurrentBag<Asset>();
+        var endpoint = $"/customers/{customerId}/allImages";
+
+        var tasks = chunkedAssetList.Select(async chunkedAssets =>
+        {
+            var allImages = new BulkPatchAssets
+            {
+                Field = "manifests",
+                Members = chunkedAssets.Select(a => new IdentifierOnly(a)).ToList(),
+                Operation = operationType,
+                Value = manifests
+            };
+
+            var response = await CallDlcsApiFor<HydraCollection<Asset>>(HttpMethod.Patch, endpoint, allImages, cancellationToken);
+            if (response == null)
+            {
+                logger.LogError("Could not understand the patch all assets response for customer {CustomerId}", customerId);
+                throw new DlcsException("Failed to create batch", HttpStatusCode.InternalServerError);
+            }
+            
+            foreach (var responseMember in response.Members)
+            {
+                assetsResponse.Add(responseMember);
+            }
+        });
+        
+        await Task.WhenAll(tasks);
+        
+        // this is extremely unlikely to happen, as the DLCS should have already been checked at this point
+        if (assetsResponse.Count != assets.Count)
+        {
+            var missingAssets = assets.Where(a => assetsResponse.All(ar => a != $"{customerId}/{ar.Space}/{ar.Id}")).ToList();
+
+            logger.LogError(
+                "Received less assets than expected when patching customer images for {CustomerId}, assets missing - {MissingAssets}",
+                customerId, missingAssets);
+            throw new DlcsException($"Could not find assets [{string.Join(',', missingAssets)}] in DLCS", HttpStatusCode.InternalServerError);
+        }
+        
+        return assetsResponse.ToArray();
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,

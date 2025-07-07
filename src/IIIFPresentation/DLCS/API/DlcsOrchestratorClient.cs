@@ -6,9 +6,9 @@ namespace DLCS.API;
 public interface IDlcsOrchestratorClient
 {
     /// <summary>
-    /// Retrieves a DLCS generated manifest containing assets in given batch ids
+    /// Retrieves a DLCS generated manifest containing assets in a given manifest
     /// </summary>
-    public Task<Manifest?> RetrieveAssetsForManifest(int customerId, List<int> batches,
+    public Task<Manifest?> RetrieveAssetsForManifest(int customerId, string manifestId,
         CancellationToken cancellationToken = default);
 }
 
@@ -18,16 +18,14 @@ public class DlcsOrchestratorClient(
 {
     private readonly DlcsSettings settings = dlcsOptions.Value;
 
-    public async Task<Manifest?> RetrieveAssetsForManifest(int customerId, List<int> batches,
+    public async Task<Manifest?> RetrieveAssetsForManifest(int customerId, string manifestId,
         CancellationToken cancellationToken = default)
     {
-        var batchString = string.Join(',', batches);
-
         var hostname = settings.GetOrchestratorUri(customerId);
 
         var uriBuilder = new UriBuilder(hostname)
         {
-            Path = $"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{batchString}",
+            Path = $"/iiif-resource/v3/{customerId}/{settings.ManifestNamedQueryName}/{manifestId}",
             Query = $"cacheBust={DateTime.UtcNow.Ticks}"
         };
         

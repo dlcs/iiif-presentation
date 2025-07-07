@@ -35,7 +35,7 @@ public interface IManifestRead
 
 public class ManifestReadService(
     PresentationContext dbContext,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IDlcsApiClient dlcsApiClient,
     IPathGenerator pathGenerator,
     ILogger<ManifestReadService> logger) : IManifestRead
