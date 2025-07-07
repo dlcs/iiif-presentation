@@ -44,11 +44,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-
+        
         // Always return Space 999 when call to create space
         A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
-
+        
         // Echo back "batch" value set in first Asset
         A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
