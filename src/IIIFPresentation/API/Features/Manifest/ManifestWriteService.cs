@@ -174,7 +174,7 @@ public class ManifestWriteService(
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
+                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
 
             await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
@@ -234,7 +234,7 @@ public class ManifestWriteService(
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
+                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
             var hasAssets = PaintedResourcesHasAssets(request);
@@ -251,7 +251,8 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, DlcsInteractionResult dlcsInteractionResult,
+        CancellationToken cancellationToken)
     {
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
@@ -279,7 +280,7 @@ public class ManifestWriteService(
             ],
             CanvasPaintings = canvasPaintings,
             SpaceId = spaceId,
-            LastProcessed = RequiresFurtherProcessing(request.PresentationManifest) ? null : timeStamp,
+            LastProcessed = RequiresFurtherProcessing(dlcsInteractionResult) ? null : timeStamp,
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);
@@ -289,14 +290,16 @@ public class ManifestWriteService(
     }
 
     /// <summary>
-    /// Check if manifest will require further processing. This is used to set .LastProcessed for a manifest. If further
-    /// processing is required this later processing will trigger update to field.
+    /// Manifest doesn't require further processing in two scenarios:
+    /// 1. Determined that there's no DLCS interaction required at all (no new space and no assets)
+    /// 2. Determined that there are no unchecked assets (after checking with DLCS)
     /// </summary>
-    private static bool RequiresFurtherProcessing(PresentationManifest presentationManifest) =>
-        presentationManifest.PaintedResources?.Any(pr => pr.Asset != null) ?? false;
+    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) => 
+        dlcsInteractionResult != DlcsInteractionResult.NoInteraction && !dlcsInteractionResult.CanBeBuiltUpfront;
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,
+        CancellationToken cancellationToken)
     {
         var presentationManifest = request.PresentationManifest;
         var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
@@ -306,7 +309,7 @@ public class ManifestWriteService(
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
         existingManifest.Label = presentationManifest.Label;
-        existingManifest.LastProcessed = RequiresFurtherProcessing(presentationManifest) ? null : DateTime.UtcNow;
+        existingManifest.LastProcessed = RequiresFurtherProcessing(dlcsInteractionResult) ? null : DateTime.UtcNow;
         
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = parsedParentSlug.Slug;
