@@ -22,7 +22,7 @@ public class ETagCache(IMemoryCache memoryCache, IOptionsMonitor<CacheSettings> 
     private static string EtagByPathKey(string path) => $"__etag_ebp:{path}";
     private static string PathByEtagKey(Guid etag) => $"__etag_pbe:{etag:N}";
 
-    public bool IfNoneMatchForPath(string path, IImmutableSet<Guid> ifNoneMatch, out Guid? etag)
+    public bool IfNoneMatchForPath(string path, IImmutableSet<Guid> ifNoneMatch, [NotNullWhen(returnValue: true)] out Guid? etag)
     {
         etag = null;
         if (!memoryCache.TryGetValue(EtagByPathKey(path), out var cachedEtag)
