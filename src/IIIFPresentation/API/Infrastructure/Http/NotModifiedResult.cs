@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Core.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 
@@ -17,9 +18,7 @@ public class NotModifiedResult(Guid etag) : ActionResult
 
     public override void ExecuteResult(ActionContext context)
     {
-        ArgumentNullException.ThrowIfNull(context);
-
-        var response = context.HttpContext.Response;
+        var response = context.ThrowIfNull(nameof(context)).HttpContext.Response;
         var responseHeaders = response.GetTypedHeaders();
 
         responseHeaders.ETag ??= new EntityTagHeaderValue($"\"{etag:N}\"");

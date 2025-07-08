@@ -91,6 +91,7 @@ public class ManifestController(
                 new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
                     Request.HasCreateSpaceHeader()),
             validator,
+            invalidatesEtag:Request.Headers.IfMatch,
             cancellationToken: cancellationToken);
 
     [Authorize]
