@@ -3,7 +3,6 @@ using System.Text.Json;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
 using Core.Helpers;
-using DLCS.API;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
@@ -62,8 +61,6 @@ public class BatchCompletionMessageHandler(
             logger.LogInformation(
                 "Attempting to complete assets in batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}",
                 batch.Id, batch.CustomerId, batch.ManifestId);
-
-            var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
 
             try
             {
