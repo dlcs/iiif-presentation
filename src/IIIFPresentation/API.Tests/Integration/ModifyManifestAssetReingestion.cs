@@ -107,6 +107,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var canvasPaintings = await dbContext.CanvasPaintings.Where(cp => cp.ManifestId == id).ToListAsync();
         canvasPaintings.Should().HaveCount(1);
+        canvasPaintings.First().Ingesting.Should().BeTrue();
         
         A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
@@ -168,6 +169,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var canvasPaintings = await dbContext.CanvasPaintings.Where(cp => cp.ManifestId == id).ToListAsync();
         canvasPaintings.Should().HaveCount(1);
+        canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
         A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
@@ -233,6 +235,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var canvasPaintings = await dbContext.CanvasPaintings.Where(cp => cp.ManifestId == id).ToListAsync();
         canvasPaintings.Should().HaveCount(1);
+        canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
         A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
@@ -296,6 +299,10 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        
+        var canvasPaintings = await dbContext.CanvasPaintings.Where(cp => cp.ManifestId == id).ToListAsync();
+        canvasPaintings.Should().HaveCount(1);
+        canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
         A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
