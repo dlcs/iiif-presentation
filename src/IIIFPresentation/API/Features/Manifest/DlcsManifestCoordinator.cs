@@ -182,7 +182,7 @@ public class DlcsManifestCoordinator(
         var (assetsInDatabase, trackedAssetsToReingest) = RetrieveTrackedAssets(customerId, assetIdsWithReingestion);
 
         var assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest?.Id)
-            .Select(a => a.AssetId!).ToList();
+            .Select(a => a.AssetId!).Distinct().ToList();
 
         // all assets are tracked and not to be reingested
         if (assetsInDatabase.Count == assetIdsWithReingestion.Count && !assetsTrackedElsewhere.Any() && !trackedAssetsToReingest.Any())

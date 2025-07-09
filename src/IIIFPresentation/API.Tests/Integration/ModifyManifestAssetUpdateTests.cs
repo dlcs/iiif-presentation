@@ -2192,7 +2192,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_DoesNotRequireFurtherProcessing_WhenAllAssetsTrackedFromAnotherManifest()
+    public async Task UpdateManifest_DoesNotRequireFurtherProcessing_WhenAllAssetsTrackedFromOtherManifests()
     {
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
@@ -2222,6 +2222,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.Manifests.AddTestManifest(id: $"{id}_2", slug: $"{slug}_2", canvasPaintings: secondCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true);
+        await dbContext.Manifests.AddTestManifest(id: $"{id}_3", slug: $"{slug}_3", canvasPaintings: secondCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
 
