@@ -36,6 +36,6 @@ public class JObjectXTests
         var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
 
         Action action = () => jobject.GetRequiredValue<int>("name");
-        action.Should().ThrowExactly<FormatException>().WithMessage("The input string 'stuff' was not in a correct format.");
+        action.Should().ThrowExactly<FormatException>().WithMessage("The input string 'John Doe' was not in a correct format.");
     }
 }
