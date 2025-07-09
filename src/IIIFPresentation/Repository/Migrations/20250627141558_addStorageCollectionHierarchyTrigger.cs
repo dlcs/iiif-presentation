@@ -23,7 +23,7 @@ namespace Repository.Migrations
                             oldHierarchy := OLD;
                             newHierarchy := NEW;
                 
-                            IF newHierarchy.parent IS NOT NULL AND oldHierarchy.parent <> newHierarchy.parent THEN
+                            IF newHierarchy.parent IS NOT NULL AND (oldHierarchy.parent <> newHierarchy.parent OR oldHierarchy.slug <> newHierarchy.slug) THEN
                                 affected_ids := ARRAY[
                                     oldHierarchy.parent,
                                     newHierarchy.parent
