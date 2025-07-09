@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Amazon.S3;
-using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Infrastructure;
@@ -634,7 +633,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_WithAsset_WritesToS3_Staging()
     {
         // Arrange
-        var slug = nameof(CreateManifest_WithAsset_WritesToS3_Staging);
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -643,7 +642,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             [
                 new()
                 {
-                    Asset = new(new JProperty("id", "fnord"))
+                    Asset = new(new JProperty("id", assetId))
                 }
             ]
         };
@@ -1398,7 +1397,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_WithAsset_WritesToS3()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_WithAsset_WritesToS3)}";
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var id = nameof(PutFlatId_Insert_WithAsset_WritesToS3);
         var manifest = new PresentationManifest
         {
@@ -1408,7 +1407,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             [
                 new()
                 {
-                    Asset = new(new JProperty("id", "fnord"))
+                    Asset = new(new JProperty("id", assetId))
                 }
             ]
         };
@@ -1468,7 +1467,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledIn()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledIn);
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1486,7 +1485,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                     },
                     Asset = new JObject
                     {
-                        ["id"] = "1b",
+                        ["id"] = assetId,
                         ["mediaType"] = "image/jpeg"
                     },
                 }
@@ -1513,7 +1512,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform);
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1531,7 +1530,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                     },
                     Asset = new JObject
                     {
-                        ["id"] = "1b",
+                        ["id"] = assetId,
                         ["mediaType"] = "image/jpeg"
                     },
                 }

@@ -571,7 +571,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssets()
      {
          // Arrange
-         var slug = TestIdentifiers.Id();
+         var (slug, assetId) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
 
          var manifestWithoutSpace = $$"""
@@ -582,21 +582,21 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "paintedResources": [
                                               {
                                                   "asset": {
-                                                      "id": "testAssetByPresentation-multipleAssets-0",
+                                                      "id": "{{assetId}}-0",
                                                       "batch": "{{batchId}}",
                                                       "mediaType": "image/jpg"
                                                   }
                                               },
                                               {
                                                   "asset": {
-                                                      "id": "testAssetByPresentation-multipleAssets-1",
+                                                      "id": "{{assetId}}-1",
                                                       "mediaType": "image/jpg",
                                                       "origin": "some/origin"
                                                   }
                                               },
                                               {
                                                  "asset": {
-                                                      "id": "testAssetByPresentation-multipleAssets-2",
+                                                      "id": "{{assetId}}-2",
                                                       "mediaType": "image/jpg",
                                                       "origin": "some/origin"
                                                   }
@@ -633,7 +633,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          {
              canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
              canvasPainting.AssetId.ToString().Should()
-                 .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-{currentCanvasOrder}");
+                 .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-{currentCanvasOrder}");
              currentCanvasOrder++;
          }
      }
@@ -746,7 +746,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlySetsChoiceOrder_WhenCanvasPaintingSetsChoice()
      {
          // Arrange
-         var slug = TestIdentifiers.Id();
+         var (slug, assetId) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
          
          var manifestWithoutSpace = $$"""
@@ -761,7 +761,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                         "choiceOrder": 1
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-0",
+                                          "id": "{{assetId}}-0",
                                           "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
@@ -773,7 +773,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "choiceOrder": 2
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "id": "{{assetId}}-1",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -783,7 +783,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "canvasOrder": 0
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-2",
+                                          "id": "{{assetId}}-2",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -816,11 +816,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          
          dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
          dbManifest.CanvasPaintings[0].ChoiceOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
          dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(2);
 
          dbManifest.CanvasPaintings[0].Id.Should().Be(dbManifest.CanvasPaintings[1].Id,
@@ -828,7 +828,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          
          dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
      }
 
      [Fact]

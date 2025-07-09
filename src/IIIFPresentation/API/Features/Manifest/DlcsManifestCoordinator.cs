@@ -83,20 +83,36 @@ public class DlcsManifestCoordinator(
             
         }
 
+        return await UpdateDlcsWithAssets(request, manifestId, dbManifest, assets, spaceId, cancellationToken);
+    }
+
+    private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
+        Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, int? spaceId,
+        CancellationToken cancellationToken)
+    {
         var checkedAssets =
             await FindAssetsThatRequireAdditionalWork(assets, request.PresentationManifest, dbManifest, request.CustomerId,
                 cancellationToken);
+
+        var reingestAssetsInAnotherManifestBatchErrors = await CreateBatches(request.CustomerId, manifestId,
+            checkedAssets.ReingestedAssetsInAnotherManifest, false, cancellationToken);
+
+        if (reingestAssetsInAnotherManifestBatchErrors?.Error != null)
+        {
+            return new DlcsInteractionResult(reingestAssetsInAnotherManifestBatchErrors, spaceId);
+        }
         
-        await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.dlcsAssetIds, cancellationToken);
+        await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.DlcsAssetIds, cancellationToken);
 
         await RemoveUnusedAssets(dbManifest, assets, cancellationToken);
         
-        SetUntrackedAssetsToIngesting(request, checkedAssets.untrackedAssets);
+        SetUntrackedAssetsToIngesting(request, checkedAssets.UntrackedAssets);
 
-        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.untrackedAssets,
+        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.UntrackedAssets, true,
             cancellationToken);
-        
-        var canBeBuiltUpfront = checkedAssets.untrackedAssets.Count == 0 && assets.Count > 0;
+
+        var canBeBuiltUpfront = checkedAssets.UntrackedAssets.Count == 0 && assets.Count > 0 &&
+                                checkedAssets.ReingestedAssetsInAnotherManifest.Count == 0;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront);
     }
 
@@ -149,48 +165,53 @@ public class DlcsManifestCoordinator(
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
     
-    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(
+    private async Task<AssetsWithAdditionalWork> FindAssetsThatRequireAdditionalWork(
         List<JObject> assets, PresentationManifest presentationManifest, Models.Database.Collections.Manifest? dbManifest, 
         int customerId, CancellationToken cancellationToken = default)
     {
-        var assetIdsNotNeedingReingestion = presentationManifest.PaintedResources!.ToDictionary(pr =>
-            pr.Asset!.GetAssetId(customerId), pr => pr.CanvasPainting?.Reingest ?? false);
+        var assetIdsWithReingestion = presentationManifest.PaintedResources?.Select(pr =>
+                new AssetIdsWithReingestion(pr.Asset!.GetAssetId(customerId), pr.CanvasPainting?.Reingest ?? false))
+            .ToList() ?? [];
+        
         List<CanvasPainting> assetsInDatabase = [];
-        List<AssetId> assetsTrackedElsewhere = [];
+        List<CanvasPainting> trackedAssetsToReingest = [];
 
-        if (dbManifest != null)
+        foreach (var canvasPainting in dbContext.CanvasPaintings.Where(cp => cp.CustomerId == customerId))
         {
-            try
-            {
-                assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
-                    cp.AssetId != null && assetIdsNotNeedingReingestion.Any(a => a.Key == cp.AssetId && a.Value) &&
-                    cp.CustomerId == customerId).ToList();
-            }
-            // todo: remove 
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            if (canvasPainting.AssetId == null) continue;
+            
+            var trackedAssetId = assetIdsWithReingestion.FirstOrDefault(a => a.AssetId == canvasPainting.AssetId);
 
-            assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest.Id)
-                .Select(a => a.AssetId!).ToList();
-
-            // all assets are tracked
-            if (assetsInDatabase.Count == assetIdsNotNeedingReingestion.Count && !assetsTrackedElsewhere.Any())
+            if (trackedAssetId == null) continue;
+            if (trackedAssetId.Reingest)
             {
-                logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
-                return ([], []);
+                trackedAssetsToReingest.Add(canvasPainting);
             }
+            
+            assetsInDatabase.Add(canvasPainting);
+        }
+        
+        var assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest?.Id)
+            .Select(a => a.AssetId!).ToList();
+
+        // all assets are tracked and not to be reingested
+        if (assetsInDatabase.Count == assetIdsWithReingestion.Count && !assetsTrackedElsewhere.Any() && !trackedAssetsToReingest.Any())
+        {
+            logger.LogTrace("All assets not requiring reingestion and tracked in database for {ManifestId}",
+                dbManifest?.Id ?? "new manifest");
+            return new AssetsWithAdditionalWork([], [], []);
         }
 
-        var assetsToCheckDlcs = assetIdsNotNeedingReingestion.Where(a => assetsInDatabase.All(b => b.AssetId != a.Key && !a.Value)).ToList();
+        // no need to check the DLCS for assets that need to be reingested as we're going to reingest anyway
+        var assetsToCheckDlcs = assetIdsWithReingestion
+            .Where(a => assetsInDatabase.All(b => b.AssetId != a.AssetId)  && !a.Reingest).ToList();
 
         IList<JObject> dlcsAssets = [];
         
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                assetsToCheckDlcs.Select(a => a.Key.ToString()).ToList(), cancellationToken);
+                assetsToCheckDlcs.Select(a => a.AssetId.ToString()).ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -199,28 +220,55 @@ public class DlcsManifestCoordinator(
         
         assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
 
-        if (assetsTrackedElsewhere.Count == assets.Count)
+        if (assetsTrackedElsewhere.Count == assets.Count && !trackedAssetsToReingest.Any())
         {
             logger.LogTrace("All assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
-            return ([], assetsTrackedElsewhere);
+            return new AssetsWithAdditionalWork([], assetsTrackedElsewhere, []);
         }
-        
-        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, assetsTrackedElsewhere);
-        
-        return (untrackedAssets, assetsTrackedElsewhere);
+
+        var assetsRequiringIngestion = GetAssetRequiringIngestion(assets, assetsInDatabase, assetsTrackedElsewhere,
+            trackedAssetsToReingest, dbManifest);
+
+        return new AssetsWithAdditionalWork(assetsRequiringIngestion.UntrackedAssets, assetsTrackedElsewhere,
+            assetsRequiringIngestion.ReingestedassetsInAnotherManifest);
     }
 
 
-    private static List<JObject> GetUntrackedAssets(List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, 
-        List<AssetId> dlcsAssetIds)
+    private static (List<JObject> UntrackedAssets, List<JObject> ReingestedassetsInAnotherManifest) GetAssetRequiringIngestion(
+        List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssetIds, 
+        List<CanvasPainting> assetsToReingest,  Models.Database.Collections.Manifest? dbManifest)
     {
         var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
 
         var untrackedAssets = payloadAssets.Where(a =>
             !knownAssets.Any(b =>
-                b.Asset == a.GetRequiredValue(AssetProperties.Id).ToString() &&
-                b.Space == a.GetRequiredValue(AssetProperties.Space).Value<int>())).ToList();
-        return untrackedAssets;
+                b.Asset == a.GetRequiredValue<string>(AssetProperties.Id) &&
+                b.Space == a.GetRequiredValue<int>(AssetProperties.Space)) &&
+            assetsToReingest.All(c => c.AssetId != a.GetAssetId(c.CustomerId))).ToList();
+
+        var assetsRequiringReingestionInAnotherManifest = new List<JObject>();
+
+        foreach (var assetToReingest in assetsToReingest)
+        {
+            var assets = payloadAssets.Where(pa =>
+                pa.GetRequiredValue<string>(AssetProperties.Id) == assetToReingest.AssetId!.Asset &&
+                pa.GetRequiredValue<int>(AssetProperties.Space) == assetToReingest.AssetId.Space).ToList();
+
+            if (assets.Any())
+            {
+                // if it's tracked in the same manifest, treat it like an untracked asset
+                if (assetToReingest.ManifestId != dbManifest?.Id)
+                {
+                    assetsRequiringReingestionInAnotherManifest.AddRange(assets);
+                }
+                else
+                {
+                    untrackedAssets.AddRange(assets);
+                }
+            }
+        }
+
+        return (untrackedAssets, assetsRequiringReingestionInAnotherManifest);
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
@@ -238,12 +286,23 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, List<JObject> assets, CancellationToken cancellationToken)
+    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, List<JObject> assets, 
+        bool addManifestId, CancellationToken cancellationToken)
     {
         if (assets.Count == 0) return null;
-        
-        foreach (var asset in assets)
-            asset.Add(AssetProperties.Manifests, new JArray(new List<string> { manifestId }));
+
+        if (addManifestId)
+        {
+            foreach (var asset in assets)
+                asset[AssetProperties.Manifests] = new JArray(new List<string> { manifestId });
+        }
+        else
+        {
+            foreach (var asset in assets.Where(asset => asset.ContainsKey(AssetProperties.Manifests)))
+            {
+                asset[AssetProperties.Manifests] = null;
+            }
+        }
 
         try
         {
@@ -272,5 +331,22 @@ public class DlcsManifestCoordinator(
             HttpStatusCode.Conflict => WriteResult.Conflict,
             _ => WriteResult.Error
         };
+    }
+
+    private class AssetsWithAdditionalWork (List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds, 
+        List<JObject> reingestedAssetsInAnotherManifest)
+    {
+        public List<JObject> UntrackedAssets { get; set; } = untrackedAssets;
+        
+        public List<AssetId> DlcsAssetIds { get; set; } = dlcsAssetIds;
+        
+        public List<JObject> ReingestedAssetsInAnotherManifest { get; set; }  = reingestedAssetsInAnotherManifest;
+    }
+    
+    private class AssetIdsWithReingestion(AssetId assetId, bool reingest)
+    {
+        public AssetId AssetId { get; set; } = assetId;
+        
+        public bool Reingest { get; set; } = reingest;
     }
 }
