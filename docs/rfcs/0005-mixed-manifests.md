@@ -20,7 +20,16 @@ This RFC outlines the approach to how we will support mixing create and update m
 ### Overview
 
 * Manifests can be written with `"items"` alone, `"paintedResources"` alone or a combination of both.
-* For PUT and POST operations all submitted payloads are only examined on their own, we do not combine with any data we've seen before (e.g. data stored in S3).
+* Behaviour for handling `"paintedResources"` without `"items"` remains unchanged.
+* Behaviour for handling `"items"` without `"paintedResources"` slightly changes as we will now identify managed Assets (initially only via canonical path).
+* For PUT and POST operations all submitted payloads are only examined on their own, we do not combine with any data we've seen before (e.g. data stored in S3). Each payload contains the intent for the final Manifest.
+
+> [!WARNING]
+> Highlighting that the last point, above, could lead to destructive operations. 
+>
+> If a user has carefully curated properties on Canvases and submit only `"paintedResources"` then all of the Canvas-level properties will be lost. To mitigate this they would need to submit both `"items"` and `"paintedResources"` together.
+>
+> Purely additive payloads are not yet supported - these will come in the future as PATCH operations or a specific `/paintedResources` endpoint.
 
 ## Rules
 
@@ -28,7 +37,7 @@ Below sections examine how we will handle different payload shapes
 
 ### `"paintedResources"` only
 
-> [!NOTE]
+> [!TIP]
 > `"paintedResources"` only means `"paintedResources"` are in payload but there are no Canvases (`"items"` property) included - there can be other arbitrary IIIF content on manifest.
 
 The behaviour will be as-is:
@@ -42,7 +51,7 @@ The behaviour will be as-is:
 
 ### `"items"` only
 
-> [!NOTE]
+> [!TIP]
 > `"items"` only means there are Canvases but no `"paintedResources"` in payload.
 
 The behaviour will be:
@@ -52,7 +61,7 @@ The behaviour will be:
 * Resulting `"items"` in the final manifest are identical to initial payload (IIIF-Presentation won't change anything - even if the referenced content is a managed asset).
 * Manifests will always be returned immediately, it's not possible to ingest an asset via `"items"`.
 
-> [!IMPORTANT]
+> [!CAUTION]
 > If the Manifest has previously been created via `"paintedResources"` the link to those assets must be maintained.
 
 ### Both `"paintedResources"` and `"items"`
@@ -74,6 +83,7 @@ The suggested approach to processing these would be to:
 * Compare this with the provided `"paintedResources"` to get a unified list of `CanvasPainting` (or `CanvasPainting`-like) objects.
 * With this unified list we can validate that there are no conflicting instructions.
 * The `canvasOrder` set on `CanvasPainting` objects from `"items"` is the order that they are provided. `canvasOrder` set on those from `paintedResources` is defaulted to the order that they are provided but can be controlled via explicit property.
+  * With the caveat that `canvasOrder` stays constant if `choiceOrder` is increasing, so default values from the sequence of `paintedResources` need to take that into account.
 
 Validation rules for when a payload contains a Canvas that will be created from both `"items"` and `"paintedResources"`:
 * The `"items"` Canvas _cannot_ contain any AnnotationPages. If it does we reject as merging will be difficult. 
@@ -97,7 +107,7 @@ To avoid exhaustively interrogating the body of every paintingAnnotation we shou
 > [!CAUTION]
 > Some customers may have custom rewrite rules in place for Assets. The initial MVP implementation of mixed-manifests will only identify Assets that use the canonical path for the asset type. Identifying rewritten paths and attributing those paths to specific customers and spaces will come in a future development.
 
-The process to identify whether a content resource is a managed assets is to look at the paintingAnnotation `"body"` property. Details are below on how this identification could be done for the different types of assets.
+The process to identify whether a content resource is a managed asset is to look at the paintingAnnotation `"body"` property. Details are below on how this identification could be done for the different types of assets.
 
 ##### Images
 
@@ -110,15 +120,15 @@ Attempt to identify the Asset from any referenced ImageService on a `body` with 
   * `https://dlcs.host/iiif-img/v2/99/10/tk_421` - explicit V2
   * `https://dlcs.host/iiif-img/99/10/tk_421` - canonical version
 
-> [!NOTE]  
-> For review - do we want to fallback to `body.id`? I'm unsure.
-> 
-> Initial suggestion was to check this if the above fails. Altered this to only check if there is no ImageService - if there is an ImageService and it's _not_ for a Protagonist Asset then it doesn't feel like we should track that usage.
-
-If there are no ImageServices, attempt to identify an Asset from `body.id`, which is a static image, not a IIIF ImageService.
+We can also attempt to identify an Asset from `body.id` alone, which is a static image, not a IIIF ImageService.
 * `$.items[*].items[*].items[*].body.id`
 * Example:
   * `https://dlcs.host/iiif-img/99/10/tk_421/full/1350,900/0/default.jpg`
+
+If the `body.id` is identified as one managed asset but its service is a different managed asset, then that's a 400|BadRequest. 
+
+> [!NOTE]
+> There may be legitimate reasons for wanting to have body and services that do not match, we won't implement until someone requires this.
 
 ##### Audio / Video
 
@@ -186,6 +196,9 @@ this will create the following in DB:
 | ----------- | --------- | ------------------ | ------------ | ------------ | ------------ |
 | abc1        | alpha     | `null`             | 99/10/first  | 0            | `null`       |
 | abc1        | beta      | `null`             | 99/10/second | 1            | `null`       |
+
+> [!NOTE]
+> Choice order `null` or `0` both mean _"this is not a choice"_ at the API level - *must* be 1-based. Otherwise people will introduce bugs from default values for int in whatever languages they are using.
 
 If I follow up by PUTting
 
