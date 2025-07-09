@@ -150,7 +150,9 @@ Attempt to identify the Asset from the `body.id` only.
 The canonical paths: `/file/{customer}/{space}/{asset}`
 
 > [!CAUTION]
-> For review - Do we want to attempt to identify these? I suggest caution as there are a number of different ways that `/file/` paths could be referenced in a manifest.
+> As there are a number of different ways that `/file/` paths could be referenced in a Manifest (`"seeAlso"`, `"rendering"`, `"accompanyingCanvas"` etc) we will not attempt to identify these.
+>
+> Referenced `/file/` types will be handled by adjuncts.
 
 ## Examples
 
