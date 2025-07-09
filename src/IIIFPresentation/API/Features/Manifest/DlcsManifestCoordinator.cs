@@ -200,7 +200,7 @@ public class DlcsManifestCoordinator(
             return allAssetsTracked;
         }
 
-        var assetsRequiringIngestion = GetAssetRequiringIngestion(assets, assetsInDatabase, assetsTrackedElsewhere,
+        var assetsRequiringIngestion = GetAssetsRequiringAdditionalWork(assets, assetsInDatabase, assetsTrackedElsewhere,
             trackedAssetsToReingest, dbManifest);
 
         return new AssetsWithAdditionalWork(assetsRequiringIngestion.UntrackedAssets, assetsTrackedElsewhere,
@@ -263,13 +263,13 @@ public class DlcsManifestCoordinator(
     }
 
 
-    private static (List<JObject> UntrackedAssets, List<JObject> ReingestedassetsInAnotherManifest) GetAssetRequiringIngestion(
+    private static (List<JObject> UntrackedAssets, List<JObject> ReingestedassetsInAnotherManifest) GetAssetsRequiringAdditionalWork(
         List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssetIds, 
         List<CanvasPainting> assetsToReingest,  Models.Database.Collections.Manifest? dbManifest)
     {
         var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
         
-        // get all the assets that aren't known assets and require reingesting
+        // get all the assets that aren't known assets and don't require reingesting
         var untrackedAssets = payloadAssets.Where(a =>
             !knownAssets.Any(b =>
                 b.Asset == a.GetRequiredValue<string>(AssetProperties.Id) &&
