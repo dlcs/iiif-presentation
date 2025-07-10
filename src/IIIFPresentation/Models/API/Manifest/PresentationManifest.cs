@@ -49,6 +49,8 @@ public class PaintedResource
     
     [JsonProperty(Order = 3)]
     public JObject? Asset { get; set; }
+    
+    public bool Reingest { get; set; }
 }
 
 public class CanvasPainting
@@ -64,7 +66,6 @@ public class CanvasPainting
     public int? StaticWidth { get; set; }
     public int? StaticHeight { get; set; }
     public double? Duration { get; set; }
-    public bool Reingest { get; set; }
 
     [JsonIgnore] public bool Ingesting { get; set; }
 }

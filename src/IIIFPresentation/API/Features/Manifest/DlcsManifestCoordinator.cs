@@ -176,7 +176,7 @@ public class DlcsManifestCoordinator(
         int customerId, CancellationToken cancellationToken = default)
     {
         var assetIdsWithReingestion = presentationManifest.PaintedResources?.Select(pr =>
-                new AssetIdsWithReingestion(pr.Asset!.GetAssetId(customerId), pr.CanvasPainting?.Reingest ?? false))
+                new AssetIdsWithReingestion(pr.Asset!.GetAssetId(customerId), pr.Reingest))
             .ToList() ?? [];
 
         var (assetsInDatabase, trackedAssetsToReingest) = RetrieveTrackedAssets(customerId, assetIdsWithReingestion);
@@ -185,7 +185,8 @@ public class DlcsManifestCoordinator(
             .Select(a => a.AssetId!).Distinct().ToList();
 
         // all assets are tracked and not to be reingested
-        if (assetsInDatabase.Count == assetIdsWithReingestion.Count && !assetsTrackedElsewhere.Any() && !trackedAssetsToReingest.Any())
+        if (assetsInDatabase.Count == assetIdsWithReingestion.Count && assetsTrackedElsewhere.IsNullOrEmpty() && 
+            trackedAssetsToReingest.IsNullOrEmpty())
         {
             logger.LogTrace("All assets do not require reingestion and are tracked in the database for {ManifestId}",
                 dbManifest?.Id ?? "new manifest");
