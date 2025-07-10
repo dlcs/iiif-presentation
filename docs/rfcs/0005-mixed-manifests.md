@@ -82,7 +82,7 @@ The suggested approach to processing these would be to:
 * Process the JSON `"items"` into `CanvasPainting` objects, or an interim object that models the intent of the Canvas.
 * Compare this with the provided `"paintedResources"` to get a unified list of `CanvasPainting` (or `CanvasPainting`-like) objects.
 * With this unified list we can validate that there are no conflicting instructions.
-* The `canvasOrder` set on `CanvasPainting` objects from `"items"` is the order that they are provided. `canvasOrder` set on those from `paintedResources` is defaulted to the order that they are provided but can be controlled via explicit property.
+* The `canvasOrder` set on `CanvasPainting` objects from `"items"` is the order that they are provided. `canvasOrder` set on those from `paintedResources` is defaulted to the order that they are provided, or the infered order from related `Canvas`, but can be controlled via explicit property.
   * With the caveat that `canvasOrder` stays constant if `choiceOrder` is increasing, so default values from the sequence of `paintedResources` need to take that into account.
 
 Validation rules for when a payload contains a Canvas that will be created from both `"items"` and `"paintedResources"`:
@@ -531,3 +531,81 @@ this will create the following in DB:
 | ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 1            | `null`       |
 | ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 2            | `null`       |
 | ghi3        | gamma     | `null`                               | 99/10/second | 3            | `null`       |
+
+
+### 4. Mix of "items" only and "paintedResources" that are invalid
+
+Payload shows a variety of "items" and "paintedResources" that result in 400|BadRequest
+
+```json
+{
+    "type": "Manifest",
+    "slug": "four-example",
+    "parent": "-container-",
+    "label": { "en": ["Example Four"] },
+    "items": [
+        {
+            "id": "alpha", // Invalid because it has populated "items" prop with a corresponding "paintedResource"
+            "type": "Canvas",
+            "items": [{
+                "id": "https://customer.example/invalidator"
+            }]
+        },
+        {
+            "id": "beta",
+            "type": "Canvas",
+            "label": { "en": ["From Item" ]}
+        }
+        {
+            "id": "gamma",
+            "type": "Canvas"
+        }
+    ],
+    "paintedResources": [
+        {
+            "canvasPainting": {
+                "canvasId": "alpha",
+                "canvasOrder": 0
+            },
+            "asset": {
+                "id": "first",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/first.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "beta",
+                "canvasLabel": { "en": ["Conflict"]} // Invalid because corresponding Canvas has a "label" that differs
+            },
+            "asset": {
+                "id": "second",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/second.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "gamma",
+                "canvasOrder": 12  // Invalid because corresponding Canvas is index 2
+            },
+            "asset": {
+                "id": "third",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/third.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "delta",
+                "canvasOrder": 1 // Invalid because there is a non-matching Canvas at index 1. If this was >= 3 would be added to end
+            },
+            "asset": {
+                "id": "fourth",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/fourth.tiff"
+            }
+        }
+    ]
+}
+```
