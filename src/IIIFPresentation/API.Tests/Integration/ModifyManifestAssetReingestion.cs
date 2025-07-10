@@ -25,7 +25,6 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
     private readonly PresentationContext dbContext;
     private const int Customer = 1;
     private const int NewlyCreatedSpace = 999;
-    private readonly IAmazonS3 amazonS3;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private static readonly IDlcsOrchestratorClient DLCSOrchestratorClient = A.Fake<IDlcsOrchestratorClient>();
     private readonly IETagManager etagManager;
@@ -33,7 +32,6 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
     public ModifyManifestAssetReingestion(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
-        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         
         // Always return Space 999 when call to create space
         A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
@@ -47,8 +45,6 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                     ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
-        
-        dbContext = storageFixture.DbFixture.DbContext;
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
@@ -86,9 +82,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                          "mediaType": "image/jpg",
                                          "manifests": ["{{id}}"]
                                      },
-                                     "canvasPainting":{
-                                          "reingest": true
-                                     },
+                                     "reingest": true
                                  }
                              ] 
                          }
@@ -148,9 +142,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                          "mediaType": "image/jpg",
                                          "manifests": ["{{id}}"]
                                      },
-                                     "canvasPainting":{
-                                          "reingest": true
-                                     },
+                                     "reingest": true
                                  }
                              ] 
                          }
@@ -214,9 +206,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                          "mediaType": "image/jpg",
                                          "manifests": ["{{id}}"]
                                      },
-                                     "canvasPainting":{
-                                          "reingest": true
-                                     },
+                                     "reingest": true
                                  }
                              ] 
                          }
@@ -282,9 +272,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                          "mediaType": "image/jpg",
                                          "manifests": ["ignored"]
                                      },
-                                     "canvasPainting":{
-                                          "reingest": true
-                                     },
+                                     "reingest": true
                                  }
                              ] 
                          }
