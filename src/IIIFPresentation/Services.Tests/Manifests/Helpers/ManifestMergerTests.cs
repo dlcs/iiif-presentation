@@ -734,4 +734,32 @@ public class ManifestMergerTests
         mergedManifest.Context.As<string>().Should()
             .Be(nonStandardContext, "non standard context from NQ maintained");
     }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_GeneratesExpectedManifest_WhenMultipleAssetsWithTheSameId()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
+        mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
+        canvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
+        canvas.Metadata.Should().BeNull("No canvas metadata from NQ persisted");
+    }
 }

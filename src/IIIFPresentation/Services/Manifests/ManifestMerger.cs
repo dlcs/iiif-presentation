@@ -85,6 +85,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     {
         try
         {
+            // todo: if key exists - ignore it?
             return namedQueryManifest
                 .Items!
                 .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
