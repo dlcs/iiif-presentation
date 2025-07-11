@@ -14,6 +14,9 @@ public class KnownAssetChecker(
     PresentationContext dbContext,
     ILogger<KnownAssetChecker> logger) : IKnownAssetChecker
 {
+    /// <summary>
+    /// Checks a presentation manifest to find what assets require further processing by the DLCS
+    /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
         Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken)
