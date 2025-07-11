@@ -189,7 +189,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
         await dbContext.Manifests.AddTestManifest(id: $"{id}_first", slug: $"{slug}_first", canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
-            ingested: true);
+            ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var batchId = TestIdentifiers.BatchId();
@@ -270,7 +270,8 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
                                          "mediaType": "image/jpg",
-                                         "manifests": ["ignored"]
+                                         "manifests": ["ignored"],
+                                         "space": {{NewlyCreatedSpace}}
                                      },
                                      "reingest": true
                                  }

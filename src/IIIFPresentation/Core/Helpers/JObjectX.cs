@@ -14,7 +14,7 @@ public static class JObjectX
             : val;
     
     /// <summary>
-    /// Get specified property value from jObject. Property is required so <see cref="InvalidOperationException"/>
+    /// Get specified property value from jObject. Property is required so <see cref="FormatException"/>
     /// thrown if not found
     /// </summary>
     public static T? GetRequiredValue<T>(this JObject jObject, string property) 

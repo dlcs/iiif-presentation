@@ -361,7 +361,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                               "id": "{{assetId}}",
                               "batch": {{TestIdentifiers.BatchId()}},
                               "origin": "https://example.com/photos/example.jpg",
-                              "mediaType": "image/jpeg"
+                              "mediaType": "image/jpeg",
+                              "space": {{NewlyCreatedSpace}}
                           }
                       }
                   ]
@@ -1245,7 +1246,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                      },
                                       "asset": {
                                           "id": "fromDlcs_{{assetId}}_1",
-                                          "mediaType": "image/jpg"
+                                          "mediaType": "image/jpg",
+                                          "space": {{NewlyCreatedSpace}}
                                       }
                                   },
                                   {
@@ -1255,7 +1257,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                       "asset": {
                                           "id": "{{assetId}}_2",
                                           "batch": "{{batchId}}",
-                                          "mediaType": "image/jpg"
+                                          "mediaType": "image/jpg",
+                                          "space": {{NewlyCreatedSpace}}
                                       }
                                   }
                               ] 
@@ -1326,7 +1329,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                      },
                                       "asset": {
                                           "id": "fromDlcs_{{assetId}}_1",
-                                          "mediaType": "image/jpg"
+                                          "mediaType": "image/jpg",
+                                          "space": {{NewlyCreatedSpace}}
                                       }
                                   }
                               ] 

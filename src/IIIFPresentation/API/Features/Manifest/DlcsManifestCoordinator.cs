@@ -1,9 +1,9 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
-using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -62,6 +62,8 @@ public class DlcsManifestCoordinator(
 
         int? spaceId = null;
         var assetsWithoutSpaces = assets.Where(a => !a.TryGetValue(AssetProperties.Space, out _)).ToArray();
+        var createdSpace = false;
+        
         if (request.CreateSpace || assetsWithoutSpaces.Length > 0)
         {
             if (dbManifest?.SpaceId != null)
@@ -76,6 +78,8 @@ public class DlcsManifestCoordinator(
                 {
                     return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
                 }
+                
+                createdSpace = true;
             }
 
             foreach (var asset in assetsWithoutSpaces)
@@ -83,40 +87,32 @@ public class DlcsManifestCoordinator(
             
         }
 
-        return await UpdateDlcsWithAssets(request, manifestId, dbManifest, assets, spaceId, cancellationToken);
+        return await UpdateDlcsWithAssets(request, manifestId, dbManifest, assets, spaceId, createdSpace, cancellationToken);
     }
 
     private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, int? spaceId,
+        Models.Database.Collections.Manifest? dbManifest, List<JObject> assets, int? spaceId, bool spaceCreated,
         CancellationToken cancellationToken)
     {
-        var checkedAssets =
-            await FindAssetsThatRequireAdditionalWork(assets, request.PresentationManifest, dbManifest, request.CustomerId,
-                cancellationToken);
+        var dlcsInteractionRequests = await FindAssetsThatRequireAdditionalWork(request.PresentationManifest, dbManifest, spaceId, spaceCreated, request.CustomerId,
+            cancellationToken);
 
-        SetUntrackedAndReingestingAssetsToIngesting(request, checkedAssets.UntrackedAssets,
-            checkedAssets.ReingestedAssetsInAnotherManifest);
+        MarkAssetsAsIngesting(request,
+            dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId));
         
-        // first create batches for assets being reingested in another manifest
-        var reingestAssetsInAnotherManifestBatchErrors = await CreateBatches(request.CustomerId, manifestId,
-            checkedAssets.ReingestedAssetsInAnotherManifest, false, cancellationToken);
-
-        if (reingestAssetsInAnotherManifestBatchErrors?.Error != null)
-        {
-            return new DlcsInteractionResult(reingestAssetsInAnotherManifestBatchErrors, spaceId);
-        }
+        // create batches for assets
+        var batchError = await CreateBatches(request.CustomerId, manifestId,
+            dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList(), cancellationToken);
+        
+        if (batchError != null)  return new DlcsInteractionResult(batchError, spaceId);
         
         // then update existing assets in another manifest with the current manifest id
-        await UpdateAssetsWithManifestId(request, manifestId, checkedAssets.DlcsAssetIds, cancellationToken);
+        await UpdateAssetsWithManifestId(request, manifestId,
+            dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
         await RemoveUnusedAssets(dbManifest, assets, cancellationToken);
 
-        // create batches for untracked assets
-        var batchError = await CreateBatches(request.CustomerId, manifestId, checkedAssets.UntrackedAssets, true,
-            cancellationToken);
-
-        var canBeBuiltUpfront = checkedAssets.UntrackedAssets.Count == 0 && assets.Count > 0 &&
-                                checkedAssets.ReingestedAssetsInAnotherManifest.Count == 0;
+        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront);
     }
 
@@ -124,14 +120,12 @@ public class DlcsManifestCoordinator(
     /// Makes sure that all assets which have been ingested into the DLCS are marked as ingesting
     /// in the <see cref="Models.API.Manifest.CanvasPainting"/>> record
     /// </summary>
-    private static void SetUntrackedAndReingestingAssetsToIngesting(WriteManifestRequest request,
-        List<JObject> untrackedAssets, List<JObject> reingestingAssets)
+    private static void MarkAssetsAsIngesting(WriteManifestRequest request,
+        IEnumerable<AssetId> assetToMarkAsIngesting)
     {
-        var combinedAssets = untrackedAssets.Union(reingestingAssets);
-        
-        foreach (var paintedResource in combinedAssets.SelectMany(untrackedAsset =>
+        foreach (var paintedResource in assetToMarkAsIngesting.SelectMany(untrackedAsset =>
                      request.PresentationManifest.PaintedResources.Where(pr =>
-                         pr.Asset.GetAssetId(request.CustomerId) == untrackedAsset.GetAssetId(request.CustomerId))))
+                         pr.Asset.GetAssetId(request.CustomerId) == untrackedAsset)))
         {
             paintedResource.CanvasPainting ??= new Models.API.Manifest.CanvasPainting();
             paintedResource.CanvasPainting.Ingesting = true;
@@ -170,136 +164,142 @@ public class DlcsManifestCoordinator(
         await dlcsApiClient.UpdateAssetManifest(dbManifest.CustomerId,
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
-    
-    private async Task<AssetsWithAdditionalWork> FindAssetsThatRequireAdditionalWork(
-        List<JObject> assets, PresentationManifest presentationManifest, Models.Database.Collections.Manifest? dbManifest, 
-        int customerId, CancellationToken cancellationToken = default)
+
+    private async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
+        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
+        CancellationToken cancellationToken)
     {
-        var assetIdsWithReingestion = presentationManifest.PaintedResources?.Select(pr =>
-                new AssetIdsWithReingestion(pr.Asset!.GetAssetId(customerId), pr.Reingest))
-            .ToList() ?? [];
+        logger.LogTrace("Checking for known assets");
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        List<DlcsInteractionRequest> dlcsInteractionRequests = [];
+        List<(AssetId assetId, PaintedResource paintedResource)> assetsNotFoundInSameManifest = [];
 
-        var (assetsInDatabase, trackedAssetsToReingest) = RetrieveTrackedAssets(customerId, assetIdsWithReingestion);
-
-        var assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest?.Id)
-            .Select(a => a.AssetId!).Distinct().ToList();
-
-        // all assets are tracked and not to be reingested
-        if (assetsInDatabase.Count == assetIdsWithReingestion.Count && assetsTrackedElsewhere.IsNullOrEmpty() && 
-            trackedAssetsToReingest.IsNullOrEmpty())
+        foreach (var paintedResource in presentationManifest.PaintedResources?.Where(pr => pr.Asset != null) ?? [])
         {
-            logger.LogTrace("All assets do not require reingestion and are tracked in the database for {ManifestId}",
-                dbManifest?.Id ?? "new manifest");
-            return new AssetsWithAdditionalWork([], [], []);
+            var assetId = paintedResource.Asset!.GetAssetId(customerId);
+            var asset = paintedResource.Asset!;
+
+            if (spaceCreated && assetId.Space == spaceId)
+            {
+
+                logger.LogTrace("Asset {AssetId} added to newly created space, so treated as unmanaged", assetId);
+                dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.ManifestId, false, assetId));
+                continue;
+            }
+
+            // managed in this manifest
+            if (dbManifest != null)
+            {
+
+                logger.LogTrace("Reingested asset {AssetId} found within existing manifest", assetId);
+                if (dbManifest.CanvasPaintings?.Any(cp => cp.AssetId == assetId) ?? false)
+                {
+                    // set the asset to reingest, otherwise ignore the asset
+                    if (paintedResource.Reingest)
+                    {
+                        dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.NoManifestId,
+                            false,
+                            assetId));
+                    }
+                    
+                    continue;
+                }
+            }
+
+            assetsNotFoundInSameManifest.Add((assetId, paintedResource));
         }
 
-        var allAssetsTracked = await CheckDlcsForTrackedAssets(assets, dbManifest, customerId, cancellationToken,
-            assetIdsWithReingestion, assetsInDatabase, assetsTrackedElsewhere, trackedAssetsToReingest);
+        List<CanvasPainting> inAnotherManifest = [];
 
-        if (allAssetsTracked != null)
+        // managed in another manifest
+        foreach (var chunkedAssetsToCheck in assetsNotFoundInSameManifest.Chunk(500))
         {
-            return allAssetsTracked;
+            var assetIds = chunkedAssetsToCheck.Select(a => a.assetId);
+            
+            inAnotherManifest.AddRange(dbContext.CanvasPaintings.Where(cp =>
+                assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId));
+        }
+        
+        List<(AssetId assetId, PaintedResource paintedResource)> checkDlcs = [];
+
+        foreach (var assetNotFoundInSameManifest in assetsNotFoundInSameManifest)
+        {
+            if (inAnotherManifest.Any(cp => cp.AssetId == assetNotFoundInSameManifest.assetId))
+            {
+                if (assetNotFoundInSameManifest.paintedResource.Reingest)
+                {
+                    logger.LogTrace("Reingested asset {AssetId} found within another manifest", assetNotFoundInSameManifest.assetId);
+                    dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!,
+                        IngestType.NoManifestId, true, assetNotFoundInSameManifest.assetId));
+                }
+                else
+                {
+                    logger.LogTrace("Asset {AssetId} found within another manifest", assetNotFoundInSameManifest.assetId);
+                    dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!, IngestType.NoIngest,
+                        true, assetNotFoundInSameManifest.assetId));
+                }
+
+                continue;
+            }
+
+            // check in the DLCS (unless reingest where we treat it as an unmanaged asset)
+            if (assetNotFoundInSameManifest.paintedResource.Reingest)
+            {
+                dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!,
+                    IngestType.ManifestId, false, assetNotFoundInSameManifest.assetId));
+            }
+            else
+            {
+                checkDlcs.Add(assetNotFoundInSameManifest);
+            }
         }
 
-        var assetsRequiringIngestion = GetAssetsRequiringAdditionalWork(assets, assetsInDatabase, assetsTrackedElsewhere,
-            trackedAssetsToReingest, dbManifest);
+        dlcsInteractionRequests.AddRange(await CheckDlcsForAssets(checkDlcs, customerId, cancellationToken));
+        
+        stopwatch.Stop();
+        
+        logger.LogTrace("Checking for known assets took {Elapsed} milliseconds", stopwatch.Elapsed.Milliseconds);
 
-        return new AssetsWithAdditionalWork(assetsRequiringIngestion.UntrackedAssets, assetsTrackedElsewhere,
-            assetsRequiringIngestion.ReingestedassetsInAnotherManifest);
+        return dlcsInteractionRequests;
     }
 
-    private async Task<AssetsWithAdditionalWork?> CheckDlcsForTrackedAssets(List<JObject> assets, Models.Database.Collections.Manifest? dbManifest, int customerId,
-        CancellationToken cancellationToken, List<AssetIdsWithReingestion> assetIdsWithReingestion, List<CanvasPainting> assetsInDatabase,
-        List<AssetId> assetsTrackedElsewhere, List<CanvasPainting> trackedAssetsToReingest)
+    private async Task<List<DlcsInteractionRequest>> CheckDlcsForAssets(
+        List<(AssetId assetId, PaintedResource paintedResource)> assetsToCheck, int customerId, CancellationToken cancellationToken)
     {
-        // no need to check the DLCS for assets that need to be reingested as we're going to reingest anyway
-        var assetsToCheckDlcs = assetIdsWithReingestion
-            .Where(a => assetsInDatabase.All(b => b.AssetId != a.AssetId)  && !a.Reingest).ToList();
-
         IList<JObject> dlcsAssets = [];
         
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                assetsToCheckDlcs.Select(a => a.AssetId.ToString()).ToList(), cancellationToken);
+                assetsToCheck.Select(a => a.assetId.ToString()).ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to retrieve DLCS assets");
         }
         
-        assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
+        var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId)).ToList();
 
-        if (assetsTrackedElsewhere.Count == assets.Count && !trackedAssetsToReingest.Any())
-        {
-            logger.LogTrace("All assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
-            return new AssetsWithAdditionalWork([], assetsTrackedElsewhere, []);
-        }
-
-        return null;
-    }
-
-    private (List<CanvasPainting> AssetsInDatabase, List<CanvasPainting> TrackedAssetsToReingest) RetrieveTrackedAssets(
-        int customerId, List<AssetIdsWithReingestion> assetIdsWithReingestion)
-    {
-        List<CanvasPainting> assetsInDatabase = [];
-        List<CanvasPainting> trackedAssetsToReingest = [];
-
-        foreach (var canvasPainting in dbContext.CanvasPaintings.Where(cp => cp.CustomerId == customerId))
-        {
-            if (canvasPainting.AssetId == null) continue;
-            
-            var trackedAssetId = assetIdsWithReingestion.FirstOrDefault(a => a.AssetId == canvasPainting.AssetId);
-
-            if (trackedAssetId == null) continue;
-            if (trackedAssetId.Reingest)
-            {
-                trackedAssetsToReingest.Add(canvasPainting);
-            }
-            
-            assetsInDatabase.Add(canvasPainting);
-        }
-
-        return (assetsInDatabase, trackedAssetsToReingest);
-    }
-
-
-    private static (List<JObject> UntrackedAssets, List<JObject> ReingestedassetsInAnotherManifest) GetAssetsRequiringAdditionalWork(
-        List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, List<AssetId> dlcsAssetIds, 
-        List<CanvasPainting> assetsToReingest,  Models.Database.Collections.Manifest? dbManifest)
-    {
-        var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
+        List<DlcsInteractionRequest> interactionRequest = [];
         
-        // get all the assets that aren't known assets and don't require reingesting
-        var untrackedAssets = payloadAssets.Where(a =>
-            !knownAssets.Any(b =>
-                b.Asset == a.GetRequiredValue<string>(AssetProperties.Id) &&
-                b.Space == a.GetRequiredValue<int>(AssetProperties.Space)) &&
-            assetsToReingest.All(c => c.AssetId != a.GetAssetId(c.CustomerId))).ToList();
-
-        var assetsRequiringReingestionInAnotherManifest = new List<JObject>();
-
-        foreach (var assetToReingest in assetsToReingest)
+        foreach (var assetToCheck in assetsToCheck)
         {
-            // grab the asset(s) from the payload
-            var assets = payloadAssets.Where(pa =>
-                pa.GetRequiredValue<string>(AssetProperties.Id) == assetToReingest.AssetId!.Asset &&
-                pa.GetRequiredValue<int>(AssetProperties.Space) == assetToReingest.AssetId.Space).ToList();
-
-            if (assets.Count == 0) continue;
-            
-            // if it's tracked in the same manifest, treat it like an untracked asset
-            if (assetToReingest.ManifestId != dbManifest?.Id)
+            if (dlcsAssetIds.Contains(assetToCheck.assetId))
             {
-                assetsRequiringReingestionInAnotherManifest.AddRange(assets);
+                logger.LogTrace("Asset {AssetId} found within the DLCS", assetToCheck.assetId);
+                interactionRequest.Add(new DlcsInteractionRequest(assetToCheck.paintedResource.Asset!, IngestType.NoIngest, true,
+                    assetToCheck.assetId));
             }
             else
             {
-                untrackedAssets.AddRange(assets);
+                logger.LogTrace("Asset {AssetId} is unmanaged", assetToCheck.assetId);
+                interactionRequest.Add(new DlcsInteractionRequest(assetToCheck.paintedResource.Asset!, IngestType.ManifestId, false,
+                    assetToCheck.assetId));
             }
         }
-
-        return (untrackedAssets, assetsRequiringReingestionInAnotherManifest);
+        
+        return interactionRequest;
     }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
@@ -317,28 +317,34 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, List<JObject> assets, 
-        bool addManifestId, CancellationToken cancellationToken)
+    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, 
+        List<DlcsInteractionRequest> dlcsInteractionRequests, CancellationToken cancellationToken)
     {
-        if (assets.Count == 0) return null;
-
-        if (addManifestId)
+        if (dlcsInteractionRequests.Count == 0) return null;
+        
+        foreach (var dlcsInteractionRequest in dlcsInteractionRequests)
         {
-            foreach (var asset in assets)
-                asset[AssetProperties.Manifests] = new JArray(new List<string> { manifestId });
-        }
-        else
-        {
-            foreach (var asset in assets.Where(asset => asset.ContainsKey(AssetProperties.Manifests)))
+            switch (dlcsInteractionRequest.Ingest)
             {
-                asset[AssetProperties.Manifests] = null;
+                case IngestType.NoManifestId:
+                {
+                    if (dlcsInteractionRequest.Asset.ContainsKey(AssetProperties.Manifests))
+                    {
+                        dlcsInteractionRequest.Asset[AssetProperties.Manifests] = null;
+                    }
+
+                    break;
+                }
+                case IngestType.ManifestId:
+                    dlcsInteractionRequest.Asset[AssetProperties.Manifests] = new JArray(new List<string> { manifestId });
+                    break;
             }
         }
-
+        
         try
         {
             var batches = await dlcsApiClient.IngestAssets(customerId,
-                assets,
+                dlcsInteractionRequests.Select(d => d.Asset).ToList(),
                 cancellationToken);
 
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);
@@ -363,21 +369,23 @@ public class DlcsManifestCoordinator(
             _ => WriteResult.Error
         };
     }
-
-    private class AssetsWithAdditionalWork (List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds, 
-        List<JObject> reingestedAssetsInAnotherManifest)
-    {
-        public List<JObject> UntrackedAssets { get; set; } = untrackedAssets;
-        
-        public List<AssetId> DlcsAssetIds { get; set; } = dlcsAssetIds;
-        
-        public List<JObject> ReingestedAssetsInAnotherManifest { get; set; }  = reingestedAssetsInAnotherManifest;
-    }
     
-    private class AssetIdsWithReingestion(AssetId assetId, bool reingest)
+    private class DlcsInteractionRequest (JObject asset, IngestType ingest, 
+        bool patch, AssetId assetId)
     {
-        public AssetId AssetId { get; set; } = assetId;
+        public JObject Asset { get; set; } = asset;
+
+        public IngestType Ingest { get; set; } = ingest;
         
-        public bool Reingest { get; set; } = reingest;
+        public bool Patch { get; set; } = patch;
+
+        public AssetId AssetId { get; set; } = assetId;
+    }
+
+    private enum IngestType
+    {
+        NoIngest,
+        ManifestId,
+        NoManifestId
     }
 }
