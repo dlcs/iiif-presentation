@@ -79,8 +79,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "manifests": ["{{id}}"]
+                                         "mediaType": "image/jpg"
                                      },
                                      "reingest": true
                                  }
@@ -139,8 +138,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "manifests": ["{{id}}"]
+                                         "mediaType": "image/jpg"
                                      },
                                      "reingest": true
                                  }
@@ -203,8 +201,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                                      "asset": {
                                          "id": "{{assetId}}",
                                          "batch": "{{batchId}}",
-                                         "mediaType": "image/jpg",
-                                         "manifests": ["{{id}}"]
+                                         "mediaType": "image/jpg"
                                      },
                                      "reingest": true
                                  }

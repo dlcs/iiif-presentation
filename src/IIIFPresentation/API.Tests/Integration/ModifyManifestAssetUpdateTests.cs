@@ -2390,7 +2390,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_IgnoresManifestsProperty_WhenNoneExist()
+    public async Task UpdateManifest_IgnoresManifestsProperty_WhenNoAssetsExist()
     {
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
