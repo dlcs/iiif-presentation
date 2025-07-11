@@ -63,6 +63,7 @@ builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
     .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<IKnownAssetChecker, KnownAssetChecker>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
