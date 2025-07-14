@@ -61,6 +61,11 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                         Submitted = DateTime.Now
                     }
                 }));
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, 
+                A<ICollection<string>>._, A<CancellationToken>._))
+            .ReturnsLazily(x =>
+                Task.FromResult(new List<JObject>() as IList<JObject>));
 
         dbContext = storageFixture.DbFixture.DbContext;
 

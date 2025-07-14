@@ -57,6 +57,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                     ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, 
+                A<ICollection<string>>._, A<CancellationToken>._))
+            .ReturnsLazily(x =>
+                Task.FromResult<IList<JObject>>(new List<JObject>()));
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
@@ -80,7 +85,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
                 A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}")),
-                A<CancellationToken>._)).ReturnsLazily(() => new List<JObject>())
+                A<CancellationToken>._)).ReturnsLazily(() => Task.FromResult<IList<JObject>>(new List<JObject>()))
             .Once().Then
             .ReturnsLazily(() =>
             [
