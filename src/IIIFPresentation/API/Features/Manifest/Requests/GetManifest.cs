@@ -13,14 +13,14 @@ namespace API.Features.Manifest.Requests;
 public class GetManifest(
     int customerId,
     string id,
-    StringValues ifNoneMatch,
+    IImmutableSet<Guid> eTags,
     bool pathOnly) : IRequest<FetchEntityResult<PresentationManifest>>
 {
     public int CustomerId { get; } = customerId;
     public string Id { get; } = id;
     public bool PathOnly { get; } = pathOnly;
 
-    public IImmutableSet<Guid> IfNoneMatch { get; } = ifNoneMatch.AsETagValues();
+    public IImmutableSet<Guid> IfNoneMatch { get; } = eTags;
 }
 
 public class GetManifestHandler(IManifestRead manifestRead) :

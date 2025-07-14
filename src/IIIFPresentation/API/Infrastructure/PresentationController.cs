@@ -11,7 +11,6 @@ namespace API.Infrastructure;
 
 public abstract class PresentationController : Controller
 {
-
     protected StatusCodeResult SeeOther(string location)
     {
         Response.Headers.Location = location;

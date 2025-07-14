@@ -19,7 +19,7 @@ namespace API.Features.Storage.Requests;
 public class GetCollection(
     int customerId,
     string id,
-    StringValues ifNoneMatch,
+    IImmutableSet<Guid> eTags,
     int page,
     int pageSize,
     string? orderBy = null,
@@ -29,7 +29,7 @@ public class GetCollection(
 
     public string Id { get; } = id;
 
-    public IImmutableSet<Guid> IfNoneMatch { get; } = ifNoneMatch.AsETagValues();
+    public IImmutableSet<Guid> IfNoneMatch { get; } = eTags;
 
     public RequestModifiers RequestModifiers { get; } = new()
     {

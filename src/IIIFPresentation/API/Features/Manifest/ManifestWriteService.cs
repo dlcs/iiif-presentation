@@ -310,8 +310,9 @@ public class ManifestWriteService(
         
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
-        
-        if(!RequiresFurtherProcessing(dlcsInteractionResult)){
+
+        if (!RequiresFurtherProcessing(dlcsInteractionResult))
+        {
             existingManifest.LastProcessed = DateTime.UtcNow;
         }
         // else: BackgroundHandler will set the value

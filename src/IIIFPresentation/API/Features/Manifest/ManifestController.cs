@@ -36,7 +36,7 @@ public class ManifestController(
         var pathOnly = !Request.HasShowExtraHeader() ||
                        await authenticator.ValidateRequest(Request) != AuthResult.Success;
 
-        var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch, pathOnly));
+        var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), pathOnly));
 
         switch (entityResult)
         {

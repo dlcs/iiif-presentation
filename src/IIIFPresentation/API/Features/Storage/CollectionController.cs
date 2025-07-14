@@ -42,7 +42,7 @@ public class CollectionController(
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
 
         var entityResult =
-            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch, page.Value,
+            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), page.Value,
                 pageSize.Value, orderByField,
                 descending));
 
