@@ -306,10 +306,15 @@ public class ManifestWriteService(
             presentationManifest, existingManifest, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
+        existingManifest.Label = presentationManifest.Label;
+        
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
-        existingManifest.Label = presentationManifest.Label;
-        existingManifest.LastProcessed = RequiresFurtherProcessing(dlcsInteractionResult) ? null : DateTime.UtcNow;
+        
+        if(!RequiresFurtherProcessing(dlcsInteractionResult)){
+            existingManifest.LastProcessed = DateTime.UtcNow;
+        }
+        // else: BackgroundHandler will set the value
         
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = parsedParentSlug.Slug;
