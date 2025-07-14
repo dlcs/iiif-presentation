@@ -33,7 +33,7 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
 public class DlcsManifestCoordinator(
     IDlcsApiClient dlcsApiClient,
     PresentationContext dbContext,
-    IKnownAssetChecker knownAssetChecker,
+    IManagedAssetResultFinder knownAssetChecker,
     ILogger<DlcsManifestCoordinator> logger)
 {
     /// <summary>

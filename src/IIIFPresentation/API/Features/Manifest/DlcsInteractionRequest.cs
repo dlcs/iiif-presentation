@@ -6,18 +6,33 @@ namespace API.Features.Manifest;
 public class DlcsInteractionRequest (JObject asset, IngestType ingest, 
     bool patch, AssetId assetId)
 {
-    public JObject Asset { get; set; } = asset;
+    /// <summary>
+    /// The asset itself
+    /// </summary>
+    public JObject Asset { get; } = asset;
 
-    public IngestType Ingest { get; set; } = ingest;
+    /// <summary>
+    /// The type of ingestion this asset requires
+    /// </summary>
+    public IngestType Ingest { get; } = ingest;
         
-    public bool Patch { get; set; } = patch;
+    /// <summary>
+    /// Whether to patch the manifest id
+    /// </summary>
+    public bool Patch { get; } = patch;
 
-    public AssetId AssetId { get; set; } = assetId;
+    /// <summary>
+    /// The asset id, to save pulling it out of the asset
+    /// </summary>
+    public AssetId AssetId { get; } = assetId;
 }
 
 public enum IngestType
 {
+    // do not ingest
     NoIngest,
+    // ingest with a manifest id
     ManifestId,
+    // ingest without a manifest id
     NoManifestId
 }
