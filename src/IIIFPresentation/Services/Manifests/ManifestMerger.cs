@@ -85,14 +85,15 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     {
         try
         {
-            // todo: if key exists - ignore it?
             return namedQueryManifest
                 .Items!
-                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
+                .GroupBy(canvas => canvas.GetAssetIdFromNamedQueryCanvasId())
+                .ToDictionary(canvas => canvas.Key, canvas => canvas.First());
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
+            logger.LogError(e, "Attempt to build named query dictionary for manifest {ManifestId} failed",
+                namedQueryManifest.Id);
             throw;
         }
     }

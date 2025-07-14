@@ -747,7 +747,7 @@ public class ManifestMergerTests
             .WithCanvas(assetId, c => c.WithImage())
             .Build();
 
-        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId, assetId);
         
         // Act
         var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
@@ -755,7 +755,7 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
         mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
-        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        mergedManifest.Items.Should().HaveCount(2, "Two canvasPainting with same id");
         var canvas = mergedManifest.Items[0];
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
