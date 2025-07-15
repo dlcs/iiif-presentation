@@ -62,7 +62,6 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
-    .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
@@ -75,6 +74,7 @@ builder.Services
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
+    .AddScoped<IETagCache, ETagCache>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();
@@ -86,7 +86,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
-    
+
     // https://github.com/dotnet/dotnet-docker/issues/6491
     opts.KnownNetworks.Clear();
     opts.KnownProxies.Clear();

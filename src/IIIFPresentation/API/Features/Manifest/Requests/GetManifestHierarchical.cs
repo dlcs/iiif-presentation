@@ -23,14 +23,14 @@ public class GetManifestHierarchicalHandler(
     : IRequestHandler<GetManifestHierarchical, IIIF.Presentation.V3.Manifest?>
 {
     private readonly AWSSettings settings = options.Value;
-    
+
     public async Task<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
     {
         var flatId = request.Hierarchy.ManifestId ??
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
-        
+
         if (!request.Hierarchy.Manifest!.LastProcessed.HasValue)
         {
             return null;
@@ -41,7 +41,7 @@ public class GetManifestHierarchicalHandler(
             cancellationToken);
 
         if (objectFromS3.Stream.IsNull()) return null;
-        
+
         var hierarchicalId = pathGenerator.GenerateHierarchicalId(request.Hierarchy);
 
         return objectFromS3.GetDescriptionResourceWithId<IIIF.Presentation.V3.Manifest>(hierarchicalId, logger);

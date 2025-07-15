@@ -21,7 +21,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
-    private readonly IETagManager etagManager;
     private readonly string parent;
     private const int Customer = 1;
     
@@ -31,8 +30,6 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
-        
-        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
         
         parent = dbContext.Collections
             .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
@@ -360,10 +357,9 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson());
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
         HttpRequestMessageBuilder.AddHostNoCustomerHeader(requestMessage);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
-
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
@@ -390,10 +386,9 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson());
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
-
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         

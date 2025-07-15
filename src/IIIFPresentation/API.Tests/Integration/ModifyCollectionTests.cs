@@ -34,20 +34,18 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
-    private readonly IETagManager etagManager;
     private const int Customer = 1;
     private readonly string parent;
 
     public ModifyCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
+
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         
-        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
-
         parent = dbContext.Collections
             .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
 
@@ -1156,9 +1154,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
-
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -1243,9 +1240,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
-
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -1366,8 +1362,7 @@ $$"""
         
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection, dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1439,8 +1434,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1501,8 +1495,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1649,9 +1642,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        etagManager.SetCorrectEtag(updateRequestMessage, initialCollection.Id, Customer, true);
-
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection), dbContext.GetETag(initialCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -1723,8 +1715,7 @@ $$"""
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        etagManager.SetCorrectEtag(updateRequestMessage, RootCollection.Id, Customer, true);
-
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -1781,8 +1772,7 @@ $$"""
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, RootCollection.Id, Customer, true);
-
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
@@ -1843,8 +1833,7 @@ $$"""
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
-        etagManager.SetCorrectEtag(updateRequestMessage, RootCollection.Id, Customer, true);
-
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
@@ -1872,9 +1861,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            "1/collections/FirstChildCollection", updatedCollection.AsJson());
-        updateRequestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue("\"notReal\""));
-
+            "1/collections/FirstChildCollection", updatedCollection.AsJson(), Guid.NewGuid());
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
@@ -1962,9 +1950,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentCollection.Id}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, parentCollection.Id, Customer, true);
-
+            $"1/collections/{parentCollection.Id}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
         var error = await response.ReadAsPresentationResponseAsync<Error>();
@@ -1999,9 +1986,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, parentCollection.Entity.Id, Customer, true);
-
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -2035,9 +2021,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"1/collections/{parentIdentifier}", updatedCollection.AsJson());
-        etagManager.SetCorrectEtag(updateRequestMessage, parentCollection.Entity.Id, Customer, true);
-
+            $"1/collections/{parentIdentifier}", updatedCollection.AsJson(), dbContext.GetETag(parentCollection));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
 
@@ -2149,7 +2134,6 @@ $$"""
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
             $"{Customer}/collections/{initialCollection.Id}", updatedCollection);
-        etagManager.SetCorrectEtag(updateRequestMessage, RootCollection.Id, Customer, true);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);

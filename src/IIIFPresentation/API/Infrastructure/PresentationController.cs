@@ -19,6 +19,7 @@ public abstract class PresentationController : Controller
     } 
     
     protected readonly IMediator Mediator;
+    protected IETagCache EtagCache { get; }
     private readonly ILogger logger;
 
     /// <summary>
@@ -27,8 +28,9 @@ public abstract class PresentationController : Controller
     protected readonly ApiSettings Settings;
 
     /// <inheritdoc />
-    protected PresentationController(ApiSettings settings, IMediator mediator, ILogger logger)
+    protected PresentationController(ApiSettings settings, IMediator mediator, IETagCache etagCache, ILogger logger)
     {
+        EtagCache = etagCache;
         Settings = settings;
         Mediator = mediator;
         this.logger = logger;
@@ -44,6 +46,7 @@ public abstract class PresentationController : Controller
     /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
+    /// <param name="invalidatesEtag">string etag value used in this request, optional</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <typeparam name="T">Type of entity being upserted</typeparam>
     /// <typeparam name="TEnum">An enum designating the error type</typeparam>
@@ -55,6 +58,7 @@ public abstract class PresentationController : Controller
     IRequest<ModifyEntityResult<T, TEnum>> request,
     string? instance = null,
     string? errorTitle = "Operation failed",
+    string? invalidatesEtag = null,
     CancellationToken cancellationToken = default)
     where T : JsonLdBase
     where TEnum : Enum
@@ -62,7 +66,9 @@ public abstract class PresentationController : Controller
         return await HandleRequest(async () =>
         {
             var result = await Mediator.Send(request, cancellationToken);
-
+            if(result.IsSuccess)
+                EtagCache.Invalidate(invalidatesEtag);
+            
             return this.ModifyResultToHttpResult(result, instance, errorTitle);
         }, errorTitle);
     }

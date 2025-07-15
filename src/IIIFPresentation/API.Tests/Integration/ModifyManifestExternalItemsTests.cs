@@ -27,7 +27,6 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
-    private readonly IETagManager etagManager;
     private const int Customer = 1;
 
     public ModifyManifestExternalItemsTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
@@ -37,8 +36,6 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         
-        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
-
         storageFixture.DbFixture.CleanUp();
     }
     
@@ -885,8 +882,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -957,8 +953,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1027,8 +1022,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1122,8 +1116,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1200,8 +1193,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1302,8 +1294,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+                manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1415,8 +1406,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+                manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1514,8 +1504,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+                manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1613,8 +1602,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1704,8 +1692,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
 }}";
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest);
-        etagManager.SetCorrectEtag(requestMessage, dbManifest.Id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}", manifest, dbContext.GetETag(dbManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);

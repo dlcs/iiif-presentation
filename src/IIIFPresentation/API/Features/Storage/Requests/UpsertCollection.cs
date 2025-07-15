@@ -41,7 +41,6 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
 
 public class UpsertCollectionHandler(
     PresentationContext dbContext,
-    IETagManager eTagManager,
     ILogger<UpsertCollectionHandler> logger,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
@@ -107,8 +106,8 @@ public class UpsertCollectionHandler(
         }
         else
         {
-            eTagManager.TryGetETag($"/{request.CustomerId}/collections/{request.CollectionId}", out var eTag);
-            if (request.ETag != eTag || string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNonMatching<PresentationCollection>();
+            if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
+                return ErrorHelper.EtagNonMatching<PresentationCollection>();
             
             if (isStorageCollection != databaseCollection.IsStorageCollection)
             {
@@ -186,7 +185,7 @@ public class UpsertCollectionHandler(
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
             parentCollection, pathGenerator);
 
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection);
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }
 
     /// <summary>

@@ -13,6 +13,7 @@ using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Net.Http.Headers;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -1392,7 +1393,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         response.Headers.Location.Should().NotBeNull();
-
+        response.Headers.Should().NotContainKey(HeaderNames.ETag);
+        
         requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
         response = await httpClient.AsCustomer().SendAsync(requestMessage);

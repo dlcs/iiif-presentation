@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using API.Attributes;
 using API.Auth;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
@@ -8,6 +7,7 @@ using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
+using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using MediatR;
@@ -26,11 +26,11 @@ public class CollectionController(
     IAuthenticator authenticator,
     IOptions<ApiSettings> options,
     IMediator mediator,
+    IETagCache eTagCache,
     ILogger<CollectionController> logger)
-    : PresentationController(options.Value, mediator, logger)
+    : PresentationController(options.Value, mediator, eTagCache, logger)
 {
     [HttpGet("collections/{id}")]
-    [ETagCaching]
     [VaryHeader]
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1,
         string? orderBy = null, string? orderByDescending = null)
@@ -42,16 +42,22 @@ public class CollectionController(
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
 
         var entityResult =
-            await Mediator.Send(new GetCollection(customerId, id, page.Value, pageSize.Value, orderByField,
+            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), page.Value,
+                pageSize.Value, orderByField,
                 descending));
-        
+
+        if (entityResult.ETagMatch)
+            return new NotModifiedResult(entityResult.ETag!.Value);
+
         if (entityResult.Error)
             return this.PresentationProblem(entityResult.ErrorMessage,
-                statusCode: (int) HttpStatusCode.InternalServerError);
-        
+                statusCode: (int)HttpStatusCode.InternalServerError);
+
         if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
         {
-            return entityResult.EntityNotFound ? this.PresentationNotFound() : this.PresentationContent(entityResult.Entity);
+            return entityResult.EntityNotFound
+                ? this.PresentationNotFound()
+                : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
         }
 
         return entityResult.Entity?.Behavior.IsPublic() ?? false
@@ -61,7 +67,6 @@ public class CollectionController(
 
     [Authorize]
     [HttpPost("collections")]
-    [ETagCaching]
     public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(validator, null, null);
@@ -73,9 +78,8 @@ public class CollectionController(
 
     [Authorize]
     [HttpPut("collections/{id}")]
-    [ETagCaching]
     public async Task<IActionResult> Put(int customerId, string id,
-        [FromServices] RootCollectionValidator rootValidator, 
+        [FromServices] RootCollectionValidator rootValidator,
         [FromServices] PresentationValidator presentationValidator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(presentationValidator, id, rootValidator);
@@ -83,7 +87,7 @@ public class CollectionController(
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
             deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
-            deserializeValidationResult.RawRequestBody));
+            deserializeValidationResult.RawRequestBody), invalidatesEtag:Request.Headers.IfMatch);
     }
 
 
@@ -94,9 +98,9 @@ public class CollectionController(
         {
             return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
         }
-        
+
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        
+
         var deserializedCollection =
             await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
         if (deserializedCollection.Error)
@@ -131,7 +135,7 @@ public class CollectionController(
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="ObjectResult"/> response with 400 status code.
     /// </summary>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-    private ObjectResult PresentationUnableToSerialize() => 
-        this.PresentationProblem("Could not deserialize collection", null, (int) HttpStatusCode.BadRequest,
-        "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
+    private ObjectResult PresentationUnableToSerialize() =>
+        this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
+            "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
 }
