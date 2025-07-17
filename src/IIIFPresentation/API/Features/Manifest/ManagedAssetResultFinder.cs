@@ -163,21 +163,27 @@ public class ManagedAssetResultFinder(
         
         foreach (var assetToCheck in assetsToCheck)
         {
+            IngestType ingestType;
+            bool patch;
+            
             // is the asset managed in the DLCS?
             if (dlcsAssetIds.Contains(assetToCheck.assetId))
             {
                 // don't ingest, then patch the manifest id
                 logger.LogTrace("Asset {AssetId} found within the DLCS", assetToCheck.assetId);
-                interactionRequest.Add(new DlcsInteractionRequest(assetToCheck.paintedResource.Asset!, IngestType.NoIngest, true,
-                    assetToCheck.assetId));
+                ingestType = IngestType.NoIngest;
+                patch = true;
             }
             else
             {
                 // ingest with the manifest id, then don't patch the manifest id
                 logger.LogTrace("Asset {AssetId} is unmanaged", assetToCheck.assetId);
-                interactionRequest.Add(new DlcsInteractionRequest(assetToCheck.paintedResource.Asset!, IngestType.ManifestId, false,
-                    assetToCheck.assetId));
+                ingestType = IngestType.ManifestId;
+                patch = false;
             }
+            
+            interactionRequest.Add(new DlcsInteractionRequest(assetToCheck.paintedResource.Asset!, ingestType, patch,
+                assetToCheck.assetId));
         }
         
         return interactionRequest;
