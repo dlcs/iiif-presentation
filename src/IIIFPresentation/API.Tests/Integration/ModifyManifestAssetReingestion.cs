@@ -27,8 +27,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
     private const int NewlyCreatedSpace = 999;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private static readonly IDlcsOrchestratorClient DLCSOrchestratorClient = A.Fake<IDlcsOrchestratorClient>();
-    private readonly IETagManager etagManager;
-    
+
     public ModifyManifestAssetReingestion(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
@@ -52,8 +51,6 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
                 services
                     .AddSingleton(DLCSApiClient)
                     .AddSingleton(DLCSOrchestratorClient));
-        
-        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
 
         storageFixture.DbFixture.CleanUp();
     }
@@ -64,7 +61,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
         // Arrange
         var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
             ingested: true);
         await dbContext.SaveChangesAsync();
         
@@ -89,8 +86,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -123,7 +119,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
@@ -148,8 +144,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -186,7 +181,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         await dbContext.Manifests.AddTestManifest(id: $"{id}_first", slug: $"{slug}_first", canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
             ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
@@ -211,8 +206,7 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);

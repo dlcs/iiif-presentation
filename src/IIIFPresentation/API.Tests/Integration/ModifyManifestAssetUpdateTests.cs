@@ -2400,7 +2400,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
 
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
@@ -2440,8 +2440,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
