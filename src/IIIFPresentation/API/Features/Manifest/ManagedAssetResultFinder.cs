@@ -63,7 +63,7 @@ public class ManagedAssetResultFinder(
             assetsNotFoundInSameManifest.Add((assetId, paintedResource));
         }
 
-        List<CanvasPainting> inAnotherManifest = FindAssetsInAnotherManifest(customerId, assetsNotFoundInSameManifest);
+        var inAnotherManifest = FindAssetsInAnotherManifest(customerId, assetsNotFoundInSameManifest);
         
         List<(AssetId assetId, PaintedResource paintedResource)> checkDlcs = [];
 
@@ -73,21 +73,23 @@ public class ManagedAssetResultFinder(
             // is this this asset is found in another manifest?
             if (inAnotherManifest.Any(cp => cp.AssetId == assetNotFoundInSameManifest.assetId))
             {
+                IngestType ingestType;
+                
                 if (assetNotFoundInSameManifest.paintedResource.Reingest)
                 {
                     // reingest - ingest with no manifest id, then patch afterwards
                     logger.LogTrace("Asset {AssetId} found within another manifest - reingest", assetNotFoundInSameManifest.assetId);
-                    dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!,
-                        IngestType.NoManifestId, true, assetNotFoundInSameManifest.assetId));
+                    ingestType = IngestType.NoManifestId;
                 }
                 else
                 {
                     // not reingest - don't ingest, then patch the manifest id
                     logger.LogTrace("Asset {AssetId} found within another manifest", assetNotFoundInSameManifest.assetId);
-                    dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!, IngestType.NoIngest,
-                        true, assetNotFoundInSameManifest.assetId));
+                    ingestType = IngestType.NoIngest;
                 }
-
+                
+                dlcsInteractionRequests.Add(new DlcsInteractionRequest(assetNotFoundInSameManifest.paintedResource.Asset!, ingestType,
+                    true, assetNotFoundInSameManifest.assetId));
                 continue;
             }
 
@@ -129,8 +131,13 @@ public class ManagedAssetResultFinder(
         return inAnotherManifest;
     }
 
+    /// <summary>
+    /// Whether we can determine that the asset is new 
+    /// </summary>
     private static bool IsAssetNew(int? spaceId, bool spaceCreated, AssetId assetId)
     {
+        // if the space has been created, and the id of the space is the same as the space id, it means that the asset
+        // has been updated with the new space and therefore must be a new asset
         return spaceCreated && assetId.Space == spaceId;
     }
 
