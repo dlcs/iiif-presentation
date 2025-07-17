@@ -650,6 +650,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          // Arrange
          var (assetId ,slug) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
+         Fake.ClearRecordedCalls(DLCSApiClient);
 
          var manifestWithoutSpace = $$"""
                                       {
@@ -709,7 +710,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          }
          
          A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
-             A<List<JObject>>.That.Matches(o => o.Single().GetValue("id").ToString() == assetId),
+             A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == assetId),
              A<CancellationToken>._)).MustHaveHappened();
      }
      
@@ -717,7 +718,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
      {
          // Arrange
-         var slug = TestIdentifiers.Id();
+         var (assetId ,slug) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
          
          var manifestWithoutSpace = $$"""
@@ -741,7 +742,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                         "canvasOrder": 2
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-0",
+                                          "id": "{{assetId}}-0",
                                           "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
@@ -757,7 +758,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "canvasOrder": 1
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "id": "{{assetId}}-1",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -772,7 +773,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "canvasOrder": 0
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-2",
+                                          "id": "{{assetId}}-2",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -808,13 +809,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
          dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
          dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
      }
      
      [Fact]
