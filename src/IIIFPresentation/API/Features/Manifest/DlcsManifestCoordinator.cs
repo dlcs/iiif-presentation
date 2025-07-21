@@ -165,71 +165,6 @@ public class DlcsManifestCoordinator(
         await dlcsApiClient.UpdateAssetManifest(dbManifest.CustomerId,
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
-    
-    private async Task<(List<JObject> untrackedAssets, List<AssetId> dlcsAssetIds)> FindAssetsThatRequireAdditionalWork(List<JObject> assets, 
-        Models.Database.Collections.Manifest? dbManifest, int customerId, CancellationToken cancellationToken = default)
-    {
-        var assetIds = assets.Select(a => a.GetAssetId(customerId));
-        List<CanvasPainting> assetsInDatabase = [];
-        List<AssetId> assetsTrackedElsewhere = [];
-
-        if (dbManifest != null)
-        {
-            assetsInDatabase = dbContext.CanvasPaintings.Where(cp =>
-                    cp.AssetId != null && assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId)
-                .ToList();
-
-            assetsTrackedElsewhere = assetsInDatabase.Where(a => a.ManifestId != dbManifest.Id)
-                .Select(a => a.AssetId!).ToList();
-
-            // all assets are tracked
-            if (assetsInDatabase.Count == assets.Count && !assetsTrackedElsewhere.Any())
-            {
-                logger.LogTrace("All assets tracked in database for {ManifestId}", dbManifest.Id);
-                return ([], []);
-            }
-        }
-
-        var assetsToCheckDlcs = assetIds.Where(a => assetsInDatabase.All(b => b.AssetId != a)).ToList();
-
-        IList<JObject> dlcsAssets = [];
-
-        try
-        {
-            dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                assetsToCheckDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to retrieve DLCS assets");
-        }
-        
-        assetsTrackedElsewhere.AddRange(dlcsAssets.Select(a => a.GetAssetId(customerId)));
-
-        if (assetsTrackedElsewhere.Count == assets.Count)
-        {
-            logger.LogTrace("All assets tracked for {ManifestId}", dbManifest?.Id ?? "new manifest");
-            return ([], assetsTrackedElsewhere);
-        }
-        
-        var untrackedAssets = GetUntrackedAssets(assets, assetsInDatabase, assetsTrackedElsewhere, customerId);
-        
-        return (untrackedAssets, assetsTrackedElsewhere);
-    }
-
-
-    private static List<JObject> GetUntrackedAssets(List<JObject> payloadAssets, List<CanvasPainting> assetsInDatabase, 
-        List<AssetId> dlcsAssetIds, int customerId)
-    {
-        var knownAssets = dlcsAssetIds.Union(assetsInDatabase.Select(a => a.AssetId));
-
-        var untrackedAssets = payloadAssets.Where(a =>
-            !knownAssets.Any(b =>
-                b.Asset == a.GetRequiredValue(AssetProperties.Id).ToString() &&
-                b.Space == a.GetRequiredValue(AssetProperties.Space).Value<int>()))
-            .DistinctBy(x => x.GetAssetId(customerId)).ToList();
-        return untrackedAssets;
-    }
 
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
         request.PresentationManifest.PaintedResources?
@@ -261,7 +196,6 @@ public class DlcsManifestCoordinator(
                     {
                         dlcsInteractionRequest.Asset[AssetProperties.Manifests] = null;
                     }
-
                     break;
                 }
                 case IngestType.ManifestId:
@@ -273,7 +207,8 @@ public class DlcsManifestCoordinator(
         try
         {
             var batches = await dlcsApiClient.IngestAssets(customerId,
-                dlcsInteractionRequests.Select(d => d.Asset).ToList(),
+                dlcsInteractionRequests.DistinctBy(i => i.AssetId)
+                    .Select(d => d.Asset).ToList(),
                 cancellationToken);
 
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);
