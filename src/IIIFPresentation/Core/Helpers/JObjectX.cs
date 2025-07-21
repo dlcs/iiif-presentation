@@ -12,4 +12,11 @@ public static class JObjectX
         => !jObject.TryGetValue(property, out var val) 
             ? throw new InvalidOperationException($"Object missing '{property}' property") 
             : val;
+    
+    /// <summary>
+    /// Get specified property value from jObject. Property is required so <see cref="FormatException"/>
+    /// thrown if not found
+    /// </summary>
+    public static T? GetRequiredValue<T>(this JObject jObject, string property) 
+        => jObject.GetRequiredValue(property).Value<T>();
 }

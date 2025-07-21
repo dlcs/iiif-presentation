@@ -7,3 +7,5 @@
   * Central note of S3 keys used in app
 * [PaintedResource to Manifest](paintedresource-to-manifest.md)
   * Outline of how `paintedResources` are rendered on Manifest
+* [Reingest Property](reingest-property.md)
+  * Details of how the reingest property works
