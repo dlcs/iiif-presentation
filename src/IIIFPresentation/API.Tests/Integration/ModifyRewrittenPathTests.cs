@@ -1,11 +1,9 @@
 ﻿using System.Net;
-using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Infrastructure;
 using Core.Response;
 using DLCS.API;
 using DLCS.Models;
-using Docker.DotNet.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
