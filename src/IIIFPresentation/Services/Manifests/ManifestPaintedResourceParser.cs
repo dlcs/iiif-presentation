@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -11,7 +12,9 @@ namespace Services.Manifests;
 /// <summary>
 /// Contains logic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
 /// </summary>
-public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+public class ManifestPaintedResourceParser(
+    IPathRewriteParser pathRewriteParser, 
+    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
@@ -76,17 +79,45 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) 
         return cp;
     }
 
-    private static string? TryGetValidCanvasId(int customerId, PaintedResource paintedResource)
+    private string? TryGetValidCanvasId(int customerId, PaintedResource paintedResource)
     {
         paintedResource.CanvasPainting ??= new();
-        var canvasId = GetCanvasId(customerId, paintedResource.CanvasPainting);
-        return canvasId;
+
+        var canvasPainting = paintedResource.CanvasPainting;
+        
+        if (canvasPainting.CanvasId == null) return null;
+
+        if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
+        {
+            CheckForProhibitedCharacters(canvasPainting.CanvasId);
+            return canvasPainting.CanvasId;
+        }
+        
+        var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
+        CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
+
+        return parsedCanvasId.Resource;
     }
 
-    // PK: Simplified by #340
-    private static string? GetCanvasId(int customerId, Models.API.Manifest.CanvasPainting canvasPainting)
-        => canvasPainting.CanvasId != null ? PathParser.GetCanvasId(canvasPainting, customerId) : null;
+    private static void CheckParsedCanvasIdForErrors(PathParts parsedCanvasId, string fullPath)
+    {
+        if (string.IsNullOrEmpty(parsedCanvasId.Resource))
+        {
+            throw new InvalidCanvasIdException(fullPath);
+        }
 
+        CheckForProhibitedCharacters(parsedCanvasId.Resource);
+    }
+
+    private static void CheckForProhibitedCharacters(string canvasId)
+    {
+        if (ProhibitedCharacters.Any(canvasId.Contains))
+        {
+            throw new InvalidCanvasIdException(canvasId,
+                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
+        }
+    }
+    
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
     {
         // Read props from Asset - these must be there. If not, throw an exception
@@ -94,4 +125,8 @@ public class ManifestPaintedResourceParser(ILogger<ManifestItemsParser> logger) 
         var id = asset.GetRequiredValue(AssetProperties.Id);
         return AssetId.FromString($"{customerId}/{space}/{id}");
     }
+    
+    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
+    private static readonly string ProhibitedCharacterDisplay =
+        string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 }

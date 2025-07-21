@@ -3,11 +3,16 @@ using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Infrastructure;
 using Core.Response;
+using DLCS.API;
+using DLCS.Models;
+using Docker.DotNet.Models;
+using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
 using Models.API.Manifest;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -23,13 +28,20 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     private readonly PresentationContext dbContext;
     private readonly string parent;
     private const int Customer = 1;
+    private readonly IDlcsApiClient dlcsApiClient;
+    private const int NewlyCreatedSpace = 900;
     
     public ModifyRewrittenPathTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         
+        dlcsApiClient = A.Fake<IDlcsApiClient>();
+        A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
+        
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
+            services => services.AddSingleton(dlcsApiClient));
         
         parent = dbContext.Collections
             .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
@@ -320,7 +332,12 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someId"
+                        CanvasId = "http://example.com/example/1/canvases/someId"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "someId",
+                        ["mediaType"] = "image/jpeg"
                     }
                 }
             ]
@@ -334,13 +351,57 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest.Id.Should().NotBeNull();
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://example.com/foo/1/collections/{RootCollection.Id}");
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://example.com/example/1/canvases/someId");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifest_WhenRewrittenPathsNotMatchingCallingApi()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Id();
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://example.com/foo/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "http://example.com/example/1/canvases/someId"
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = "someId",
+                        ["mediaType"] = "image/jpeg"
+                    }
+                }
+            ]
+        };
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/someId");
     }
 
     [Fact]
