@@ -669,6 +669,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                               {
                                                  "asset": {
                                                       "id": "{{assetId}}",
+                                                      "batch": "{{batchId}}",
                                                       "mediaType": "image/jpg",
                                                       "origin": "some/origin"
                                                   }
@@ -712,6 +713,55 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
              A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == assetId),
              A<CancellationToken>._)).MustHaveHappened();
+     }
+     
+     [Fact]
+     public async Task CreateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdThatDoNotMatch()
+     {
+         // Arrange
+         var (assetId ,slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+         Fake.ClearRecordedCalls(DLCSApiClient);
+
+         var manifestWithoutSpace = $$"""
+                                      {
+                                          "type": "Manifest",
+                                          "slug": "{{slug}}",
+                                          "parent": "http://localhost/{{Customer}}/collections/root",
+                                          "paintedResources": [
+                                              {
+                                                  "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "{{batchId}}",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              },
+                                              {
+                                                 "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "DoesNotMatch",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              }
+                                          ] 
+                                      }
+                                      """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         errorResponse!.Detail.Should()
+             .Be($"Asset {Customer}/{NewlyCreatedSpace}/{assetId} is referred to multiple times, and does not match for ingestion");
+         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsDoNotMatch");
      }
      
      [Fact]

@@ -185,6 +185,8 @@ public class DlcsManifestCoordinator(
         List<DlcsInteractionRequest> dlcsInteractionRequests, CancellationToken cancellationToken)
     {
         if (dlcsInteractionRequests.Count == 0) return null;
+
+        var assets = new Dictionary<AssetId, JObject>();
         
         foreach (var dlcsInteractionRequest in dlcsInteractionRequests)
         {
@@ -202,13 +204,24 @@ public class DlcsManifestCoordinator(
                     dlcsInteractionRequest.Asset[AssetProperties.Manifests] = new JArray(new List<string> { manifestId });
                     break;
             }
+
+            if (!assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset))
+            {
+                var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
+                
+                if (!JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset))
+                {
+                    return EntityResult.Failure(
+                        $"Asset {dlcsInteractionRequest.AssetId} is referred to multiple times, and does not match for ingestion",
+                        ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
+                }
+            }
         }
         
         try
         {
             var batches = await dlcsApiClient.IngestAssets(customerId,
-                dlcsInteractionRequests.DistinctBy(i => i.AssetId)
-                    .Select(d => d.Asset).ToList(),
+                assets.Values.ToList(),
                 cancellationToken);
 
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);
