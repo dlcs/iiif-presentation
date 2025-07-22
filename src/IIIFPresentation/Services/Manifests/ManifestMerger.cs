@@ -92,8 +92,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Attempt to build named query dictionary for manifest {ManifestId} failed",
-                namedQueryManifest.Id);
+            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest.Id);
             throw;
         }
     }
