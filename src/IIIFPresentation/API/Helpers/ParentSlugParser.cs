@@ -18,7 +18,7 @@ using Repository.Paths;
 namespace API.Helpers;
 
 /// <summary>
-/// Parses API requests to retrieve the parent a nd slug values
+/// Parses API requests to retrieve the parent and slug values
 /// </summary>
 public interface IParentSlugParser
 {
