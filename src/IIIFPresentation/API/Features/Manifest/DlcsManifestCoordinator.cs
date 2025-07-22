@@ -207,12 +207,13 @@ public class DlcsManifestCoordinator(
 
             if (!assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset))
             {
+                logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
                 var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
                 
                 if (!JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset))
                 {
                     return EntityResult.Failure(
-                        $"Asset {dlcsInteractionRequest.AssetId} is referred to multiple times, and does not match for ingestion",
+                        $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times but has conflicting data",
                         ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
                 }
             }
