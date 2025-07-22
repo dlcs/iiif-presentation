@@ -30,39 +30,6 @@ public static class PathParser
         }
     }
 
-    public static string GetCanvasId(CanvasPainting canvasPainting, int customerId)
-    {
-        var canvasId = canvasPainting.CanvasId.ThrowIfNull(nameof(canvasPainting));
-
-        if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
-        {
-            CheckForProhibitedCharacters(canvasId);
-            return canvasId;
-        }
-
-        var convertedCanvasId = new Uri(canvasId).PathAndQuery;
-        var customerCanvasesPath = $"/{customerId}/canvases/";
-
-        if (!convertedCanvasId.StartsWith(customerCanvasesPath) || convertedCanvasId.Equals(customerCanvasesPath))
-        {
-            throw new InvalidCanvasIdException(convertedCanvasId);
-        }
-
-        var actualCanvasId = convertedCanvasId[customerCanvasesPath.Length..];
-        CheckForProhibitedCharacters(actualCanvasId);
-
-        return actualCanvasId;
-    }
-
-    private static void CheckForProhibitedCharacters(string canvasId)
-    {
-        if (ProhibitedCharacters.Any(canvasId.Contains))
-        {
-            throw new InvalidCanvasIdException(canvasId,
-                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
-        }
-    }
-
     /// <summary>
     /// Gets a hierarchical path from a full array of path elements
     /// </summary>
@@ -105,7 +72,4 @@ public static class PathParser
 
     public static Uri GetParentUriFromPublicId(string publicId) => 
         new(publicId[..publicId.LastIndexOf(PathSeparator)]);
-
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
-    private static string ProhibitedCharacterDisplay = string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 }

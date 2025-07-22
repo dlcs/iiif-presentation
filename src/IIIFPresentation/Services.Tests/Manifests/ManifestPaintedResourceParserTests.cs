@@ -1,10 +1,13 @@
 ﻿using Core.Exceptions;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Repository.Paths;
 using Services.Manifests;
+using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
@@ -12,10 +15,18 @@ namespace Services.Tests.Manifests;
 
 public class ManifestPaintedResourceParserTests
 {
-    private readonly ManifestPaintedResourceParser sut = new(new NullLogger<ManifestItemsParser>());
+    private readonly ManifestPaintedResourceParser sut;
     private const int CustomerId = 1234;
     private const int DefaultSpace = 10;
     private readonly string[] assetIds = ["frodo", "merry", "pippin", "sam", "gandalf", "balrog"];
+    
+    public ManifestPaintedResourceParserTests()
+    {
+        var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
+            new NullLogger<PathRewriteParser>());
+        
+        sut = new ManifestPaintedResourceParser(pathRewriteParser, new NullLogger<ManifestItemsParser>());
+    }
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
@@ -25,8 +36,15 @@ public class ManifestPaintedResourceParserTests
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
         => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
 
-    [Fact]
-    public void Parse_Throws_InvalidCanvasId()
+    [Theory]
+    [InlineData("https://foo.com/example/1/canvases/canvas")]
+    [InlineData("https://default.com/additionalElement/1/canvases/canvas")]
+    [InlineData("https://dlcs.example/1/random/foo/bar/baz")]
+    [InlineData("https://invalid/format")]
+    [InlineData("https://dlcs.example/1/canvases/")]
+    [InlineData("https://dlcs.example/1/canvases")]
+    [InlineData("https://dlcs.example/1/canvases/canvas/")]
+    public void Parse_Throws_InvalidCanvasId(string canvasId)
     {
         var manifest = new PresentationManifest
         {
@@ -35,13 +53,39 @@ public class ManifestPaintedResourceParserTests
                 new PaintedResource
                 {
                     Asset = GetAsset(),
-                    CanvasPainting = new PresCanvasPainting { CanvasId = "https://invalid/format" }
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId }
                 }
             ]
         };
 
         Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
         action.Should().Throw<InvalidCanvasIdException>();
+    }
+    
+    [Theory]
+    [InlineData("https://default.com/1/canvases/canvas")]
+    [InlineData("https://foo.com/foo/1/canvases/canvas")]
+    [InlineData("https://no-customer.com/canvases/canvas")]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
+    [InlineData("https://dlcs.example/1/canvases/canvas?foo=bar")]
+    [InlineData("canvas")]
+    public void Parse_Parses_WhenRewrittenCanvasId(string canvasId)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId }
+                }
+            ]
+        };
+
+        var parsed = sut.ParseToCanvasPainting(manifest, CustomerId);
+        
+        parsed.First().Id.Should().Be("canvas");
     }
     
     [Fact]
