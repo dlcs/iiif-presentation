@@ -87,8 +87,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         {
             return namedQueryManifest
                 .Items!
-                .GroupBy(canvas => canvas.GetAssetIdFromNamedQueryCanvasId())
-                .ToDictionary(canvas => canvas.Key, canvas => canvas.First());
+                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
         }
         catch (Exception e)
         {
