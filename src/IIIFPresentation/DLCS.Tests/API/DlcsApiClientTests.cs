@@ -258,6 +258,29 @@ public class DlcsApiClientTests
 
         assets.Should().NotBeNull().And.BeEmpty();
     }
+    
+    [Fact]
+    public async Task GetCustomerImages_StripsDuplicateAssets_WhenDuplicateAssetIds()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                           "member": [
+                            { "someAssetProp": "someAssetValue-this can be arbitrary" }
+                           ]
+                           }
+                          """)
+            .IfBody(body => body.Contains("\"member\":[{\"id\":\"someString\"}]"))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, ["someString", "someString"], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+    }
 
     [Theory]
     [InlineData(HttpStatusCode.Forbidden)]
