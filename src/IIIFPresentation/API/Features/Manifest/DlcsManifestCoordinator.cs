@@ -7,10 +7,12 @@ using Core;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
+using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -212,8 +214,11 @@ public class DlcsManifestCoordinator(
                 
                 if (!JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset))
                 {
+                    var jsonDiffPatch = new JsonDiffPatch();
+                    var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
+                    
                     return EntityResult.Failure(
-                        $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times but has conflicting data",
+                        $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
                         ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
                 }
             }

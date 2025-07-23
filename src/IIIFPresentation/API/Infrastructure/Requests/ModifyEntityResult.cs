@@ -39,7 +39,7 @@ public class ModifyEntityResult<T, TEnum> : IModifyRequest
         return new ModifyEntityResult<T, TEnum>
             { Error = error, WriteResult = result, IsSuccess = false, ErrorType = errorType };
     }
-
+    
     public static ModifyEntityResult<T, TEnum> Success(T entity, WriteResult result = WriteResult.Updated, Guid? etag = null)
     {
         return new ModifyEntityResult<T, TEnum>
