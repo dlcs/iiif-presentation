@@ -760,7 +760,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
          var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
          errorResponse!.Detail.Should()
-             .Be($"Asset {Customer}/{NewlyCreatedSpace}/{assetId} is specified multiple times, but has conflicting data - diff: {{\"batch\":[\"2\",\"DoesNotMatch\"]}}");
+             .Be($"Asset {Customer}/{NewlyCreatedSpace}/{assetId} is specified multiple times, but has conflicting data - diff: {{\"batch\":[\"{batchId}\",\"DoesNotMatch\"]}}");
          errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsDoNotMatch");
      }
      
