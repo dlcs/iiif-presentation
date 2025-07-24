@@ -97,7 +97,7 @@ public class GenerateManifestOptions
 public class ManifestTestCreator
 {
     public static GenerateManifestOptions New(string? id = null) => new() {Id = id};
-    public static GenerateCanvasOptions Canvas() => new();
+    public static GenerateCanvasOptions Canvas(string? id = null) => new() {Id = id};
 
     public static List<CanvasPainting> GenerateCanvasPaintings(List<string> idList)
     {

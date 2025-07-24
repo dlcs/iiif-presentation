@@ -25,7 +25,7 @@ public class ManifestPaintedResourceParserTests
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
         
-        sut = new ManifestPaintedResourceParser(pathRewriteParser, new NullLogger<ManifestItemsParser>());
+        sut = new ManifestPaintedResourceParser(pathRewriteParser, new NullLogger<ManifestPaintedResourceParser>());
     }
 
     [Fact]
