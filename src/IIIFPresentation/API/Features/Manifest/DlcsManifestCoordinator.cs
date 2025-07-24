@@ -7,10 +7,12 @@ using Core;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
+using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -165,7 +167,7 @@ public class DlcsManifestCoordinator(
         await dlcsApiClient.UpdateAssetManifest(dbManifest.CustomerId,
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
-    
+
     private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
         request.PresentationManifest.PaintedResources?
             .Select(p => p.Asset)
@@ -185,6 +187,8 @@ public class DlcsManifestCoordinator(
         List<DlcsInteractionRequest> dlcsInteractionRequests, CancellationToken cancellationToken)
     {
         if (dlcsInteractionRequests.Count == 0) return null;
+
+        var assets = new Dictionary<AssetId, JObject>();
         
         foreach (var dlcsInteractionRequest in dlcsInteractionRequests)
         {
@@ -196,19 +200,34 @@ public class DlcsManifestCoordinator(
                     {
                         dlcsInteractionRequest.Asset[AssetProperties.Manifests] = null;
                     }
-
                     break;
                 }
                 case IngestType.ManifestId:
                     dlcsInteractionRequest.Asset[AssetProperties.Manifests] = new JArray(new List<string> { manifestId });
                     break;
             }
+
+            if (!assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset))
+            {
+                logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
+                var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
+                
+                if (!JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset))
+                {
+                    var jsonDiffPatch = new JsonDiffPatch();
+                    var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
+                    
+                    return EntityResult.Failure(
+                        $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
+                        ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
+                }
+            }
         }
         
         try
         {
             var batches = await dlcsApiClient.IngestAssets(customerId,
-                dlcsInteractionRequests.Select(d => d.Asset).ToList(),
+                assets.Values.ToList(),
                 cancellationToken);
 
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);

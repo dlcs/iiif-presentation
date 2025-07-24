@@ -645,10 +645,130 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      }
      
      [Fact]
+     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WhenMultipleAssetsWithSameAssetId()
+     {
+         // Arrange
+         var (assetId ,slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+         Fake.ClearRecordedCalls(DLCSApiClient);
+
+         var manifestWithoutSpace = $$"""
+                                      {
+                                          "type": "Manifest",
+                                          "slug": "{{slug}}",
+                                          "parent": "http://localhost/{{Customer}}/collections/root",
+                                          "paintedResources": [
+                                              {
+                                                  "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "{{batchId}}",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              },
+                                              {
+                                                 "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "{{batchId}}",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              }
+                                          ] 
+                                      }
+                                      """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         responseManifest!.Id.Should().NotBeNull();
+         
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+         dbManifest.CanvasPaintings!.Should().HaveCount(2);
+         dbManifest.Batches.Should().HaveCount(1);
+         dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.First().Id.Should().Be(batchId);
+         
+         var currentCanvasOrder = 0;
+         foreach (var canvasPainting in dbManifest.CanvasPaintings!)
+         {
+             canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
+             canvasPainting.AssetId.ToString().Should()
+                 .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
+             currentCanvasOrder++;
+         }
+         
+         A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+             A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == assetId),
+             A<CancellationToken>._)).MustHaveHappened();
+     }
+     
+     [Fact]
+     public async Task CreateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdThatDoNotMatch()
+     {
+         // Arrange
+         var (assetId ,slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+         Fake.ClearRecordedCalls(DLCSApiClient);
+
+         var manifestWithoutSpace = $$"""
+                                      {
+                                          "type": "Manifest",
+                                          "slug": "{{slug}}",
+                                          "parent": "http://localhost/{{Customer}}/collections/root",
+                                          "paintedResources": [
+                                              {
+                                                  "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "{{batchId}}",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              },
+                                              {
+                                                 "asset": {
+                                                      "id": "{{assetId}}",
+                                                      "batch": "DoesNotMatch",
+                                                      "mediaType": "image/jpg",
+                                                      "origin": "some/origin"
+                                                  }
+                                              }
+                                          ] 
+                                      }
+                                      """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         errorResponse!.Detail.Should()
+             .Be($"Asset {Customer}/{NewlyCreatedSpace}/{assetId} is specified multiple times, but has conflicting data - diff: {{\"batch\":[\"{batchId}\",\"DoesNotMatch\"]}}");
+         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsDoNotMatch");
+     }
+     
+     [Fact]
      public async Task CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
      {
          // Arrange
-         var slug = TestIdentifiers.Id();
+         var (assetId ,slug) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
          
          var manifestWithoutSpace = $$"""
@@ -672,7 +792,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                         "canvasOrder": 2
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-0",
+                                          "id": "{{assetId}}-0",
                                           "batch": "{{batchId}}",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
@@ -688,7 +808,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "canvasOrder": 1
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-1",
+                                          "id": "{{assetId}}-1",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -703,7 +823,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "canvasOrder": 0
                                      },
                                       "asset": {
-                                          "id": "testAssetByPresentation-multipleAssets-2",
+                                          "id": "{{assetId}}-2",
                                           "mediaType": "image/jpg",
                                           "origin": "some/origin"
                                       }
@@ -739,13 +859,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
          dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-0");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-1");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
          dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/testAssetByPresentation-multipleAssets-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
      }
      
      [Fact]

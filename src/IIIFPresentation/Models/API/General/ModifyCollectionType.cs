@@ -26,5 +26,6 @@ public enum ModifyCollectionType
     PublicIdIncorrect = 22,
     ManifestCreatedWithItemsCannotBeUpdatedWithAssets = 23,
     ManifestCreatedWithAssetsCannotBeUpdatedWithItems  = 24,
+    AssetsDoNotMatch = 25,
     Unknown = 1000
 }

@@ -114,7 +114,7 @@ public class ManifestTestCreator
         var canvasOrder = 0;
         return idList.Select(id => new CanvasPainting
         {
-            Id = id.ToString(), AssetId = id, CanvasOrder = canvasOrder++, Ingesting = true,
+            Id = id + $"_{Guid.NewGuid()}", AssetId = id, CanvasOrder = canvasOrder++, Ingesting = true,
             Label = new("canvasPaintingLabel", "generated canvas painting label")
         }).ToList();
     }

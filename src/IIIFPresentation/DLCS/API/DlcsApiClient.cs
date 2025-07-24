@@ -130,8 +130,9 @@ internal class DlcsApiClient(
 
         var endpoint = $"/customers/{customerId}/allImages";
         var results = new List<JObject>();
-        foreach (var idBatch in assetIds.Chunk(settings.MaxImageListSize))
+        foreach (var idBatch in assetIds.Distinct().Chunk(settings.MaxImageListSize))
         {
+            // duplicate images cause errors in the DLCS, so strip them out
             var hydraImages = new HydraCollection<JObject>(idBatch.Select(id => new JObject {["id"] = id}).ToArray());
 
             var result =
