@@ -43,7 +43,7 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenDefaultSettings()
+    public void CanvasPaintingAndItems_Manifest_NoErrorWhenMixedContent()
     {
         var manifest = new PresentationManifest
         {
@@ -67,8 +67,7 @@ public class PresentationManifestValidatorTests
         };
         
         var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Items)
-            .WithErrorMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
+        result.ShouldNotHaveValidationErrorFor(m => m.Items);
     }
     
     [Fact]
@@ -77,7 +76,6 @@ public class PresentationManifestValidatorTests
         var sutAllowedItemsAndPaintedResource = new  PresentationManifestValidator(Options.Create(new ApiSettings()
         {
             AWS = new AWSSettings(),
-            IgnorePaintedResourcesWithItems = true,
             DLCS = new DlcsSettings
             {
                 ApiUri = new Uri("https://localhost")

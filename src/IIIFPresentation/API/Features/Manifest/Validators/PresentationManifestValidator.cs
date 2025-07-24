@@ -12,15 +12,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 {
     public PresentationManifestValidator(IOptions<ApiSettings> options)
     {
-        var settings = options.Value;
-        
-        if (!settings.IgnorePaintedResourcesWithItems)
-        {
-            RuleFor(m => m.Items).Empty()
-                .When(f => !f.PaintedResources.IsNullOrEmpty())
-                .WithMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-        }
-
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
     }
