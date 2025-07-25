@@ -270,7 +270,7 @@ public class CanvasPaintingResolver(
                     .ParseToCanvasPainting(presentationManifest, customerId).ToList();
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
-                paintedResourceCanvasPaintings);
+                paintedResourceCanvasPaintings, presentationManifest.Items);
 
             return (null, res);
         }
