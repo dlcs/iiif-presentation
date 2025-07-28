@@ -16,7 +16,6 @@ public interface ICanvasPaintingMerger
 /// </summary>
 public class CanvasPaintingMerger : ICanvasPaintingMerger
 {
-    // todo: logging
     public List<CanvasPainting>? CombinePaintedResources(List<CanvasPainting> itemsCanvasPaintings, 
         List<CanvasPainting> paintedResourceCanvasPaintings, List<Canvas>? items)
     {
@@ -45,15 +44,16 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
                     AddCanvasPaintingsFromItems(groupedItemsCanvasPaintings, canvasPaintingsToAdd, canvasPaintingOrderTracker, combinedCanvasPaintings);
                 }
 
+                // add the painted resource after adding everything needed from items to fill out the ordering
                 combinedCanvasPaintings.Add(paintedResourceCanvasPainting);
             }
 
-            // set the order tracker to the current canvas order, so that we can handle skipped ordering
+            // set the order tracker to the current canvas order + 1, so that we can handle skipped ordering
             canvasPaintingOrderTracker = paintedResourceCanvasPainting.CanvasOrder;
             canvasPaintingOrderTracker++;
         }
 
-        // Add everything that's left over in the items canvas painting, if needed
+        // Add everything that's left over in the items canvas paintings, if needed
         if (groupedItemsCanvasPaintings.Count != 0)
         {
             AddCanvasPaintingsFromItems(groupedItemsCanvasPaintings, groupedItemsCanvasPaintings.Count,
@@ -66,47 +66,70 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
     private void JoinPaintedResourcesWithItems(List<CanvasPainting> itemsCanvasPaintings, 
         List<CanvasPainting> paintedResourceCanvasPaintings, List<Canvas>? items)
     {
-        //todo: validate canvasOrder
-        
         foreach (var itemsCanvasPainting in itemsCanvasPaintings.ToList())
         {
             var paintedResourceCanvasPainting =
-                paintedResourceCanvasPaintings.FirstOrDefault(cp =>
-                    cp.CanvasOriginalId == itemsCanvasPainting.CanvasOriginalId);
+                paintedResourceCanvasPaintings.Where(cp => itemsCanvasPainting.CanvasOriginalId != null &&
+                    cp.CanvasOriginalId == itemsCanvasPainting.CanvasOriginalId).ToList();
             
-            if (paintedResourceCanvasPainting != null)
+            if (paintedResourceCanvasPainting.Count != 0)
             {
-                ValidateItemCanvasPainting(itemsCanvasPainting, paintedResourceCanvasPainting, items!);
+                // we check by canvas/choice order as well, in case there are multiple canvases with the same id (possible with placeholders etc.)
+                var orderedCanvasPainting = paintedResourceCanvasPainting.Count == 1
+                    ? paintedResourceCanvasPainting.First()
+                    : paintedResourceCanvasPainting.FirstOrDefault(cp =>
+                        cp.CanvasOrder == itemsCanvasPainting.CanvasOrder &&
+                        cp.ChoiceOrder == itemsCanvasPainting.ChoiceOrder) ?? throw new CanvasPaintingMergerException(
+                        $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
+                
+                ValidateItemCanvasPainting(itemsCanvasPainting, orderedCanvasPainting, items!);
                 
                 itemsCanvasPaintings.Remove(itemsCanvasPainting);
             }
         }
     }
 
-    private void ValidateItemCanvasPainting(CanvasPainting itemsCanvasPainting, CanvasPainting paintedResourceCanvasPainting, 
+    private void ValidateItemCanvasPainting(CanvasPainting itemsCanvasPainting,
+        CanvasPainting paintedResourceCanvasPainting,
         List<Canvas> items)
     {
-        //todo: should we update the canvas painting labels from items if it's null?
-        // ANSWER: the one which isn't null wins
+        var canvas = items.FirstOrDefault(c => c.Id == paintedResourceCanvasPainting.CanvasOriginalId!.ToString());
+
+        if (canvas != null)
+        {
+            if (!canvas.Items.IsNullOrEmpty())
+            {
+                throw new CanvasPaintingMergerException(
+                    $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} cannot contain an annotation body");
+            }
+        }
+        
         if (itemsCanvasPainting.CanvasLabel != paintedResourceCanvasPainting.CanvasLabel)
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasLabel?.ToString(),
                 paintedResourceCanvasPainting.CanvasLabel?.ToString(),
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have matching canvas label");
+                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas label");
         }
         
         if (itemsCanvasPainting.Label != paintedResourceCanvasPainting.Label)
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.Label?.ToString(),
                 paintedResourceCanvasPainting.Label?.ToString(),
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have matching label");
+                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching label");
         }
 
-        // todo: move to validators?
-        if (!items.First(c => c.Id == paintedResourceCanvasPainting.Id).Annotations.IsNullOrEmpty())
+        if (itemsCanvasPainting.CanvasOrder != paintedResourceCanvasPainting.CanvasOrder)
         {
-            throw new CanvasPaintingMergerException(
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} cannot contain an annotation body");
+            throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
+                itemsCanvasPainting.CanvasOrder.ToString(),
+                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas order");
+        }
+        
+        if (itemsCanvasPainting.ChoiceOrder != paintedResourceCanvasPainting.ChoiceOrder)
+        {
+            throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
+                itemsCanvasPainting.CanvasOrder.ToString(),
+                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching choice order");
         }
     }
 
@@ -115,6 +138,12 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
     {
         var canvasIdToSet = canvasPaintingOrderTracker;
         
+        // avoids out of range exceptions when trying to add more id's than there are
+        if (canvasPaintingsToAdd > groupedItemsCanvasPaintings.Count)
+        {
+            canvasPaintingsToAdd = groupedItemsCanvasPaintings.Count;
+        }
+
         foreach (var grouping in groupedItemsCanvasPaintings.GetRange(0, canvasPaintingsToAdd))
         {
             canvasIdToSet++;

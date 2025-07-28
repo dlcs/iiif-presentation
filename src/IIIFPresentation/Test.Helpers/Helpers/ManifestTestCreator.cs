@@ -100,6 +100,8 @@ public class GenerateCanvasPaintingOptions
     public string? Id { get; set; }
     public string? AssetId { get; set; }
     public Uri? CanvasOriginalId { get; set; }
+    public LanguageMap? CanvasLabel { get; set; }
+    public LanguageMap? Label { get; set; }
 }
 
 public class GenerateCanvasPaintingsOptions
@@ -150,8 +152,8 @@ public class ManifestTestCreator
             CanvasOriginalId = cp.CanvasOriginalId != null ? cp.CanvasOriginalId : null,
             CanvasOrder = cp.CanvasOrder,
             ChoiceOrder = cp.ChoiceOrder,
-            Label = new($"canvasPaintingLabel_{cp.CanvasOrder}_{cp.ChoiceOrder}", 
-                $"generated canvas painting label: canvas order {cp.CanvasOrder}, choice order {cp.ChoiceOrder}"),
+            Label = cp.Label,
+            CanvasLabel = cp.CanvasLabel
         }).ToList();
     }
     
