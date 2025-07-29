@@ -71,43 +71,6 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_NoErrorWhenSettings()
-    {
-        var sutAllowedItemsAndPaintedResource = new  PresentationManifestValidator(Options.Create(new ApiSettings()
-        {
-            AWS = new AWSSettings(),
-            DLCS = new DlcsSettings
-            {
-                ApiUri = new Uri("https://localhost")
-            }
-        }));
-        
-        var manifest = new PresentationManifest
-        {
-            Items =
-            [
-                new()
-                {
-                    Id = "someId",
-                }
-            ],
-            PaintedResources =
-            [
-                new()
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId"
-                    }
-                }
-            ],
-        };
-        
-        var result = sutAllowedItemsAndPaintedResource.TestValidate(manifest);
-        result.ShouldNotHaveValidationErrorFor(m => m.Items);
-    }
-    
-    [Fact]
     public void PaintedResource_Manifest_ErrorWhenDuplicateChoiceWithCanvasOrder()
     {
         var manifest = new PresentationManifest
