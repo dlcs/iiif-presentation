@@ -294,8 +294,9 @@ public class ManifestWriteService(
     /// 1. Determined that there's no DLCS interaction required at all (no new space and no assets)
     /// 2. Determined that there are no unchecked assets (after checking with DLCS)
     /// </summary>
-    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) => 
-        dlcsInteractionResult != DlcsInteractionResult.NoInteraction && !dlcsInteractionResult.CanBeBuiltUpfront;
+    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) =>
+        dlcsInteractionResult != DlcsInteractionResult.NoInteraction &&
+        dlcsInteractionResult is { OnlySpace: false, CanBeBuiltUpfront: false };
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,
