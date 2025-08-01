@@ -861,7 +861,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
-         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(2);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
      }

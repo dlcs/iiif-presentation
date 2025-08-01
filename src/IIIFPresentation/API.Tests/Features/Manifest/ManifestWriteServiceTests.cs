@@ -168,7 +168,8 @@ public class ManifestWriteServiceTests
                     {
                         CanvasId = "someCanvasId",
                         CanvasOriginalId = $"https://base/0/canvases/{canvasId}",
-                        CanvasOrder = 20
+                        CanvasOrder = 20,
+                        CanvasLabel = new LanguageMap("some", "different label")
                     }
                 }
             ]
