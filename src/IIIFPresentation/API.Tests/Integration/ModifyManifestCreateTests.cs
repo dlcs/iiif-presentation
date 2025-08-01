@@ -159,8 +159,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(CreateManifest_Conflict_IfParentFoundButNotAStorageCollection);
-        var slugId = $"slug_{nameof(CreateManifest_Conflict_IfParentFoundButNotAStorageCollection)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -175,7 +175,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             [
                 new Hierarchy
                 {
-                    Slug = slugId,
+                    Slug = slug,
                     Parent = RootCollection.Id,
                     Type = ResourceType.StorageCollection,
                     Canonical = true
@@ -206,8 +206,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForCollection()
     {
         // Arrange
-        var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection);
-        var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForCollection)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateCollection = new Collection
         {
             Id = collectionId,
@@ -252,8 +252,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_Conflict_IfParentAndSlugExist_ForManifest()
     {
         // Arrange
-        var collectionId = nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest);
-        var slug = $"slug_{nameof(CreateManifest_Conflict_IfParentAndSlugExist_ForManifest)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateManifest = new Manifest
         {
             Id = collectionId,
@@ -296,7 +296,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
         // Arrange
-        var slug = nameof(CreateManifest_BadRequest_WhenParentIsInvalidHierarchicalUri);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = "http://different.host/root",
@@ -347,7 +347,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_InternalServerError_IfSpaceRequested_ButFails()
     {
         // Arrange
-        var slug = nameof(CreateManifest_InternalServerError_IfSpaceRequested_ButFails);
+        var slug = TestIdentifiers.Slug();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -376,7 +376,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifest_ParentIsValidHierarchicalUrl);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -406,7 +406,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -436,7 +436,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_ReturnsManifest()
     {
         // Arrange
-        var slug = nameof(CreateManifest_ReturnsManifest);
+        var slug = TestIdentifiers.Slug();
         var manifest =
             $$"""
 
@@ -471,10 +471,50 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
+    public async Task CreateManifest_ReturnsManifestWithEtag_WhenLinkHeaderNoAssets()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        var manifest =
+            $$"""
+
+              {
+                  "@context": "http://iiif.io/api/presentation/3/context.json",
+                  "id": "https://iiif.example/manifest.json",
+                  "type": "Manifest",
+                  "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
+                  "slug": "{{slug}}"
+              }
+              """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+        HttpRequestMessageBuilder.AddLinkHeader(requestMessage);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.PaintedResources.Should().BeNullOrEmpty();
+        responseManifest.Space.Should().NotBeNull();
+        
+        var dbManifest = dbContext.Manifests.First(x => x.Id == responseManifest.Id.GetLastPathElement());
+        dbManifest.Etag.Should().NotBeEmpty();
+    }
+    
+    [Fact]
     public async Task CreateManifest_CreatedDBRecord()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatedDBRecord);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -509,7 +549,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_IfSpaceRequested_ReturnsManifest()
     {
         // Arrange
-        var slug = nameof(CreateManifest_IfSpaceRequested_ReturnsManifest);
+        var slug = TestIdentifiers.Slug();
         var manifest =
             $$"""
               {
@@ -539,7 +579,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_IfSpaceRequested_CreatedDBRecord()
     {
         // Arrange
-        var slug = nameof(CreateManifest_IfSpaceRequested_CreatedDBRecord);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -569,7 +609,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_WithLabel_SavesLabel()
     {
         // Arrange
-        var slug = nameof(CreateManifest_WithLabel_SavesLabel);
+        var slug = TestIdentifiers.Slug();
 
         var label = new LanguageMap("en", "illinoise");
         label.Add("none", ["nope"]);
@@ -601,7 +641,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_NoAssets_WritesToS3_Real()
     {
         // Arrange
-        var slug = nameof(CreateManifest_NoAssets_WritesToS3_Real);
+        var slug = TestIdentifiers.Slug();
+        
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -672,7 +713,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_WritesToS3_IgnoringId()
     {
         // Arrange
-        var slug = nameof(CreateManifest_WritesToS3_IgnoringId);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -704,7 +745,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     [Fact]
     public async Task CreateManifest_ReturnsManifest_WithProvisionalItems()
     {
-        const string slug = nameof(CreateManifest_ReturnsManifest_WithProvisionalItems);
+        var slug = TestIdentifiers.Slug();
 
         #region ManifestJson
 
@@ -922,8 +963,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection);
-        var slug = $"s_{nameof(PutFlatId_Insert_Conflict_IfParentFoundButNotAStorageCollection)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var initialCollection = new Collection
         {
             Id = collectionId,
@@ -969,8 +1010,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection);
-        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForCollection)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateCollection = new Collection
         {
             Id = collectionId,
@@ -1015,8 +1056,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection);
-        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForCollection)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateCollection = new Collection
         {
             Id = collectionId,
@@ -1061,8 +1102,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest);
-        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlugExist_ForManifest)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateManifest = new Manifest
         {
             Id = collectionId,
@@ -1105,8 +1146,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest()
     {
         // Arrange
-        var collectionId = nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest);
-        var slug = $"slug_{nameof(PutFlatId_Insert_Conflict_IfParentAndSlug_VaryCase_ForManifest)}";
+        var (slug, collectionId) = TestIdentifiers.SlugResource();
+        
         var duplicateManifest = new Manifest
         {
             Id = collectionId,
@@ -1149,7 +1190,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri()
     {
         // Arrange
-        var slug = nameof(PutFlatId_Insert_BadRequest_WhenParentIsInvalidHierarchicalUri);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = "http://different.host/root",
@@ -1173,7 +1214,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_InternalServerError_IfSpaceRequested_ButFails()
     {
         // Arrange
-        var slug = nameof(PutFlatId_Insert_InternalServerError_IfSpaceRequested_ButFails);
+        var slug = TestIdentifiers.Slug();
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -1202,8 +1243,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl()
     {
         // Arrange
-        var id = nameof(PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl);
-        var slug = $"s_{nameof(PutFlatId_Insert_CreatesManifest_ParentIsValidHierarchicalUrl)}";
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/1/collections/{RootCollection.Id}",
@@ -1233,8 +1274,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_ReturnsManifest()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_ReturnsManifest)}";
-        var id = nameof(PutFlatId_Insert_ReturnsManifest);
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -1270,8 +1311,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_CreatedDBRecord()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_CreatedDBRecord)}";
-        var id = nameof(PutFlatId_Insert_CreatedDBRecord);
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -1306,8 +1347,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_IfSpaceRequested_ReturnsManifest()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_IfSpaceRequested_ReturnsManifest)}";
-        var id = nameof(PutFlatId_Insert_IfSpaceRequested_ReturnsManifest);
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -1335,8 +1376,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord)}";
-        var id = nameof(PutFlatId_Insert_IfSpaceRequested_CreatedDBRecord);
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = $@"
 {{
     ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
@@ -1367,8 +1408,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_NoAssets_WritesToS3()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_NoAssets_WritesToS3)}";
-        var id = nameof(PutFlatId_Insert_NoAssets_WritesToS3);
+        var (slug, id) = TestIdentifiers.SlugResource();
+        
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1397,8 +1438,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_WithAsset_WritesToS3()
     {
         // Arrange
-        var (slug, assetId) = TestIdentifiers.SlugResource();
-        var id = nameof(PutFlatId_Insert_WithAsset_WritesToS3);
+        var (slug, id,  assetId) = TestIdentifiers.SlugResourceAsset();
+        
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1436,8 +1477,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Insert_WritesToS3_IgnoringId()
     {
         // Arrange
-        var slug = $"slug_{nameof(PutFlatId_Insert_WritesToS3_IgnoringId)}";
-        var id = nameof(PutFlatId_Insert_WritesToS3_IgnoringId);
+        var (slug, id) = TestIdentifiers.SlugResource();
+
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1654,7 +1695,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInForChoice()
     {
         // Arrange
-        var slug = nameof(CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInForChoice);
+        var slug = TestIdentifiers.Slug();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",

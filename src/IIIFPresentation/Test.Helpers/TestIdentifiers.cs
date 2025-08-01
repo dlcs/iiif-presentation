@@ -20,6 +20,12 @@ public static class TestIdentifiers
     /// </summary>
     public static (string id, string canvasPaintingId) IdCanvasPainting([CallerMemberName] string testMethod = "")
         => (testMethod, $"cp_{testMethod}");
+
+    /// <summary>
+    /// Helper method that returns slug and id
+    /// </summary>
+    public static string Slug([CallerMemberName] string testMethod = "")
+        => testMethod;
     
     /// <summary>
     /// Helper method that returns slug and id
