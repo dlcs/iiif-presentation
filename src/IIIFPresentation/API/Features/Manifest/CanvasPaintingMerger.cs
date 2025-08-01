@@ -103,11 +103,18 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
                     $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} cannot contain an annotation body");
             }
         }
+
+        if (paintedResourceCanvasPainting.CanvasLabel == null && itemsCanvasPainting.CanvasLabel != null)
+        {
+            paintedResourceCanvasPainting.CanvasLabel = itemsCanvasPainting.CanvasLabel;
+        }
+        
         
         if (itemsCanvasPainting.CanvasLabel != paintedResourceCanvasPainting.CanvasLabel)
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasLabel?.ToString(),
                 paintedResourceCanvasPainting.CanvasLabel?.ToString(),
+                itemsCanvasPainting.CanvasOriginalId!,
                 $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas label");
         }
         
@@ -115,6 +122,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.Label?.ToString(),
                 paintedResourceCanvasPainting.Label?.ToString(),
+                itemsCanvasPainting.CanvasOriginalId!,
                 $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching label");
         }
 
@@ -122,6 +130,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOrder.ToString(),
+                itemsCanvasPainting.CanvasOriginalId!,
                 $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas order");
         }
         
@@ -129,6 +138,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOrder.ToString(),
+                itemsCanvasPainting.CanvasOriginalId!,
                 $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching choice order");
         }
     }
@@ -146,14 +156,13 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
 
         foreach (var grouping in groupedItemsCanvasPaintings.GetRange(0, canvasPaintingsToAdd))
         {
-            canvasIdToSet++;
-            
             foreach (var canvasPainting in grouping)
             {
                 canvasPainting.CanvasOrder = canvasIdToSet;
             }
 
             combinedCanvasPaintings.AddRange(grouping);
+            canvasIdToSet++;
         }
         
         groupedItemsCanvasPaintings.RemoveRange(0, canvasPaintingsToAdd);

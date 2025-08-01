@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Diagnostics;
+using API.Features.Manifest.Exceptions;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
@@ -256,7 +257,7 @@ public class CanvasPaintingResolver(
                 presentationManifest.Id);
             return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId), null);
         }
-    }
+    } 
     
     private (PresUpdateResult? error, List<CanvasPainting>? canvasPaintings) ParseManifest(int customerId, 
         PresentationManifest presentationManifest)
@@ -264,10 +265,10 @@ public class CanvasPaintingResolver(
         try
         {
             var itemsCanvasPaintings =
-                    manifestItemsParser.ParseToCanvasPainting(presentationManifest, customerId).ToList();
-            
-            var paintedResourceCanvasPaintings =  manifestPaintedResourceParser
-                    .ParseToCanvasPainting(presentationManifest, customerId).ToList();
+                manifestItemsParser.ParseToCanvasPainting(presentationManifest, customerId).ToList();
+
+            var paintedResourceCanvasPaintings = manifestPaintedResourceParser
+                .ParseToCanvasPainting(presentationManifest, customerId).ToList();
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
@@ -278,6 +279,13 @@ public class CanvasPaintingResolver(
         {
             logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
             return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId), null);
+        }
+        catch (CanvasPaintingMergerException cpMergeError)
+        {
+            logger.LogDebug(cpMergeError,
+                "canvas painting merge exception encountered in {ManifestId} for original id {OriginalId} - expected: {Expected}, actual: {Actual}",
+                presentationManifest.Id, cpMergeError.CanvasOriginalId, cpMergeError.Expected, cpMergeError.Actual);
+            return (ErrorHelper.ErrorMergingPaintedResourcesWithItems<PresentationManifest>(cpMergeError.Message), null);
         }
     }
 }

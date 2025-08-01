@@ -309,7 +309,40 @@ public class CanvasPaintingMergerTests
         // Assert
         merged.Single().Id.Should().Be($"{paintedResourceId}_1");
     }
-    
+
+    [Fact]
+    public void CombinePaintedResources_UpdatesCanvasLabel_WhenItemsTrackedByPaintedResources()
+    {
+        var itemsId = "items";
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{itemsId}_1", cp =>
+            {
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/{itemsId}_1");
+                cp.CanvasLabel = new LanguageMap("canvas", "label");
+            }).Build();
+
+        // Arrange
+        var paintedResourceId = "paintedResource";
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1",
+                cp => { cp.CanvasOriginalId = new Uri($"https://localhost/1/{itemsId}_1"); }).Build();
+
+        // Act
+        var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [
+            new Canvas()
+            {
+                Id = $"https://localhost/1/{itemsId}_1",
+            }
+        ]);
+
+
+        // Assert
+        var canvasPainting = merged.Single();
+
+        canvasPainting.Id.Should().Be($"{paintedResourceId}_1");
+        canvasPainting.CanvasLabel.First().Key.Should().Be("canvas");
+    }
+
     [Fact]
     public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithPaintingAnnotation()
     {

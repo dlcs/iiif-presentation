@@ -22,7 +22,7 @@ public enum ModifyCollectionType
     SlugMustMatchPublicId = 18,
     InvalidCanvasId = 19,
     DuplicateCanvasId = 20,
-    CanvasOrderHasDifferentCanvasId = 21,
+    ErrorMergingPaintedResourcesWithItems = 21,
     PublicIdIncorrect = 22,
     ManifestCreatedWithItemsCannotBeUpdatedWithAssets = 23,
     ManifestCreatedWithAssetsCannotBeUpdatedWithItems  = 24,

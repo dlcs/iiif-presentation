@@ -1,4 +1,5 @@
 ﻿using Core.Exceptions;
+using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -24,8 +25,9 @@ public class ManifestPaintedResourceParserTests
     {
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
-        
-        sut = new ManifestPaintedResourceParser(pathRewriteParser, new NullLogger<ManifestPaintedResourceParser>());
+
+        sut = new ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+            new NullLogger<ManifestPaintedResourceParser>());
     }
 
     [Fact]

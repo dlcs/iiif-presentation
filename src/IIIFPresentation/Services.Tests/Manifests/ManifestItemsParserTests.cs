@@ -1,9 +1,11 @@
 ﻿using Core.IIIF;
+using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.API.Manifest;
+using Repository.Paths;
 using Services.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 
@@ -11,7 +13,7 @@ namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
-    private readonly ManifestItemsParser sut = new(new NullLogger<ManifestItemsParser>());
+    private readonly ManifestItemsParser sut = new(A.Fake<IPresentationPathGenerator>(), new NullLogger<ManifestItemsParser>());
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
@@ -22,21 +24,21 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, 123).Should().BeEmpty();
 
     [Fact]
-    public void Parse_ReturnsEmptyEnumerable_IfCanvasHasNoAnnotationPages()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, 123).Should().BeEmpty();
+    public void Parse_ReturnsCanvasPainting_IfCanvasHasNoAnnotationPages()
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, 123).Should().HaveCount(1);
 
     [Fact]
-    public void Parse_ReturnsEmptyEnumerable_IfAnnotationPagesHaveNoAnnotations()
+    public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveNoAnnotations()
         => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, 123)
-            .Should().BeEmpty();
+            .Should().HaveCount(1);
 
     [Fact]
-    public void Parse_ReturnsEmptyEnumerable_IfAnnotationPagesHaveOnlyNonPaintingAnnotation()
+    public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveOnlyNonPaintingAnnotation()
         => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
             }, 123)
-            .Should().BeEmpty();
+            .Should().HaveCount(1);
 
     [Fact]
     public async Task Parse_Throws_CanvasIdInvalidUri()

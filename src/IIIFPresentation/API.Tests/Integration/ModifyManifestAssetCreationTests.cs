@@ -855,17 +855,15 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);
          
-         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(2);
-         dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
-         dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
          dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
      }
      
      [Fact]
@@ -940,21 +938,21 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);
          
-         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
-         dbManifest.CanvasPaintings[0].ChoiceOrder.Should().Be(1);
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+         
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
-         dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(2);
-
-         dbManifest.CanvasPaintings[0].Id.Should().Be(dbManifest.CanvasPaintings[1].Id,
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
+         dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[1].Id.Should().Be(dbManifest.CanvasPaintings[2].Id,
              "CanvasPaintings that share canvasOrder have same canvasId");
          
-         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
+         dbManifest.CanvasPaintings[2].ChoiceOrder.Should().Be(2);
      }
 
      [Fact]
