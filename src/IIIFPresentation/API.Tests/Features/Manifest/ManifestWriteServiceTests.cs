@@ -3,6 +3,7 @@ using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
+using Core.Web;
 using DLCS;
 using DLCS.API;
 using DLCS.Models;
@@ -12,10 +13,12 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -27,6 +30,7 @@ using Sqids;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Test.Helpers.Settings;
 
 namespace API.Tests.Features.Manifest;
 
@@ -38,6 +42,9 @@ public class ManifestWriteServiceTests
     private readonly PresentationContext presentationContext;
     private const int Customer = 1;
     private const int NewlyCreatedSpace = 500;
+    private const string OrchestratorHostname = "localhost";
+    
+    IDlcsApiClient dlcsClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -66,9 +73,19 @@ public class ManifestWriteServiceTests
 
         var canvasPaintingResolver = new CanvasPaintingResolver(identityManager, manifestItemsParser,
             manifestPaintedResourceParser, canvasPaintingMerger, new NullLogger<CanvasPaintingResolver>());
-
-        var dlcsClient = A.Fake<IDlcsApiClient>();
-        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
+        
+        dlcsClient = A.Fake<IDlcsApiClient>();
+        
+        var dlcsSettings = new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api"),
+            OrchestratorUri = new Uri($"http://{OrchestratorHostname}")
+        };
+        
+        var paintableAssetIdentifier = new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
+            NullLogger<PaintableAssetIdentifier>.Instance);
+            
+        var managedResultFinder = new ManagedAssetResultFinder(paintableAssetIdentifier, dlcsClient, presentationContext,
             new NullLogger<ManagedAssetResultFinder>());
         var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());
@@ -76,10 +93,8 @@ public class ManifestWriteServiceTests
         var parentSlugParser = A.Fake<IParentSlugParser>();
 
         var manifestStorageManager = A.Fake<IManifestStorageManager>();
-        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
-        {
-            ApiUri = new Uri("https://dlcs.api")
-        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(dlcsSettings),
+            new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
         {
             PresentationApiUrl = new Uri("https://presentation.api"),
             PathRules = PathRewriteOptions.Default
@@ -151,6 +166,80 @@ public class ManifestWriteServiceTests
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task Create_RecognizesDlcsAsset_WhenMixedItemsAndAssets()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId",
+                        CanvasOrder = 1
+                    }
+                }
+            ]
+        };
+        
+        // update the single image in items
+        const int managedImageSpace = 33;
+        const string managedImageAssetName = "theAssetId";
+        var paintingAnnotation = (PaintingAnnotation)manifest.Items![0].Items![0].Items![0];
+        var image = (Image)paintingAnnotation.Body!;
+        image.Id = $"http://{OrchestratorHostname}/iiif-img/{Customer}/{managedImageSpace}/{managedImageAssetName}/full/max/0/default.jpg";
+        
+        // set the DLCS fake to recognize the image
+        var imageAssetId = new AssetId(Customer,managedImageSpace,managedImageAssetName);
+
+        A.CallTo(()=>dlcsClient.GetCustomerImages(Customer,
+            A<IList<string>>.That.Matches(l=>l.Any(x => imageAssetId.ToString().Equals(x))), A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($$"""
+                                {
+                                    "@id": "https://localhost:6000/customers/{{Customer}}/spaces/{{managedImageSpace}}/images/{{managedImageAssetName}}",
+                                    "id": "{{managedImageAssetName}}",
+                                    "space": {{managedImageSpace}},
+                                    "batch": "https://localhost/customers/1/queue/batches/2137"
+                                }
+                                """
+                )
+            ]);
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(2);
+        
+        var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
+            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+        dbManifest.CanvasPaintings.Should().HaveCount(2);
+        dbManifest.CanvasPaintings.Count(cp=>cp.AssetId.Equals(imageAssetId)).Should().Be(1);
     }
     
     [Fact]
