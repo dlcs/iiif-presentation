@@ -6,8 +6,10 @@ using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
+using IIIF.Presentation.V3.Annotation;
 using Models.API.Manifest;
 using Models.Database;
+using Models.DLCS;
 using Services.Manifests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -27,9 +29,9 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<(PresUpdateResult? updateResult, List<CanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest,
+        Dictionary<IPaintable, AssetId> recognizedItemsAssets, CancellationToken cancellationToken = default)
     {
-        //var parser = GetParserForManifest(presentationManifest);
         return await HandleInsert(customerId, presentationManifest, cancellationToken);
     }
 
@@ -39,8 +41,10 @@ public class CanvasPaintingResolver(
     /// created/updated/deleted accordingly) 
     /// </summary>
     /// <returns>Error, if processing fails</returns>
-    public async Task<PresUpdateResult?> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
-        DbManifest existingManifest, CancellationToken cancellationToken = default)
+    public async Task<PresUpdateResult?> UpdateCanvasPaintings(int customerId,
+        PresentationManifest presentationManifest,
+        DbManifest existingManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
+        CancellationToken cancellationToken = default)
     {
         return await HandleUpdate(customerId, presentationManifest, existingManifest, cancellationToken);
     }
@@ -226,7 +230,7 @@ public class CanvasPaintingResolver(
             return null;
         }
     }
-
+    
     private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> HandleInsert(int customerId, 
         PresentationManifest presentationManifest, CancellationToken cancellationToken)
     {
@@ -263,7 +267,7 @@ public class CanvasPaintingResolver(
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
-
+            
             return (null, res);
         }
         catch (InvalidCanvasIdException cpId)

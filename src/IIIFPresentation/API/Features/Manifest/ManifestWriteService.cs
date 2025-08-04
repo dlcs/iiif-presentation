@@ -10,10 +10,12 @@ using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
+using Models.DLCS;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -160,14 +162,18 @@ public class ManifestWriteService(
             // Ensure we have a manifestId
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+
+            // This will throw ManifestException if some of the rules for managed assets in .Items are broken
+            var recognizedItemsAssets =
+                await dlcsManifestCoordinator.VerifyCanvasItemAssets(request, cancellationToken);
             
-            // Carry out any DLCS interactions (for paintedResources with _assets_) 
+            // Carry out any DLCS interactions
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
+                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, recognizedItemsAssets, cancellationToken);
             if (error != null) return error;
             
             var hasAssets = PaintedResourcesHasAssets(request);
@@ -187,7 +193,7 @@ public class ManifestWriteService(
 
     private static bool PaintedResourcesHasAssets(WriteManifestRequest request)
     {
-        return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
+        return request.PresentationManifest.PaintedResources.HasAsset();
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -222,13 +228,17 @@ public class ManifestWriteService(
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
+            // This will throw ManifestException if some of the rules for managed assets in .Items are broken
+            var recognizedItemsAssets =
+                await dlcsManifestCoordinator.VerifyCanvasItemAssets(request, cancellationToken);
+
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, existingManifest.Id, existingManifest, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
+                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, recognizedItemsAssets, cancellationToken);
             if (error != null) return error;
             
             var hasAssets = PaintedResourcesHasAssets(request);
@@ -246,11 +256,12 @@ public class ManifestWriteService(
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, DlcsInteractionResult dlcsInteractionResult,
+        Dictionary<IPaintable, AssetId> recognizedItemsAssets,
         CancellationToken cancellationToken)
     {
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                cancellationToken);
+                recognizedItemsAssets, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
 
         var timeStamp = DateTime.UtcNow;
@@ -294,11 +305,12 @@ public class ManifestWriteService(
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,
+        Dictionary<IPaintable, AssetId> recognizedItemsAssets,
         CancellationToken cancellationToken)
     {
         var presentationManifest = request.PresentationManifest;
         var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
-            presentationManifest, existingManifest, cancellationToken);
+            presentationManifest, existingManifest, recognizedItemsAssets, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
         existingManifest.Label = presentationManifest.Label;
