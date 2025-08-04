@@ -32,7 +32,7 @@ public class CanvasPaintingResolver(
         int customerId, PresentationManifest presentationManifest,
         Dictionary<IPaintable, AssetId> recognizedItemsAssets, CancellationToken cancellationToken = default)
     {
-        return await HandleInsert(customerId, presentationManifest, cancellationToken);
+        return await HandleInsert(customerId, presentationManifest, recognizedItemsAssets, cancellationToken);
     }
 
     /// <summary>
@@ -46,13 +46,14 @@ public class CanvasPaintingResolver(
         DbManifest existingManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
         CancellationToken cancellationToken = default)
     {
-        return await HandleUpdate(customerId, presentationManifest, existingManifest, cancellationToken);
+        return await HandleUpdate(customerId, presentationManifest, existingManifest, recognizedItemsAssets, cancellationToken);
     }
 
-    private async Task<PresUpdateResult?> HandleUpdate(int customerId, PresentationManifest presentationManifest, 
-        DbManifest existingManifest, CancellationToken cancellationToken)
+    private async Task<PresUpdateResult?> HandleUpdate(int customerId, PresentationManifest presentationManifest,
+        DbManifest existingManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
+        CancellationToken cancellationToken)
     {
-        var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest);
+        var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest, recognizedItemsAssets);
         if (error != null) return error;
         
         existingManifest.CanvasPaintings ??= [];
@@ -231,12 +232,13 @@ public class CanvasPaintingResolver(
         }
     }
     
-    private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> HandleInsert(int customerId, 
-        PresentationManifest presentationManifest, CancellationToken cancellationToken)
+    private async Task<(PresUpdateResult? error, List<CanvasPainting>? canvasPaintings)> HandleInsert(int customerId,
+        PresentationManifest presentationManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest);
+            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest, recognizedItemsAssets);
             if (parseError != null) return (parseError, null);
 
             Debug.Assert(canvasPaintings is not null, "canvasPaintings is not null");
@@ -254,16 +256,16 @@ public class CanvasPaintingResolver(
         }
     } 
     
-    private (PresUpdateResult? error, List<CanvasPainting>? canvasPaintings) ParseManifest(int customerId, 
-        PresentationManifest presentationManifest)
+    private (PresUpdateResult? error, List<CanvasPainting>? canvasPaintings) ParseManifest(int customerId,
+        PresentationManifest presentationManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets)
     {
         try
         {
             var itemsCanvasPaintings =
-                manifestItemsParser.ParseToCanvasPainting(presentationManifest, customerId).ToList();
+                manifestItemsParser.ParseToCanvasPainting(presentationManifest, customerId, recognizedItemsAssets).ToList();
 
             var paintedResourceCanvasPaintings = manifestPaintedResourceParser
-                .ParseToCanvasPainting(presentationManifest, customerId).ToList();
+                .ParseToCanvasPainting(presentationManifest, customerId, recognizedItemsAssets).ToList();
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
