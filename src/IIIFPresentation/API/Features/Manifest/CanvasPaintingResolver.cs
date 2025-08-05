@@ -42,20 +42,11 @@ public class CanvasPaintingResolver(
     public async Task<PresUpdateResult?> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
-        var parser = GetParserForManifest(presentationManifest);
-        return await HandleUpdate(parser, customerId, presentationManifest, existingManifest, cancellationToken);
-    }
-    
-    private ICanvasPaintingParser GetParserForManifest(PresentationManifest presentationManifest)
-    {
-        ICanvasPaintingParser parser = presentationManifest.PaintedResources.HasAsset()
-            ? manifestPaintedResourceParser
-            : manifestItemsParser;
-        return parser;
+        return await HandleUpdate(customerId, presentationManifest, existingManifest, cancellationToken);
     }
 
-    private async Task<PresUpdateResult?> HandleUpdate(ICanvasPaintingParser parser, int customerId,
-        PresentationManifest presentationManifest, DbManifest existingManifest, CancellationToken cancellationToken)
+    private async Task<PresUpdateResult?> HandleUpdate(int customerId, PresentationManifest presentationManifest, 
+        DbManifest existingManifest, CancellationToken cancellationToken)
     {
         var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest);
         if (error != null) return error;
