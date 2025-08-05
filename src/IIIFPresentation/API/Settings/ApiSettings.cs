@@ -18,11 +18,6 @@ public class ApiSettings
     
     public string? PathBase { get; set; }
     
-    /// <summary>
-    /// Whether painted resources should be ignored when there are also items
-    /// </summary>
-    public bool IgnorePaintedResourcesWithItems { get; set; }
-    
     public required AWSSettings AWS { get; set; }
 
     public required DlcsSettings DLCS { get; set; }
