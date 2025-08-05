@@ -378,7 +378,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
-        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.Items.Should().HaveCount(2, "there are 2 canvas painting records");
         manifest.FlatId.Should().Be(id);
         manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
         manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
