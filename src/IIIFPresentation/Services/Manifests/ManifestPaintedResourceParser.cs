@@ -5,6 +5,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -14,7 +15,8 @@ namespace Services.Manifests;
 /// </summary>
 public class ManifestPaintedResourceParser(
     IPathRewriteParser pathRewriteParser, 
-    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+    IPresentationPathGenerator presentationPathGenerator,
+    ILogger<ManifestPaintedResourceParser> logger) : ICanvasPaintingParser
 {
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
@@ -64,6 +66,9 @@ public class ManifestPaintedResourceParser(
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,
             Target = payloadCanvasPainting?.Target,
+            CanvasOriginalId = payloadCanvasPainting?.CanvasOriginalId != null ? 
+                CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, payloadCanvasPainting.CanvasOriginalId) 
+                : null,
             Thumbnail = payloadCanvasPainting?.Thumbnail == null
                 ? null
                 : Uri.TryCreate(payloadCanvasPainting.Thumbnail, UriKind.Absolute, out var thumbnail)
@@ -126,7 +131,7 @@ public class ManifestPaintedResourceParser(
         return AssetId.FromString($"{customerId}/{space}/{id}");
     }
     
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
+    private static readonly List<char> ProhibitedCharacters = ['/', '=', ',',];
     private static readonly string ProhibitedCharacterDisplay =
         string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 }

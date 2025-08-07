@@ -73,6 +73,7 @@ builder.Services
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()

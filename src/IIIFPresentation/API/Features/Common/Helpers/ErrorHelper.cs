@@ -89,16 +89,16 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+            ModifyCollectionType.ErrorMergingPaintedResourcesWithItems, WriteResult.BadRequest);
 
     public static ModifyEntityResult<TCollection, ModifyCollectionType> DuplicateCanvasId<TCollection>(string? canvasId)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
             ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
-
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a choice construct",
-            ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> IncorrectPublicId<TCollection>()
         where TCollection : JsonLdBase
