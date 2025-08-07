@@ -4,29 +4,17 @@ using API.Features.Storage.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
 using DLCS.API;
-using DLCS.Exceptions;
-using DLCS.Models;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.Database.General;
-using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
-using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Manifest;
 
 public interface IManifestRead
 {
-    /// <summary>
-    /// Get a lookup of full Asset URI : <see cref="JObject"/> for all assets in given manifest
-    /// </summary>
-    /// <returns></returns>
-    Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest,
-        CancellationToken cancellationToken);
-
     /// <summary>
     /// Attempt to read manifest from storage
     /// </summary>
@@ -39,37 +27,10 @@ public class ManifestReadService(
     PresentationContext dbContext,
     IIIIFS3Service iiifS3,
     IDlcsApiClient dlcsApiClient,
+    DlcsManifestCoordinator dlcsManifestCoordinator,
     IPathGenerator pathGenerator,
     ILogger<ManifestReadService> logger) : IManifestRead
 {
-    public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, DbManifest? dbManifest,
-        CancellationToken cancellationToken)
-    {
-        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
-            .OfType<string>().ToArray();
-
-        if (assetIds == null) return null;
-
-        try
-        {
-            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds, cancellationToken);
-
-            return assets.Select(a => (asset: a,
-                    id: a.TryGetValue(AssetProperties.FullId, out var value) && value.Type == JTokenType.String
-                        ? value.Value<string>()
-                        : null))
-                .Where(tuple => tuple.id is { Length: > 0 })
-                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
-        }
-        catch (DlcsException dlcsException)
-        {
-            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
-                customerId);
-
-            return null;
-        }
-    }
-
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
         IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
@@ -92,7 +53,7 @@ public class ManifestReadService(
             }, dbManifest.Etag);
         }
 
-        var getAssets = GetAssets(customerId, dbManifest, cancellationToken);
+        var getAssets = dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
         PresentationManifest? manifest = null;
         if (dbManifest.IsIngesting())
         {

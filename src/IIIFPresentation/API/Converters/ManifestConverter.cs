@@ -46,7 +46,7 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
-
+        
         if (dbManifest.IsIngesting())
         {
             iiifManifest.Ingesting = GenerateIngesting(assets);
@@ -58,7 +58,7 @@ public static class ManifestConverter
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
 
-            iiifManifest.Items = enumeratedCanvasPaintings.GenerateProvisionalItems(pathGenerator, iiifManifest.Items);
+            iiifManifest.Items = enumeratedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items);
         }
         
         iiifManifest.EnsurePresentation3Context();
@@ -68,10 +68,10 @@ public static class ManifestConverter
     }
     
     /// <summary>
-    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These
-    /// provisional canvases have the structure of the final canvases without the full content-resource details
+    /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
+    /// provisional canvases have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
-    private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
+    public static List<Canvas> GenerateItems(this IList<CanvasPainting> canvasPaintings,
         IPathGenerator pathGenerator, List<Canvas>? items)
     {
         items ??= [];
@@ -90,7 +90,7 @@ public static class ManifestConverter
             var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
             
             // check and find the attached item, if it exists and fallback to seeing if we have an item based on the canvas id
-            // this is used when either we already have an item we're generating a PR from, OR when we can build the manifest immediately
+            // this is used when either we already have an item we're generating a PR from, OR when the manifest has finished ingesting
             var item = itemsInCanvas.FirstOrDefault(
                 i => canvasPainting.CanvasOriginalId?.ToString() == i.Id || canvasId == i.Id);
             if (item != null) return item;
@@ -139,7 +139,7 @@ public static class ManifestConverter
             paintings.Count() > 1 ? new PaintingChoice() : null;
     }
 
-    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
+    public static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
