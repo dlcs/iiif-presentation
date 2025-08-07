@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using Amazon.S3;
-using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using DLCS.API;
@@ -154,7 +153,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -242,7 +241,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]

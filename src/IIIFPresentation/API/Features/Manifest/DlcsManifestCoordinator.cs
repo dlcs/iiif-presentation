@@ -40,6 +40,34 @@ public class DlcsManifestCoordinator(
     IManagedAssetResultFinder knownAssetChecker,
     ILogger<DlcsManifestCoordinator> logger)
 {
+    public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, Models.Database.Collections.Manifest? dbManifest,
+        CancellationToken cancellationToken)
+    {
+        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
+            .OfType<string>().ToArray();
+
+        if (assetIds == null) return null;
+
+        try
+        {
+            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds, cancellationToken);
+
+            return assets.Select(a => (asset: a,
+                    id: a.TryGetValue(AssetProperties.FullId, out var value) && value.Type == JTokenType.String
+                        ? value.Value<string>()
+                        : null))
+                .Where(tuple => tuple.id is { Length: > 0 })
+                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
+        }
+        catch (DlcsException dlcsException)
+        {
+            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
+                customerId);
+
+            return null;
+        }
+    }
+    
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
