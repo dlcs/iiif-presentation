@@ -60,8 +60,6 @@ public class ManifestWriteServiceTests
         var canvasPaintingResolver = new CanvasPaintingResolver(identityManager, manifestItemsParser,
             manifestPaintedResourceParser, canvasPaintingMerger, new NullLogger<CanvasPaintingResolver>());
 
-        var manifestRead = A.Fake<IManifestRead>();
-
         var dlcsClient = A.Fake<IDlcsApiClient>();
         var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
             new NullLogger<ManagedAssetResultFinder>());
@@ -73,7 +71,7 @@ public class ManifestWriteServiceTests
         var manifestStorageManager = A.Fake<IManifestStorageManager>();
 
         sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
-            new TestPathGenerator(presentationGenerator), manifestRead, dlcsManifestCoordinator, parentSlugParser,
+            new TestPathGenerator(presentationGenerator), dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
