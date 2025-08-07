@@ -129,6 +129,9 @@ public class ManagedAssetResultFinder(
             .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customerId)))
             .Where(tuple => tuple.assetId != null)
             .ToList() ?? [];
+
+        if (identifiedManagedAssets.Count == 0)
+            return [];
         
         IList<JObject> dlcsAssets;
 
