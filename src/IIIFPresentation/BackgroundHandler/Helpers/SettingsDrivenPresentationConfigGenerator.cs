@@ -1,4 +1,5 @@
 ﻿using BackgroundHandler.Settings;
+using Core.Paths;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
 

@@ -37,7 +37,7 @@ public class CreateCollection(int customerId, PresentationCollection collection,
 public class CreateCollectionHandler(
     PresentationContext dbContext,
     ILogger<CreateCollectionHandler> logger,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IdentityManager identityManager,
     IPathGenerator pathGenerator,
     IParentSlugParser parentSlugParser,
@@ -125,7 +125,8 @@ public class CreateCollectionHandler(
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,
-            WriteResult.Created);
+            WriteResult.Created,
+            collection.Etag);
     }
 
     private async Task UploadToS3IfRequiredAsync(Collection collection, IIIF.Presentation.V3.Collection? iiifCollection, 

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Manifest;
 using Repository;
+using Repository.Paths;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Helpers;
@@ -39,14 +40,12 @@ public class ParentSlugParserTests
         {
             ApiUri = new Uri("http://localhost")
         });
+        
+        var typedTemplateOptions = Options.Create(new TypedPathTemplateOptions());
+        var pathRewriteParser = new PathRewriteParser(typedTemplateOptions, new NullLogger<PathRewriteParser>());
 
-        var presentationPathGenerator =
-            new ConfigDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
-                httpContextAccessor);
-
-        var pathGenerator =
-            new HttpRequestBasedPathGenerator(options, presentationPathGenerator);
-        parentSlugParser = new ParentSlugParser(presentationContext, pathGenerator, httpContextAccessor, new NullLogger<ParentSlugParser>());
+        parentSlugParser = new ParentSlugParser(presentationContext, httpContextAccessor,
+            pathRewriteParser, new NullLogger<ParentSlugParser>());
     }
 
     [Fact]
@@ -314,8 +313,10 @@ public class ParentSlugParserTests
         }, Customer, null);
 
         // Assert
-        parentSlugParserResult.IsError.Should().BeTrue();
-        parentSlugParserResult.Errors.Error.Should().Be("The parent collection could not be found");
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.Errors.Should().BeNull();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().Be(slug);
+        parentSlugParserResult.ParsedParentSlug.Parent.Id.Should().Be("root");
     }
     
     [Fact]

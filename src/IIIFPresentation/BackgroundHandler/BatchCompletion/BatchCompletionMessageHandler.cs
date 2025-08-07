@@ -1,31 +1,18 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
-using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
 using Core.Helpers;
-using Core.IIIF;
-using DLCS.API;
-using IIIF;
-using IIIF.Presentation;
-using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Content;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
-using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Repository;
-using Repository.Paths;
-using Batch = Models.Database.General.Batch;
+using Services.Manifests.AWS;
 
 namespace BackgroundHandler.BatchCompletion;
 
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
-    IDlcsOrchestratorClient dlcsOrchestratorClient,
-    IIIIFS3Service iiifS3,
-    IPathGenerator pathGenerator,
-    IManifestMerger manifestMerger,
+    IManifestStorageManager manifestS3Manager,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
@@ -75,21 +62,15 @@ public class BatchCompletionMessageHandler(
                 "Attempting to complete assets in batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}",
                 batch.Id, batch.CustomerId, batch.ManifestId);
 
-            var batches = dbContext.Batches.Where(b => b.ManifestId == batch.ManifestId).Select(b => b.Id).ToList();
-
-            var namedQueryManifest =
-                await dlcsOrchestratorClient.RetrieveAssetsForManifest(batch.CustomerId, batches,
-                    cancellationToken);
-
             try
             {
                 CompleteBatch(batch, batchCompletionMessage.Finished, true);
-                await UpdateManifestInS3(namedQueryManifest, batch, cancellationToken);
+                await manifestS3Manager.UpsertManifestInStorage(batch.Manifest!, cancellationToken);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error updating completing batch {BatchId} for manifest {ManifestId}", batch.Id,
-                    namedQueryManifest.Id);
+                    batch.ManifestId);
                 throw;
             }
         }
@@ -98,36 +79,6 @@ public class BatchCompletionMessageHandler(
         logger.LogInformation(
             "Updating batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}. Completed in {Elapsed}ms",
             batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
-    }
-    
-    private async Task UpdateManifestInS3(Manifest? namedQueryManifest, Batch batch, CancellationToken cancellationToken)
-    {
-        var dbManifest = batch.Manifest!;
-        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
-
-        var mergedManifest = manifestMerger.ProcessCanvasPaintings(
-            manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location"),
-            namedQueryManifest,
-            dbManifest.CanvasPaintings);
-
-        await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            false, cancellationToken);
-
-        await iiifS3.DeleteIIIFFromS3(dbManifest, true);
-    }
-
-    private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
-    {
-        var processed = DateTime.UtcNow;
-        
-        batch.Processed = processed;
-        batch.Finished = finished;
-        batch.Status = BatchStatus.Completed;
-
-        if (finalBatch)
-        {
-            batch.Manifest!.LastProcessed = processed;
-        }
     }
     
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)
@@ -147,5 +98,19 @@ public class BatchCompletionMessageHandler(
         }
         
         return deserializedBatchCompletionMessage.ThrowIfNull(nameof(deserializedBatchCompletionMessage));
+    }
+    
+    private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
+    {
+        var processed = DateTime.UtcNow;
+        
+        batch.Processed = processed;
+        batch.Finished = finished;
+        batch.Status = BatchStatus.Completed;
+
+        if (finalBatch)
+        {
+            batch.Manifest!.LastProcessed = processed;
+        }
     }
 }

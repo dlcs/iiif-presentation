@@ -13,12 +13,12 @@ using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Rewrite;
 using Newtonsoft.Json;
 using Repository;
-using Repository.Manifests;
 using Repository.Paths;
 using Serilog;
+using Services.Manifests;
+using Services.Manifests.AWS;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -55,22 +55,27 @@ var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
 builder.Services
     .AddDlcsApiClient(dlcs)
+    .AddDlcsOrchestratorClient(dlcs)
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
-    .AddSingleton<IETagManager, ETagManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<IManagedAssetResultFinder, ManagedAssetResultFinder>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
+    .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
+    .AddScoped<IETagCache, ETagCache>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();
@@ -82,7 +87,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment);
 builder.Services.Configure<ForwardedHeadersOptions>(opts =>
 {
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
-    
+
     // https://github.com/dotnet/dotnet-docker/issues/6491
     opts.KnownNetworks.Clear();
     opts.KnownProxies.Clear();

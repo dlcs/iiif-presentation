@@ -32,7 +32,7 @@ dotnet ef migrations script -i -o .\migrate.sql -p Repository -s API
 
 ### DLCS Named Query
 
-As part of handling assets in canvas paintings, items are ingested via the DLCS.  In order to track items that have been ingested, a new global named query needs to be added to the DLCS to track batches.  This can be done in 2 ways, as follows:
+As part of handling assets in canvas paintings, items are ingested via the DLCS.  In order to track items that have been ingested, a new global named query needs to be added to the DLCS to track manifests.  This can be done in 2 ways, as follows:
 
 1. POST to the named query endpoint:
 
@@ -42,8 +42,8 @@ As part of handling assets in canvas paintings, items are ingested via the DLCS.
 POST {{baseUrl}}/customers/1/namedQueries
 
 {
-    "name": "batch-query",
-    "template": "batch=p1",
+    "name": "manifest-query",
+    "template": "manifest=p1",
     "global": true
 }
 ```
@@ -52,7 +52,35 @@ POST {{baseUrl}}/customers/1/namedQueries
 
 ```sql
 INSERT INTO "NamedQueries" ("Id", "Customer", "Name", "Global", "Template")
-VALUES (gen_random_uuid(), 1, 'batch-query', true, 'batch=p1')
+VALUES (gen_random_uuid(), 1, 'manifest-query', true, 'manifest=p1')
 ```
 
-**NOTE:** the presentation API assumes the name of this named query is `batch-query` by default, so if this is changed the presentation will need an updated setting to track.
+**NOTE:** the presentation API assumes the name of this named query is `manifest-query` by default, so if this is changed the presentation will need an updated setting to track.
+
+
+### Architecture
+
+The IIIF Presentation solution is made up of a series of C# projects, scripts and databases this section is a quick discussion of the code make-up and architecture for future reference
+
+#### C# Projects
+
+| name | description |
+|---|---|
+| Utils/Migrator | Used to update the database when there is a pending migration that needs to be applied.  The API can also do this when configured |
+| API | Contains the Web API application that users interact with |
+| AWS | Module that contains calls and helper functions that interact with AWS |
+| BackgroundHandler | Contains anything that needs to occur after actions from third-party services have completed, such as interactions with Protagonist |
+| Core | Low-level module that provides helper functions to all projects  |
+| DLCS | Contains calling code for the DLCS to allow images to be ingested and retrieved |
+| Models | POCO's used throughout the solution |
+| Repository | Used primarily to provide access to the database context, as well as various helper functions and some data access classes |
+| Services | Contains functions that are shared by running applications only, such as the API and BackgroundHandler |
+
+The general hierarchy of dependencies from lowest to highest are as follows:
+
+|Hierarchy|
+|---|
+| Core, Models |
+| AWS, Repository, DLCS |
+| Services |
+| API, BackgroundHandler |

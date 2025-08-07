@@ -17,7 +17,7 @@ public class DeleteManifest(int customerId, string manifestId)
 
 public class DeleteManifestHandler(
     PresentationContext dbContext,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     ILogger<DeleteManifestHandler> logger)
     : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteManifestType>>
 {

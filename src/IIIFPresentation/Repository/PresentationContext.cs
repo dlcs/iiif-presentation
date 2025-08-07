@@ -40,6 +40,7 @@ public class PresentationContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
+        modelBuilder.HasPostgresExtension("pgcrypto");
 
         modelBuilder.Entity<Collection>(entity =>
         {
@@ -58,6 +59,9 @@ public class PresentationContext : DbContext
                 .HasForeignKey(e => new { e.Parent, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.NoAction);
+
+            entity.Property(e => e.Etag)
+                .HasComputedColumnSql("""deterministic_uuid_sha256("modified", "id")""", stored: true);
         });
 
         modelBuilder.Entity<Manifest>(entity =>
@@ -72,6 +76,9 @@ public class PresentationContext : DbContext
 
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
+            
+            entity.Property(e => e.Etag)
+                .HasComputedColumnSql("""deterministic_uuid_sha256("last_processed", "id")""", stored: true);
         });
 
         modelBuilder.Entity<Hierarchy>(entity =>

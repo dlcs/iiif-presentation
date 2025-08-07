@@ -73,6 +73,8 @@ public class Collection : IHierarchyResource
     /// Navigation property for any children, when this Collection is the parent
     /// </summary>
     public IEnumerable<Hierarchy>? Children { get; set; }
+
+    public Guid Etag { get; set; }
 }
 
 public static class CollectionX

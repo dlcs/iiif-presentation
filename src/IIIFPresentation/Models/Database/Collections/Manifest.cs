@@ -52,6 +52,8 @@ public class Manifest : IHierarchyResource
     /// A timestamp denoting when this batch was last processed into a user viewable format
     /// </summary>
     public DateTime? LastProcessed { get; set; }
+
+    public Guid Etag { get; set; }
 }
 
 public static class ManifestX

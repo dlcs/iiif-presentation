@@ -31,16 +31,19 @@ public class ModifyEntityResult<T, TEnum> : IModifyRequest
     public bool IsSuccess { get; private init; }
     
     public TEnum? ErrorType { get; private init; }
+    
+    public Guid? ETag { get; private init; }
 
     public static ModifyEntityResult<T, TEnum> Failure(string error, TEnum? errorType, WriteResult result = WriteResult.Unknown)
     {
         return new ModifyEntityResult<T, TEnum>
             { Error = error, WriteResult = result, IsSuccess = false, ErrorType = errorType };
     }
-
-    public static ModifyEntityResult<T, TEnum> Success(T entity, WriteResult result = WriteResult.Updated)
+    
+    public static ModifyEntityResult<T, TEnum> Success(T entity, WriteResult result = WriteResult.Updated, Guid? etag = null)
     {
         return new ModifyEntityResult<T, TEnum>
-            { Entity = entity, WriteResult = result, IsSuccess = true };
+            { Entity = entity, WriteResult = result, IsSuccess = true, ETag = etag };
     }
+
 }

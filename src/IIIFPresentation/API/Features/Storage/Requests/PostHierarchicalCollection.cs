@@ -35,7 +35,7 @@ public class PostHierarchicalCollectionHandler(
     PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
     IdentityManager identityManager,
-    IIIFS3Service iiifS3,
+    IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
     : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
 {
@@ -84,7 +84,7 @@ public class PostHierarchicalCollectionHandler(
         }
 
         collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
-        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created);
+        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,

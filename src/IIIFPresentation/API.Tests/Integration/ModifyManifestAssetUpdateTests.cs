@@ -8,6 +8,8 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +38,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     private const int NewlyCreatedSpace = 999;
     private readonly IAmazonS3 amazonS3;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
-    private readonly IETagManager etagManager;
+    private static readonly IDlcsOrchestratorClient DLCSOrchestratorClient = A.Fake<IDlcsOrchestratorClient>();
     
     public ModifyManifestAssetUpdateTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -56,14 +58,18 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                     Submitted = DateTime.Now
                 }}));
         
-        dbContext = storageFixture.DbFixture.DbContext;
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, 
+                A<ICollection<string>>._, A<CancellationToken>._))
+            .ReturnsLazily(x =>
+                Task.FromResult<IList<JObject>>(new List<JObject>()));
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-            services => services.AddSingleton(DLCSApiClient));
+            services => 
+                services
+                    .AddSingleton(DLCSApiClient)
+                    .AddSingleton(DLCSOrchestratorClient));
         
-        etagManager = (IETagManager)factory.Services.GetRequiredService(typeof(IETagManager));
-
         storageFixture.DbFixture.CleanUp();
     }
     
@@ -73,12 +79,14 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true, 
+            spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
 
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
                 A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}")),
-                A<CancellationToken>._))
+                A<CancellationToken>._)).ReturnsLazily(() => Task.FromResult<IList<JObject>>(new List<JObject>()))
+            .Once().Then
             .ReturnsLazily(() =>
             [
                 JObject.Parse($"{{\"@id\": \"https://dlcs.test/customers/1/spaces/999/images/{assetId}\"}}")
@@ -111,8 +119,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -170,7 +177,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
 
@@ -201,8 +208,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -245,7 +251,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          // Arrange
          var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
 
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
+         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
              ingested: true);
          await dbContext.SaveChangesAsync();
          var batchId = TestIdentifiers.BatchId();
@@ -280,8 +286,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                           """;
          
          var requestMessage =
-             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-         etagManager.SetCorrectEtag(requestMessage, id, Customer);
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -300,14 +305,15 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          dbManifest.CanvasPaintings!.Should().HaveCount(3);
          var currentCanvasOrder = 0;
          dbManifest.Batches.Should().HaveCount(2);
-         dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
-         dbManifest.Batches!.Last().Id.Should().Be(batchId);
+         dbManifest.Batches!.OrderBy(x => x.Submitted).Last().Status.Should().Be(BatchStatus.Ingesting);
+         dbManifest.Batches!.OrderBy(x => x.Submitted).Last().Id.Should().Be(batchId);
          
          foreach (var canvasPainting in dbManifest.CanvasPaintings!)
          {
              canvasPainting.CanvasOrder.Should().Be(currentCanvasOrder);
              canvasPainting.AssetId.ToString().Should()
                  .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-{currentCanvasOrder}");
+             canvasPainting.Ingesting.Should().BeTrue();
              currentCanvasOrder++;
          }
      }
@@ -318,7 +324,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          // Arrange
          var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
          await dbContext.SaveChangesAsync();
          
          var batchId = TestIdentifiers.BatchId();
@@ -371,8 +377,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                           """;
          
          var requestMessage =
-             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-         etagManager.SetCorrectEtag(requestMessage, id, Customer);
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -408,7 +413,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
          // Arrange
          var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-         await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
          await dbContext.SaveChangesAsync();
          var batchId = TestIdentifiers.BatchId();
          
@@ -453,8 +458,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                           """;
          
          var requestMessage =
-             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-         etagManager.SetCorrectEtag(requestMessage, id, Customer);
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -493,7 +497,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
         A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
@@ -517,8 +521,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                          """;
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -535,7 +538,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
         var space = 18;
@@ -559,8 +562,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                          """;
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -588,8 +590,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var batchId = TestIdentifiers.BatchId();
@@ -602,6 +604,12 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                  {
                                      "asset": {
                                          "id": "{{assetId}}",
+                                         "mediaType": "image/jpg"
+                                     }
+                                 },
+                                 {
+                                     "asset": {
+                                         "id": "{{assetId}}_2",
                                          "batch": "{{batchId}}",
                                          "mediaType": "image/jpg"
                                      }
@@ -612,8 +620,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -624,7 +631,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         responseManifest!.Id.Should().NotBeNull();
         
-        var canvasPainting = await dbContext.CanvasPaintings.SingleAsync(cp => cp.ManifestId == id);
+        var canvasPainting = await dbContext.CanvasPaintings.FirstAsync(cp => cp.ManifestId == id);
         canvasPainting.Id.Should().NotBe(canvasId, "New canvasId minted as no id provided");
         
         responseManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
@@ -647,8 +654,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var initialCanvasPaintingId = initialCanvasPaintings[0].CanvasPaintingId;
@@ -666,6 +673,15 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                      "asset": {
                                          "id": "{{assetId}}",
+                                         "mediaType": "image/jpg"
+                                     }
+                                 },
+                                 {
+                                     "canvasPainting":{
+                                          "canvasId": "addToAvoidAllTrackedError"
+                                     },
+                                     "asset": {
+                                         "id": "{{assetId}}_2",
                                          "batch": "{{batchId}}",
                                          "mediaType": "image/jpg"
                                      }
@@ -676,8 +692,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -687,8 +702,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Id.Should().NotBeNull();
-        
-        var canvasPainting = await dbContext.CanvasPaintings.SingleAsync(cp => cp.ManifestId == id);
+
+        var canvasPainting =
+            await dbContext.CanvasPaintings.FirstAsync(cp => cp.ManifestId == id && cp.CanvasOrder == 0);
         canvasPainting.Id.Should().Be(canvasId, "CanvasId reused");
         canvasPainting.CanvasPaintingId.Should().Be(initialCanvasPaintingId, "DB row updated");
         
@@ -712,7 +728,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
@@ -743,8 +759,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -764,7 +779,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         var manifestSpace = 500;
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, spaceId: manifestSpace,
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, spaceId: manifestSpace,
             batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
 
@@ -787,8 +802,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                          """;
 
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -827,8 +841,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
 
         var batchId = TestIdentifiers.BatchId();
@@ -845,7 +859,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -858,6 +871,16 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                           "id": "{{assetId}}_2",
                                           "mediaType": "image/jpg"
                                       }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "mediaType": "image/jpg",
+                                          "batch": "{{batchId}}"
+                                      }
                                   }
                               ] 
                           }
@@ -865,8 +888,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -875,7 +897,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseManifest!.PaintedResources.Should().HaveCount(2);
+        responseManifest!.PaintedResources.Should().HaveCount(3);
 
         var orderedCanvasPaintings = await dbContext.CanvasPaintings
             .Where(cp => cp.ManifestId == id)
@@ -912,11 +934,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
-
-        var canvasPaintingIds = initialCanvasPaintings.Select(c => c.CanvasPaintingId).ToList();
 
         var batchId = TestIdentifiers.BatchId();
         var payload = $$"""
@@ -933,7 +953,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -947,6 +966,17 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                           "id": "{{assetId}}_2",
                                           "mediaType": "image/jpg"
                                       }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                        "canvasId": "anotherCanvasId",
+                                        "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
                                   }
                               ] 
                           }
@@ -954,8 +984,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -964,7 +993,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseManifest!.PaintedResources.Should().HaveCount(2);
+        responseManifest!.PaintedResources.Should().HaveCount(3);
 
         var orderedCanvasPaintings = await dbContext.CanvasPaintings
             .Where(cp => cp.ManifestId == id)
@@ -975,9 +1004,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         orderedCanvasPaintings[0].Id.Should().Be(orderedCanvasPaintings[1].Id, "Choices share canvasId");
         orderedCanvasPaintings[0].Id.Should().Be(canvasId);
         orderedCanvasPaintings[1].Id.Should().Be(canvasId);
-
-        orderedCanvasPaintings.Select(cp => cp.CanvasPaintingId).Should()
-            .BeEquivalentTo(canvasPaintingIds, "DB rows updated");
     }
     
     [Fact]
@@ -996,8 +1022,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
 
         var batchId = TestIdentifiers.BatchId();
@@ -1014,7 +1040,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -1025,6 +1050,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_2",
+                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   }
@@ -1034,8 +1060,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1073,8 +1098,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
 
         var canvasPaintingId = initialCanvasPaintings.Select(c => c.CanvasPaintingId).Single();
@@ -1094,7 +1119,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -1106,6 +1130,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_2",
+                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   }
@@ -1115,8 +1140,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1162,8 +1186,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
 
         var batchId = TestIdentifiers.BatchId();
@@ -1180,7 +1204,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -1193,6 +1216,16 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                           "id": "{{assetId}}_2",
                                           "mediaType": "image/jpg"
                                       }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
                                   }
                               ] 
                           }
@@ -1200,8 +1233,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1210,7 +1242,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseManifest!.PaintedResources.Should().HaveCount(2);
+        responseManifest!.PaintedResources.Should().HaveCount(3);
         
         var orderedCanvasPaintings = await dbContext.CanvasPaintings
             .Where(cp => cp.ManifestId == id)
@@ -1256,8 +1288,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         };
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var batchId = TestIdentifiers.BatchId();
@@ -1273,7 +1305,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                      },
                                       "asset": {
                                           "id": "{{assetId}}_1",
-                                          "batch": "{{batchId}}",
                                           "mediaType": "image/jpg"
                                       }
                                   },
@@ -1285,6 +1316,16 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                           "id": "{{assetId}}_2",
                                           "mediaType": "image/jpg"
                                       }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 3
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
                                   }
                               ] 
                           }
@@ -1292,8 +1333,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1301,7 +1341,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        responseManifest.PaintedResources.Should().HaveCount(2);
+        responseManifest.PaintedResources.Should().HaveCount(3);
 
         var canvasOne = responseManifest.PaintedResources[0].CanvasPainting;
         var canvasTwo = responseManifest.PaintedResources[1].CanvasPainting;
@@ -1323,7 +1363,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
             canvasPaintings: [new CanvasPainting { Id = canvasId, CanvasOrder = 1, }]);
         await dbContext.SaveChangesAsync();
 
@@ -1345,8 +1385,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                payload);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                payload, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1365,7 +1404,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug);
         await dbContext.SaveChangesAsync();
         var batchId = TestIdentifiers.BatchId();
 
@@ -1388,14 +1427,120 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifestWithoutSpace);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
+                manifestWithoutSpace, dbContext.GetETag(testManifest));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_FindsAssetInDlcs_WhenMixOfNewAndOldAssets()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<ICollection<string>>.That.Matches(o =>
+                    o.First().Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_")),
+                A<CancellationToken>._))
+            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
+                Task.FromResult((IList<JObject>)assetIds
+                    .Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
+                    .Select(x => JObject.Parse($$"""
+                                                 {
+                                                   "id": "{{x.Split('/').Last()}}",
+                                                   "space": {{NewlyCreatedSpace}}
+                                                 }
+                                                 """)).ToList()));
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = TestIdentifiers.BatchId();
+
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "fromDlcs_{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 3
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(3);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 2).Should().NotBeNull("asset added to manifest");
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 3).Should().NotBeNull("asset added to manifest");
+        
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.Single() == $"{Customer}/{NewlyCreatedSpace}/fromDlcs_{assetId}_2"), 
+            A<OperationType>.That.Matches(a => a == OperationType.Add),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        dbManifest.Batches.Should().HaveCount(2, "batch created for asset 3");
     }
 
     [Fact]
@@ -1439,7 +1584,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 Target = "xywh=0,0,200,200",
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1447,12 +1592,20 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 1,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-3"),
+                Ingesting = false,
+            },
+            new()
+            {
+                Id = "addedToAvoidAllTracked",
+                CanvasOrder = 2,
+                CustomerId = Customer,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-4"),
                 Ingesting = true,
             }
         ];
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var manifest = $$"""
@@ -1468,8 +1621,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                            "label": {"en": ["Top Left"]}
                                        },
                                        "asset": {
-                                           "id": "{{assetId}}-1",
-                                           "batch": "{{batchId}}",
+                                           "id": "{{assetId}}-1"
                                        }
                                    },
                                    {
@@ -1479,6 +1631,15 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                        "asset": {
                                            "id": "{{assetId}}-3"
                                        }
+                                   },
+                                   {
+                                       "canvasPainting": {
+                                           "canvasId": "addedToAvoidAllTracked",
+                                       },
+                                       "asset": {
+                                           "id": "{{assetId}}-4",
+                                           "batch": "{{batchId}}",
+                                       }
                                    }
                                ]
                            }
@@ -1486,9 +1647,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
-
+                manifest, dbContext.GetETag(testManifest));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
@@ -1541,7 +1701,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 Target = "xywh=0,0,200,200",
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1559,12 +1719,12 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 2,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-3"),
-                Ingesting = true,
+                Ingesting = false,
             }
         ];
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var manifest = $$"""
@@ -1580,8 +1740,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                            "label": {"en": ["Top Left"]}
                                        },
                                        "asset": {
-                                           "id": "{{assetId}}-1",
-                                           "batch": "{{batchId}}",
+                                           "id": "{{assetId}}-1"
                                        }
                                    },
                                    {
@@ -1591,7 +1750,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                            "label": {"en": ["Bottom Right"]}
                                        },
                                        "asset": {
-                                           "id": "{{assetId}}-2"
+                                           "id": "{{assetId}}-2",
+                                           "batch": "{{batchId}}",
                                        }
                                    },
                                    {
@@ -1608,9 +1768,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
-
+                manifest, dbContext.GetETag(testManifest));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
@@ -1632,7 +1791,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     [Fact]
     public async Task UpdateManifest_AddChoiceToExistingCanvas_MultipleImageComposition()
     {
-        // Initial state - 1 CanvasPaintings on canvas, add a second CanvasPaitning which is a choice
+        // Initial state - 1 CanvasPaintings on canvas, add a second CanvasPainting which is a choice
         var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
         var batchId = TestIdentifiers.BatchId();
         
@@ -1654,7 +1813,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 CanvasOrder = 0,
                 CustomerId = Customer,
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}-1"),
-                Ingesting = true,
+                Ingesting = false,
             },
             new()
             {
@@ -1676,8 +1835,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             }
         ];
 
-        await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest =await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
         
         var manifest = $$"""
@@ -1692,8 +1851,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                            "canvasOrder": 0
                                        },
                                        "asset": {
-                                           "id": "{{assetId}}-1",
-                                           "batch": "{{batchId}}",
+                                           "id": "{{assetId}}-1"
                                        }
                                    },
                                    {
@@ -1703,7 +1861,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                            "choiceOrder": 1
                                        },
                                        "asset": {
-                                           "id": "{{assetId}}-2"
+                                           "id": "{{assetId}}-2",
+                                           "batch": "{{batchId}}",
                                        }
                                    },
                                    {
@@ -1722,9 +1881,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifest);
-        etagManager.SetCorrectEtag(requestMessage, id, Customer);
-
+                manifest, dbContext.GetETag(testManifest));
+        
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
@@ -1742,5 +1900,557 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 .Excluding(cp => cp.Modified)
                 .Excluding(cp => cp.Created));
     }
-}
+    
+    [Fact]
+    public async Task UpdateManifest_SameAssetIdDifferentSpaces_WhenMixOfNewAndOldAssets()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
 
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            },
+            new()
+            {
+                Id = "second",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 2,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 1)
+            .CanvasPaintingId;
+        var secondCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 2)
+            .CanvasPaintingId;
+        
+        var batchId = TestIdentifiers.BatchId();
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 3
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "mediaType": "image/jpg",
+                                          "batch": "{{batchId}}",
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 4
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_3",
+                                          "space": 3,
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(4);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+        
+        var newAssetManifestSpace = dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 3);
+        var newAssetAssetSpace = dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 4);
+        
+        newAssetManifestSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/{NewlyCreatedSpace}/{assetId}_3"));
+        newAssetAssetSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/3/{assetId}_3"));
+        
+        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+            A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnNothing"),
+            A<CancellationToken>._)).MustNotHaveHappened();
+        
+        dbManifest.Batches.Should().HaveCount(2);
+        dbManifest.Batches.Single(b => b.Id == batchId).Should().NotBeNull("Assets not found, so batch created");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved()
+    {
+        // Arrange
+        var slug = nameof(UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved);
+        var id = $"{nameof(UpdateManifest_RemovesAssetFromManifest_WhenTrackedAssetRemoved)}_id";
+        var assetId = "testAssetByPresentation-only-calls-new";
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true);
+        await dbContext.SaveChangesAsync();
+
+        var firstCanvasPaintingId = dbContext.CanvasPaintings.First(cp => cp.ManifestId == id && cp.CanvasOrder == 1)
+            .CanvasPaintingId;
+
+        var batchId = TestIdentifiers.BatchId();
+
+        var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithoutSpace, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(1);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).CanvasPaintingId.Should().NotBe(firstCanvasPaintingId);
+        
+        dbManifest.Batches.Should().HaveCount(2, "batch created for asset 2");
+        
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.Single() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_1"),
+            A<OperationType>.That.Matches(a => a == OperationType.Remove),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_DoesNotRequireFurtherProcessing_WhenAllAssetsTracked()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            },
+            new()
+            {
+                Id = "second",
+                CanvasOrder = 2,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() =>
+                DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                    A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => ManifestTestCreator.New()
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1"), c => c.WithImage())
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2"), c => c.WithImage())
+                .Build());
+
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+            .Be(100, "Generated immediately");
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == id);
+        dbManifest.CanvasPaintings.Should().HaveCount(2);
+        dbManifest.Batches.Should().HaveCount(1, "Only the initial batch is created");
+        
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{dbManifest.Id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
+        s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().NotBeNull("Manifest generated upfront");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_DoesNotRequireFurtherProcessing_WhenAllAssetsTrackedFromOtherManifests()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        var secondCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "second",
+                CanvasOrder = 2,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2")
+            }
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.Manifests.AddTestManifest(id: $"{id}_2", slug: $"{slug}_2", canvasPaintings: secondCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.Manifests.AddTestManifest(id: $"{id}_3", slug: $"{slug}_3", canvasPaintings: secondCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() =>
+                DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                    A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => ManifestTestCreator.New()
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1"), c => c.WithImage())
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_2"), c => c.WithImage())
+                .Build());
+
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  },
+                                  {
+                                     "canvasPainting":{
+                                          "canvasOrder": 2
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_2",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+            .Be(100, "Generated immediately");
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == id);
+        dbManifest.CanvasPaintings.Should().HaveCount(2);
+        dbManifest.Batches.Should().HaveCount(1, "Only the initial batch is created");
+        
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{dbManifest.Id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
+        s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().NotBeNull("Manifest generated upfront");
+        
+        // check asset in another manifest causes the manifest PATCH to happen
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_2"),
+            A<OperationType>.That.Matches(a => a == OperationType.Add),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_DoesNotRequireFurtherProcessingWhenManifestCreated_WhenAllAssetsTrackedFromAnotherManifest()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        var otherCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                CanvasOrder = 2,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+        
+        await dbContext.Manifests.AddTestManifest(id: $"{id}_first", slug: $"{slug}_first", canvasPaintings: otherCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() =>
+                DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                    A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => ManifestTestCreator.New()
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1"), c => c.WithImage())
+                .Build());
+
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}_1",
+                                          "mediaType": "image/jpg",
+                                          "space": {{NewlyCreatedSpace}}
+                                      }
+                                  }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.Id.Should().NotBeNull();
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+            .Be(100, "Generated immediately");
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == id);
+        dbManifest.CanvasPaintings.Should().HaveCount(1);
+        
+        var savedS3 =
+            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                $"{Customer}/manifests/{dbManifest.Id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
+        s3Manifest.Id.Should().EndWith(dbManifest.Id);
+        s3Manifest.Items.Should().NotBeNull("Manifest generated upfront");
+        
+        // check asset in another manifest causes the manifest PATCH to happen
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_1"),
+            A<OperationType>.That.Matches(a => a == OperationType.Add),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_IgnoresManifestsProperty_WhenNoAssetsExist()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}")),
+                A<CancellationToken>._)).ReturnsLazily(() => new List<JObject>())
+            .Once().Then
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($"{{\"@id\": \"https://dlcs.test/customers/1/spaces/999/images/{assetId}\"}}")
+            ]);
+
+        var batchId = TestIdentifiers.BatchId();
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "label": {
+                                             "en": [
+                                                 "canvas testing"
+                                             ]
+                                         }
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg",
+                                         "manifests": ["ignored"]
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+                A<List<JObject>>.That.Matches(o =>
+                    o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+}

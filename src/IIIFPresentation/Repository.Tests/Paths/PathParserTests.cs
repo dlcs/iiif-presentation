@@ -1,5 +1,7 @@
-﻿using Core.Exceptions;
+using Core.Web;
+using Core.Exceptions;
 using IIIF.Presentation.V3;
+using Microsoft.Extensions.Logging.Abstractions;
 using Models.API.Manifest;
 using Models.DLCS;
 using Repository.Paths;
@@ -40,75 +42,6 @@ public class PathParserTests
         act.Should().Throw<FormatException>()
             .WithMessage($"Unable to extract AssetId from {incorrectId}");
     }
-
-    [Theory]
-    [InlineData("https://dlcs.example/1/canvases/someId")]
-    [InlineData("someId")]
-    public void GetCanvasId_RetrievesCorrectCanvasId_whenCalled(string canvasId)
-    {
-        var canvasPainting = new CanvasPainting()
-        {
-            CanvasId = canvasId
-        };
-        
-        var canvasFromPathParser = PathParser.GetCanvasId(canvasPainting, 1);
-        
-        canvasFromPathParser.Should().Be("someId");
-    }
-    
-    [Theory]
-    [InlineData("https://dlcs.example/1/canvases/foo/bar/baz", "foo/bar/baz")]
-    [InlineData("https://dlcs.example/1/canvases/someId?foo=bar", "someId?foo=bar")]
-    [InlineData("foo/bar/baz", "foo/bar/baz")]
-    public void GetCanvasId_ThrowsAnError_WhenCalledWithMultipleSlashes(string canvasId, string expected)
-    {
-        var canvasPainting = new CanvasPainting
-        {
-            CanvasId = canvasId
-        };
-
-        Action act = () =>  PathParser.GetCanvasId(canvasPainting, 1);
-        act.Should().Throw<InvalidCanvasIdException>()
-            .WithMessage(
-                $"Canvas Id {expected} contains a prohibited character. Cannot contain any of: '/','=','=',','");
-    }
-    
-    [Fact]
-    public void GetCanvasId_ThrowsAnError_WhenCalledWithNullCanvasId()
-    {
-        var canvasPainting = new CanvasPainting
-        {
-            CanvasId = null
-        };
-
-        Action act = () =>  PathParser.GetCanvasId(canvasPainting, 1);
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("canvasPainting");
-    }
-    
-    [Theory]
-    [InlineData("https://dlcs.example/1/random/foo/bar/baz", "Canvas Id /1/random/foo/bar/baz is not valid")]
-    [InlineData("https://dlcs.example/1/canvases", "Canvas Id /1/canvases is not valid")]
-    [InlineData("https://dlcs.example/1/canvases/", "Canvas Id /1/canvases/ is not valid")]
-    public void GetCanvasId_ThrowsAnError_WhenCalledWithInvalidUri(string canvasId, string expectedError)
-    {
-        var canvasPainting = new CanvasPainting
-        {
-            CanvasId = canvasId
-        };
-
-        Action act = () =>  PathParser.GetCanvasId(canvasPainting, 1);
-        act.Should().Throw<InvalidCanvasIdException>()
-            .WithMessage(expectedError);
-    }
-
-    [Fact]
-    public void GetHierarchicalSlugFromPath_ReturnsSlugFromPath()
-    {
-        var slug = PathParser.GetHierarchicalFullPathFromPath("/1/slug/slug", 1);
-        
-        slug.Should().Be("slug/slug");
-    }
     
     [Fact]
     public void GetParentUriFromPublicId_ReturnsSlugFromPath()
@@ -116,5 +49,18 @@ public class PathParserTests
         var slug = PathParser.GetParentUriFromPublicId("https://dlcs.example/1/slug/slug");
         
         slug.Should().Be("https://dlcs.example/1/slug");
+    }
+    
+    [Theory]
+    [InlineData("https://foo.com/foo/slug", "slug")]
+    [InlineData("https://foo.com/slug", "slug")]
+    [InlineData("https://foo.com", "")]
+    public void GetSlugFromHierarchicalPath_RetrievesSlug(string path, string expected)
+    {
+        // Arrange and Act
+        var slug = PathParser.GetSlugFromHierarchicalPath(path, 1);
+        
+        // Asset
+        slug.Should().Be(expected);
     }
 }

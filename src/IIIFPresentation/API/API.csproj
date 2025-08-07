@@ -11,6 +11,7 @@
     <ItemGroup>
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
         <PackageReference Include="iiif-net" Version="0.3.8" />
+        <PackageReference Include="JsonDiffPatch.Net" Version="2.5.0" />
         <PackageReference Include="LazyCache.AspNetCore" Version="2.4.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.8" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.7" />
@@ -35,6 +36,7 @@
     <ItemGroup>
         <ProjectReference Include="..\AWS\AWS.csproj" />
         <ProjectReference Include="..\DLCS\DLCS.csproj" />
+        <ProjectReference Include="..\Services\Services.csproj" />
         <ProjectReference Include="..\Repository\Repository.csproj" />
     </ItemGroup>
 

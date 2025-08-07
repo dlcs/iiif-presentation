@@ -1,4 +1,4 @@
-﻿using Core.Exceptions;
+using Core.Exceptions;
 using Core.Helpers;
 using IIIF.Presentation.V3;
 using Models.API.Manifest;
@@ -11,6 +11,8 @@ namespace Repository.Paths;
 /// </summary>
 public static class PathParser
 {
+    private const char PathSeparator = '/';
+    
     public static AssetId GetAssetIdFromNamedQueryCanvasId(this Canvas canvas, ILogger? logger = null)
     {
         var canvasId = canvas.Id.ThrowIfNullOrWhiteSpace(nameof(canvas.Id));
@@ -18,8 +20,8 @@ public static class PathParser
         try
         {
             var assetParts =
-                canvasId[..canvasId.IndexOf("/canvas/c/", StringComparison.OrdinalIgnoreCase)].Split("/")[^3..];
-            return AssetId.FromString(string.Join('/', assetParts));
+                canvasId[..canvasId.IndexOf("/canvas/c/", StringComparison.OrdinalIgnoreCase)].Split(PathSeparator)[^3..];
+            return AssetId.FromString(string.Join(PathSeparator, assetParts));
         }
         catch (Exception e)
         {
@@ -28,53 +30,35 @@ public static class PathParser
         }
     }
 
-    public static string GetCanvasId(CanvasPainting canvasPainting, int customerId)
-    {
-        var canvasId = canvasPainting.CanvasId.ThrowIfNull(nameof(canvasPainting));
-
-        if (!Uri.IsWellFormedUriString(canvasId, UriKind.Absolute))
-        {
-            CheckForProhibitedCharacters(canvasId);
-            return canvasId;
-        }
-
-        var convertedCanvasId = new Uri(canvasId).PathAndQuery;
-        var customerCanvasesPath = $"/{customerId}/canvases/";
-
-        if (!convertedCanvasId.StartsWith(customerCanvasesPath) || convertedCanvasId.Equals(customerCanvasesPath))
-        {
-            throw new InvalidCanvasIdException(convertedCanvasId);
-        }
-
-        var actualCanvasId = convertedCanvasId[customerCanvasesPath.Length..];
-        CheckForProhibitedCharacters(actualCanvasId);
-
-        return actualCanvasId;
-    }
-
-    private static void CheckForProhibitedCharacters(string canvasId)
-    {
-        if (ProhibitedCharacters.Any(canvasId.Contains))
-        {
-            throw new InvalidCanvasIdException(canvasId,
-                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
-        }
-    }
-
-    public static string GetHierarchicalFullPathFromPath(string presentationParent, int customerId) =>
-        presentationParent.Trim('/').TrimExpect($"{customerId}").Trim('/');
-
     /// <summary>
     /// Gets a hierarchical path from a full array of path elements
     /// </summary>
     public static string GetHierarchicalPath(string[] pathElements) =>
-        string.Join('/', pathElements.Skip(2).SkipLast(1)); // skip customer id and trailing whitespace 
+        string.Join(PathSeparator, pathElements.Skip(2).SkipLast(1)); // skip customer id and trailing whitespace 
 
     /// <summary>
     /// Gets the resource id from a full array of path elements
     /// </summary>
     public static string GetResourceIdFromPath(string[] pathElements) =>
         pathElements.SkipLast(1).Last(); // miss the trailing whitespace and use the last path element
+
+    /// <summary>
+    /// Retrieves the slug from a fully qualified hierarchical path
+    /// </summary>
+    /// <exception cref="UriFormatException">When the path isn't a URI</exception>
+    public static string GetSlugFromHierarchicalPath(string path, int customerId)
+    {
+        var lastPath = path.GetLastPathElement();
+        var host = new Uri(path).Host;
+        
+        // this is the root collection
+        if (host == lastPath || lastPath.Equals(customerId.ToString()))
+        {
+            return string.Empty;
+        }
+        
+        return lastPath;
+    }
 
     /// <summary>
     /// This is the index of a customer id from a full path
@@ -86,33 +70,6 @@ public static class PathParser
     /// </summary>
     public static int FullPathTypeIndex => 2;
 
-    /// <summary>
-    ///     Will ensure <paramref name="input" /> starts with entire <paramref name="expectation" />
-    ///     but will omit it from output. Throws if strings differ.
-    /// </summary>
-    /// <param name="input">a string</param>
-    /// <param name="expectation">string of characters expected to be present from <paramref name="input" /></param>
-    /// <returns><paramref name="input" /> with the <paramref name="expectation" /> omitted from the start</returns>
-    /// <exception cref="FormatException">
-    ///     if the <paramref name="input" /> does not start with <paramref name="expectation" />
-    /// </exception>
-    private static string TrimExpect(this string input, string expectation)
-    {
-        if (expectation.Length <= 0) return input;
-        var i = 0;
-        while (i < expectation.Length)
-        {
-            if (input[i] != expectation[i])
-                throw new FormatException($"Expected character '{expectation[i]}' but found '{input[i]}' at index {i}");
-            ++i;
-        }
-
-        return input[i..];
-    }
     public static Uri GetParentUriFromPublicId(string publicId) => 
-        new(publicId[..publicId.LastIndexOf('/')]);
-
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
-    private static string ProhibitedCharacterDisplay = string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
-
+        new(publicId[..publicId.LastIndexOf(PathSeparator)]);
 }

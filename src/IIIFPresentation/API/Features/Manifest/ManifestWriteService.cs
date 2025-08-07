@@ -17,6 +17,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.AWS;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -81,13 +82,13 @@ public interface IManifestWrite
 public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
-    IIIFS3Service iiifS3,
-    IETagManager eTagManager,
+    IIIIFS3Service iiifS3,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     IManifestRead manifestRead,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
+    IManifestStorageManager manifestStorageManager,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -154,7 +155,7 @@ public class ManifestWriteService(
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
-        var saveToStaging = ShouldSaveToStaging(request);
+        var hasAssets = PaintedResourcesHasAssets(request);
         // can't have both items and painted resources, so items take precedence
         if (!request.PresentationManifest.Items.IsNullOrEmpty())
         {
@@ -171,21 +172,26 @@ public class ManifestWriteService(
             var dlcsInteractionResult =
                 await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId, cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
-
+            
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, cancellationToken);
+                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
 
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
-            
+            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
+                cancellationToken);
+
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Created);
+
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Created,
+                dbManifest?.Etag);
         }
     }
 
-    private static bool ShouldSaveToStaging(WriteManifestRequest request)
+    private static bool PaintedResourcesHasAssets(WriteManifestRequest request)
     {
         return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
     }
@@ -193,7 +199,7 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
-        if (!eTagManager.TryGetETag(existingManifest, out var eTag) || eTag != request.Etag)
+        if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
         }
@@ -228,21 +234,25 @@ public class ManifestWriteService(
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
+                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
-
-            var saveToStaging = ShouldSaveToStaging(request);
-            await SaveToS3(dbManifest!, request, saveToStaging, cancellationToken);
+            
+            var hasAssets = PaintedResourcesHasAssets(request);
+            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator, 
+                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
                     await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() ? WriteResult.Accepted : WriteResult.Updated);
+                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    ? WriteResult.Accepted
+                    : WriteResult.Updated,
+                dbManifest?.Etag);
         }
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, DlcsInteractionResult dlcsInteractionResult,
+        CancellationToken cancellationToken)
     {
         var (canvasPaintingsError, canvasPaintings) =
             await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
@@ -270,7 +280,7 @@ public class ManifestWriteService(
             ],
             CanvasPaintings = canvasPaintings,
             SpaceId = spaceId,
-            LastProcessed = RequiresFurtherProcessing(request.PresentationManifest) ? null : timeStamp,
+            LastProcessed = RequiresFurtherProcessing(dlcsInteractionResult) ? null : timeStamp,
         };
 
         await dbContext.AddAsync(dbManifest, cancellationToken);
@@ -280,24 +290,33 @@ public class ManifestWriteService(
     }
 
     /// <summary>
-    /// Check if manifest will require further processing. This is used to set .LastProcessed for a manifest. If further
-    /// processing is required this later processing will trigger update to field.
+    /// Manifest doesn't require further processing in two scenarios:
+    /// 1. Determined that there's no DLCS interaction required at all (no new space and no assets)
+    /// 2. Determined that there are no unchecked assets (after checking with DLCS)
     /// </summary>
-    private static bool RequiresFurtherProcessing(PresentationManifest presentationManifest) =>
-        presentationManifest.PaintedResources?.Any(pr => pr.Asset != null) ?? false;
+    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) =>
+        dlcsInteractionResult != DlcsInteractionResult.NoInteraction &&
+        dlcsInteractionResult is { OnlySpace: false, CanBeBuiltUpfront: false };
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,
+        CancellationToken cancellationToken)
     {
         var presentationManifest = request.PresentationManifest;
         var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
             presentationManifest, existingManifest, cancellationToken);
         if (canvasPaintingsError != null) return (canvasPaintingsError, null);
         
+        existingManifest.Label = presentationManifest.Label;
+        
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
-        existingManifest.Label = presentationManifest.Label;
-        existingManifest.LastProcessed = RequiresFurtherProcessing(presentationManifest) ? null : DateTime.UtcNow;
+
+        if (!RequiresFurtherProcessing(dlcsInteractionResult))
+        {
+            existingManifest.LastProcessed = DateTime.UtcNow;
+        }
+        // else: BackgroundHandler will set the value
         
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = parsedParentSlug.Slug;
@@ -336,12 +355,20 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool saveToStaging,
-        CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+        bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
- 
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            saveToStaging, cancellationToken);
+
+        if (canBeBuiltUpfront)
+        {
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            request.PresentationManifest.Items = manifest.Items;
+        }
+        else
+        {
+            await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+                hasAssets, cancellationToken);
+        }
     }
 }

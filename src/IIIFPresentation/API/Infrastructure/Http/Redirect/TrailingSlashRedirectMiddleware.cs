@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using API.Infrastructure.Requests;
-using API.Infrastructure.Validation;
+using Models.API.General;
 using Repository.Paths;
 
 namespace API.Infrastructure.Http.Redirect;

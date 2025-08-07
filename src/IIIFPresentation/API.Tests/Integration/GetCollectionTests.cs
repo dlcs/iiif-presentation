@@ -5,6 +5,7 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
+using Microsoft.Net.Http.Headers;
 using Models.API.Collection;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -46,6 +47,33 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var secondItem = (Collection)collection.Items[1];
         secondItem.Id.Should().Be("http://localhost/1/iiif-collection");
         secondItem.Behavior.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task Get_RootHierarchical_Returns_304_WhenEtagMatch()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1");
+        
+        // Act
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
+        collection!.Id.Should().Be("http://localhost/1");
+        
+        // Second call
+        // Arrange
+        var request = new HttpRequestMessage(HttpMethod.Get, "1");
+        request.Headers.IfNoneMatch.Add(response.Headers.ETag!);
+        
+        // Act
+        response = await httpClient.SendAsync(request);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotModified);
+        response.Headers.Should().ContainKey(HeaderNames.ETag);
     }
     
     [Fact]
