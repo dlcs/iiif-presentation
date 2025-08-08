@@ -7,16 +7,19 @@ using Core;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
+using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
-using Models.Database.Collections;
 using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using CanvasPainting = Models.Database.CanvasPainting;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
+using ManifestX = Models.Database.Collections.ManifestX;
 
 namespace API.Features.Manifest;
 
@@ -40,6 +43,14 @@ public class DlcsManifestCoordinator(
     IManagedAssetResultFinder knownAssetChecker,
     ILogger<DlcsManifestCoordinator> logger)
 {
+
+    public async Task<Dictionary<IPaintable, AssetId>> VerifyCanvasItemAssets(WriteManifestRequest request, 
+        CancellationToken cancellationToken = default)
+    {
+        var assets = await knownAssetChecker.FindManagedAssets(request.PresentationManifest, request.CustomerId, cancellationToken);
+        return assets.ToDictionary(tuple=>tuple.paintable!, tuple=>tuple.assetId!);
+    }
+    
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
@@ -52,7 +63,7 @@ public class DlcsManifestCoordinator(
         CancellationToken cancellationToken = default)
     {
         // NOTE - this must always happen before handing off to canvasPaintingResolve
-        var assets = GetAssetJObjectList(request);
+        var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
         if (!request.CreateSpace && assets.Count <= 0)
         {
@@ -108,12 +119,13 @@ public class DlcsManifestCoordinator(
         var dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
             request.PresentationManifest, dbManifest, spaceId, spaceCreated, request.CustomerId, cancellationToken);
 
+        var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
+        
         MarkAssetsAsIngesting(request,
-            dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId));
+            assetsToIngest.Select(d => d.AssetId));
         
         // create batches for assets
-        var batchError = await CreateBatches(request.CustomerId, manifestId,
-            dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList(), cancellationToken);
+        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);
         
         if (batchError != null)  return new DlcsInteractionResult(batchError, spaceId);
         
@@ -176,12 +188,12 @@ public class DlcsManifestCoordinator(
         canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
     [dbManifest.Id], cancellationToken);
 
-    private static List<JObject> GetAssetJObjectList(WriteManifestRequest request) =>
-        request.PresentationManifest.PaintedResources?
+    private static List<JObject> GetAssetJObjectList(List<PaintedResource>? paintedResources) =>
+        paintedResources?
             .Select(p => p.Asset)
             .OfType<JObject>()
             .ToList() ?? [];
-    
+
     private async Task<int?> CreateSpace(int customerId, string manifestId,
         CancellationToken cancellationToken)
     {
@@ -215,22 +227,26 @@ public class DlcsManifestCoordinator(
                     break;
             }
 
-            if (!assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset))
-            {
-                logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
-                var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
-                
-                if (!JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset))
-                {
-                    var jsonDiffPatch = new JsonDiffPatch();
-                    var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
+            // If can add, move to next one
+            if (assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset)) continue;
+            
+            // else already specified
+            logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
+            var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
+
+            // if specified with the same data, we can ignore and continue
+            if (JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset)) continue;
+            
+            // else report failure with details
+            var jsonDiffPatch = new JsonDiffPatch();
+            var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
                     
-                    return EntityResult.Failure(
-                        $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
-                        ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
-                }
-            }
+            return EntityResult.Failure(
+                $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
+                ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
         }
+        
+        // `assets` now contain all the assets that should be ingested by DLCS
         
         try
         {

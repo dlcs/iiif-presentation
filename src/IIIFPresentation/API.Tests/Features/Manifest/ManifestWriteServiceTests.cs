@@ -63,7 +63,8 @@ public class ManifestWriteServiceTests
         var manifestRead = A.Fake<IManifestRead>();
 
         var dlcsClient = A.Fake<IDlcsApiClient>();
-        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
+        var paintableAssetIdentifier = A.Fake<PaintableAssetIdentifier>();
+        var managedResultFinder = new ManagedAssetResultFinder(paintableAssetIdentifier, dlcsClient, presentationContext,
             new NullLogger<ManagedAssetResultFinder>());
         var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());
