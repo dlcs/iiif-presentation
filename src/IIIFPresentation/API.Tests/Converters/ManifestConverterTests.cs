@@ -3,10 +3,12 @@ using Core.Infrastructure;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using Models.API.Collection;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using NuGet.Configuration;
 using Repository.Paths;
 using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -589,5 +591,85 @@ public class ManifestConverterTests
         result.Items.Should().HaveCount(2);
         result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
         result.Items.Last().Id.Should().Be("http://base/0/canvases/third");
+    }
+
+    [Fact]
+    public void GenerateItems_GeneratesItemsFromCanvas_IfSetWithCanvasList()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>
+        {
+            ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                .WithImage()
+                .Build()
+        };
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Width.Should().Be(110);
+        item.Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+            .Be(100);
+    }
+    
+    [Fact]
+    public void GenerateItems_GeneratesFullItems_IfSetFromCanvasPaintings()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>();
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Items[0].Items[0].Should().NotBeNull();
+        item.Items[0].Items[0].As<PaintingAnnotation>().Behavior.Should().Contain("processing");
+    }
+    
+    [Fact]
+    public void GenerateItems_GeneratesMinimalItems_IfSetWithItemsWithMinimalEnabled()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>();
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList, true);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Items.Should().BeNull();
     }
 }

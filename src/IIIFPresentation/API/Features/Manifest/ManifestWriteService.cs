@@ -345,6 +345,13 @@ public class ManifestWriteService(
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
+        
+        var orderedCanvasPaintings = dbManifest.GetOrderedCanvasPaintings()?.ToList();
+
+        if (orderedCanvasPaintings is not null)
+        {
+            iiifManifest.Items = orderedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items, minimalCanvas: true);
+        }
 
         if (canBeBuiltUpfront)
         {
@@ -353,13 +360,6 @@ public class ManifestWriteService(
         }
         else
         {
-            var orderedCanvasPaintings = dbManifest.GetOrderedCanvasPaintings()?.ToList();
-
-            if (orderedCanvasPaintings is not null)
-            {
-                iiifManifest.Items = orderedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items);
-            }
-            
             await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
                 hasAssets, cancellationToken);
         }

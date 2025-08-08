@@ -72,7 +72,7 @@ public static class ManifestConverter
     /// provisional canvases have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
     public static List<Canvas> GenerateItems(this IList<CanvasPainting> canvasPaintings,
-        IPathGenerator pathGenerator, List<Canvas>? items)
+        IPathGenerator pathGenerator, List<Canvas>? items, bool minimalCanvas = false)
     {
         items ??= [];
         
@@ -97,10 +97,10 @@ public static class ManifestConverter
 
             var c = new Canvas
             {
-                Id = canvasId,
-                Items =
+                Id = canvasId, 
+                Items = !minimalCanvas ?
                 [
-                    new()
+                    new AnnotationPage
                     {
                         Id = pathGenerator.GenerateAnnotationPagesId(canvasPainting),
                         
@@ -129,7 +129,7 @@ public static class ManifestConverter
                             }).Cast<IAnnotation>()
                             .ToList()
                     }
-                ]
+                ] : null
             };
 
             return c;

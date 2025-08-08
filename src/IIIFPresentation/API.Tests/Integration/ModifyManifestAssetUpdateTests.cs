@@ -2176,8 +2176,12 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
-        responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+        var firstItem = responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>();
+        
+        firstItem.Height.Should()
             .Be(100, "Generated immediately");
+        firstItem.Id.Should()
+            .Be($"https://dlcs.test/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}_1/full/100,100/0/default.jpg", "Generated immediately");
         
         var dbManifest = dbContext.Manifests
             .Include(m => m.CanvasPaintings)
