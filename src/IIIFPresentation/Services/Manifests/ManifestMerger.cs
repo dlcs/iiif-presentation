@@ -71,14 +71,6 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
                 namedQueryManifest?.Id ?? "no-id");
             throw new ArgumentNullException("namedQueryManifest.Items");
         }
-        
-        if (baseManifest.Items.IsNullOrEmpty()) return;
-        
-        // Safety check - this is temporary. The Manifest comes from the staging area and should contain no items.
-        // this will change in the future but this check ensures we don't do that without making changes
-        logger.LogWarning("BaseManifest for for manifest {ManifestId} contains Items!", baseManifest.Id);
-        throw new InvalidOperationException(
-            $"{baseManifest.Id} contains items. Generating manifest from paintedResources with items is not currently supported");
     }
 
     private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
@@ -124,7 +116,31 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
                 singleItemCanvas);
 
             var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, singleItemCanvas);
-            baseManifest.Items.Add(canvas);
+
+            AddOrUpdateItems(baseManifest.Items, canvas);
+        }
+    }
+
+    private void AddOrUpdateItems(List<Canvas> items, Canvas canvas)
+    {
+        var foundCanvas = items.FirstOrDefault(c => c.Id == canvas.Id);
+        
+        // if the annotations are empty, it means this was a generated asset
+        if (foundCanvas != null && foundCanvas.Items.IsNullOrEmpty())
+        {
+            // values that can only be found from NQ
+            foundCanvas.Items = canvas.Items;
+            foundCanvas.Duration = canvas.Duration;
+            foundCanvas.Height = canvas.Height;
+            foundCanvas.Width = canvas.Width;
+            
+            // values which might come from the NQ, but could be set in manifest
+            foundCanvas.Label ??= canvas.Label;
+            foundCanvas.Metadata ??= canvas.Metadata;
+        }
+        else
+        {
+            items.Add(canvas);
         }
     }
 
