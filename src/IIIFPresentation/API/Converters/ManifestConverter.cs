@@ -46,7 +46,7 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
-
+        
         if (dbManifest.IsIngesting())
         {
             iiifManifest.Ingesting = GenerateIngesting(assets);
@@ -58,8 +58,7 @@ public static class ManifestConverter
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
 
-            // Note ??= - this is only if we don't yet have Items set by background process
-            iiifManifest.Items ??= enumeratedCanvasPaintings.GenerateProvisionalItems(pathGenerator);
+            iiifManifest.Items = enumeratedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items);
         }
         
         iiifManifest.EnsurePresentation3Context();
@@ -69,31 +68,39 @@ public static class ManifestConverter
     }
     
     /// <summary>
-    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These
-    /// provisional canvases have the structure of the final canvases without the full content-resource details
+    /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
+    /// provisional canvases have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
-    private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
-        IPathGenerator pathGenerator)
+    public static List<Canvas> GenerateItems(this IList<CanvasPainting> canvasPaintings,
+        IPathGenerator pathGenerator, List<Canvas>? items, bool minimalCanvas = false)
     {
+        items ??= [];
+        
         // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.
         // We need to maintain order by CanvasOrder > ChoiceOrder, NOT canvasId (even though we are grouping by that)
         return canvasPaintings
             .ToLookup(pr => pr.Id)
-            .Select(GenerateProvisionalCanvas)
+            .Select(g => GenerateProvisionalCanvas(g, items))
             .ToList();
 
-        Canvas GenerateProvisionalCanvas(IGrouping<string, CanvasPainting> groupedCanvasPaintings)
+        Canvas GenerateProvisionalCanvas(IGrouping<string, CanvasPainting> groupedCanvasPaintings, List<Canvas> itemsInCanvas)
         {
             // Incoming grouping is by canvasId - so could contain 1:n paintingAnnos, some of which are choices
             var canvasPainting = groupedCanvasPaintings.First();
             var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
+            
+            // check and find the attached item, if it exists and fallback to seeing if we have an item based on the canvas id
+            // this is used when either we already have an item we're generating a PR from, OR when the manifest has finished ingesting
+            var item = itemsInCanvas.FirstOrDefault(
+                i => canvasPainting.CanvasOriginalId?.ToString() == i.Id || canvasId == i.Id);
+            if (item != null) return item;
 
             var c = new Canvas
             {
-                Id = canvasId,
-                Items =
+                Id = canvasId, 
+                Items = !minimalCanvas ?
                 [
-                    new()
+                    new AnnotationPage
                     {
                         Id = pathGenerator.GenerateAnnotationPagesId(canvasPainting),
                         
@@ -122,7 +129,7 @@ public static class ManifestConverter
                             }).Cast<IAnnotation>()
                             .ToList()
                     }
-                ]
+                ] : null
             };
 
             return c;
@@ -132,7 +139,7 @@ public static class ManifestConverter
             paintings.Count() > 1 ? new PaintingChoice() : null;
     }
 
-    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
+    public static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 

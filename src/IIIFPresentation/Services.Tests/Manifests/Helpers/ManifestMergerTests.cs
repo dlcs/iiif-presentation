@@ -44,26 +44,6 @@ public class ManifestMergerTests
     }
     
     [Fact]
-    public void ProcessCanvasPaintings_Throws_IfBaseManifest_HasItems()
-    {
-        // Arrange
-        var blankManifest = new Manifest
-        {
-            Id = "https://foo",
-            Items = [new Canvas()]
-        };
-        var namedQueryManifest = new Manifest { Items = [new Canvas()] };
-
-        // Act
-        Action action = () => sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, null);
-
-        // Assert
-        action.Should()
-            .ThrowExactly<InvalidOperationException>()
-            .WithMessage("https://foo contains items. Generating manifest from paintedResources with items is not currently supported");
-    }
-    
-    [Fact]
     public void ProcessCanvasPaintings_ReturnsBaseManifest_IfNoCanvasPaintings()
     {
         // Arrange
@@ -733,5 +713,76 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Context.As<string>().Should()
             .Be(nonStandardContext, "non standard context from NQ maintained");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesManifest_IfBaseManifest_HasUnmatchedItems()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        var initialManifest = new Manifest
+        {
+            Id = "https://foo",
+            Items = [new Canvas()
+            {
+                Id = $"https://localhost:5000/1/canvases/{canvasPaintings[0].Id}"
+            }]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(initialManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
+        mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
+        mergedManifest.Items.Should().HaveCount(2, "Single canvasPainting");
+        var itemsCanvas = mergedManifest.Items[0];
+        itemsCanvas.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintings[0].Id}");
+        var namedQueryCanvas = mergedManifest.Items[1];
+        namedQueryCanvas.Id.Should().Be($"https://localhost:5000/0/canvases/{canvasPaintings[0].Id}");
+        namedQueryCanvas.Width.Should().Be(110, "Width from NQ");
+        namedQueryCanvas.Height.Should().Be(110, "Height from NQ");
+        namedQueryCanvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
+        namedQueryCanvas.Metadata.Should().BeNull("No canvas metadata from NQ persisted");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesManifest_IfBaseManifest_HasMatchedItems()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        var initialManifest = new Manifest
+        {
+            Id = "https://foo",
+            Items = [new Canvas()
+            {
+                Id = $"https://localhost:5000/0/canvases/{canvasPaintings[0].Id}"
+            }]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(initialManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
+        mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
+        canvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
+        canvas.Metadata.Should().BeNull("No canvas metadata from NQ persisted");
     }
 }

@@ -85,7 +85,6 @@ public class ManifestWriteService(
     IIIIFS3Service iiifS3,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
-    IManifestRead manifestRead,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
@@ -170,24 +169,17 @@ public class ManifestWriteService(
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
-            var hasAssets = PaintedResourcesHasAssets(request);
-            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
-                cancellationToken);
+            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
+            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-
-                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    await dlcsManifestCoordinator.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
+                hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
                     ? WriteResult.Accepted
                     : WriteResult.Created,
                 dbManifest?.Etag);
         }
-    }
-
-    private static bool PaintedResourcesHasAssets(WriteManifestRequest request)
-    {
-        return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -231,13 +223,13 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
-            var hasAssets = PaintedResourcesHasAssets(request);
+            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
             await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return PresUpdateResult.Success(
                 request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
+                    await dlcsManifestCoordinator.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
+                hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
                     ? WriteResult.Accepted
                     : WriteResult.Updated,
                 dbManifest?.Etag);
@@ -353,6 +345,13 @@ public class ManifestWriteService(
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
+        
+        var orderedCanvasPaintings = dbManifest.GetOrderedCanvasPaintings()?.ToList();
+
+        if (orderedCanvasPaintings is not null)
+        {
+            iiifManifest.Items = orderedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items, minimalCanvas: true);
+        }
 
         if (canBeBuiltUpfront)
         {

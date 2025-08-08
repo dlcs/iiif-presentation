@@ -1,16 +1,19 @@
 ﻿using API.Converters;
-using API.Tests.Helpers;
 using Core.Infrastructure;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using Models.API.Collection;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using NuGet.Configuration;
 using Repository.Paths;
+using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
+using TestPathGenerator = API.Tests.Helpers.TestPathGenerator;
 
 namespace API.Tests.Converters;
 
@@ -481,40 +484,15 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void SetGeneratedFields_DoesNotUpdateItems_IfSet()
+    public void SetGeneratedFields_MixesManifestsAndItems_IfBothSet()
     {
         var iiifManifest = new PresentationManifest
         {
-            Items = new List<Canvas>
-            {
-                new()
-                {
-                    Id = "http://base/0/canvases/first",
-                    Items =
-                    [
-                        new AnnotationPage
-                        {
-                            Id = "http://base/0/canvases/first/annopages/1",
-                            Items =
-                            [
-                                new PaintingAnnotation
-                                {
-                                    Id = "http://base/0/canvases/first/annotations/1",
-                                    Behavior = [Behavior.Processing],
-                                    Target = new Canvas { Id = "http://base/0/canvases/first" },
-                                    Body = new PaintingChoice
-                                    {
-                                        Items =
-                                        [
-                                            new Image(), new Image()
-                                        ]
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                },
-            }
+            Items = [ 
+                ManifestTestCreator.Canvas($"https://base/0/canvases/first")
+                .WithImage()
+                .Build()
+            ]
         };
 
         var dbManifest = new DBManifest
@@ -524,18 +502,174 @@ public class ManifestConverterTests
             CanvasPaintings =
             [
                 new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
                 new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first" },
+                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
             ],
             Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
         };
-
         
         // Act
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
         
         // Assert
-        result.Items.Should().BeEquivalentTo(iiifManifest.Items, "Items untouched as already present");
+        result.Items.Should().HaveCount(2);
+        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
+        result.Items.Last().Id.Should().Be("http://base/0/canvases/second");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_MixesManifestsAndItemsWithChoiceInPaintedResources_IfBothSet()
+    {
+        var iiifManifest = new PresentationManifest
+        {
+            Items = [ 
+                ManifestTestCreator.Canvas($"https://base/0/canvases/first")
+                    .WithImage()
+                    .Build()
+            ]
+        };
+
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Id = "test-manifest",
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
+                new CanvasPainting
+                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
+                new CanvasPainting
+                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 1, Id = "third" },
+            ],
+            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        
+        // Assert
+        result.Items.Should().HaveCount(3);
+        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
+        result.Items[1].Id.Should().Be("http://base/0/canvases/second");
+        result.Items.Last().Id.Should().Be("http://base/0/canvases/third");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_MixesManifestsAndItemsWithChoiceInItems_IfBothSet()
+    {
+        var iiifManifest = new PresentationManifest
+        {
+            Items = [ 
+                ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                    .WithImages(2)
+                    .Build()
+            ]
+        };
+
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Id = "test-manifest",
+            CanvasPaintings =
+            [
+                new CanvasPainting
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
+                new CanvasPainting
+                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 1, Id = "first" },
+                new CanvasPainting
+                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "third" },
+            ],
+            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        
+        // Assert
+        result.Items.Should().HaveCount(2);
+        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
+        result.Items.Last().Id.Should().Be("http://base/0/canvases/third");
+    }
+
+    [Fact]
+    public void GenerateItems_GeneratesItemsFromCanvas_IfSetWithCanvasList()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>
+        {
+            ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                .WithImage()
+                .Build()
+        };
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Width.Should().Be(110);
+        item.Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+            .Be(100);
+    }
+    
+    [Fact]
+    public void GenerateItems_GeneratesFullItems_IfSetFromCanvasPaintings()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>();
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Items[0].Items[0].Should().NotBeNull();
+        item.Items[0].Items[0].As<PaintingAnnotation>().Behavior.Should().Contain("processing");
+    }
+    
+    [Fact]
+    public void GenerateItems_GeneratesMinimalItems_IfSetWithItemsWithMinimalEnabled()
+    {
+        // Arrange
+        var canvasList = new List<Canvas>();
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList, true);
+
+        // Assert
+        var item = items.Single();
+        item.Id.Should().Be("http://base/0/canvases/first");
+        item.Items.Should().BeNull();
     }
 }
