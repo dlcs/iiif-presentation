@@ -176,6 +176,16 @@ public class ManifestTestCreator
             Label = new("canvasPaintingLabel", "generated canvas painting label")
         }).ToList();
     }
+    
+    public static List<CanvasPainting> GenerateCanvasPaintings(params Uri[] canvasOriginalIdList)
+    {
+        var canvasOrder = 0;
+        return canvasOriginalIdList.Select(id => new CanvasPainting
+        {
+            Id = id + $"_{Guid.NewGuid()}", CanvasOriginalId = id, CanvasOrder = canvasOrder++, Ingesting = true,
+            Label = new("canvasPaintingLabel", "generated canvas painting label")
+        }).ToList();
+    }
 
     public static Manifest GenerateManifest(GenerateManifestOptions options)
     {

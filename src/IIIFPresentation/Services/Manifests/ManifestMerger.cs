@@ -65,7 +65,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
-        if (namedQueryManifest?.Items == null)
+        if (namedQueryManifest?.Items == null && baseManifest.Items == null)
         {
             logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
                 namedQueryManifest?.Id ?? "no-id");
@@ -106,6 +106,8 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         
         logger.LogDebug("Processing {CanvasCount} canvases on Manifest {ManifestId}", canvasGrouping.Count,
             baseManifest.Id);
+
+        var items = new List<Canvas>();
         
         // Each grouping provides an 'instruction' on how to paint the CanvasPaintings onto canvas.
         // All canvasPaintings in single grouping will be on single canvas
@@ -115,37 +117,16 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             logger.LogTrace("Processing {CanvasId}. SingleItem: {SingleItemCanvas}", canvasInstruction.Key,
                 singleItemCanvas);
 
-            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, singleItemCanvas);
+            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, baseManifest.Items, singleItemCanvas);
 
-            AddOrUpdateItems(baseManifest.Items, canvas);
-        }
-    }
-
-    private void AddOrUpdateItems(List<Canvas> items, Canvas canvas)
-    {
-        var foundCanvas = items.FirstOrDefault(c => c.Id == canvas.Id);
-        
-        // if the annotations are empty, it means this was a generated asset
-        if (foundCanvas != null && foundCanvas.Items.IsNullOrEmpty())
-        {
-            // values that can only be found from NQ
-            foundCanvas.Items = canvas.Items;
-            foundCanvas.Duration = canvas.Duration;
-            foundCanvas.Height = canvas.Height;
-            foundCanvas.Width = canvas.Width;
-            
-            // values which might come from the NQ, but could be set in manifest
-            foundCanvas.Label ??= canvas.Label;
-            foundCanvas.Metadata ??= canvas.Metadata;
-        }
-        else
-        {
             items.Add(canvas);
         }
+        
+        baseManifest.Items = items;
     }
 
     private Canvas GenerateCanvas(Dictionary<AssetId, Canvas> canvasDictionary,
-        IGrouping<string, CanvasPainting> canvasInstruction, bool singleItemCanvas)
+        IGrouping<string, CanvasPainting> canvasInstruction, List<Canvas> items, bool singleItemCanvas)
     {
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
@@ -170,9 +151,26 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
                 canvasOrderCount);
 
             var isChoice = canvasOrderCount > 1;
+
+            var firstCanvasPainting = canvasOrderGroup.First();
+
+            if (firstCanvasPainting.AssetId == null)
+            {
+                var item = items.FirstOrDefault(i => i.Id == firstCanvasPainting.CanvasOriginalId!.ToString());
+
+                if (item == null)
+                {
+                    logger.LogWarning(
+                        "canvas {CanvasId} does not have an asset id or canvas original id, so a manifest cannot be generated",
+                        firstCanvasPainting.Id);
+                    return canvas;
+                }
+                return item;
+            }
+            
             var currentPaintingAnno = new PaintingAnnotation
             {
-                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()),
+                Id = pathGenerator.GeneratePaintingAnnotationId(firstCanvasPainting),
             };
 
             if (!isChoice)
