@@ -614,7 +614,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList);
 
         // Assert
         var item = items.Single();
@@ -640,7 +640,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList);
+        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList);
 
         // Assert
         var item = items.Single();
@@ -665,7 +665,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var items = canvasPaintings.GenerateItems(pathGenerator, canvasList, true);
+        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList, true);
 
         // Assert
         var item = items.Single();

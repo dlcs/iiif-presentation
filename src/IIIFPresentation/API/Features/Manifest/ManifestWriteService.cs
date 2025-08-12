@@ -353,7 +353,7 @@ public class ManifestWriteService(
 
         if (orderedCanvasPaintings is not null)
         {
-            iiifManifest.Items = orderedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items, minimalCanvas: true);
+            iiifManifest.Items = orderedCanvasPaintings.GenerateProvisionalCanvases(pathGenerator, iiifManifest.Items, minimalCanvas: true);
         }
 
         if (canBeBuiltUpfront)

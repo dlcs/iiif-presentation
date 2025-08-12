@@ -58,7 +58,7 @@ public static class ManifestConverter
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
 
-            iiifManifest.Items = enumeratedCanvasPaintings.GenerateItems(pathGenerator, iiifManifest.Items);
+            iiifManifest.Items = enumeratedCanvasPaintings.GenerateProvisionalCanvases(pathGenerator, iiifManifest.Items);
         }
         
         iiifManifest.EnsurePresentation3Context();
@@ -69,9 +69,14 @@ public static class ManifestConverter
     
     /// <summary>
     /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
-    /// provisional canvases have the structure of the final canvases without the full content-resource details, or completed canvases
+    /// provisional canvases that have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
-    public static List<Canvas> GenerateItems(this IList<CanvasPainting> canvasPaintings,
+    /// <param name="canvasPaintings">The list of canvas paintings to be used for generating required canvases</param>
+    /// <param name="pathGenerator">the path generator used to generate the patchs</param>
+    /// <param name="items">Canvases that have already been set by the calling manifest</param>
+    /// <param name="minimalCanvas">whether to generate a minimal canvas</param>
+    /// <returns>Canvases with included provisional canvases</returns>
+    public static List<Canvas> GenerateProvisionalCanvases(this IList<CanvasPainting> canvasPaintings,
         IPathGenerator pathGenerator, List<Canvas>? items, bool minimalCanvas = false)
     {
         items ??= [];
