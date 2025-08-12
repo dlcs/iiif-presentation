@@ -94,9 +94,6 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     private void BuildItems(Manifest baseManifest, List<CanvasPainting> canvasPaintings, 
         Dictionary<AssetId, Canvas> canvasDictionary)
     {
-        // Ensure collection non-null
-        baseManifest.Items ??= [];
-        
         // Get the canvasPaintings in the order we want to process them (Canvas => Choice) but group by CanvasId as
         // canvases with differing orders can share an id
         var canvasGrouping = canvasPaintings
