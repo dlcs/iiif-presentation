@@ -1,22 +1,26 @@
 ﻿using Core.IIIF;
-using FakeItEasy;
+using Core.Web;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Models.API.Manifest;
-using Repository.Paths;
 using Services.Manifests;
-using Services.Manifests.Settings;
+using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
-    private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), A.Fake<IPresentationPathGenerator>(),
-        Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://localhost:7230")}), new NullLogger<ManifestItemsParser>());
+    private readonly ManifestItemsParser sut;
+    
+    public ManifestItemsParserTests()
+    {
+        var pathGenerator = new TestPresentationConfigGenerator("https://dlcs.test", new TypedPathTemplateOptions());
+        
+        sut = new ManifestItemsParser(pathGenerator, new NullLogger<ManifestItemsParser>());
+    }
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
@@ -928,6 +932,67 @@ public class ManifestItemsParserTests
             }
         };
 
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
+
+        // Act
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public async Task Parse_AcceptsShortCanvasId()
+    {
+        // https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json
+        // Arrange
+        var manifest = @"
+{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
+    ""type"": ""Manifest"",
+    ""items"": [
+        {
+            ""id"": ""shortCanvas"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {
+                    ""id"": ""shortCanvas/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {
+                            ""id"": ""shortCanvas/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {
+                                ""id"": ""shortCanvas/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("https://dlcs.test/123/canvases/shortCanvas"),
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null
+            }
+        };
+        
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act

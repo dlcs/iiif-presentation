@@ -1,4 +1,5 @@
 ﻿using Core.Exceptions;
+using Core.Web;
 using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,8 +26,10 @@ public class ManifestPaintedResourceParserTests
     {
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
+        
+        var pathGenerator = new TestPresentationConfigGenerator("https://dlcs.test", new TypedPathTemplateOptions());
 
-        sut = new ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+        sut = new ManifestPaintedResourceParser(pathRewriteParser, pathGenerator,
             new NullLogger<ManifestPaintedResourceParser>());
     }
 
@@ -550,6 +553,45 @@ public class ManifestPaintedResourceParserTests
         };
         
         var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData("https://foo.com/example/1/canvases/canvas", "https://foo.com/example/1/canvases/canvas")]
+    [InlineData("shortCanvas", "https://dlcs.test/1234/canvases/shortCanvas")]
+    public void Parse_ConvertsCanvasOriginalId_WhenSet(string canvasOriginalId, string expectedOrignalId)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset() ,
+                    CanvasPainting = new PresCanvasPainting()
+                    {
+                        CanvasOriginalId = canvasOriginalId
+                    }
+                    
+                }
+            ]
+        };
+
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri(expectedOrignalId),
+                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null,
+                Ingesting = false,
+            },
+        };
+        
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
