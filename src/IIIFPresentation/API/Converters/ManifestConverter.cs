@@ -73,32 +73,32 @@ public static class ManifestConverter
     /// </summary>
     /// <param name="canvasPaintings">The list of canvas paintings to be used for generating required canvases</param>
     /// <param name="pathGenerator">the path generator used to generate the patchs</param>
-    /// <param name="items">Canvases that have already been set by the calling manifest</param>
+    /// <param name="existingCanvases">Canvases that have already been set by the calling manifest</param>
     /// <param name="minimalCanvas">whether to generate a minimal canvas</param>
     /// <returns>Canvases with included provisional canvases</returns>
     public static List<Canvas> GenerateProvisionalCanvases(this IList<CanvasPainting> canvasPaintings,
-        IPathGenerator pathGenerator, List<Canvas>? items, bool minimalCanvas = false)
+        IPathGenerator pathGenerator, List<Canvas>? existingCanvases, bool minimalCanvas = false)
     {
-        items ??= [];
+        existingCanvases ??= [];
         
         // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.
         // We need to maintain order by CanvasOrder > ChoiceOrder, NOT canvasId (even though we are grouping by that)
         return canvasPaintings
             .ToLookup(pr => pr.Id)
-            .Select(g => GenerateProvisionalCanvas(g, items))
+            .Select(GenerateProvisionalCanvas)
             .ToList();
 
-        Canvas GenerateProvisionalCanvas(IGrouping<string, CanvasPainting> groupedCanvasPaintings, List<Canvas> itemsInCanvas)
+        Canvas GenerateProvisionalCanvas(IGrouping<string, CanvasPainting> groupedCanvasPaintings)
         {
             // Incoming grouping is by canvasId - so could contain 1:n paintingAnnos, some of which are choices
             var canvasPainting = groupedCanvasPaintings.First();
             var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
             
-            // check and find the attached item, if it exists and fallback to seeing if we have an item based on the canvas id
-            // this is used when either we already have an item we're generating a PR from, OR when the manifest has finished ingesting
-            var item = itemsInCanvas.FirstOrDefault(
-                i => canvasPainting.CanvasOriginalId?.ToString() == i.Id || canvasId == i.Id);
-            if (item != null) return item;
+            // check and find the attached canvas, if it exists and fallback to seeing if we have a canvas based on the canvas id
+            // this is used when either we already have a canvas we're generating a PR from, OR when the manifest has finished ingesting
+            var currentCanvas = existingCanvases.FirstOrDefault(
+                i => i.Id == canvasPainting.CanvasOriginalId?.ToString() || i.Id == canvasId);
+            if (currentCanvas != null) return currentCanvas;
 
             var c = new Canvas
             {
