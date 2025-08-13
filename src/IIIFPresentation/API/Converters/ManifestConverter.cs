@@ -57,8 +57,6 @@ public static class ManifestConverter
         {
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
-
-            iiifManifest.Items = enumeratedCanvasPaintings.GenerateProvisionalCanvases(pathGenerator, iiifManifest.Items);
         }
         
         iiifManifest.EnsurePresentation3Context();
@@ -74,16 +72,17 @@ public static class ManifestConverter
     /// <param name="canvasPaintings">The list of canvas paintings to be used for generating required canvases</param>
     /// <param name="pathGenerator">the path generator used to generate the patchs</param>
     /// <param name="existingCanvases">Canvases that have already been set by the calling manifest</param>
-    /// <param name="minimalCanvas">whether to generate a minimal canvas</param>
     /// <returns>Canvases with included provisional canvases</returns>
-    public static List<Canvas> GenerateProvisionalCanvases(this IList<CanvasPainting> canvasPaintings,
-        IPathGenerator pathGenerator, List<Canvas>? existingCanvases, bool minimalCanvas = false)
+    public static List<Canvas> GenerateProvisionalCanvases(this List<CanvasPainting> canvasPaintings,
+        IPathGenerator pathGenerator, List<Canvas>? existingCanvases)
     {
         existingCanvases ??= [];
+
+        var orderedCanvases = canvasPaintings.GetOrderedCanvasPaintings()?.ToList() ?? [];
         
         // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.
         // We need to maintain order by CanvasOrder > ChoiceOrder, NOT canvasId (even though we are grouping by that)
-        return canvasPaintings
+        return orderedCanvases
             .ToLookup(pr => pr.Id)
             .Select(GenerateProvisionalCanvas)
             .ToList();
@@ -103,7 +102,7 @@ public static class ManifestConverter
             var c = new Canvas
             {
                 Id = canvasId, 
-                Items = !minimalCanvas ?
+                Items =
                 [
                     new AnnotationPage
                     {
@@ -134,7 +133,7 @@ public static class ManifestConverter
                             }).Cast<IAnnotation>()
                             .ToList()
                     }
-                ] : null
+                ]
             };
 
             return c;
@@ -144,11 +143,18 @@ public static class ManifestConverter
             paintings.Count() > 1 ? new PaintingChoice() : null;
     }
 
-    public static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
+    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this Manifest dbManifest)
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
-        return dbManifest.CanvasPaintings
+        return dbManifest.CanvasPaintings.GetOrderedCanvasPaintings();
+    }
+    
+    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this List<CanvasPainting> canvasPaintings)
+    {
+        if (canvasPaintings.IsNullOrEmpty()) return null;
+
+        return canvasPaintings
             .OrderBy(cp => cp.CanvasOrder)
             .ThenBy(cp => cp.ChoiceOrder);
     }

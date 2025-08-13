@@ -16,6 +16,8 @@ using Models.DLCS;
 using Repository;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -32,7 +34,7 @@ public class BatchCompletionPathRewriteTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
-    private readonly BackgroundHandlerSettings backgroundHandlerSettings;
+    private readonly PathSettings backgroundHandlerSettings;
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -46,7 +48,7 @@ public class BatchCompletionPathRewriteTests
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
-        backgroundHandlerSettings = new BackgroundHandlerSettings
+        backgroundHandlerSettings = new PathSettings()
         {
             PresentationApiUrl = new Uri("https://localhost:5000"),
             CustomerPresentationApiUrl = new Dictionary<int, Uri>
@@ -75,8 +77,7 @@ public class BatchCompletionPathRewriteTests
                         ["Canvas"] = "https://base/{customerId}/canvases/{resourceId}",
                     }
                 }
-            },
-            AWS = new AWSSettings(),
+            }
         };
 
         var presentationGenerator =

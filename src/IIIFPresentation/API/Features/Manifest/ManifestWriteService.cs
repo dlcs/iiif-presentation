@@ -10,6 +10,7 @@ using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
@@ -18,6 +19,7 @@ using Repository;
 using Repository.Helpers;
 using Repository.Paths;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -84,7 +86,8 @@ public class ManifestWriteService(
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     CanvasPaintingResolver canvasPaintingResolver,
-    IPathGenerator pathGenerator,
+    IPathGenerator pathGenerator, 
+    SettingsBasedPathGenerator savedManifestPathGenerator,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
@@ -170,7 +173,8 @@ public class ManifestWriteService(
             if (error != null) return error;
             
             var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
             
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
                 hasAssets, dlcsInteractionResult, WriteResult.Created, cancellationToken);
@@ -219,7 +223,8 @@ public class ManifestWriteService(
             if (error != null) return error;
             
             var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
                 hasAssets, dlcsInteractionResult, WriteResult.Updated, cancellationToken);
@@ -344,16 +349,17 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+    private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
         
-        var orderedCanvasPaintings = dbManifest.GetOrderedCanvasPaintings()?.ToList();
+        var canvasPaintings =  dbManifest.CanvasPaintings;
 
-        if (orderedCanvasPaintings is not null)
+        if (canvasPaintings is not null)
         {
-            iiifManifest.Items = orderedCanvasPaintings.GenerateProvisionalCanvases(pathGenerator, iiifManifest.Items, minimalCanvas: true);
+            iiifManifest.Items =
+                canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items);
         }
 
         if (canBeBuiltUpfront)
@@ -366,5 +372,7 @@ public class ManifestWriteService(
             await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
                 hasAssets, cancellationToken);
         }
+
+        return iiifManifest.Items;
     }
 }

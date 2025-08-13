@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using API.Converters;
+using IIIF.Presentation.V3.Strings;
 using Models.API.Manifest;
 using Models.Database.Collections;
 
