@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using System.Diagnostics;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF;
 using IIIF.Presentation;
@@ -154,15 +155,8 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             if (firstCanvasPainting.AssetId == null)
             {
                 var item = items.FirstOrDefault(i => i.Id == firstCanvasPainting.CanvasOriginalId!.ToString());
-
-                if (item == null)
-                {
-                    logger.LogWarning(
-                        "canvas {CanvasId} does not have an asset id or canvas original id, so a manifest cannot be generated",
-                        firstCanvasPainting.Id);
-                    return canvas;
-                }
-                return item;
+                
+                return item ?? canvas;
             }
             
             var currentPaintingAnno = new PaintingAnnotation
