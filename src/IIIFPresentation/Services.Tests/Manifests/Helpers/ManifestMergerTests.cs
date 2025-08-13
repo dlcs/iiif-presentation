@@ -836,4 +836,43 @@ public class ManifestMergerTests
         canvas.Width.Should().BeNull("No width due to no matching canvas");
         canvas.Height.Should().BeNull( "No height due to no matching canvas");
     }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesMixedCanvas_WhenMatchingCanvasOriginalIdAndAssetId()
+    {
+        // Arrange
+        var id = TestIdentifiers.Id();
+        var assetId = TestIdentifiers.AssetId();
+        var manifest =  ManifestTestCreator.New()
+            .WithCanvas($"https://dlcs.test/iiif-img/{id}/canvas/c/", c => c.WithImage())
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var matchingCanvasIdFromOriginal = new Uri($"https://dlcs.test/iiif-img/{id}/canvas/c/");
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(matchingCanvasIdFromOriginal);
+        canvasPaintings.AddRange(ManifestTestCreator.GenerateCanvasPaintings(assetId));
+        
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
+        mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
+        mergedManifest.Items.Should().HaveCount(2, "Single canvasPainting");
+        var canvasFromOriginal = mergedManifest.Items.First();
+        canvasFromOriginal.Id.Should().Be($"https://dlcs.test/iiif-img/{id}/canvas/c/");
+        canvasFromOriginal.Width.Should().Be(110, "Width from items");
+        canvasFromOriginal.Height.Should().Be(110, "Height from items");
+        canvasFromOriginal.Metadata.Should().NotBeNull("Manifest metadata from items");
+        
+        var canvasFromAssetId = mergedManifest.Items.Last();
+        canvasFromAssetId.Id.Should().StartWith($"https://localhost:5000/0/canvases/{assetId}_");
+        canvasFromAssetId.Width.Should().Be(110, "Width from NQ");
+        canvasFromAssetId.Height.Should().Be(110, "Height from NQ");
+        canvasFromAssetId.Metadata.Should().BeNull("metadata not persisted from NQ");
+    }
 }
