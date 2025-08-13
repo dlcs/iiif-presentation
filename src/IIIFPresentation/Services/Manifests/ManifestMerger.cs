@@ -150,6 +150,7 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
 
             var isChoice = canvasOrderCount > 1;
 
+            // in a choice, the id has to match, and this is what we're using to determine a matched canvas id
             var firstCanvasPainting = canvasOrderGroup.First();
 
             if (firstCanvasPainting.AssetId == null)
