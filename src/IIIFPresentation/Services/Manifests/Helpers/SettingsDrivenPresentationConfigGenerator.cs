@@ -1,14 +1,14 @@
-﻿using BackgroundHandler.Settings;
-using Core.Paths;
+﻿using Core.Paths;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
+using Services.Manifests.Settings;
 
-namespace BackgroundHandler.Helpers;
+namespace Services.Manifests.Helpers;
 
-public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandlerSettings> settings)
+public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> settings)
     : IPresentationPathGenerator
 {
-    private readonly BackgroundHandlerSettings settings = settings.Value;
+    private readonly PathSettings settings = settings.Value;
 
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
     {

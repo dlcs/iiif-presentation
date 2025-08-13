@@ -197,63 +197,6 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void SetGeneratedFields_SetsCanvasPaintings_InCanvasThenChoiceOrder()
-    {
-        // Arrange
-        var iiifManifest = new PresentationManifest();
-        var customer = 123;
-        
-        var dbManifest = new DBManifest
-        {
-            CustomerId = customer,
-            Created = DateTime.UtcNow,
-            Modified = DateTime.UtcNow.AddDays(1),
-            CreatedBy = "creator",
-            ModifiedBy = "modifier",
-            Id = "id",
-            Hierarchy = [new Hierarchy { Slug = "slug" }],
-            CanvasPaintings =
-            [
-                new CanvasPainting
-                {
-                    ChoiceOrder = 1,
-                    CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId1"),
-                    CustomerId = customer,
-                    Id = "assetId1"
-                },
-                new CanvasPainting
-                {
-                    ChoiceOrder = 2,
-                    CanvasOrder = 2,
-                    AssetId = new AssetId(1, 2, "assetId2"),
-                    CustomerId = customer,
-                    Id = "assetId1"
-                },
-                new CanvasPainting
-                {
-                    CanvasOrder = 1,
-                    AssetId = new AssetId(1, 2, "assetId3"),
-                    CustomerId = customer,
-                    Id = "assetId3"
-                }
-            ]
-        };
-        
-        // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
-
-        // Assert
-        result.PaintedResources.Should()
-            .BeInAscendingOrder(pr => pr.CanvasPainting.CanvasOrder)
-            .And.ThenBeInAscendingOrder(pr => pr.CanvasPainting.ChoiceOrder);
-
-        result.Items.First().Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
-        result.Items.Last().Items.First().Items.First().As<PaintingAnnotation>().Body.Should()
-            .BeOfType<PaintingChoice>();
-    }
-    
-    [Fact]
     public void SetGeneratedFields_SetsCanvasPainting_WithoutAssetId()
     {
         // Arrange
@@ -313,102 +256,26 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void SetGeneratedFields_SetsItems_IfNotSet()
+    public void GenerateProvisionalCanvases_SetsItems_IfNotSet()
     {
-        // PaintedResources has 2 canvases.
-        // The first with 3 painted anno: <image> <choice> <image>
-        // The second with 1 painted anno: <image>
-        var iiifManifest = new PresentationManifest
+        var canvasPaintings = new List<CanvasPainting>
         {
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    Asset = new JObject
-                    {
-                        ["id"] = "1-i",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                    CanvasPainting = new Models.API.Manifest.CanvasPainting
-                    {
-                        CanvasOrder = 0, CanvasId = "first"
-                    }
-                },
-                new PaintedResource
-                {
-                    Asset = new JObject
-                    {
-                        ["id"] = "1-ii-b",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                    CanvasPainting = new Models.API.Manifest.CanvasPainting
-                    {
-                        CanvasOrder = 1, ChoiceOrder = 2, CanvasId = "first"
-                    }
-                },
-                new PaintedResource
-                {
-                    Asset = new JObject
-                    {
-                        ["id"] = "1-ii-a",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                    CanvasPainting = new Models.API.Manifest.CanvasPainting
-                    {
-                        CanvasOrder = 1, ChoiceOrder = 1, CanvasId = "first"
-                    }
-                },
-                new PaintedResource
-                {
-                    Asset = new JObject
-                    {
-                        ["id"] = "1-iii",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                    CanvasPainting = new Models.API.Manifest.CanvasPainting
-                    {
-                        CanvasOrder = 2, CanvasId = "first"
-                    }
-                },
-                new PaintedResource
-                {
-                    Asset = new JObject
-                    {
-                        ["id"] = "2",
-                        ["mediaType"] = "image/jpeg"
-                    },
-                    CanvasPainting = new Models.API.Manifest.CanvasPainting
-                    {
-                        CanvasOrder = 3, CanvasId = "second"
-                    }
-                },
-            ]
-        };
-
-        var dbManifest = new DBManifest
-        {
-            CustomerId = 123,
-            Id = "test-manifest",
-            CanvasPaintings =
-            [
-                new CanvasPainting { AssetId = new AssetId(1, 2, "1-i"), CanvasOrder = 0, Id = "first" },
-                new CanvasPainting
-                {
-                    AssetId = new AssetId(1, 2, "1-ii-b"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first",
-                    Target = "xywh=10,100,200,200"
-                },
-                new CanvasPainting
-                {
-                    AssetId = new AssetId(1, 2, "1-ii-a"), CanvasOrder = 1, ChoiceOrder = 1, Id = "first",
-                    Target = "xywh=0,0,200,200"
-                },
-                new CanvasPainting
-                {
-                    AssetId = new AssetId(1, 2, "1-iii"), CanvasOrder = 2, Id = "first", Target = "xywh=200,400,200,200"
-                },
-                new CanvasPainting { AssetId = new AssetId(1, 2, "2"), CanvasOrder = 3, Id = "alpha" },
-            ],
-            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
+            new() { AssetId = new AssetId(1, 2, "1-i"), CanvasOrder = 0, Id = "first" },
+            new()
+            {
+                AssetId = new AssetId(1, 2, "1-ii-b"), CanvasOrder = 1, ChoiceOrder = 2, Id = "first",
+                Target = "xywh=10,100,200,200"
+            },
+            new()
+            {
+                AssetId = new AssetId(1, 2, "1-ii-a"), CanvasOrder = 1, ChoiceOrder = 1, Id = "first",
+                Target = "xywh=0,0,200,200"
+            },
+            new()
+            {
+                AssetId = new AssetId(1, 2, "1-iii"), CanvasOrder = 2, Id = "first", Target = "xywh=200,400,200,200"
+            },
+            new() { AssetId = new AssetId(1, 2, "2"), CanvasOrder = 3, Id = "alpha" },
         };
 
         var expectedItems = new List<Canvas>
@@ -472,129 +339,19 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, []);
         
         // Assert
         for (int i = 0; i < expectedItems.Count; i++)
         {
             // Comparing individually makes errors earlier to grok
-            result.Items[i].Should().BeEquivalentTo(expectedItems[i], opts => opts.RespectingRuntimeTypes(),
+            result[i].Should().BeEquivalentTo(expectedItems[i], opts => opts.RespectingRuntimeTypes(),
                 $"Item {i} should be equivalent");
         }
     }
-    
-    [Fact]
-    public void SetGeneratedFields_MixesManifestsAndItems_IfBothSet()
-    {
-        var iiifManifest = new PresentationManifest
-        {
-            Items = [ 
-                ManifestTestCreator.Canvas($"https://base/0/canvases/first")
-                .WithImage()
-                .Build()
-            ]
-        };
-
-        var dbManifest = new DBManifest
-        {
-            CustomerId = 123,
-            Id = "test-manifest",
-            CanvasPaintings =
-            [
-                new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
-                new CanvasPainting
-                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
-            ],
-            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
-        };
-        
-        // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
-        
-        // Assert
-        result.Items.Should().HaveCount(2);
-        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
-        result.Items.Last().Id.Should().Be("http://base/0/canvases/second");
-    }
-    
-    [Fact]
-    public void SetGeneratedFields_MixesManifestsAndItemsWithChoiceInPaintedResources_IfBothSet()
-    {
-        var iiifManifest = new PresentationManifest
-        {
-            Items = [ 
-                ManifestTestCreator.Canvas($"https://base/0/canvases/first")
-                    .WithImage()
-                    .Build()
-            ]
-        };
-
-        var dbManifest = new DBManifest
-        {
-            CustomerId = 123,
-            Id = "test-manifest",
-            CanvasPaintings =
-            [
-                new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
-                new CanvasPainting
-                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
-                new CanvasPainting
-                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 1, Id = "third" },
-            ],
-            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
-        };
-        
-        // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
-        
-        // Assert
-        result.Items.Should().HaveCount(3);
-        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
-        result.Items[1].Id.Should().Be("http://base/0/canvases/second");
-        result.Items.Last().Id.Should().Be("http://base/0/canvases/third");
-    }
-    
-    [Fact]
-    public void SetGeneratedFields_MixesManifestsAndItemsWithChoiceInItems_IfBothSet()
-    {
-        var iiifManifest = new PresentationManifest
-        {
-            Items = [ 
-                ManifestTestCreator.Canvas($"http://base/0/canvases/first")
-                    .WithImages(2)
-                    .Build()
-            ]
-        };
-
-        var dbManifest = new DBManifest
-        {
-            CustomerId = 123,
-            Id = "test-manifest",
-            CanvasPaintings =
-            [
-                new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0, Id = "first" },
-                new CanvasPainting
-                    { CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 1, Id = "first" },
-                new CanvasPainting
-                    { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "third" },
-            ],
-            Hierarchy = [new Hierarchy { Slug = "slug", ManifestId = "test-manifest", Canonical = true }]
-        };
-        
-        // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
-        
-        // Assert
-        result.Items.Should().HaveCount(2);
-        result.Items.First().Should().BeEquivalentTo(iiifManifest.Items.First());
-        result.Items.Last().Id.Should().Be("http://base/0/canvases/third");
-    }
 
     [Fact]
-    public void GenerateItems_GeneratesItemsFromCanvas_IfSetWithCanvasList()
+    public void GenerateProvisionalCanvases_GeneratesItemsFromCanvas_IfSetWithCanvasList()
     {
         // Arrange
         var canvasList = new List<Canvas>
@@ -625,7 +382,7 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void GenerateItems_GeneratesFullItems_IfSetFromCanvasPaintings()
+    public void GenerateProvisionalCanvases_GeneratesFullItems_IfSetFromCanvasPaintings()
     {
         // Arrange
         var canvasList = new List<Canvas>();
@@ -650,26 +407,139 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void GenerateItems_GeneratesMinimalItems_IfSetWithItemsWithMinimalEnabled()
+    public void GenerateProvisionalCanvases_MixesManifestsAndItems_IfBothSet()
     {
-        // Arrange
-        var canvasList = new List<Canvas>();
+        var canvases = new List<Canvas>
+        {
+            ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                .WithImage()
+                .Build()
+        };
 
-        var canvasPaintings = new List<CanvasPainting>()
+        var canvasPaintings = new List<CanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
                 Id = "first"
+            },
+            new() { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        
+        // Assert
+        result.Should().HaveCount(2);
+        result.First().Should().BeEquivalentTo(canvases.First());
+        result.Last().Id.Should().Be("http://base/0/canvases/second");
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_MixesManifestsAndItemsWithChoiceInPaintedResources_IfBothSet()
+    {
+        var canvases = new List<Canvas>
+        {
+            ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                .WithImage()
+                .Build()
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            },
+            new() { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "second" },
+            new() { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 1, Id = "third" },
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        
+        // Assert
+        result.Should().HaveCount(3);
+        result.First().Should().BeEquivalentTo(canvases.First());
+        result[1].Id.Should().Be("http://base/0/canvases/second");
+        result.Last().Id.Should().Be("http://base/0/canvases/third");
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_MixesManifestsAndItemsWithChoiceInItems_IfBothSet()
+    {
+        var canvases = new List<Canvas>
+        {
+            ManifestTestCreator.Canvas($"http://base/0/canvases/first")
+                .WithImages(2)
+                .Build()
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            },
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 1,
+                Id = "first"
+            },
+            new() { AssetId = new AssetId(1, 1, "someAsset"), CanvasOrder = 1, ChoiceOrder = 0, Id = "third" },
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        
+        // Assert
+        result.Should().HaveCount(2);
+        result.First().Should().BeEquivalentTo(canvases.First());
+        result.Last().Id.Should().Be("http://base/0/canvases/third");
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_SetsCanvasPaintings_InCanvasThenChoiceOrder()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var customer = 123;
+
+        var canvasPaintings = new List<CanvasPainting>()
+        {
+            new()
+            {
+                ChoiceOrder = 1,
+                CanvasOrder = 2,
+                AssetId = new AssetId(1, 2, "assetId1"),
+                CustomerId = customer,
+                Id = "assetId1"
+            },
+            new()
+            {
+                ChoiceOrder = 2,
+                CanvasOrder = 2,
+                AssetId = new AssetId(1, 2, "assetId2"),
+                CustomerId = customer,
+                Id = "assetId1"
+            },
+            new()
+            {
+                CanvasOrder = 1,
+                AssetId = new AssetId(1, 2, "assetId3"),
+                CustomerId = customer,
+                Id = "assetId3"
             }
         };
         
         // Act
-        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList, true);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, []);
 
         // Assert
-        var item = items.Single();
-        item.Id.Should().Be("http://base/0/canvases/first");
-        item.Items.Should().BeNull();
+        result.First().Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
+        result.Last().Items.First().Items.First().As<PaintingAnnotation>().Body.Should()
+            .BeOfType<PaintingChoice>();
     }
 }

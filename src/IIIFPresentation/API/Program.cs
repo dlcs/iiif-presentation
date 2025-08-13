@@ -19,6 +19,7 @@ using Repository.Paths;
 using Serilog;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -72,6 +73,7 @@ builder.Services
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()

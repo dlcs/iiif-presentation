@@ -3,6 +3,7 @@ using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
+using DLCS;
 using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
@@ -18,6 +19,8 @@ using Repository;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Sqids;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -69,9 +72,17 @@ public class ManifestWriteServiceTests
         var parentSlugParser = A.Fake<IParentSlugParser>();
 
         var manifestStorageManager = A.Fake<IManifestStorageManager>();
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://presentation.api"),
+            PathRules = PathRewriteOptions.Default
+        })));
 
         sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
-            new TestPathGenerator(presentationGenerator), dlcsManifestCoordinator, parentSlugParser,
+            new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
@@ -278,5 +289,48 @@ public class ManifestWriteServiceTests
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(1);
+    }
+    
+    [Fact]
+    public async Task Create_SuccessfullyCreatesManifest_WhenPaintedResourcesFromGenerated()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId",
+                        CanvasOriginalId = "alpha"
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items.First().Id.Should().Be(
+            $"https://presentation.api/{Customer}/canvases/someCanvasId",
+            "item id set from settings based path generator");
+        ingestedManifest.Entity.PublicId.Should().Be($"https://localhost:5000/{Customer}/{slug}", 
+            "public id set from config based path generator");
     }
 }

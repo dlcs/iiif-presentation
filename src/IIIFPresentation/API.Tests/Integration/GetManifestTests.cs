@@ -2,12 +2,15 @@
 
 using System.Net;
 using Amazon.S3;
+using API.Converters;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
@@ -356,11 +359,16 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             height: 1800, width: 1200,
             canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
 
+        var manifestToSave = dbManifest.Entity.ToPresentationManifest();
+        manifestToSave.Items = dbManifest.Entity.CanvasPaintings.GenerateProvisionalCanvases(
+            new TestPathGenerator(
+                new TestPresentationConfigGenerator("http://localhost", new TypedPathTemplateOptions())), []);
+
         await amazonS3.PutObjectAsync(new()
         {
             BucketName = LocalStackFixture.StorageBucketName,
-            Key = $"1/manifests/{id}",
-            ContentBody = TestContent.ManifestJson
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = manifestToSave.AsJson()
         });
 
         await dbContext.SaveChangesAsync();

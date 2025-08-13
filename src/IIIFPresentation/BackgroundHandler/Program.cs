@@ -8,6 +8,7 @@ using Repository.Paths;
 using Serilog;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
