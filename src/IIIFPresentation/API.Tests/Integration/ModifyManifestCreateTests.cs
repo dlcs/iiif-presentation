@@ -572,7 +572,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        responseManifest.Space.Should().Be("https://localhost:7230/customers/1/spaces/999");
+        responseManifest.Space.Should().Be("https://localhost:6000/customers/1/spaces/999");
     }
     
     [Fact]
@@ -1369,7 +1369,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        responseManifest.Space.Should().Be("https://localhost:7230/customers/1/spaces/999");
+        responseManifest.Space.Should().Be("https://localhost:6000/customers/1/spaces/999");
     }
     
     [Fact]

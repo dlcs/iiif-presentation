@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using IIIF;
 using IIIF.Presentation;
@@ -124,21 +123,53 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     }
 
     private Canvas GenerateCanvas(Dictionary<AssetId, Canvas> canvasDictionary,
-        IGrouping<string, CanvasPainting> canvasInstruction, List<Canvas> items, bool singleItemCanvas)
+        IGrouping<string, CanvasPainting> canvasInstruction, List<Canvas> canvasesFromManifest, bool singleItemCanvas)
     {
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
 
         // Instantiate a new Canvas, this is what we are building
-        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas), };
+        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas) };
+        
+        // work out if any of the canvas painting records match a canvas in the current manifest
+        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
+        {
+            // first try and match to the canvas original id, for if the canvas is created entirely through items
+            var canvasMatchedFromCanvasOriginalId = canvasesFromManifest.FirstOrDefault(i => i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
 
+            if (canvasMatchedFromCanvasOriginalId?.Items != null)
+            {
+                return canvasMatchedFromCanvasOriginalId;
+
+            }
+            // next match against the canvas id we can generate, for items that were created with assets
+            var canvasMatchedFromCanvasId = canvasesFromManifest.FirstOrDefault(i => i.Id == canvas.Id);
+
+            if (canvasMatchedFromCanvasId != null)
+            {
+                // check if the canvas is fully fleshed out, and therefore doesn't need to have details retrieved
+                // from the DLCS named query
+                if (canvasMatchedFromCanvasId.Items != null)
+                {
+                    return canvasMatchedFromCanvasId;
+                }
+
+                // replace the canvas with what we've found from the manifest
+                canvas = canvasMatchedFromCanvasId;
+            }
+            else
+            {
+                return canvas; //this should never happen, but it's when we don't have a matching canvasId
+            }
+        }
+        
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
         var annoPage = new AnnotationPage
         {
             Id = pathGenerator.GenerateAnnotationPagesId(firstCanvasPaintingInCanvas),
             Items = []
         };
-        
+
         // Iterate through the canvasPaintings to be rendered on this Canvas. Group by CanvasOrder as:
         // multiple orders can share an Id (for composite)
         // each CanvasOrder might have multiple items (for choice) 
@@ -149,20 +180,10 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
                 canvasOrderCount);
 
             var isChoice = canvasOrderCount > 1;
-
-            // in a choice, the id has to match, and this is what we're using to determine a matched canvas id
-            var firstCanvasPainting = canvasOrderGroup.First();
-
-            if (firstCanvasPainting.AssetId == null)
-            {
-                var item = items.FirstOrDefault(i => i.Id == firstCanvasPainting.CanvasOriginalId!.ToString());
-                
-                return item ?? canvas;
-            }
             
             var currentPaintingAnno = new PaintingAnnotation
             {
-                Id = pathGenerator.GeneratePaintingAnnotationId(firstCanvasPainting),
+                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()) 
             };
 
             if (!isChoice)

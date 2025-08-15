@@ -1,5 +1,4 @@
-﻿using Core.Exceptions;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -94,33 +93,14 @@ public class ManifestPaintedResourceParser(
 
         if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
         {
-            CheckForProhibitedCharacters(canvasPainting.CanvasId);
+            CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId);
             return canvasPainting.CanvasId;
         }
         
         var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-        CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
+        CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
 
         return parsedCanvasId.Resource;
-    }
-
-    private static void CheckParsedCanvasIdForErrors(PathParts parsedCanvasId, string fullPath)
-    {
-        if (string.IsNullOrEmpty(parsedCanvasId.Resource))
-        {
-            throw new InvalidCanvasIdException(fullPath);
-        }
-
-        CheckForProhibitedCharacters(parsedCanvasId.Resource);
-    }
-
-    private static void CheckForProhibitedCharacters(string canvasId)
-    {
-        if (ProhibitedCharacters.Any(canvasId.Contains))
-        {
-            throw new InvalidCanvasIdException(canvasId,
-                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
-        }
     }
     
     private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
@@ -130,8 +110,4 @@ public class ManifestPaintedResourceParser(
         var id = asset.GetRequiredValue(AssetProperties.Id);
         return AssetId.FromString($"{customerId}/{space}/{id}");
     }
-    
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', ',',];
-    private static readonly string ProhibitedCharacterDisplay =
-        string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 }

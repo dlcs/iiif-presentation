@@ -13,7 +13,8 @@ namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
-    private readonly ManifestItemsParser sut = new(A.Fake<IPresentationPathGenerator>(), new NullLogger<ManifestItemsParser>());
+    private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), A.Fake<IPresentationPathGenerator>(),
+        new NullLogger<ManifestItemsParser>());
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()

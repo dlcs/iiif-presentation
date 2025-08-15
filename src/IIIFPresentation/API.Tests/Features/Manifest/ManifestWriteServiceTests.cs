@@ -52,9 +52,10 @@ public class ManifestWriteServiceTests
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
         
-        var manifestItemsParser = new ManifestItemsParser(presentationGenerator, new NullLogger<ManifestItemsParser>());
-        
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
+        
+        var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator, new NullLogger<ManifestItemsParser>());
+        
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
             new NullLogger<ManifestPaintedResourceParser>());
 
@@ -175,8 +176,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
-                        CanvasOriginalId = $"https://base/0/canvases/{canvasId}",
+                        CanvasId = canvasId,
                         CanvasOrder = 20,
                         CanvasLabel = new LanguageMap("some", "different label")
                     }
@@ -259,7 +259,7 @@ public class ManifestWriteServiceTests
             [
                 new Canvas()
                 {
-                    Id = "alpha"
+                    Id = canvasId
                 }
             ],
             PaintedResources =
@@ -269,8 +269,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
-                        CanvasOriginalId = "alpha"
+                        CanvasId = canvasId
                     }
                 }
             ]
