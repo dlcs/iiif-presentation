@@ -136,12 +136,12 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         {
             // first try and match to the canvas original id, for if the canvas is created entirely through items
             var canvasMatchedFromCanvasOriginalId = canvasesFromManifest.FirstOrDefault(i => i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
-
-            if (canvasMatchedFromCanvasOriginalId?.Items != null)
+            
+            if (firstCanvasPaintingInCanvas.AssetId == null)
             {
                 return canvasMatchedFromCanvasOriginalId;
-
             }
+            
             // next match against the canvas id we can generate, for items that were created with assets
             var canvasMatchedFromCanvasId = canvasesFromManifest.FirstOrDefault(i => i.Id == canvas.Id);
 
