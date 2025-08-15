@@ -122,11 +122,11 @@ internal class DlcsApiClient(
     public async Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default)
     {
-        logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
-            string.Join(",", assetIds));
-
         if (assetIds.Count == 0)
             return [];
+        
+        logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
+            string.Join(",", assetIds));
 
         var endpoint = $"/customers/{customerId}/allImages";
         var results = new List<JObject>();

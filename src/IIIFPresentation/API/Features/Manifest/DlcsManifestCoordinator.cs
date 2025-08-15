@@ -187,7 +187,7 @@ public class DlcsManifestCoordinator(
     {
         if (dbManifest == null) return;
 
-        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings ?? [];
+        var canvasPaintingsInDatabase = (dbManifest.CanvasPaintings ?? []).Where(cp => cp.AssetId != null);
         var assetIds = assets.Select(a => a.GetAssetId(dbManifest.CustomerId));
 
         var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)).ToList();
