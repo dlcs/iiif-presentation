@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -16,6 +17,7 @@ namespace Services.Manifests;
 /// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
 public class ManifestItemsParser(
+    IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
     ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
@@ -158,7 +160,39 @@ public class ManifestItemsParser(
             cp.StaticWidth = spatial.Width;
             cp.StaticHeight = spatial.Height;
         }
+
+        var canvasId = TryGetValidCanvasId(customerId, currentCanvas);
+        if (canvasId != null)
+        {
+            cp.Id = canvasId;
+        }
+        
         return cp;
+    }
+    
+    private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas)
+    {
+        try
+        {
+            if (currentCanvas.Id == null) return null;
+
+            if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
+            {
+                CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id);
+                return currentCanvas.Id;
+            }
+
+            var parsedCanvasId =
+                pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
+            CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
+
+            return parsedCanvasId.Resource;
+        }
+        catch (InvalidCanvasIdException)
+        {
+            logger.LogDebug("Canvas id {CanvasId} could not be generated from the body", currentCanvas.Id);
+            return null;
+        }
     }
 
     private static Uri? TryGetThumbnail(Canvas canvas)

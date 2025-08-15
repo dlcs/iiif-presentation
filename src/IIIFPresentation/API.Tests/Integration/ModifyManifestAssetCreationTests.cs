@@ -345,7 +345,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
               [
                   JObject.Parse($$"""
                                   {
-                                      "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
+                                      "@id": "https://localhost:6000/customers/1/spaces/999/images/{{assetId}}",
                                       "id": "{{assetId}}",
                                       "space": 999,
                                       "batch": "https://localhost/customers/1/queue/batches/2137"

@@ -83,6 +83,15 @@ public static class ManifestTestCreatorX
     }
     
     public static GenerateCanvasPaintingsOptions WithCanvasPainting(this GenerateCanvasPaintingsOptions options,
+        string id)
+    {
+        options.GenerateCanvasPaintingOptions ??= [];
+        var canvasPainting = new GenerateCanvasPaintingOptions { Id = id };
+        options.GenerateCanvasPaintingOptions.Add(canvasPainting);
+        return options;
+    }
+    
+    public static GenerateCanvasPaintingsOptions WithCanvasPainting(this GenerateCanvasPaintingsOptions options,
         string id, Action<GenerateCanvasPaintingOptions> configure)
     {
         options.GenerateCanvasPaintingOptions ??= [];

@@ -70,7 +70,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
         {
             var paintedResourceCanvasPainting =
                 paintedResourceCanvasPaintings.Where(cp => itemsCanvasPainting.CanvasOriginalId != null &&
-                    cp.CanvasOriginalId == itemsCanvasPainting.CanvasOriginalId).ToList();
+                    cp.Id == itemsCanvasPainting.Id).ToList();
             
             if (paintedResourceCanvasPainting.Count != 0)
             {
@@ -93,7 +93,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
         CanvasPainting paintedResourceCanvasPainting,
         List<Canvas> items)
     {
-        var canvas = items.FirstOrDefault(c => c.Id == paintedResourceCanvasPainting.CanvasOriginalId!.ToString());
+        var canvas = items.FirstOrDefault(c => c.Id == itemsCanvasPainting.CanvasOriginalId!.ToString());
 
         if (canvas != null)
         {
