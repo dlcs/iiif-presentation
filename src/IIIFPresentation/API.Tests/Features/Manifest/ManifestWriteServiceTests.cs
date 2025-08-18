@@ -234,7 +234,7 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"Canvas painting with original id https://base/0/canvases/{canvasId} does not have a matching canvas label");
+        ingestedManifest.Error.Should().Be($"Canvas painting with id {canvasId} does not have a matching canvas label");
     }
     
     [Fact]

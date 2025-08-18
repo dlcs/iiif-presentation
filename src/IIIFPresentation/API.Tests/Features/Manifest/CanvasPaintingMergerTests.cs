@@ -395,7 +395,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with original id https://localhost/1/{paintedResourceId}_1 does not have a matching canvas label");
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching canvas label");
     }
     
     [Fact]
@@ -428,7 +428,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with original id https://localhost/1/{paintedResourceId}_1 does not have a matching label");
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching label");
     }
     
     [Fact]
@@ -459,7 +459,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with original id https://localhost/1/{paintedResourceId}_1 does not have a matching canvas order");
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching canvas order");
     }
     
     [Fact]
@@ -490,7 +490,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with original id https://localhost/1/{paintedResourceId}_1 does not have a matching choice order");
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching choice order");
     }
     
     [Fact]
@@ -523,6 +523,6 @@ public class CanvasPaintingMergerTests
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage(
-                $"canvas painting with original id https://localhost/1/{paintedResourceId}_1 refers to multiple canvases, and the matching canvas order cannot be found");
+                $"canvas painting with id {paintedResourceId}_1 refers to multiple canvases, and the matching canvas order cannot be found");
     }
 }

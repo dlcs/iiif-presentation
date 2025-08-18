@@ -81,7 +81,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                     : paintedResourceCanvasPainting.FirstOrDefault(cp =>
                         cp.CanvasOrder == itemsCanvasPainting.CanvasOrder &&
                         cp.ChoiceOrder == itemsCanvasPainting.ChoiceOrder) ?? throw new CanvasPaintingMergerException(
-                        $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
+                        $"Canvas painting with id {itemsCanvasPainting.Id} refers to multiple canvases, and the matching canvas order cannot be found");
                 
                 ValidateItemCanvasPainting(itemsCanvasPainting, orderedCanvasPainting, items!);
                 
