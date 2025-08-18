@@ -1,5 +1,4 @@
-﻿using Core.Exceptions;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;

@@ -1,14 +1,19 @@
 ﻿using API.Features.Manifest;
 using API.Features.Manifest.Exceptions;
+using Core.Web;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Repository.Paths;
 using Test.Helpers.Helpers;
 
 namespace API.Tests.Features.Manifest;
 
 public class CanvasPaintingMergerTests
 {
-    private CanvasPaintingMerger sut = new();
+    private CanvasPaintingMerger sut = new(new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
+        new NullLogger<PathRewriteParser>()));
 
     [Fact]
     public void CombinePaintedResources_MergesCorrectly_WhenTwoEmptyLists()
