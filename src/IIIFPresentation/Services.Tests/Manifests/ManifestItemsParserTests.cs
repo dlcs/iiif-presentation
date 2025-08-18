@@ -19,7 +19,7 @@ public class ManifestItemsParserTests
     {
         var pathGenerator = new TestPresentationConfigGenerator("https://dlcs.test", new TypedPathTemplateOptions());
         
-        sut = new ManifestItemsParser(pathGenerator, new NullLogger<ManifestItemsParser>());
+        sut = new ManifestItemsParser(A.Fake<IPathRewriteParser>(), pathGenerator, new NullLogger<ManifestItemsParser>());
     }
 
     [Fact]
