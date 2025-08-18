@@ -31,7 +31,7 @@ public class PathRewriteParserTests
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("default-host.com", path,
             customer);
         
-        // Asset
+        // Assert
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
         parsedPath.Hierarchical.Should().Be(hierarchical);
@@ -52,7 +52,7 @@ public class PathRewriteParserTests
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("foo.com", path,
             customer);
         
-        // Asset
+        // Assert
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
         parsedPath.Hierarchical.Should().Be(hierarchical);
@@ -72,7 +72,7 @@ public class PathRewriteParserTests
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("no-customer.com", path,
             customer);
         
-        // Asset
+        // Assert
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
         parsedPath.Hierarchical.Should().Be(hierarchical);
@@ -90,7 +90,7 @@ public class PathRewriteParserTests
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("additional-path-no-customer.com", path, customer);
         
-        // Asset
+        // Assert
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
         parsedPath.Hierarchical.Should().Be(hierarchical);
@@ -109,9 +109,21 @@ public class PathRewriteParserTests
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites("fully-qualified.com", path, customer);
         
-        // Asset
+        // Assert
         parsedPath.Customer.Should().Be(customer);
         parsedPath.Resource.Should().Be(resource);
         parsedPath.Hierarchical.Should().Be(hierarchical);
+    }
+    
+    [Theory]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
+    [InlineData("https://fully-qualified.com/1/slug/slug")]
+    public void ParsePathWithRewrites_ParsesPathCorrectly_WithUriString(string path, int customer = 1)
+    {
+        // Arrange and Act
+        var parsedPath = pathRewriteParser.ParsePathWithRewrites(path, customer);
+        
+        // Assert
+        parsedPath.Customer.Should().Be(customer);
     }
 }
