@@ -80,7 +80,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
                     : paintedResourceCanvasPainting.FirstOrDefault(cp =>
                         cp.CanvasOrder == itemsCanvasPainting.CanvasOrder &&
                         cp.ChoiceOrder == itemsCanvasPainting.ChoiceOrder) ?? throw new CanvasPaintingMergerException(
-                        $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
+                        $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
                 
                 ValidateItemCanvasPainting(itemsCanvasPainting, orderedCanvasPainting, items!);
                 
@@ -115,7 +115,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasLabel?.ToString(),
                 paintedResourceCanvasPainting.CanvasLabel?.ToString(),
                 itemsCanvasPainting.CanvasOriginalId!,
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas label");
+                $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas label");
         }
         
         if (itemsCanvasPainting.Label != paintedResourceCanvasPainting.Label)
@@ -123,7 +123,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
             throw new CanvasPaintingMergerException(itemsCanvasPainting.Label?.ToString(),
                 paintedResourceCanvasPainting.Label?.ToString(),
                 itemsCanvasPainting.CanvasOriginalId!,
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching label");
+                $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching label");
         }
 
         if (itemsCanvasPainting.CanvasOrder != paintedResourceCanvasPainting.CanvasOrder)
@@ -131,7 +131,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOriginalId!,
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas order");
+                $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching canvas order");
         }
         
         if (itemsCanvasPainting.ChoiceOrder != paintedResourceCanvasPainting.ChoiceOrder)
@@ -139,7 +139,7 @@ public class CanvasPaintingMerger : ICanvasPaintingMerger
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOrder.ToString(),
                 itemsCanvasPainting.CanvasOriginalId!,
-                $"canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching choice order");
+                $"Canvas painting with original id {itemsCanvasPainting.CanvasOriginalId} does not have a matching choice order");
         }
     }
 

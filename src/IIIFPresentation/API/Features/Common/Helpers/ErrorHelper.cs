@@ -53,10 +53,10 @@ public static class ErrorHelper
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
     
-    public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
+    public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)
         where T : JsonLdBase
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "Error creating DLCS space", ModifyCollectionType.ErrorCreatingSpace, WriteResult.Error);
+            message, ModifyCollectionType.DlcsError, WriteResult.Error);
 
     public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
         where T : JsonLdBase

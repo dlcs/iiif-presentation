@@ -12,7 +12,7 @@ public enum ModifyCollectionType
     CannotValidateIIIF = 8,
     ParentMustBeStorageCollection = 9,
     CannotChangeCollectionType = 10,
-    ErrorCreatingSpace = 11,
+    DlcsError = 11,
     RequiresSpaceHeader = 12,
     CouldNotRetrieveAssetId = 13,
     DlcsException = 14,

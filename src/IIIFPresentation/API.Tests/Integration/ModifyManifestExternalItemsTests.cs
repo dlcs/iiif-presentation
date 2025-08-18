@@ -6,6 +6,7 @@ using Core.Response;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -1720,5 +1721,40 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting2.CanvasOriginalId.Should().Be(canvasOriginalId);
         canvasPainting2.CanvasOrder.Should().Be(1, "Same canvasId but differing order");
         canvasPainting1.ChoiceOrder.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task PutFlatId_ReturnsError_WhenCanvasIdNotValid()
+    {
+        // Arrange
+        var (slug, id) = TestIdentifiers.SlugResource();
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://localhost:7230/{Customer}/canvases/additionalSlug/{slug}"",
+            ""type"": ""Canvas""
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<Error>();
+
+        responseManifest.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/InvalidCanvasId");
+        responseManifest.Detail.Should().Be($"The canvas ID additionalSlug/{slug} is invalid");
     }
 }

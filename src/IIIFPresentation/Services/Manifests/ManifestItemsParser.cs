@@ -6,9 +6,11 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -19,8 +21,11 @@ namespace Services.Manifests;
 public class ManifestItemsParser(
     IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
+    IOptions<PathSettings> options,
     ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
+    private readonly PathSettings settings = options.Value;
+    
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
@@ -172,28 +177,28 @@ public class ManifestItemsParser(
     
     private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas)
     {
-        try
+        if (currentCanvas.Id == null) return null;
+
+        if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
         {
-            if (currentCanvas.Id == null) return null;
+            CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id);
+            return currentCanvas.Id;
+        }
 
-            if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
-            {
-                CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id);
-                return currentCanvas.Id;
-            }
-
+        if (IsRecognisedHost(customerId, canvasId.Host))
+        {
             var parsedCanvasId =
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
             CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
-
             return parsedCanvasId.Resource;
         }
-        catch (InvalidCanvasIdException)
-        {
-            logger.LogDebug("Canvas id {CanvasId} could not be generated from the body", currentCanvas.Id);
-            return null;
-        }
+
+        return null;
     }
+
+    // whether the host is an 
+    private bool IsRecognisedHost(int customerId, string host) =>
+        settings.GetCustomerSpecificPresentationUrl(customerId).Host == host;
 
     private static Uri? TryGetThumbnail(Canvas canvas)
     {

@@ -4,9 +4,11 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Settings;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Tests.Manifests;
@@ -14,7 +16,7 @@ namespace Services.Tests.Manifests;
 public class ManifestItemsParserTests
 {
     private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), A.Fake<IPresentationPathGenerator>(),
-        new NullLogger<ManifestItemsParser>());
+        Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://localhost:7230")}), new NullLogger<ManifestItemsParser>());
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()

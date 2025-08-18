@@ -53,8 +53,9 @@ public class ManifestWriteServiceTests
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
         
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
-        
-        var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator, new NullLogger<ManifestItemsParser>());
+
+        var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
+            Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://base")}), new NullLogger<ManifestItemsParser>());
         
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
             new NullLogger<ManifestPaintedResourceParser>());
@@ -150,6 +151,48 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
+    public async Task Create_FailsToCreateManifest_WhenCanvasNotIdNotMatched()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest()
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/additionalSlug/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = canvasId
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be($"The canvas ID additionalSlug/{canvasId} is invalid");
+    }
+    
+    [Fact]
     public async Task Create_ReturnsError_WhenMixedItemsAndAssetsWithErrors()
     {
         // Arrange
@@ -191,7 +234,7 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"canvas painting with original id https://base/0/canvases/{canvasId} does not have a matching canvas label");
+        ingestedManifest.Error.Should().Be($"Canvas painting with original id https://base/0/canvases/{canvasId} does not have a matching canvas label");
     }
     
     [Fact]

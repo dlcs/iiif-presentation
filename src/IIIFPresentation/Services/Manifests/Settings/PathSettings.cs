@@ -6,7 +6,7 @@ public class PathSettings
 {
     public const string SettingsName = "PathSettings";
     
-    public Uri PresentationApiUrl { get; set; }
+    public required Uri PresentationApiUrl { get; set; }
     
     public Dictionary<int, Uri> CustomerPresentationApiUrl { get; set; } = new();
     
