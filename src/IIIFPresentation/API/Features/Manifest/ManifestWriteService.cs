@@ -115,9 +115,9 @@ public class ManifestWriteService(
 
             return await UpdateInternal(request, existingManifest, cancellationToken);
         }
-        catch (DlcsException)
+        catch (DlcsException ex)
         {
-            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
+            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {
@@ -137,9 +137,9 @@ public class ManifestWriteService(
         {
             return await CreateInternal(request, null, cancellationToken);
         }
-        catch (DlcsException)
+        catch (DlcsException ex)
         {
-            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
+            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {

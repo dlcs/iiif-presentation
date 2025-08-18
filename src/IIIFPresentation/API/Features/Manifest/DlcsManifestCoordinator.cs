@@ -109,7 +109,8 @@ public class DlcsManifestCoordinator(
                 spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
                 if (!spaceId.HasValue)
                 {
-                    return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+                    return DlcsInteractionResult.Fail(
+                        ErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
                 }
 
                 // you wanted a space, and there are no assets, so no further work required

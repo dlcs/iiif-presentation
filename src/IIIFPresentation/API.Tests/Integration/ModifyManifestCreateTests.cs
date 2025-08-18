@@ -48,7 +48,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => dlcsApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
-            .ThrowsAsync(new DlcsException("err", HttpStatusCode.BadRequest));
+            .ThrowsAsync(new DlcsException("Error creating DLCS space", HttpStatusCode.BadRequest));
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
                 appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
@@ -369,7 +369,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         error!.Detail.Should().Be("Error creating DLCS space");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DlcsError");
     }
     
     [Fact]
@@ -1236,7 +1236,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         error!.Detail.Should().Be("Error creating DLCS space");
-        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ErrorCreatingSpace");
+        error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/DlcsError");
     }
     
     [Fact]
