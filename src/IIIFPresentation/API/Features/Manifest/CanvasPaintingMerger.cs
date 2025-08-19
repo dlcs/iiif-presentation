@@ -103,7 +103,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
             if (!canvas.Items.IsNullOrEmpty())
             {
                 throw new CanvasPaintingMergerException(
-                    $"canvas painting with id {itemsCanvasPainting.Id} cannot contain an annotation body");
+                    $"Canvas painting with id {itemsCanvasPainting.Id} cannot contain an annotation body");
             }
         }
 
@@ -115,17 +115,17 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         
         if (itemsCanvasPainting.CanvasLabel != paintedResourceCanvasPainting.CanvasLabel)
         {
-            throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasLabel?.ToString(),
-                paintedResourceCanvasPainting.CanvasLabel?.ToString(),
-                itemsCanvasPainting.CanvasLabel.ToString(),
+            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.CanvasLabel?.ToString(),
+                itemsCanvasPainting.CanvasLabel?.ToString(),
+                paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas label");
         }
         
         if (itemsCanvasPainting.Label != paintedResourceCanvasPainting.Label)
         {
-            throw new CanvasPaintingMergerException(itemsCanvasPainting.Label?.ToString(),
-                paintedResourceCanvasPainting.Label?.ToString(),
-                itemsCanvasPainting.Label.ToString(),
+            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.Label?.ToString(),
+                itemsCanvasPainting.Label?.ToString(),
+                paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching label");
         }
 
@@ -133,15 +133,15 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         {
             throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
                 paintedResourceCanvasPainting.CanvasOrder.ToString(),
-                itemsCanvasPainting.CanvasOrder.ToString(),
+                paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas order");
         }
         
         if (itemsCanvasPainting.ChoiceOrder != paintedResourceCanvasPainting.ChoiceOrder)
         {
-            throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
-                paintedResourceCanvasPainting.ChoiceOrder.ToString(),
+            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.ChoiceOrder.ToString(),
                 itemsCanvasPainting.ChoiceOrder.ToString(),
+                paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching choice order");
         }
         
@@ -151,9 +151,9 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         }
         else if (paintedResourceCanvasPainting.CanvasOriginalId != itemsCanvasPainting.CanvasOriginalId)
         {
-            throw new CanvasPaintingMergerException(itemsCanvasPainting.CanvasOrder.ToString(),
+            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.CanvasOriginalId.ToString(),
                 itemsCanvasPainting.CanvasOriginalId!.ToString(),
-                paintedResourceCanvasPainting.CanvasOriginalId.ToString(),
+                paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas original id");
         }
     }
