@@ -300,7 +300,10 @@ public class CanvasPaintingMergerTests
         
 
         // Assert
-        merged.Single().Id.Should().Be($"{paintedResourceId}_1");
+        var canvasPainting = merged.Single();
+
+        canvasPainting.Id.Should().Be($"{paintedResourceId}_1");
+        canvasPainting.CanvasOriginalId.Should().Be($"https://localhost/1/{paintedResourceId}_1");
     }
 
     [Fact]
@@ -316,8 +319,7 @@ public class CanvasPaintingMergerTests
             }).Build();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
-            .WithCanvasPainting($"{paintedResourceId}_1",
-                cp => { cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1"); }).Build();
+            .WithCanvasPainting($"{paintedResourceId}_1").Build();
 
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [
@@ -362,7 +364,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with original id https://localhost/1/{paintedResourceId}_1 cannot contain an annotation body");
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 cannot contain an annotation body");
     }
     
     [Fact]
@@ -524,5 +526,29 @@ public class CanvasPaintingMergerTests
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage(
                 $"canvas painting with id {paintedResourceId}_1 refers to multiple canvases, and the matching canvas order cannot be found");
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenCanvasOriginalIdDoesNotMatch()
+    {
+        // Arrange
+        var paintedResourceId = "paintedResource";
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOriginalId = new Uri($"https://not-matching/1/{paintedResourceId}_1");
+            }).Build();
+        
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1",
+                cp => { cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1"); }).Build();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+        
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage(
+                $"canvas painting with id {paintedResourceId}_1 does not have a matching canvas original id");
     }
 }
