@@ -893,7 +893,6 @@ public class ManifestItemsParserTests
     [Fact]
     public async Task Parse_AcceptsShortCanvasId()
     {
-        // https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json
         // Arrange
         var manifest = @"
 {
