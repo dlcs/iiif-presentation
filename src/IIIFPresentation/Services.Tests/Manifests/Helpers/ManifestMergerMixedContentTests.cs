@@ -1,10 +1,13 @@
 ﻿using Core.Web;
+using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Services.Manifests;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 
@@ -16,11 +19,16 @@ public class ManifestMergerMixedContentTests
 
     public ManifestMergerMixedContentTests()
     {
-        var presentationGenerator =
-            new TestPresentationConfigGenerator("https://localhost:5000", new TypedPathTemplateOptions());
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://localhost:5000"),
+            PathRules = PathRewriteOptions.Default
+        })));
         
-        sut = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        sut = new ManifestMerger(settingsBasedPathGenerator, new NullLogger<ManifestMerger>());
     }
     
     [Fact]

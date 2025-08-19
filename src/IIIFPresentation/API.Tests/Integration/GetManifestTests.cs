@@ -12,12 +12,15 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Repository.Paths;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using EntityTagHeaderValue = System.Net.Http.Headers.EntityTagHeaderValue;
@@ -358,11 +361,15 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             assetId: new AssetId(1, 2, IngestingPaintedResource),
             height: 1800, width: 1200,
             canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+        
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
 
         var manifestToSave = dbManifest.Entity.ToPresentationManifest();
         manifestToSave.Items = dbManifest.Entity.CanvasPaintings.GenerateProvisionalCanvases(
             new TestPathGenerator(
-                new TestPresentationConfigGenerator("http://localhost", new TypedPathTemplateOptions())), []);
+                new TestPresentationConfigGenerator("http://localhost", new TypedPathTemplateOptions())), [],
+            pathRewriteParser);
 
         await amazonS3.PutObjectAsync(new()
         {

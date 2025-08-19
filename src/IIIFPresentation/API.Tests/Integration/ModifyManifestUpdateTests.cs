@@ -522,7 +522,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
+    public async Task UpdateManifest_UpdatesManifest_WhenManifestWithBatchWithoutAssets()
     {
         // Arrange
         var dbManifest =
@@ -546,11 +546,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
     
     [Fact]

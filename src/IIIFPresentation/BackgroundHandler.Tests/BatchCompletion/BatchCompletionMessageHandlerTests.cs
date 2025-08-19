@@ -6,6 +6,7 @@ using BackgroundHandler.Helpers;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -54,12 +55,13 @@ public class BatchCompletionMessageHandlerTests
 
         pathSettings = new PathSettings()
         {
-            PresentationApiUrl = new Uri("https://localhost:5000"),
+            PresentationApiUrl = new Uri("https://localhost:5000")
         };
 
-        var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(pathSettings));
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var pathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(pathSettings)));
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,

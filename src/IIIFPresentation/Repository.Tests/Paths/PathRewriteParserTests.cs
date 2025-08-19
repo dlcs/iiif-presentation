@@ -126,4 +126,14 @@ public class PathRewriteParserTests
         // Assert
         parsedPath.Customer.Should().Be(customer);
     }
+    
+    [Fact]
+    public void ParsePathWithRewrites_ParsesPathToEmpty_WithNullUriString()
+    {
+        // Arrange and Act
+        var parsedPath = pathRewriteParser.ParsePathWithRewrites(null, 1);
+        
+        // Assert
+        parsedPath.Customer.Should().BeNull();
+    }
 }

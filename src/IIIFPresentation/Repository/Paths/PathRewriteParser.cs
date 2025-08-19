@@ -10,7 +10,7 @@ public interface IPathRewriteParser
 {
     public PathParts ParsePathWithRewrites(string host, string path, int customer);
     
-    public PathParts ParsePathWithRewrites(string uri, int customer);
+    public PathParts ParsePathWithRewrites(string? uri, int customer);
 }
 
 public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogger<PathRewriteParser> logger)

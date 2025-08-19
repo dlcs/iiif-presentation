@@ -85,7 +85,7 @@ public class ManifestWriteServiceTests
 
         sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, new NullLogger<ManifestWriteService>());
+            manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.CustomerId == Customer && x.Id == RootCollection.Id);
