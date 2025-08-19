@@ -1,5 +1,4 @@
 ﻿using AWS.Settings;
-using BackgroundHandler.Helpers;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
 using DLCS;
@@ -37,6 +36,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
+    .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()

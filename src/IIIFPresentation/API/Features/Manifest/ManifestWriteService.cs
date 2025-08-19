@@ -91,6 +91,7 @@ public class ManifestWriteService(
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
+    IPathRewriteParser pathRewriteParser,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -187,22 +188,6 @@ public class ManifestWriteService(
         if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
-        }
-        
-        var hasAsset = request.PresentationManifest.PaintedResources.HasAsset();
-        var noBatches = existingManifest.Batches.IsNullOrEmpty();
-
-        if (existingManifest.CanvasPaintings?.Count > 0)
-        {
-            if (!hasAsset && !noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
-            }
-            
-            if (hasAsset && noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
-            }
         }
 
         var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
@@ -359,7 +344,8 @@ public class ManifestWriteService(
         if (canvasPaintings is not null)
         {
             iiifManifest.Items =
-                canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items);
+                canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items,
+                    pathRewriteParser);
         }
 
         if (canBeBuiltUpfront)

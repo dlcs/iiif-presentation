@@ -1,8 +1,11 @@
 ﻿using API.Converters;
 using Core.Infrastructure;
+using Core.Web;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -20,6 +23,9 @@ namespace API.Tests.Converters;
 public class ManifestConverterTests
 {
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
+
+    private readonly IPathRewriteParser pathRewriteParser =
+        new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
     
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()
@@ -339,7 +345,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, []);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, [], pathRewriteParser);
         
         // Assert
         for (int i = 0; i < expectedItems.Count; i++)
@@ -371,7 +377,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList);
+        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList, pathRewriteParser);
 
         // Assert
         var item = items.Single();
@@ -397,7 +403,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList);
+        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList, pathRewriteParser);
 
         // Assert
         var item = items.Single();
@@ -427,12 +433,44 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
         
         // Assert
         result.Should().HaveCount(2);
         result.First().Should().BeEquivalentTo(canvases.First());
         result.Last().Id.Should().Be("http://base/0/canvases/second");
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_GeneratesProvisionalItem_FromMatchedPaintedResource()
+    {
+        var canvases = new List<Canvas>
+        {
+            new()
+            {
+                Id = "http://base/0/canvases/first",
+                Homepage = []
+            }
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "first"
+            }
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
+        
+        // Assert
+        result.Should().HaveCount(1);
+        result.First().Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
+            .Be("http://base/0/canvases/first/annotations/0");
+        result.First().Homepage.Should().NotBeNull();
+
     }
     
     [Fact]
@@ -457,7 +495,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
         
         // Assert
         result.Should().HaveCount(3);
@@ -492,7 +530,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
         
         // Assert
         result.Should().HaveCount(2);
@@ -535,7 +573,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, []);
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, [], pathRewriteParser);
 
         // Assert
         result.First().Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();

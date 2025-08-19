@@ -6,6 +6,7 @@ using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
 using Core.Web;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -79,10 +80,11 @@ public class BatchCompletionPathRewriteTests
                 }
             }
         };
-
-        var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        
+        var pathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings)));
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 

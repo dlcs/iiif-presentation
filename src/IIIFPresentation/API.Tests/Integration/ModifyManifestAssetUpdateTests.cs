@@ -1357,7 +1357,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets()
+    public async Task UpdateManifest_UpdatesManifest_WhenManifestWithoutBatchIsUpdatedWithAssets()
     {
         // Arrange
         var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
@@ -1366,6 +1366,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             canvasPaintings: [new CanvasPainting { Id = canvasId, CanvasOrder = 1, }]);
         await dbContext.SaveChangesAsync();
 
+        var batchId = TestIdentifiers.BatchId();
         var payload = $$"""
                          {
                              "type": "Manifest",
@@ -1375,7 +1376,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                  {
                                      "asset": {
                                          "id": "{{assetId}}",
-                                         "mediaType": "image/jpg"
+                                         "mediaType": "image/jpg",
+                                         "batch": "{{batchId}}"
                                      }
                                  }
                              ] 
@@ -1390,11 +1392,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-
-        error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
     
     [Fact]
