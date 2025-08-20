@@ -127,33 +127,24 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, ILogger<Ma
     {
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
-
-        // Instantiate a new Canvas, this is what we are building
-        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas) };
         
         // work out if any of the canvas painting records match a canvas in the current manifest
+        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null && firstCanvasPaintingInCanvas.AssetId == null)
+        {
+            return canvasesFromManifest.First(i =>
+                i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
+        }
+        
+        // Instantiate a new Canvas with a canvas id, this is what we are building, or to retrieve a canvas from
+        // the manifest
+        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas) };
         if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
         {
-            // first try and match to the canvas original id, for if the canvas is created entirely through items
-            var canvasMatchedFromCanvasOriginalId = canvasesFromManifest.FirstOrDefault(i => i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
-            
-            if (firstCanvasPaintingInCanvas.AssetId == null)
-            {
-                return canvasMatchedFromCanvasOriginalId;
-            }
-            
             // next match against the canvas id we can generate, for items that were created with assets
             var canvasMatchedFromCanvasId = canvasesFromManifest.FirstOrDefault(i => i.Id == canvas.Id);
 
             if (canvasMatchedFromCanvasId != null)
             {
-                // check if the canvas is fully fleshed out, and therefore doesn't need to have details retrieved
-                // from the DLCS named query
-                if (canvasMatchedFromCanvasId.Items != null)
-                {
-                    return canvasMatchedFromCanvasId;
-                }
-
                 // replace the canvas with what we've found from the manifest
                 canvas = canvasMatchedFromCanvasId;
             }
