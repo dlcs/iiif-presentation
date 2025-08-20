@@ -129,30 +129,16 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, ILogger<Ma
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
         
         // work out if any of the canvas painting records match a canvas in the current manifest
-        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null && firstCanvasPaintingInCanvas.AssetId == null)
+        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
         {
             return canvasesFromManifest.First(i =>
                 i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
         }
         
-        // Instantiate a new Canvas with a canvas id, this is what we are building, or to retrieve a canvas from
-        // the manifest
-        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas) };
-        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
-        {
-            // next match against the canvas id we can generate, for items that were created with assets
-            var canvasMatchedFromCanvasId = canvasesFromManifest.FirstOrDefault(i => i.Id == canvas.Id);
-
-            if (canvasMatchedFromCanvasId != null)
-            {
-                // replace the canvas with what we've found from the manifest
-                canvas = canvasMatchedFromCanvasId;
-            }
-            else
-            {
-                return canvas; //this should never happen, but it's when we don't have a matching canvasId
-            }
-        }
+        // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
+        // Check to see if we can use an existing Canvas, falling back to creating a new one
+        var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
+        var canvas = canvasesFromManifest.FirstOrDefault(i => i.Id == canvasId) ?? new Canvas { Id = canvasId };
         
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
         var annoPage = new AnnotationPage

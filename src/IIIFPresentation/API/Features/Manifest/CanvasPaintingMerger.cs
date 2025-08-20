@@ -77,7 +77,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
             {
                 // we check by canvas/choice order as well, in case there are multiple canvases with the same id (possible with placeholders etc.)
                 var orderedCanvasPainting = paintedResourceCanvasPainting.Count == 1
-                    ? paintedResourceCanvasPainting.First()
+                    ? paintedResourceCanvasPainting.Single()
                     : paintedResourceCanvasPainting.FirstOrDefault(cp =>
                         cp.CanvasOrder == itemsCanvasPainting.CanvasOrder &&
                         cp.ChoiceOrder == itemsCanvasPainting.ChoiceOrder) ?? throw new CanvasPaintingMergerException(
