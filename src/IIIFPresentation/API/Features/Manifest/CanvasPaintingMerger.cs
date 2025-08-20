@@ -144,18 +144,6 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 paintedResourceCanvasPainting.Id,
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching choice order");
         }
-        
-        if (paintedResourceCanvasPainting.CanvasOriginalId == null)
-        {
-            paintedResourceCanvasPainting.CanvasOriginalId = itemsCanvasPainting.CanvasOriginalId;
-        }
-        else if (paintedResourceCanvasPainting.CanvasOriginalId != itemsCanvasPainting.CanvasOriginalId)
-        {
-            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.CanvasOriginalId.ToString(),
-                itemsCanvasPainting.CanvasOriginalId!.ToString(),
-                paintedResourceCanvasPainting.Id,
-                $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas original id");
-        }
     }
 
     private static void AddCanvasPaintingsFromItems(List<IGrouping<int, CanvasPainting>> groupedItemsCanvasPaintings, int canvasPaintingsToAdd,
