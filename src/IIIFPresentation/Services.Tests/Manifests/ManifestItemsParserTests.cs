@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -17,7 +18,7 @@ namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
-    private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), A.Fake<IPresentationPathGenerator>(),
+    private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), new TestPresentationConfigGenerator("https://dlcs.test", PathRewriteOptions.Default),
         Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://localhost:7230")}), new NullLogger<ManifestItemsParser>());
 
     [Fact]
@@ -932,6 +933,7 @@ public class ManifestItemsParserTests
         {
             new()
             {
+                Id = "shortCanvas",
                 CanvasOriginalId = new Uri("https://dlcs.test/123/canvases/shortCanvas"),
                 StaticWidth = 1200,
                 StaticHeight = 1800,
