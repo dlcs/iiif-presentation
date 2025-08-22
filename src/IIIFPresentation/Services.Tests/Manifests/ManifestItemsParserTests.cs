@@ -1,4 +1,5 @@
 ﻿using Core.IIIF;
+using DLCS;
 using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -8,15 +9,46 @@ using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
-    private readonly ManifestItemsParser sut = new(A.Fake<IPathRewriteParser>(), A.Fake<IPresentationPathGenerator>(),
-        Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://localhost:7230")}), new NullLogger<ManifestItemsParser>());
+    private readonly ManifestItemsParser sut;
+    
+    public ManifestItemsParserTests()
+    {
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://localhost:5000"),
+            CustomerPresentationApiUrl = new Dictionary<int, Uri>()
+            {
+                {2,new Uri("https://foo.com")}
+            },
+            PathRules = PathRewriteOptions.Default
+        })));
+        var pathSettings = new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://localhost:7230"), CustomerPresentationApiUrl =
+                new Dictionary<int, Uri>
+                {
+                    { 2, new Uri("https://foo.com") }
+                }
+        };
+        
+        sut = new ManifestItemsParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+            Options.Create(pathSettings), new NullLogger<ManifestItemsParser>());
+    }
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
@@ -42,6 +74,23 @@ public class ManifestItemsParserTests
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
             }, 123)
             .Should().HaveCount(1);
+
+    [Theory]
+    [InlineData("https://localhost:5000/123/canvases/foo", 123)]
+    [InlineData("https://foo.com/2/canvases/foo", 2)]
+    [InlineData("https://localhost:5000/2/canvases/foo", 2)]
+    public void Parse_ReturnsCanvasPaintingWithId_IfCanvasIdRecognised(string host, int customerId)
+        => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = host }]
+        }, customerId).Single().Id.Should().Be("foo");
+    
+    [Fact]
+    public void Parse_ReturnsCanvasPaintingWithoutId_IfCanvasIdNotRecognised()
+        => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
+        }, 2).Single().Id.Should().BeNull();
 
     [Fact]
     public async Task Parse_Throws_CanvasIdInvalidUri()

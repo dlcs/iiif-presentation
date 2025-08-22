@@ -19,6 +19,7 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
+using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
@@ -63,7 +64,10 @@ public class BatchCompletionMessageHandlerTests
             ApiUri = new Uri("https://dlcs.api")
         }), new SettingsDrivenPresentationConfigGenerator(Options.Create(pathSettings)));
         
-        var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());
 

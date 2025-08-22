@@ -5,6 +5,7 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
@@ -28,7 +29,10 @@ public class ManifestMergerMixedContentTests
             PathRules = PathRewriteOptions.Default
         })));
         
-        sut = new ManifestMerger(settingsBasedPathGenerator, new NullLogger<ManifestMerger>());
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        sut = new ManifestMerger(settingsBasedPathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
     }
     
     [Fact]

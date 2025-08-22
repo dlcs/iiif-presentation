@@ -197,7 +197,7 @@ public class ManifestItemsParser(
 
     // whether the host is an 
     private bool IsRecognisedHost(int customerId, string host) =>
-        settings.GetCustomerSpecificPresentationUrl(customerId).Host == host;
+        settings.GetCustomerSpecificPresentationUrl(customerId).Host == host || settings.PresentationApiUrl.Host == host;
 
     private static Uri? TryGetThumbnail(Canvas canvas)
     {

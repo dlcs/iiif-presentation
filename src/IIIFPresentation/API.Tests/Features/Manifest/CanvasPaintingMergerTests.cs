@@ -495,7 +495,7 @@ public class CanvasPaintingMergerTests
     }
     
     [Fact]
-    public void CombinePaintedResources_MergesCorrectly_WhenItemsTrackedByPaintedResourcesWithMultipleSameCanvasOriginalIdWithoutFindingAMatchingCanvasOrder()
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMultipleSameCanvasOriginalIdWithoutFindingAMatchingCanvasOrder()
     {
         // Arrange
         var paintedResourceId = "paintedResource";
@@ -524,6 +524,45 @@ public class CanvasPaintingMergerTests
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage(
-                $"canvas painting with id {paintedResourceId}_1 refers to multiple canvases, and the matching canvas order cannot be found");
+                $"Canvas with id https://localhost/1/{paintedResourceId}_1 refers to multiple canvases, and the matching canvas order cannot be found");
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenUnmatchedItemMatchesOrderOfCanvasPainting()
+    {
+        // Arrange
+        var itemId = "item";
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{itemId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/{itemId}_1");
+            }).WithCanvasPainting($"{itemId}_2", cp =>
+            {
+                cp.CanvasOrder = 1;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/{itemId}_2");
+            }).Build();
+
+        var paintedResourceId = "paintedResource";
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).WithCanvasPainting($"{paintedResourceId}_2", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).Build();
+        
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage(
+                $"Canvas painting records with the following id's conflict with the order from items - {paintedResourceId}_1,{paintedResourceId}_2");
     }
 }

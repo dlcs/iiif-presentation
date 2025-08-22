@@ -129,7 +129,8 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId"
+                        CanvasId = "someCanvasId",
+                        CanvasOrder = 1
                     }
                 }
             ]
@@ -264,7 +265,8 @@ public class ManifestWriteServiceTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId",
-                        CanvasOriginalId = "beta"
+                        CanvasOriginalId = "beta",
+                        CanvasOrder = 1
                     }
                 }
             ]

@@ -24,6 +24,8 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         
         JoinPaintedResourcesWithItems(itemsCanvasPaintings, paintedResourceCanvasPaintings, items);
         
+        CheckForDuplicates(itemsCanvasPaintings, paintedResourceCanvasPaintings);
+        
         var groupedItemsCanvasPaintings = itemsCanvasPaintings.GroupBy(cp => cp.CanvasOrder).ToList();
 
         var canvasPaintingOrderTracker = 0;
@@ -41,8 +43,9 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 if (groupedItemsCanvasPaintings.Count != 0)
                 {
                     var canvasPaintingsToAdd = paintedResourceCanvasPainting.CanvasOrder - canvasPaintingOrderTracker;
-
-                    AddCanvasPaintingsFromItems(groupedItemsCanvasPaintings, canvasPaintingsToAdd, canvasPaintingOrderTracker, combinedCanvasPaintings);
+                    
+                    AddCanvasPaintingsFromItems(groupedItemsCanvasPaintings, canvasPaintingsToAdd,
+                        canvasPaintingOrderTracker, combinedCanvasPaintings);
                 }
 
                 // add the painted resource after adding everything needed from items to fill out the ordering
@@ -64,13 +67,26 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         return combinedCanvasPaintings;
     }
 
+    private static void CheckForDuplicates(List<CanvasPainting> itemsCanvasPaintings, List<CanvasPainting> paintedResourceCanvasPaintings)
+    {
+        var matchedCanvasPainting =
+            paintedResourceCanvasPaintings.Where(p => itemsCanvasPaintings.Any(i => p.CanvasOrder == i.CanvasOrder))
+                .ToList();
+        
+        if (matchedCanvasPainting.Count != 0)
+        {
+            throw new CanvasPaintingMergerException(
+                $"Canvas painting records with the following id's conflict with the order from items - {string.Join(',', matchedCanvasPainting.Select(m => m.Id))}");
+        }
+    }
+
     private void JoinPaintedResourcesWithItems(List<CanvasPainting> itemsCanvasPaintings, 
         List<CanvasPainting> paintedResourceCanvasPaintings, List<Canvas>? items)
     {
         foreach (var itemsCanvasPainting in itemsCanvasPaintings.ToList())
         {
             var paintedResourceCanvasPainting =
-                paintedResourceCanvasPaintings.Where(cp => itemsCanvasPainting.CanvasOriginalId != null &&
+                paintedResourceCanvasPaintings.Where(cp => itemsCanvasPainting.CanvasOriginalId != null && !string.IsNullOrEmpty(cp.Id) &&
                     cp.Id == itemsCanvasPainting.Id).ToList();
             
             if (paintedResourceCanvasPainting.Count != 0)
@@ -81,7 +97,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                     : paintedResourceCanvasPainting.FirstOrDefault(cp =>
                         cp.CanvasOrder == itemsCanvasPainting.CanvasOrder &&
                         cp.ChoiceOrder == itemsCanvasPainting.ChoiceOrder) ?? throw new CanvasPaintingMergerException(
-                        $"Canvas painting with id {itemsCanvasPainting.Id} refers to multiple canvases, and the matching canvas order cannot be found");
+                        $"Canvas with id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
                 
                 ValidateItemCanvasPainting(itemsCanvasPainting, orderedCanvasPainting, items!);
                 
