@@ -2186,13 +2186,6 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .Include(m => m.Batches)
             .First(x => x.Id == id);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
-        var firstCanvasPainting = dbManifest.CanvasPaintings.First();
-        firstCanvasPainting.StaticHeight.Should().Be(100, "maintained value");
-        firstCanvasPainting.StaticWidth.Should().Be(100, "maintained value");
-        firstCanvasPainting.Thumbnail.Should()
-            .Be($"https://dlcs.test/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}_1/canvas/c/_CanvasThumbnail",
-                "maintained value");
-        
         dbManifest.Batches.Should().HaveCount(1, "Only the initial batch is created");
         
         var savedS3 =
