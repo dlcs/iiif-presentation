@@ -32,7 +32,7 @@ dotnet ef migrations script -i -o .\migrate.sql -p Repository -s API
 
 ### DLCS Named Query
 
-As part of handling assets in canvas paintings, items are ingested via the DLCS.  In order to track items that have been ingested, a new global named query needs to be added to the DLCS to track batches.  This can be done in 2 ways, as follows:
+As part of handling assets in canvas paintings, items are ingested via the DLCS.  In order to track items that have been ingested, a new global named query needs to be added to the DLCS to track manifests.  This can be done in 2 ways, as follows:
 
 1. POST to the named query endpoint:
 
@@ -42,8 +42,8 @@ As part of handling assets in canvas paintings, items are ingested via the DLCS.
 POST {{baseUrl}}/customers/1/namedQueries
 
 {
-    "name": "batch-query",
-    "template": "batch=p1",
+    "name": "manifest-query",
+    "template": "manifest=p1",
     "global": true
 }
 ```
@@ -52,10 +52,10 @@ POST {{baseUrl}}/customers/1/namedQueries
 
 ```sql
 INSERT INTO "NamedQueries" ("Id", "Customer", "Name", "Global", "Template")
-VALUES (gen_random_uuid(), 1, 'batch-query', true, 'batch=p1')
+VALUES (gen_random_uuid(), 1, 'manifest-query', true, 'manifest=p1')
 ```
 
-**NOTE:** the presentation API assumes the name of this named query is `batch-query` by default, so if this is changed the presentation will need an updated setting to track.
+**NOTE:** the presentation API assumes the name of this named query is `manifest-query` by default, so if this is changed the presentation will need an updated setting to track.
 
 
 ### Architecture

@@ -35,4 +35,9 @@ public static class HttpRequestMessageBuilder
     {
         requestMessage.Headers.Add("Host", "no-customer.com");
     }
+    
+    public static void AddLinkHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+    }
 }

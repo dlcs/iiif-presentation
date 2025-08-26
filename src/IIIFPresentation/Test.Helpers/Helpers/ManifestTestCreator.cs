@@ -68,6 +68,47 @@ public static class ManifestTestCreatorX
 
     public static Canvas Build(this GenerateCanvasOptions options)
         => ManifestTestCreator.GenerateCanvas(options);
+
+    public static List<CanvasPainting> Build(this GenerateCanvasPaintingsOptions options) => 
+        ManifestTestCreator.GenerateCanvasPaintings(options);
+    
+    public static GenerateCanvasPaintingOptions WithCanvasChoiceOrder(this GenerateCanvasPaintingOptions options, 
+        int canvasOrder, int choiceOrder)
+    {
+        options.Id = options.Id;
+        options.CanvasOrder = canvasOrder;
+        options.ChoiceOrder = choiceOrder;
+        
+        return options;
+    }
+    
+    public static GenerateCanvasPaintingsOptions WithCanvasPainting(this GenerateCanvasPaintingsOptions options,
+        string id, Action<GenerateCanvasPaintingOptions> configure)
+    {
+        options.GenerateCanvasPaintingOptions ??= [];
+        var canvasPainting = new GenerateCanvasPaintingOptions { Id = id };
+        configure(canvasPainting);
+        options.GenerateCanvasPaintingOptions.Add(canvasPainting);
+        return options;
+    }
+}
+
+public class GenerateCanvasPaintingOptions
+{
+    public int CanvasOrder { get; set; }
+    public int ChoiceOrder { get; set; }
+    public string? Id { get; set; }
+    public string? AssetId { get; set; }
+    public Uri? CanvasOriginalId { get; set; }
+    public LanguageMap? CanvasLabel { get; set; }
+    public LanguageMap? Label { get; set; }
+}
+
+public class GenerateCanvasPaintingsOptions
+{
+    public required string Id { get; set; }
+    
+    public List<GenerateCanvasPaintingOptions>? GenerateCanvasPaintingOptions { get; set; }
 }
 
 public class GenerateCanvasOptions
@@ -97,8 +138,25 @@ public class GenerateManifestOptions
 public class ManifestTestCreator
 {
     public static GenerateManifestOptions New(string? id = null) => new() {Id = id};
-    public static GenerateCanvasOptions Canvas() => new();
+    public static GenerateCanvasOptions Canvas(string? id = null) => new() {Id = id};
+    
+    public static GenerateCanvasPaintingsOptions CanvasPaintings(string? id = null) => new() {Id = id};
 
+    public static List<CanvasPainting> GenerateCanvasPaintings(GenerateCanvasPaintingsOptions options)
+    {
+        var canvasOrder = 0;
+        return options.GenerateCanvasPaintingOptions.Select(cp => new CanvasPainting
+        {
+            Id = cp.Id, 
+            AssetId = cp.AssetId != null ? AssetId.FromString(cp.AssetId) : null, 
+            CanvasOriginalId = cp.CanvasOriginalId != null ? cp.CanvasOriginalId : null,
+            CanvasOrder = cp.CanvasOrder,
+            ChoiceOrder = cp.ChoiceOrder,
+            Label = cp.Label,
+            CanvasLabel = cp.CanvasLabel
+        }).ToList();
+    }
+    
     public static List<CanvasPainting> GenerateCanvasPaintings(List<string> idList)
     {
         var canvasOrder = 0;

@@ -6,6 +6,8 @@ using IIIF.Presentation.V3.Content;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
+using Repository.Paths;
+using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -13,7 +15,9 @@ namespace Services.Manifests;
 /// <summary>
 /// Contains logic for parsing a Manifests "items" property into <see cref="CanvasPainting"/> entities
 /// </summary>
-public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+public class ManifestItemsParser(
+    IPresentationPathGenerator presentationPathGenerator,
+    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
 {
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
     {
@@ -27,9 +31,21 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
         foreach (var canvas in manifest.Items)
         {
             logger.LogTrace("Processing canvas {CanvasOrder}:'{CanvasId}'...", canvasOrder, canvas.Id);
+
+            var canvasPaintingsInCanvas = canvas.GetPaintingAnnotations().ToList();
+
+            // in this case, we have an item with no painting annotation, so it could be tracked by a painted resource
+            if (canvasPaintingsInCanvas.Count == 0)
+            {
+                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer);
+                cp.CanvasLabel = canvas.Label;
+                canvasPaintings.Add(cp);
+                canvasOrder++;
+                continue;
+            }
             
             var canvasLabelHasBeenSet = false;
-            foreach (var painting in canvas.GetPaintingAnnotations())
+            foreach (var painting in canvasPaintingsInCanvas)
             {
                 var target = painting.Target;
 
@@ -50,7 +66,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
                         if (resource is Image or Video or Sound)
                         {
                             var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
-                                canvas, choiceOrder);
+                                canvas, customer, choiceOrder);
 
                             choiceOrder++;
                             if (first)
@@ -91,7 +107,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -119,17 +135,18 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
         return resource;
     }
 
-    private CanvasPainting CreatePartialCanvasPainting(ResourceBase resource,
+    private CanvasPainting CreatePartialCanvasPainting(ResourceBase? resource,
         string? canvasOriginalId,
         int canvasOrder,
         ResourceBase? target,
         Canvas currentCanvas,
+        int customerId,
         int? choiceOrder = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
         var cp = new CanvasPainting
         {
-            CanvasOriginalId = string.IsNullOrEmpty(canvasOriginalId) ? null : new Uri(canvasOriginalId),
+            CanvasOriginalId = CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, canvasOriginalId), 
             CanvasOrder = canvasOrder,
             ChoiceOrder = choiceOrder,
             Target = TargetAsString(target, currentCanvas),
@@ -143,7 +160,7 @@ public class ManifestItemsParser(ILogger<ManifestItemsParser> logger) : ICanvasP
         }
         return cp;
     }
-    
+
     private static Uri? TryGetThumbnail(Canvas canvas)
     {
         if (canvas.Thumbnail.IsNullOrEmpty())

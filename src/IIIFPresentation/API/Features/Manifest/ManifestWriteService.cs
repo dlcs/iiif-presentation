@@ -155,13 +155,6 @@ public class ManifestWriteService(
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
-        var hasAssets = PaintedResourcesHasAssets(request);
-        // can't have both items and painted resources, so items take precedence
-        if (!request.PresentationManifest.Items.IsNullOrEmpty())
-        {
-            request.PresentationManifest.PaintedResources = null;
-        }
-
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
             // Ensure we have a manifestId
@@ -176,7 +169,8 @@ public class ManifestWriteService(
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
-
+            
+            var hasAssets = PaintedResourcesHasAssets(request);
             await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
                 cancellationToken);
 
@@ -294,8 +288,9 @@ public class ManifestWriteService(
     /// 1. Determined that there's no DLCS interaction required at all (no new space and no assets)
     /// 2. Determined that there are no unchecked assets (after checking with DLCS)
     /// </summary>
-    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) => 
-        dlcsInteractionResult != DlcsInteractionResult.NoInteraction && !dlcsInteractionResult.CanBeBuiltUpfront;
+    private static bool RequiresFurtherProcessing(DlcsInteractionResult dlcsInteractionResult) =>
+        dlcsInteractionResult != DlcsInteractionResult.NoInteraction &&
+        dlcsInteractionResult is { OnlySpace: false, CanBeBuiltUpfront: false };
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,

@@ -20,12 +20,14 @@ using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.M
 
 namespace API.Features.Manifest;
 
-public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false)
+public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, bool onlySpace = false)
 {
     public EntityResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
     public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
+    
+    public bool OnlySpace { get; } = onlySpace;
     
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
         
@@ -80,6 +82,12 @@ public class DlcsManifestCoordinator(
                 if (!spaceId.HasValue)
                 {
                     return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+                }
+
+                // you wanted a space, and there are no assets, so no further work required
+                if (assets.Count == 0)
+                {
+                    return new DlcsInteractionResult(null, spaceId, onlySpace: true);
                 }
                 
                 createdSpace = true;
