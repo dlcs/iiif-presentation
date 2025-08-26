@@ -92,16 +92,19 @@ public static class ManifestConverter
         {
             // Incoming grouping is by canvasId - so could contain 1:n paintingAnnos, some of which are choices
             var canvasPainting = groupedCanvasPaintings.First();
-            var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
-
             var canvasIdFromCanvases = existingCanvases.Select(c =>
                 (canvasId: pathRewriteParser.ParsePathWithRewrites(c.Id, canvasPainting.CustomerId).Resource, canvas: c));
             
             // check and find the attached canvas, if it exists and fallback to seeing if we have a canvas based on the canvas id
             // this is used when either we already have a canvas we're generating a PR from, OR when the manifest has finished ingesting
             var currentCanvas = canvasIdFromCanvases.FirstOrDefault(
-                i => i.canvas.Id == canvasId || i.canvasId == canvasPainting.Id).canvas;
-            if (!currentCanvas?.Items.IsNullOrEmpty() ?? false) return currentCanvas;
+                    i => (canvasPainting.CanvasOriginalId != null &&
+                          i.canvas.Id == canvasPainting.CanvasOriginalId.ToString()) || i.canvasId == canvasPainting.Id)
+                .canvas;
+            if (!currentCanvas?.Items.IsNullOrEmpty() ?? false)
+            {
+                return currentCanvas;
+            }
 
             var items = new List<AnnotationPage>
             {
@@ -135,9 +138,13 @@ public static class ManifestConverter
                         .ToList()
                 }
             };
+            
+            var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
 
             if (currentCanvas != null)
             {
+                // rewrite the path, if required
+                if (currentCanvas.Id != canvasId) currentCanvas.Id = canvasId;
                 currentCanvas.Items = items;
                 return currentCanvas;
             }

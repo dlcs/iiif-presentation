@@ -458,7 +458,52 @@ public class ManifestConverterTests
             new()
             {
                 CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
-                Id = "first"
+                Id = "fromProvisional"
+            }
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
+        
+        // Assert
+        result.Should().HaveCount(1);
+        result.First().Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
+            .Be("http://base/0/canvases/fromProvisional/annotations/0");
+        result.First().Homepage.Should().NotBeNull();
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_PassesBackCompletedItem_FromMatchedPaintedResource()
+    {
+        var canvases = new List<Canvas>
+        {
+            new()
+            {
+                Id = "http://base/0/canvases/first",
+                Homepage = [],
+                Items =
+                [
+                    new AnnotationPage
+                    {
+                        Items =
+                        [
+                            new PaintingAnnotation
+                            {
+                                Id = "http://base/0/canvases/first/annotations/0",
+                            }
+                        ]
+                    }
+                ]
+
+            }
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "fromProvisional"
             }
         };
         
@@ -470,7 +515,6 @@ public class ManifestConverterTests
         result.First().Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
             .Be("http://base/0/canvases/first/annotations/0");
         result.First().Homepage.Should().NotBeNull();
-
     }
     
     [Fact]
@@ -579,5 +623,44 @@ public class ManifestConverterTests
         result.First().Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
         result.Last().Items.First().Items.First().As<PaintingAnnotation>().Body.Should()
             .BeOfType<PaintingChoice>();
+    }
+    
+    [Fact]
+    public void GenerateProvisionalCanvases_RewritesProvisionalItemId_FromMatchedPaintedResource()
+    {
+        var canvases = new List<Canvas>
+        {
+            new()
+            {
+                Id = "https://foo.com/0/canvases/foo",
+                Homepage = 
+                [
+                    new Image
+                    {
+                        Id = "https://foo.com/0/homepage/foo",
+                    }
+                ]
+            }
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = new Uri("https://foo.com/0/canvases/foo"), CanvasOrder = 0, ChoiceOrder = 0,
+                Id = "fromProvisional"
+            }
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
+        
+        // Assert
+        result.Should().HaveCount(1);
+        var firstCanvas = result.First();
+        firstCanvas.Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
+            .Be("http://base/0/canvases/fromProvisional/annotations/0");
+        firstCanvas.Homepage.First().Id.Should().Be("https://foo.com/0/homepage/foo");
+        result.First().Homepage.Should().NotBeNull();
     }
 }
