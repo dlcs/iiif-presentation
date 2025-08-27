@@ -8,6 +8,7 @@ using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -375,5 +376,69 @@ public class ManifestWriteServiceTests
             "item id set from settings based path generator");
         ingestedManifest.Entity.PublicId.Should().Be($"https://localhost:5000/{Customer}/{slug}", 
             "public id set from config based path generator");
+    }
+    
+     // todo: THIS NEEDS TO BE MODIFIED TO ONLY BE VALID WHEN THERES A MATCHING CANVAS PAINTING RECORD
+    [Fact]
+    public async Task Create_SuccessfullyCreatesManifest_WhenShortCanvasIdUsed()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "shortCanvas",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "shortCanvas/annopages/0",
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "shortCanvas/annotations/0",
+                                    Target = new Canvas { Id = "shortCanvas" },
+                                    Body = null,
+                                },
+                                new PaintingAnnotation
+                                {
+                                    Id = "shortCanvas/annotations/1",
+                                    Target = new Canvas { Id = "shortCanvas#xywh=0,0,200,200" },
+                                    Body = new PaintingChoice(),
+                                },
+                                new PaintingAnnotation
+                                {
+                                    Id = "shortCanvas/annotations/2",
+                                    Target = new Canvas { Id = "shortCanvas#xywh=200,400,200,200" },
+                                    Body = null,
+                                },
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(3);
+        ingestedManifest.Entity.Items.First().Id.Should().Be("");
+        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
     }
 }

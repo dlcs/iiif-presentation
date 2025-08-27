@@ -45,8 +45,9 @@ public class ManifestItemsParserTests
                     { 2, new Uri("https://foo.com") }
                 }
         };
-        
-        sut = new ManifestItemsParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+
+        sut = new ManifestItemsParser(pathRewriteParser,
+            new TestPresentationConfigGenerator("http://base", PathRewriteOptions.Default),
             Options.Create(pathSettings), new NullLogger<ManifestItemsParser>());
     }
 
@@ -982,6 +983,67 @@ public class ManifestItemsParserTests
         // Act
         var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
 
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public async Task Parse_AcceptsShortCanvasId()
+    {
+        // Arrange
+        var manifest = @"
+{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
+    ""type"": ""Manifest"",
+    ""items"": [
+        {
+            ""id"": ""shortCanvas"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {
+                    ""id"": ""shortCanvas/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {
+                            ""id"": ""shortCanvas/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {
+                                ""id"": ""shortCanvas/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "shortCanvas",
+                CanvasOriginalId = new Uri("http://base/123/canvases/shortCanvas"),
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null
+            }
+        };
+        
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
+        
+        // Act
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
