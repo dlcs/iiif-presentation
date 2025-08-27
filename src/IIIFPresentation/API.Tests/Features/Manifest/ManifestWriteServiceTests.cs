@@ -9,6 +9,7 @@ using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -402,26 +403,19 @@ public class ManifestWriteServiceTests
                         new AnnotationPage
                         {
                             Id = "shortCanvas/annopages/0",
-                            Items =
+                            Items = 
                             [
                                 new PaintingAnnotation
                                 {
                                     Id = "shortCanvas/annotations/0",
                                     Target = new Canvas { Id = "shortCanvas" },
-                                    Body = null,
-                                },
-                                new PaintingAnnotation
-                                {
-                                    Id = "shortCanvas/annotations/1",
-                                    Target = new Canvas { Id = "shortCanvas#xywh=0,0,200,200" },
-                                    Body = new PaintingChoice(),
-                                },
-                                new PaintingAnnotation
-                                {
-                                    Id = "shortCanvas/annotations/2",
-                                    Target = new Canvas { Id = "shortCanvas#xywh=200,400,200,200" },
-                                    Body = null,
-                                },
+                                    Body = new Image
+                                    {
+                                        Id = "shortCanvas/annotations/0/image.png",
+                                        Width = 100,
+                                        Height = 100
+                                    }
+                                }
                             ]
                         }
                     ]
@@ -437,8 +431,13 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(3);
-        ingestedManifest.Entity.Items.First().Id.Should().Be("");
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items.First().Id.Should().Be("shortCanvas");
         var paintedResource = ingestedManifest.Entity.PaintedResources.First();
+        paintedResource.CanvasPainting.StaticWidth.Should().Be(100);
+        paintedResource.CanvasPainting.StaticHeight.Should().Be(100);
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
     }
+    
+    //todo: more tests
 }
