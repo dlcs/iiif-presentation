@@ -95,15 +95,11 @@ public static class ManifestConverter
             var canvasIdFromCanvases = existingCanvases.Select(c =>
                 (canvasId: pathRewriteParser.ParsePathWithRewrites(c.Id, canvasPainting.CustomerId).Resource, canvas: c));
             
-            // check and find the attached canvas, if it exists and fallback to seeing if we have a canvas based on the canvas id
-            // this is used when either we already have a canvas we're generating a PR from, OR when the manifest has finished ingesting
-            var currentCanvas = canvasIdFromCanvases.FirstOrDefault(
-                    i => (canvasPainting.CanvasOriginalId != null &&
-                          i.canvas.Id == canvasPainting.CanvasOriginalId.ToString()) || i.canvasId == canvasPainting.Id)
-                .canvas;
-            if (!currentCanvas?.Items.IsNullOrEmpty() ?? false)
+            // if there's a canvas original id, it means items only
+            if (canvasPainting.CanvasOriginalId != null)
             {
-                return currentCanvas;
+                return canvasIdFromCanvases.FirstOrDefault(
+                    i => i.canvas.Id == canvasPainting.CanvasOriginalId.ToString()).canvas;
             }
 
             var items = new List<AnnotationPage>
@@ -140,7 +136,9 @@ public static class ManifestConverter
             };
             
             var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
-
+            
+            // check if there's an attached canvas we're decorating
+            var currentCanvas = canvasIdFromCanvases.FirstOrDefault(i =>  i.canvasId == canvasPainting.Id).canvas;
             if (currentCanvas != null)
             {
                 // rewrite the path, if required

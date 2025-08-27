@@ -388,31 +388,6 @@ public class ManifestConverterTests
     }
     
     [Fact]
-    public void GenerateProvisionalCanvases_GeneratesFullItems_IfSetFromCanvasPaintings()
-    {
-        // Arrange
-        var canvasList = new List<Canvas>();
-
-        var canvasPaintings = new List<CanvasPainting>()
-        {
-            new()
-            {
-                CanvasOriginalId = new Uri("http://base/0/canvases/first"), CanvasOrder = 0, ChoiceOrder = 0,
-                Id = "first"
-            }
-        };
-        
-        // Act
-        var items = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvasList, pathRewriteParser);
-
-        // Assert
-        var item = items.Single();
-        item.Id.Should().Be("http://base/0/canvases/first");
-        item.Items[0].Items[0].Should().NotBeNull();
-        item.Items[0].Items[0].As<PaintingAnnotation>().Behavior.Should().Contain("processing");
-    }
-    
-    [Fact]
     public void GenerateProvisionalCanvases_MixesManifestsAndItems_IfBothSet()
     {
         var canvases = new List<Canvas>
@@ -467,8 +442,7 @@ public class ManifestConverterTests
         
         // Assert
         result.Should().HaveCount(1);
-        result.First().Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
-            .Be("http://base/0/canvases/fromProvisional/annotations/0");
+        result.First().Items.Should().BeNull();
         result.First().Homepage.Should().NotBeNull();
     }
     
@@ -647,8 +621,7 @@ public class ManifestConverterTests
         {
             new()
             {
-                CanvasOriginalId = new Uri("https://foo.com/0/canvases/foo"), CanvasOrder = 0, ChoiceOrder = 0,
-                Id = "fromProvisional"
+                CanvasOrder = 0, ChoiceOrder = 0, Id = "foo"
             }
         };
         
@@ -659,7 +632,7 @@ public class ManifestConverterTests
         result.Should().HaveCount(1);
         var firstCanvas = result.First();
         firstCanvas.Items.First().Items.First().As<PaintingAnnotation>().Id.Should()
-            .Be("http://base/0/canvases/fromProvisional/annotations/0");
+            .Be("http://base/0/canvases/foo/annotations/0");
         firstCanvas.Homepage.First().Id.Should().Be("https://foo.com/0/homepage/foo");
         result.First().Homepage.Should().NotBeNull();
     }

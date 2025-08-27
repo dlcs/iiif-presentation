@@ -354,13 +354,11 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, PaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, IngestingPaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
         
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
