@@ -338,7 +338,7 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
-    public async Task Create_SuccessfullyCreatesManifest_WhenPaintedResourcesFromGenerated()
+    public async Task Create_ThrowsError_WhenShortCanvasIdWithoutMatched()
     {
         // Arrange
         dynamic asset = new JObject();
@@ -379,9 +379,62 @@ public class ManifestWriteServiceTests
             "public id set from config based path generator");
     }
     
+    [Fact]
+    public async Task Create_ErrorCreatingManifest_WhenShortCanvasIdUsedWithoutMacthingPaintedResource()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "shortCanvas",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "shortCanvas/annopages/0",
+                            Items = 
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "shortCanvas/annotations/0",
+                                    Target = new Canvas { Id = "shortCanvas" },
+                                    Body = new Image
+                                    {
+                                        Id = "shortCanvas/annotations/0/image.png",
+                                        Width = 100,
+                                        Height = 100
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be("");
+    }
+    
      // todo: THIS NEEDS TO BE MODIFIED TO ONLY BE VALID WHEN THERES A MATCHING CANVAS PAINTING RECORD
     [Fact]
-    public async Task Create_SuccessfullyCreatesManifest_WhenShortCanvasIdUsed()
+    public async Task Create_SuccessfullyCreatesManifest_WhenShortCanvasIdUsedWithMatchingCanvasId()
     {
         // Arrange
         dynamic asset = new JObject();
