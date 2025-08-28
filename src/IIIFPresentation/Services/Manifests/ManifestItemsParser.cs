@@ -194,8 +194,10 @@ public class ManifestItemsParser(
 
         return null;
     }
-
-    // whether the host is an 
+    
+    /// <summary>
+    /// Whether the host is either a customer specific host, or the standard presentation host URL
+    /// </summary>
     private bool IsRecognisedHost(int customerId, string host) =>
         settings.GetCustomerSpecificPresentationUrl(customerId).Host == host || settings.PresentationApiUrl.Host == host;
 

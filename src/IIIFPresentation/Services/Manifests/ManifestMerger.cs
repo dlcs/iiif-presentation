@@ -66,7 +66,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
-        if (namedQueryManifest?.Items == null && baseManifest.Items == null)
+        if (namedQueryManifest?.Items == null && baseManifest.Items.IsNullOrEmpty())
         {
             logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
                 namedQueryManifest?.Id ?? "no-id");
@@ -107,8 +107,10 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         var items = new List<Canvas>();
         
+        // dictionary where the key will either be the canvasOriginalId OR the canvasPainting id which is used
+        // to provide a fast match between the canvas and the canvasPainting record
         var manifestCanvasDictionary = baseManifest.Items?.ToDictionary(
-            // customer id should be the same across all canvas paintings
+            // customer id must be the same across all canvas paintings
             key => pathRewriteParser.ParsePathWithRewrites(key.Id, canvasPaintings.First().CustomerId).Resource ??
                    key.Id!,
             val => val) ?? new Dictionary<string, Canvas>();
@@ -135,7 +137,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
         
-        // work out if any of the canvas painting records match a canvas in the current manifest
         if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
         {
             return manifestCanvasDictionary.Values.First(i =>
@@ -145,12 +146,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
         // Check to see if we can use an existing Canvas, falling back to creating a new one
         var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
-        manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas);
-
-        if (canvas == null)
+        if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
         {
             canvas = new Canvas { Id = canvasId };
         }
+        
         // modifies the id to match the rewritten path from settings
         else if (canvas.Id != canvasId)
         {
