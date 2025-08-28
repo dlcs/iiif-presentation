@@ -2,19 +2,25 @@
 
 using System.Net;
 using Amazon.S3;
+using API.Converters;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Repository.Paths;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using EntityTagHeaderValue = System.Net.Http.Headers.EntityTagHeaderValue;
@@ -53,7 +59,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "foo-paintedResource",
                    "ingesting": false,
@@ -66,7 +72,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/errorPaintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/errorPaintedResource",
                    "@type": "vocab:Image",
                    "id": "errorPaintedResource",
                    "error": "random error",
@@ -79,7 +85,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "ingestingPaintedResource",
                    "ingesting": true,
@@ -348,19 +354,26 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, PaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, IngestingPaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
+        
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+
+        var manifestToSave = dbManifest.Entity.ToPresentationManifest();
+        manifestToSave.Items = dbManifest.Entity.CanvasPaintings.GenerateProvisionalCanvases(
+            new TestPathGenerator(
+                new TestPresentationConfigGenerator("http://localhost", new TypedPathTemplateOptions())), [],
+            pathRewriteParser);
 
         await amazonS3.PutObjectAsync(new()
         {
             BucketName = LocalStackFixture.StorageBucketName,
-            Key = $"1/manifests/{id}",
-            ContentBody = TestContent.ManifestJson
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = manifestToSave.AsJson()
         });
 
         await dbContext.SaveChangesAsync();
@@ -378,7 +391,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
-        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.Items.Should().HaveCount(2, "there are 2 canvas painting records");
         manifest.FlatId.Should().Be(id);
         manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
         manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets

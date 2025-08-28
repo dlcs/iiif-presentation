@@ -46,7 +46,7 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
-
+        
         if (dbManifest.IsIngesting())
         {
             iiifManifest.Ingesting = GenerateIngesting(assets);
@@ -57,9 +57,6 @@ public static class ManifestConverter
         {
             var enumeratedCanvasPaintings = canvasPaintings.ToList();
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
-
-            // Note ??= - this is only if we don't yet have Items set by background process
-            iiifManifest.Items ??= enumeratedCanvasPaintings.GenerateProvisionalItems(pathGenerator);
         }
         
         iiifManifest.EnsurePresentation3Context();
@@ -69,15 +66,24 @@ public static class ManifestConverter
     }
     
     /// <summary>
-    /// Generate provisional <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These
-    /// provisional canvases have the structure of the final canvases without the full content-resource details
+    /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
+    /// provisional canvases that have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
-    private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
-        IPathGenerator pathGenerator)
+    /// <param name="canvasPaintings">The list of canvas paintings to be used for generating required canvases</param>
+    /// <param name="pathGenerator">the path generator used to generate the patchs</param>
+    /// <param name="existingCanvases">Canvases that have already been set by the calling manifest</param>
+    /// <param name="pathRewriteParser">path rewrite parser used to help match canvases to a canvas painting</param>
+    /// <returns>Canvases with included provisional canvases</returns>
+    public static List<Canvas> GenerateProvisionalCanvases(this List<CanvasPainting> canvasPaintings,
+        IPathGenerator pathGenerator, List<Canvas>? existingCanvases, IPathRewriteParser pathRewriteParser)
     {
+        existingCanvases ??= [];
+
+        var orderedCanvases = canvasPaintings.GetOrderedCanvasPaintings()?.ToList() ?? [];
+        
         // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.
         // We need to maintain order by CanvasOrder > ChoiceOrder, NOT canvasId (even though we are grouping by that)
-        return canvasPaintings
+        return orderedCanvases
             .ToLookup(pr => pr.Id)
             .Select(GenerateProvisionalCanvas)
             .ToList();
@@ -86,46 +92,66 @@ public static class ManifestConverter
         {
             // Incoming grouping is by canvasId - so could contain 1:n paintingAnnos, some of which are choices
             var canvasPainting = groupedCanvasPaintings.First();
-            var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
-
-            var c = new Canvas
+            var canvasIdFromCanvases = existingCanvases.Select(c =>
+                (canvasId: pathRewriteParser.ParsePathWithRewrites(c.Id, canvasPainting.CustomerId).Resource, canvas: c));
+            
+            // if there's a canvas original id, it means items only
+            if (canvasPainting.CanvasOriginalId != null)
             {
-                Id = canvasId,
-                Items =
-                [
-                    new()
-                    {
-                        Id = pathGenerator.GenerateAnnotationPagesId(canvasPainting),
-                        
-                        // To get the correct "items" group by CanvasOrder. Those that share order are a choice
-                        Items = groupedCanvasPaintings
-                            .GroupBy(cp => cp.CanvasOrder)
-                            .Select(orderCanvasPaintings =>
-                            {
-                                // We are in grouping by CanvasOrder, if choice there may be > 1 canvasPainting. Ids at 
-                                // this level will be same for matching CanvasOrder so attempt to find one with a target
-                                // as that can change "target" value. If there are multiple with a .Target then take the
-                                // lowest choice
-                                var canvasPaintingForId = orderCanvasPaintings
-                                    .OrderBy(cp => string.IsNullOrEmpty(cp.Target))
-                                    .ThenBy(cp => cp.ChoiceOrder ?? 0)
-                                    .First();
-                                var annotation = new PaintingAnnotation
-                                {
-                                    Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForId),
-                                    Behavior = [Behavior.Processing],
-                                    Target = new Canvas
-                                        { Id = pathGenerator.GenerateCanvasIdWithTarget(canvasPaintingForId) },
-                                    Body = GetBody(orderCanvasPaintings)
-                                };
-                                return annotation;
-                            }).Cast<IAnnotation>()
-                            .ToList()
-                    }
-                ]
-            };
+                return canvasIdFromCanvases.FirstOrDefault(
+                    i => i.canvas.Id == canvasPainting.CanvasOriginalId.ToString()).canvas;
+            }
 
-            return c;
+            var items = new List<AnnotationPage>
+            {
+                new()
+                {
+                    Id = pathGenerator.GenerateAnnotationPagesId(canvasPainting),
+
+                    // To get the correct "items" group by CanvasOrder. Those that share order are a choice
+                    Items = groupedCanvasPaintings
+                        .GroupBy(cp => cp.CanvasOrder)
+                        .Select(orderCanvasPaintings =>
+                        {
+                            // We are in grouping by CanvasOrder, if choice there may be > 1 canvasPainting. Ids at 
+                            // this level will be same for matching CanvasOrder so attempt to find one with a target
+                            // as that can change "target" value. If there are multiple with a .Target then take the
+                            // lowest choice
+                            var canvasPaintingForId = orderCanvasPaintings 
+                                .OrderBy(cp => string.IsNullOrEmpty(cp.Target))
+                                .ThenBy(cp => cp.ChoiceOrder ?? 0)
+                                .First();
+                            var annotation = new PaintingAnnotation
+                            {
+                                Id = pathGenerator.GeneratePaintingAnnotationId(canvasPaintingForId),
+                                Behavior = [Behavior.Processing],
+                                Target = new Canvas
+                                    { Id = pathGenerator.GenerateCanvasIdWithTarget(canvasPaintingForId) },
+                                Body = GetBody(orderCanvasPaintings)
+                            };
+                            return annotation;
+                        }).Cast<IAnnotation>()
+                        .ToList()
+                }
+            };
+            
+            var canvasId = pathGenerator.GenerateCanvasId(canvasPainting);
+            
+            // check if there's an attached canvas we're decorating
+            var currentCanvas = canvasIdFromCanvases.FirstOrDefault(i =>  i.canvasId == canvasPainting.Id).canvas;
+            if (currentCanvas != null)
+            {
+                // rewrite the path, if required
+                if (currentCanvas.Id != canvasId) currentCanvas.Id = canvasId;
+                currentCanvas.Items = items;
+                return currentCanvas;
+            }
+
+            return new Canvas
+            {
+                Id = canvasId, 
+                Items = items
+            };
         }
 
         IPaintable? GetBody(IGrouping<int, CanvasPainting> paintings) =>
@@ -136,7 +162,14 @@ public static class ManifestConverter
     {
         if (dbManifest.CanvasPaintings.IsNullOrEmpty()) return null;
 
-        return dbManifest.CanvasPaintings
+        return dbManifest.CanvasPaintings.GetOrderedCanvasPaintings();
+    }
+    
+    private static IOrderedEnumerable<CanvasPainting>? GetOrderedCanvasPaintings(this List<CanvasPainting> canvasPaintings)
+    {
+        if (canvasPaintings.IsNullOrEmpty()) return null;
+
+        return canvasPaintings
             .OrderBy(cp => cp.CanvasOrder)
             .ThenBy(cp => cp.ChoiceOrder);
     }

@@ -211,7 +211,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
 
     [Fact]
@@ -345,7 +345,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
               [
                   JObject.Parse($$"""
                                   {
-                                      "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
+                                      "@id": "https://localhost:6000/customers/1/spaces/999/images/{{assetId}}",
                                       "id": "{{assetId}}",
                                       "space": 999,
                                       "batch": "https://localhost/customers/1/queue/batches/2137"
@@ -471,7 +471,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -534,7 +534,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]

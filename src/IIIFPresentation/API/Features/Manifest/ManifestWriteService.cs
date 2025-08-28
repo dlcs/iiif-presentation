@@ -10,6 +10,7 @@ using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
+using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
@@ -18,6 +19,7 @@ using Repository;
 using Repository.Helpers;
 using Repository.Paths;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -84,11 +86,12 @@ public class ManifestWriteService(
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     CanvasPaintingResolver canvasPaintingResolver,
-    IPathGenerator pathGenerator,
-    IManifestRead manifestRead,
+    IPathGenerator pathGenerator, 
+    SettingsBasedPathGenerator savedManifestPathGenerator,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
+    IPathRewriteParser pathRewriteParser,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -113,9 +116,9 @@ public class ManifestWriteService(
 
             return await UpdateInternal(request, existingManifest, cancellationToken);
         }
-        catch (DlcsException)
+        catch (DlcsException ex)
         {
-            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
+            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {
@@ -135,9 +138,9 @@ public class ManifestWriteService(
         {
             return await CreateInternal(request, null, cancellationToken);
         }
-        catch (DlcsException)
+        catch (DlcsException ex)
         {
-            return ErrorHelper.ErrorCreatingSpace<PresentationManifest>();
+            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {
@@ -170,24 +173,13 @@ public class ManifestWriteService(
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
-            var hasAssets = PaintedResourcesHasAssets(request);
-            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront,
-                cancellationToken);
-
-            return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-
-                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
-                    ? WriteResult.Accepted
-                    : WriteResult.Created,
-                dbManifest?.Etag);
+            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
+            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+            
+            return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
+                hasAssets, dlcsInteractionResult, WriteResult.Created, cancellationToken);
         }
-    }
-
-    private static bool PaintedResourcesHasAssets(WriteManifestRequest request)
-    {
-        return request.PresentationManifest.PaintedResources?.Any(x => x.Asset != null) == true;
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
@@ -196,22 +188,6 @@ public class ManifestWriteService(
         if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
             return ErrorHelper.EtagNonMatching<PresentationManifest>();
-        }
-        
-        var hasAsset = request.PresentationManifest.PaintedResources.HasAsset();
-        var noBatches = existingManifest.Batches.IsNullOrEmpty();
-
-        if (existingManifest.CanvasPaintings?.Count > 0)
-        {
-            if (!hasAsset && !noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithAssetsCannotBeUpdatedWithItems<PresentationManifest>();
-            }
-            
-            if (hasAsset && noBatches)
-            {
-                return ErrorHelper.ManifestCreatedWithItemsCannotBeUpdatedWithAssets<PresentationManifest>();
-            }
         }
 
         var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
@@ -231,17 +207,26 @@ public class ManifestWriteService(
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
-            var hasAssets = PaintedResourcesHasAssets(request);
-            await SaveToS3(dbManifest!, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
+            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
-            return PresUpdateResult.Success(
-                request.PresentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                    await manifestRead.GetAssets(request.CustomerId, dbManifest, cancellationToken)),
-                request.PresentationManifest.PaintedResources.HasAsset() && !dlcsInteractionResult.CanBeBuiltUpfront
-                    ? WriteResult.Accepted
-                    : WriteResult.Updated,
-                dbManifest?.Etag);
+            return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
+                hasAssets, dlcsInteractionResult, WriteResult.Updated, cancellationToken);
         }
+    }
+
+    private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest, 
+        int customerId, DbManifest? dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult, 
+        WriteResult writeResult, CancellationToken cancellationToken)
+    {
+        return PresUpdateResult.Success(
+            presentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
+                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
+            hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
+                ? WriteResult.Accepted
+                : writeResult,
+            dbManifest?.Etag);
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
@@ -349,7 +334,7 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+    private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
@@ -361,8 +346,22 @@ public class ManifestWriteService(
         }
         else
         {
+            if (hasAssets)
+            {
+                var canvasPaintings =  dbManifest.CanvasPaintings;
+                
+                if (canvasPaintings is not null)
+                {
+                    iiifManifest.Items =
+                        canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items,
+                            pathRewriteParser);
+                }
+            }
+            
             await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
                 hasAssets, cancellationToken);
         }
+
+        return iiifManifest.Items;
     }
 }

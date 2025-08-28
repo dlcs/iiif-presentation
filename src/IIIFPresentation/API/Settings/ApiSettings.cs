@@ -1,6 +1,7 @@
 ﻿using AWS.Settings;
 using Core.Web;
 using DLCS;
+using Services.Manifests.Settings;
 
 namespace API.Settings;
 
@@ -22,5 +23,5 @@ public class ApiSettings
 
     public required DlcsSettings DLCS { get; set; }
     
-    public TypedPathTemplateOptions PathRules { get; set; } = new ();
+    public PathSettings? PathSettings { get; set; }
 }

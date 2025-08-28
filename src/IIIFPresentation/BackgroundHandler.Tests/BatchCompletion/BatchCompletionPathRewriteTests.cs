@@ -6,6 +6,7 @@ using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
 using Core.Web;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -14,8 +15,11 @@ using Microsoft.Extensions.Options;
 using Models.Database.Collections;
 using Models.DLCS;
 using Repository;
+using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -32,7 +36,7 @@ public class BatchCompletionPathRewriteTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
-    private readonly BackgroundHandlerSettings backgroundHandlerSettings;
+    private readonly PathSettings backgroundHandlerSettings;
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -46,7 +50,7 @@ public class BatchCompletionPathRewriteTests
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
-        backgroundHandlerSettings = new BackgroundHandlerSettings
+        backgroundHandlerSettings = new PathSettings()
         {
             PresentationApiUrl = new Uri("https://localhost:5000"),
             CustomerPresentationApiUrl = new Dictionary<int, Uri>
@@ -75,15 +79,18 @@ public class BatchCompletionPathRewriteTests
                         ["Canvas"] = "https://base/{customerId}/canvases/{resourceId}",
                     }
                 }
-            },
-            AWS = new AWSSettings(),
+            }
         };
 
-        var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var pathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings)));
         
-        var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
 
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());

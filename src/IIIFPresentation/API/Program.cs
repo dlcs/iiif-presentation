@@ -3,7 +3,6 @@ using API.Auth;
 using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
@@ -19,6 +18,8 @@ using Repository.Paths;
 using Serilog;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -47,7 +48,9 @@ builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
-var typedPathTemplateOptions = builder.Configuration.GetSection(TypedPathTemplateOptions.SettingsName);
+var pathSettings = builder.Configuration.GetSection(PathSettings.SettingsName);
+builder.Services.Configure<PathSettings>(pathSettings);
+var typedPathTemplateOptions = pathSettings.GetSection(TypedPathTemplateOptions.SettingsName);
 builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
@@ -72,6 +75,8 @@ builder.Services
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
+    .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()

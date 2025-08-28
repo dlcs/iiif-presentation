@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using Amazon.S3;
-using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using DLCS.API;
@@ -154,7 +153,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -242,7 +241,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -1358,7 +1357,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_BadRequest_WhenManifestWithoutBatchIsUpdatedWithAssets()
+    public async Task UpdateManifest_UpdatesManifest_WhenManifestWithoutBatchIsUpdatedWithAssets()
     {
         // Arrange
         var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
@@ -1367,6 +1366,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             canvasPaintings: [new CanvasPainting { Id = canvasId, CanvasOrder = 1, }]);
         await dbContext.SaveChangesAsync();
 
+        var batchId = TestIdentifiers.BatchId();
         var payload = $$"""
                          {
                              "type": "Manifest",
@@ -1376,7 +1376,8 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                                  {
                                      "asset": {
                                          "id": "{{assetId}}",
-                                         "mediaType": "image/jpg"
+                                         "mediaType": "image/jpg",
+                                         "batch": "{{batchId}}"
                                      }
                                  }
                              ] 
@@ -1391,11 +1392,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-
-        error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithItemsCannotBeUpdatedWithAssets");
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
     
     [Fact]
@@ -2177,8 +2174,12 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
-        responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>().Height.Should()
+        var firstItem = responseManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>().Body.As<Image>();
+        
+        firstItem.Height.Should()
             .Be(100, "Generated immediately");
+        firstItem.Id.Should()
+            .Be($"https://dlcs.test/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}_1/full/100,100/0/default.jpg", "Generated immediately");
         
         var dbManifest = dbContext.Manifests
             .Include(m => m.CanvasPaintings)

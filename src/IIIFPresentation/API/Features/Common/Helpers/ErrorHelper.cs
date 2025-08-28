@@ -53,10 +53,10 @@ public static class ErrorHelper
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
     
-    public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
+    public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)
         where T : JsonLdBase
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "Error creating DLCS space", ModifyCollectionType.ErrorCreatingSpace, WriteResult.Error);
+            message, ModifyCollectionType.DlcsError, WriteResult.Error);
 
     public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
         where T : JsonLdBase
@@ -104,16 +104,6 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithItemsCannotBeUpdatedWithAssets<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using items cannot be updated with assets",
-            ModifyCollectionType.ManifestCreatedWithItemsCannotBeUpdatedWithAssets, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithAssetsCannotBeUpdatedWithItems<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using assets cannot be updated with items",
-            ModifyCollectionType.ManifestCreatedWithAssetsCannotBeUpdatedWithItems, WriteResult.BadRequest);
 
     private static string CollectionType(bool isStorageCollection)
     {

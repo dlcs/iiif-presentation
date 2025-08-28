@@ -83,6 +83,15 @@ public static class ManifestTestCreatorX
     }
     
     public static GenerateCanvasPaintingsOptions WithCanvasPainting(this GenerateCanvasPaintingsOptions options,
+        string id)
+    {
+        options.GenerateCanvasPaintingOptions ??= [];
+        var canvasPainting = new GenerateCanvasPaintingOptions { Id = id };
+        options.GenerateCanvasPaintingOptions.Add(canvasPainting);
+        return options;
+    }
+    
+    public static GenerateCanvasPaintingsOptions WithCanvasPainting(this GenerateCanvasPaintingsOptions options,
         string id, Action<GenerateCanvasPaintingOptions> configure)
     {
         options.GenerateCanvasPaintingOptions ??= [];
@@ -173,6 +182,16 @@ public class ManifestTestCreator
         return idList.Select(id => new CanvasPainting
         {
             Id = id + $"_{Guid.NewGuid()}", AssetId = id, CanvasOrder = canvasOrder++, Ingesting = true,
+            Label = new("canvasPaintingLabel", "generated canvas painting label")
+        }).ToList();
+    }
+    
+    public static List<CanvasPainting> GenerateCanvasPaintings(params Uri[] canvasOriginalIdList)
+    {
+        var canvasOrder = 0;
+        return canvasOriginalIdList.Select(id => new CanvasPainting
+        {
+            Id = id + $"_{Guid.NewGuid()}", CanvasOriginalId = id, CanvasOrder = canvasOrder++, Ingesting = true,
             Label = new("canvasPaintingLabel", "generated canvas painting label")
         }).ToList();
     }

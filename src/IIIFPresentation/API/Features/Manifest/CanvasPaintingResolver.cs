@@ -274,8 +274,8 @@ public class CanvasPaintingResolver(
         catch (CanvasPaintingMergerException cpMergeError)
         {
             logger.LogDebug(cpMergeError,
-                "canvas painting merge exception encountered in {ManifestId} for original id {OriginalId} - expected: {Expected}, actual: {Actual}",
-                presentationManifest.Id, cpMergeError.CanvasOriginalId, cpMergeError.Expected, cpMergeError.Actual);
+                "canvas painting merge exception encountered in {ManifestId} for id {Id} - expected: {Expected}, actual: {Actual}",
+                presentationManifest.Id, cpMergeError.Id, cpMergeError.Expected, cpMergeError.Actual);
             return (ErrorHelper.ErrorMergingPaintedResourcesWithItems<PresentationManifest>(cpMergeError.Message), null);
         }
     }

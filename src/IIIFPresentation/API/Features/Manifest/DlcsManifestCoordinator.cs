@@ -40,6 +40,34 @@ public class DlcsManifestCoordinator(
     IManagedAssetResultFinder knownAssetChecker,
     ILogger<DlcsManifestCoordinator> logger)
 {
+    public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, Models.Database.Collections.Manifest? dbManifest,
+        CancellationToken cancellationToken)
+    {
+        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
+            .OfType<string>().ToArray();
+
+        if (assetIds == null) return null;
+
+        try
+        {
+            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds, cancellationToken);
+
+            return assets.Select(a => (asset: a,
+                    id: a.TryGetValue(AssetProperties.FullId, out var value) && value.Type == JTokenType.String
+                        ? value.Value<string>()
+                        : null))
+                .Where(tuple => tuple.id is { Length: > 0 })
+                .ToDictionary(tuple => tuple.id!, tuple => tuple.asset);
+        }
+        catch (DlcsException dlcsException)
+        {
+            logger.LogError(dlcsException, "Error retrieving selected asset details for Customer {CustomerId}",
+                customerId);
+
+            return null;
+        }
+    }
+    
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
@@ -81,7 +109,8 @@ public class DlcsManifestCoordinator(
                 spaceId = await CreateSpace(request.CustomerId, manifestId, cancellationToken);
                 if (!spaceId.HasValue)
                 {
-                    return DlcsInteractionResult.Fail(ErrorHelper.ErrorCreatingSpace<PresentationManifest>());
+                    return DlcsInteractionResult.Fail(
+                        ErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
                 }
 
                 // you wanted a space, and there are no assets, so no further work required
@@ -159,7 +188,7 @@ public class DlcsManifestCoordinator(
     {
         if (dbManifest == null) return;
 
-        var canvasPaintingsInDatabase = dbManifest.CanvasPaintings ?? [];
+        var canvasPaintingsInDatabase = (dbManifest.CanvasPaintings ?? []).Where(cp => cp.AssetId != null);
         var assetIds = assets.Select(a => a.GetAssetId(dbManifest.CustomerId));
 
         var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)).ToList();

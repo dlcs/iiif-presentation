@@ -140,6 +140,7 @@ public static class CanvasPaintingX
         canvasPainting.Modified = DateTime.UtcNow;
         canvasPainting.AssetId = updated.AssetId;
         canvasPainting.Ingesting = updated.Ingesting;
+        canvasPainting.CanvasOriginalId = updated.CanvasOriginalId;
         if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
         return canvasPainting;
     } 

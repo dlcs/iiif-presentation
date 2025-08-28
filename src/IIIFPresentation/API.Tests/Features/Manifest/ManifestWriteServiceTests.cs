@@ -3,6 +3,7 @@ using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
+using DLCS;
 using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
@@ -18,6 +19,8 @@ using Repository;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Sqids;
 using Test.Helpers;
 using Test.Helpers.Helpers;
@@ -49,18 +52,18 @@ public class ManifestWriteServiceTests
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
         
-        var manifestItemsParser = new ManifestItemsParser(presentationGenerator, new NullLogger<ManifestItemsParser>());
-        
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
+
+        var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
+            Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://base")}), new NullLogger<ManifestItemsParser>());
+        
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
             new NullLogger<ManifestPaintedResourceParser>());
 
-        var canvasPaintingMerger = new CanvasPaintingMerger();
+        var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
         var canvasPaintingResolver = new CanvasPaintingResolver(identityManager, manifestItemsParser,
             manifestPaintedResourceParser, canvasPaintingMerger, new NullLogger<CanvasPaintingResolver>());
-
-        var manifestRead = A.Fake<IManifestRead>();
 
         var dlcsClient = A.Fake<IDlcsApiClient>();
         var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
@@ -71,10 +74,18 @@ public class ManifestWriteServiceTests
         var parentSlugParser = A.Fake<IParentSlugParser>();
 
         var manifestStorageManager = A.Fake<IManifestStorageManager>();
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://presentation.api"),
+            PathRules = PathRewriteOptions.Default
+        })));
 
         sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
-            new TestPathGenerator(presentationGenerator), manifestRead, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, new NullLogger<ManifestWriteService>());
+            new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
+            manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.CustomerId == Customer && x.Id == RootCollection.Id);
@@ -118,7 +129,8 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId"
+                        CanvasId = "someCanvasId",
+                        CanvasOrder = 1
                     }
                 }
             ]
@@ -137,6 +149,48 @@ public class ManifestWriteServiceTests
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
+    }
+    
+    [Fact]
+    public async Task Create_FailsToCreateManifest_WhenCanvasNotIdNotMatched()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest()
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/additionalSlug/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = canvasId
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be($"The canvas ID additionalSlug/{canvasId} is invalid");
     }
     
     [Fact]
@@ -166,8 +220,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
-                        CanvasOriginalId = $"https://base/0/canvases/{canvasId}",
+                        CanvasId = canvasId,
                         CanvasOrder = 20,
                         CanvasLabel = new LanguageMap("some", "different label")
                     }
@@ -182,7 +235,7 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"canvas painting with original id https://base/0/canvases/{canvasId} does not have a matching canvas label");
+        ingestedManifest.Error.Should().Be($"Canvas painting with id {canvasId} does not have a matching canvas label");
     }
     
     [Fact]
@@ -212,7 +265,8 @@ public class ManifestWriteServiceTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId",
-                        CanvasOriginalId = "beta"
+                        CanvasOriginalId = "beta",
+                        CanvasOrder = 1
                     }
                 }
             ]
@@ -250,7 +304,7 @@ public class ManifestWriteServiceTests
             [
                 new Canvas()
                 {
-                    Id = "alpha"
+                    Id = canvasId
                 }
             ],
             PaintedResources =
@@ -260,8 +314,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
-                        CanvasOriginalId = "alpha"
+                        CanvasId = canvasId
                     }
                 }
             ]
@@ -280,5 +333,47 @@ public class ManifestWriteServiceTests
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(1);
+    }
+    
+    [Fact]
+    public async Task Create_SuccessfullyCreatesManifest_WhenPaintedResourcesFromGenerated()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId"
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items.First().Id.Should().Be(
+            $"https://presentation.api/{Customer}/canvases/someCanvasId",
+            "item id set from settings based path generator");
+        ingestedManifest.Entity.PublicId.Should().Be($"https://localhost:5000/{Customer}/{slug}", 
+            "public id set from config based path generator");
     }
 }

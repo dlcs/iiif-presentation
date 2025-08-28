@@ -31,7 +31,8 @@ public interface IManifestMerger
         List<CanvasPainting>? canvasPaintings);
 }
 
-public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger> logger) : IManifestMerger
+public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
+    ILogger<ManifestMerger> logger) : IManifestMerger
 {
     /// <summary>
     /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the
@@ -65,20 +66,12 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
-        if (namedQueryManifest?.Items == null)
+        if (namedQueryManifest?.Items == null && baseManifest.Items.IsNullOrEmpty())
         {
             logger.LogWarning("NamedQuery Manifest '{ManifestId}' null or missing items",
                 namedQueryManifest?.Id ?? "no-id");
             throw new ArgumentNullException("namedQueryManifest.Items");
         }
-        
-        if (baseManifest.Items.IsNullOrEmpty()) return;
-        
-        // Safety check - this is temporary. The Manifest comes from the staging area and should contain no items.
-        // this will change in the future but this check ensures we don't do that without making changes
-        logger.LogWarning("BaseManifest for for manifest {ManifestId} contains Items!", baseManifest.Id);
-        throw new InvalidOperationException(
-            $"{baseManifest.Id} contains items. Generating manifest from paintedResources with items is not currently supported");
     }
 
     private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
@@ -102,9 +95,6 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
     private void BuildItems(Manifest baseManifest, List<CanvasPainting> canvasPaintings, 
         Dictionary<AssetId, Canvas> canvasDictionary)
     {
-        // Ensure collection non-null
-        baseManifest.Items ??= [];
-        
         // Get the canvasPaintings in the order we want to process them (Canvas => Choice) but group by CanvasId as
         // canvases with differing orders can share an id
         var canvasGrouping = canvasPaintings
@@ -114,6 +104,16 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
         
         logger.LogDebug("Processing {CanvasCount} canvases on Manifest {ManifestId}", canvasGrouping.Count,
             baseManifest.Id);
+
+        var items = new List<Canvas>();
+        
+        // dictionary where the key will either be the canvasOriginalId OR the canvasPainting id which is used
+        // to provide a fast match between the canvas and the canvasPainting record
+        var manifestCanvasDictionary = baseManifest.Items?.ToDictionary(
+            // customer id must be the same across all canvas paintings
+            key => pathRewriteParser.ParsePathWithRewrites(key.Id, canvasPaintings.First().CustomerId).Resource ??
+                   key.Id!,
+            val => val) ?? new Dictionary<string, Canvas>();
         
         // Each grouping provides an 'instruction' on how to paint the CanvasPaintings onto canvas.
         // All canvasPaintings in single grouping will be on single canvas
@@ -123,27 +123,47 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
             logger.LogTrace("Processing {CanvasId}. SingleItem: {SingleItemCanvas}", canvasInstruction.Key,
                 singleItemCanvas);
 
-            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, singleItemCanvas);
-            baseManifest.Items.Add(canvas);
+            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, manifestCanvasDictionary, singleItemCanvas);
+
+            items.Add(canvas);
         }
+        
+        baseManifest.Items = items;
     }
 
     private Canvas GenerateCanvas(Dictionary<AssetId, Canvas> canvasDictionary,
-        IGrouping<string, CanvasPainting> canvasInstruction, bool singleItemCanvas)
+        IGrouping<string, CanvasPainting> canvasInstruction, Dictionary<string, Canvas> manifestCanvasDictionary, bool singleItemCanvas)
     {
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
-
-        // Instantiate a new Canvas, this is what we are building
-        var canvas = new Canvas { Id = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas), };
-
+        
+        if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
+        {
+            return manifestCanvasDictionary.Values.First(i =>
+                i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
+        }
+        
+        // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
+        // Check to see if we can use an existing Canvas, falling back to creating a new one
+        var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
+        if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
+        {
+            canvas = new Canvas { Id = canvasId };
+        }
+        
+        // modifies the id to match the rewritten path from settings
+        else if (canvas.Id != canvasId)
+        {
+            canvas.Id = canvasId;
+        }
+        
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
         var annoPage = new AnnotationPage
         {
             Id = pathGenerator.GenerateAnnotationPagesId(firstCanvasPaintingInCanvas),
             Items = []
         };
-        
+
         // Iterate through the canvasPaintings to be rendered on this Canvas. Group by CanvasOrder as:
         // multiple orders can share an Id (for composite)
         // each CanvasOrder might have multiple items (for choice) 
@@ -154,9 +174,10 @@ public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger
                 canvasOrderCount);
 
             var isChoice = canvasOrderCount > 1;
+            
             var currentPaintingAnno = new PaintingAnnotation
             {
-                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()),
+                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()) 
             };
 
             if (!isChoice)
