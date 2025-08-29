@@ -25,19 +25,7 @@ public class ManifestItemsParserTests
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
-        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
-        {
-            ApiUri = new Uri("https://dlcs.api")
-        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
-        {
-            PresentationApiUrl = new Uri("https://localhost:5000"),
-            CustomerPresentationApiUrl = new Dictionary<int, Uri>()
-            {
-                {2,new Uri("https://foo.com")}
-            },
-            PathRules = PathRewriteOptions.Default
-        })));
-        var pathSettings = new PathSettings()
+        var pathSettings = new PathSettings
         {
             PresentationApiUrl = new Uri("https://localhost:7230"), CustomerPresentationApiUrl =
                 new Dictionary<int, Uri>
@@ -974,6 +962,13 @@ public class ManifestItemsParserTests
                 }
             ]
         }
+    ],
+    ""paintedResources"": [
+        {
+             ""canvasPainting"": {
+                 ""canvasId"": ""shortCanvas""
+             }
+        }
     ]
 }";
         var expected = new List<CanvasPainting>
@@ -982,6 +977,70 @@ public class ManifestItemsParserTests
             {
                 Id = "shortCanvas",
                 CanvasOriginalId = new Uri("http://base/123/canvases/shortCanvas"),
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null
+            }
+        };
+        
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
+        
+        // Act
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData("https://localhost:7230/canvases/doesNotMatch")]
+    [InlineData("https://localhost:7230/1/canvases/withInvalidCharacter,")]
+    public async Task Parse_DoesNotThrowError_WhenRecognisedHostInCanvasIdDoesNotMatch(string canvasId)
+    {
+        // Arrange
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
+    ""type"": ""Manifest"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""{canvasId}/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""{canvasId}/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""{canvasId}/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }}
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}
+";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = null,
+                CanvasOriginalId = new Uri(canvasId),
                 StaticWidth = 1200,
                 StaticHeight = 1800,
                 CanvasOrder = 0,

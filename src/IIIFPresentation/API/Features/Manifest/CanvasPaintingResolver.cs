@@ -246,7 +246,7 @@ public class CanvasPaintingResolver(
         {
             logger.LogDebug(cpId, "InvalidCanvasId '{CanvasId}' encountered in {ManifestId}", cpId.CanvasId,
                 presentationManifest.Id);
-            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId), null);
+            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
         }
     } 
     
@@ -269,7 +269,7 @@ public class CanvasPaintingResolver(
         catch (InvalidCanvasIdException cpId)
         {
             logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
-            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId), null);
+            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
         }
         catch (CanvasPaintingMergerException cpMergeError)
         {

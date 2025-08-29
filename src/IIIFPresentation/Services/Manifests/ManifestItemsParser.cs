@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -30,6 +31,8 @@ public class ManifestItemsParser(
         if (manifest.Items.IsNullOrEmpty()) return [];
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", manifest.Id);
+
+        var canvasPaintingsFromManifest = manifest.PaintedResources?.Select(pr => pr.CanvasPainting).ToList();
         
         var canvasPaintings = new List<CanvasPainting>(manifest.Items.Count);
         int canvasOrder = 0;
@@ -43,7 +46,7 @@ public class ManifestItemsParser(
             // in this case, we have an item with no painting annotation, so it could be tracked by a painted resource
             if (canvasPaintingsInCanvas.Count == 0)
             {
-                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer);
+                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer, canvasPaintingsFromManifest);
                 cp.CanvasLabel = canvas.Label;
                 canvasPaintings.Add(cp);
                 canvasOrder++;
@@ -72,7 +75,7 @@ public class ManifestItemsParser(
                         if (resource is Image or Video or Sound)
                         {
                             var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
-                                canvas, customer, choiceOrder);
+                                canvas, customer, canvasPaintingsFromManifest, choiceOrder);
 
                             choiceOrder++;
                             if (first)
@@ -113,7 +116,7 @@ public class ManifestItemsParser(
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, canvasPaintingsFromManifest);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -147,6 +150,7 @@ public class ManifestItemsParser(
         ResourceBase? target,
         Canvas currentCanvas,
         int customerId,
+        List<Models.API.Manifest.CanvasPainting>? canvasPaintings,
         int? choiceOrder = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
@@ -165,7 +169,7 @@ public class ManifestItemsParser(
             cp.StaticHeight = spatial.Height;
         }
 
-        var canvasId = TryGetValidCanvasId(customerId, currentCanvas);
+        var canvasId = TryGetValidCanvasId(customerId, currentCanvas, canvasPaintings);
         if (canvasId != null)
         {
             cp.Id = canvasId;
@@ -174,13 +178,20 @@ public class ManifestItemsParser(
         return cp;
     }
     
-    private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas)
+    private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas, 
+        List<Models.API.Manifest.CanvasPainting>? canvasPaintings)
     {
         if (currentCanvas.Id == null) return null;
 
         if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
         {
-            CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id);
+            currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
+            
+            if (currentCanvas.Id != null && !(canvasPaintings?.Any(cp => cp.CanvasId == currentCanvas.Id) ?? false))
+            {
+                throw new InvalidCanvasIdException(currentCanvas.Id, "Canvas id from items cannot be matched with a painted resource");
+            }
+            
             return currentCanvas.Id;
         }
 
@@ -188,8 +199,11 @@ public class ManifestItemsParser(
         {
             var parsedCanvasId =
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-            CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
-            return parsedCanvasId.Resource;
+
+            var checkedCanvasId =
+                CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
+            
+            return checkedCanvasId;
         }
 
         return null;
