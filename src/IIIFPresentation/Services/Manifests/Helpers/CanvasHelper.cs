@@ -1,4 +1,5 @@
 ﻿using Core.Exceptions;
+using Microsoft.Extensions.Logging;
 using Repository.Paths;
 
 namespace Services.Manifests.Helpers;
@@ -9,22 +10,37 @@ public static class CanvasHelper
     private static readonly string ProhibitedCharacterDisplay =
         string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
     
-    public static void CheckForProhibitedCharacters(string canvasId)
+    public static string? CheckForProhibitedCharacters<T>(string canvasId, ILogger<T> logger, bool throwException = true)
     {
         if (ProhibitedCharacters.Any(canvasId.Contains))
         {
-            throw new InvalidCanvasIdException(canvasId,
-                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
+            if (throwException)
+            {
+                throw new InvalidCanvasIdException(canvasId,
+                    $"Canvas id contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
+            }
+
+            logger.LogWarning(
+                "Canvas id {CanvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}",
+                canvasId, ProhibitedCharacterDisplay);
+            
+            return null;
         }
+        
+        return canvasId;
     }
     
-    public static void CheckParsedCanvasIdForErrors(PathParts parsedCanvasId, string fullPath)
+    public static string? CheckParsedCanvasIdForErrors<T>(PathParts parsedCanvasId, string fullPath, ILogger<T> logger, bool throwException = true)
     {
         if (string.IsNullOrEmpty(parsedCanvasId.Resource))
         {
-            throw new InvalidCanvasIdException(fullPath);
+            if (throwException)
+            {
+                throw new InvalidCanvasIdException(fullPath);
+            }
+            return null;
         }
-
-        CheckForProhibitedCharacters(parsedCanvasId.Resource);
+        
+        return CheckForProhibitedCharacters(parsedCanvasId.Resource, logger, throwException);
     }
 }
