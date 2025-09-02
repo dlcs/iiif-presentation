@@ -289,7 +289,7 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
-    public async Task Create_ErrorCreatingManifest_WhenShortCanvasIdUsedWithoutMatchingPaintedResource()
+    public async Task Create_CreatesManifestWithRandomlyGeneratedId_WhenShortCanvasIdUsedWithoutMatchingPaintedResource()
     {
         // Arrange
         dynamic asset = new JObject();
@@ -337,8 +337,16 @@ public class ManifestWriteServiceTests
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
 
         // Assert
+        // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be("The canvas id shortCanvas is invalid - Canvas id from items cannot be matched with a painted resource");
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items.First().Id.Should().Be("shortCanvas");
+        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
+        paintedResource.CanvasPainting.StaticWidth.Should().Be(100);
+        paintedResource.CanvasPainting.StaticHeight.Should().Be(100);
+        paintedResource.CanvasPainting.CanvasId.Should().NotBe("shortCanvas");
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
     }
 
     [Fact]

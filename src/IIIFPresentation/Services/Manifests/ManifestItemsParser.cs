@@ -189,7 +189,8 @@ public class ManifestItemsParser(
             
             if (currentCanvas.Id != null && !(canvasPaintings?.Any(cp => cp.CanvasId == currentCanvas.Id) ?? false))
             {
-                throw new InvalidCanvasIdException(currentCanvas.Id, "Canvas id from items cannot be matched with a painted resource");
+                logger.LogDebug("{CanvasId} could not be matched with a painted resource, so will not have the canvas painting id set", currentCanvas.Id);
+                return null;
             }
             
             return currentCanvas.Id;
