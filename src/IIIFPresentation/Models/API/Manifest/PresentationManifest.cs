@@ -51,6 +51,12 @@ public class PaintedResource
     public JObject? Asset { get; set; }
     
     public bool Reingest { get; set; }
+    
+    // Newtonsoft method to stop serialization, but allow deserialization of the reingest property
+    public bool ShouldSerializeReingest()
+    {
+        return false;
+    }
 }
 
 public class CanvasPainting
