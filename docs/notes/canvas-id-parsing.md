@@ -111,7 +111,6 @@ A set of worked examples to try and show the final result, based on the flowchar
 | items | `someId` | `someId`|  `someId` |
 | painted resource | `https://presentation-api.com/1/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
 | items | `https://presentation-api.com/1/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
-| items | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
 | painted resource | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
 | items | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
 | painted resource | `https://presentation-api.com/1/canvas/invalidCharacter=` | not matched |  throws error |
@@ -120,3 +119,9 @@ A set of worked examples to try and show the final result, based on the flowchar
 | items | `https://presentation-api.com/invalidCanvasId` | not matched |  generates id  |
 | painted resource | `https://random.co.uk/someCanvasId` | not matched |  throws error  |
 | items | `https://random.co.uk/someCanvasId` | not matched |  generates id  |
+| painted resource | `https:/customer-base.com/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| painted resource | `someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| painted resource | `https://presentation-api.com/1/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
+| items | `https:/customer-base.com/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| items | `someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| items | `https://presentation-api.com/1/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
