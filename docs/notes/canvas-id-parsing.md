@@ -32,11 +32,17 @@ flowchart TD
     tenth{is the path parsed}
     eleventh{from items}
     twelfth[throw an error]
+    thirteenth{from items}
+    fourteenth{matches painted resource}
 
     first --> second
     second -- yes --> third
     second -- no --> fourth
-    fourth -- no --> fifth
+    fourth -- no --> thirteenth
+    thirteenth -- no --> fifth
+    thirteenth -- yes --> fourteenth
+    fourteenth -- no --> twelfth
+    fourteenth -- yes --> fifth
     fifth -- yes --> eleventh
     fifth -- no --> sixth
     fourth -- yes --> seventh
@@ -61,6 +67,20 @@ The "is recognised host" check depends on the below settings to recognise a host
       "1": "https:/customer-base.com/canvas/someId", // this matches based on the customer id
     }
 ```
+this is then combined with settings from `PathRules` to parse a URI:
+
+```json
+"PathRules": {
+      "Defaults": {
+        "Canvas": "/{customerId}/canvas/{resourceId}"
+      },
+      "Overrides": {
+        "https:/customer-base.com": {
+          "Canvas": "/canvas/{resourceId}"
+        }
+    }
+}
+```
 
 Additionally, in `items`, if the host is matched, but the resource is not, (for example, the API expects `https://presentation-api.com/{customer}/canvas/someId` and receives `https://presentation-api.com/someId`), the API will fallback to generating an id instead of throwing an error.
 
@@ -78,3 +98,25 @@ In addition to how the id is retrieved from the payload itself, `canvasPainting`
 ## Short canvas id
 
 When selecting from a short canvas id, there _must_ be a matching `paintedResource` if the canvas is set using a short canvas.  However, a painted resource can be specified with a short canvas without a matching canvas in `items`.  
+
+## Matching examples
+
+A set of worked examples to try and show the final result, based on the flowchart above
+
+| From      | id     | matched opposite value | final result|
+| ------------- | ------------- | ---- | ---- |
+| painted resource | `someId` | not matched |`someId`|
+| items | `someId` | not matched | throws error |
+| painted resource | `someId` | `someId` | `some id` |
+| items | `someId` | `someId`|  `someId` |
+| painted resource | `https://presentation-api.com/1/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| items | `https://presentation-api.com/1/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
+| items | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
+| painted resource | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
+| items | `https:/customer-base.com/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
+| painted resource | `https://presentation-api.com/1/canvas/invalidCharacter=` | not matched |  throws error |
+| items | `https://presentation-api.com/1/canvas/invalidCharacter=` | not matched |  generates id |
+| painted resource | `https://presentation-api.com/invalidCanvasId` | not matched |  throws error  |
+| items | `https://presentation-api.com/invalidCanvasId` | not matched |  generates id  |
+| painted resource | `https://random.co.uk/someCanvasId` | not matched |  throws error  |
+| items | `https://random.co.uk/someCanvasId` | not matched |  generates id  |
