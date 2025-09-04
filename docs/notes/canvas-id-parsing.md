@@ -125,3 +125,4 @@ A set of worked examples to try and show the final result, based on the flowchar
 | items | `https:/customer-base.com/canvas/someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
 | items | `someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
 | items | `https://presentation-api.com/1/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
+| items | `https://presentation-api.com/1/canvas/someId` | not matched | generates id |
