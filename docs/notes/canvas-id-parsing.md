@@ -34,6 +34,7 @@ flowchart TD
     twelfth[throw an error]
     thirteenth{from items}
     fourteenth{matches painted resource}
+    fifteenth{from items, <br> no painted resource match}
 
     first --> second
     second -- yes --> third
@@ -44,7 +45,9 @@ flowchart TD
     fourteenth -- no --> twelfth
     fourteenth -- yes --> fifth
     fifth -- yes --> eleventh
-    fifth -- no --> sixth
+    fifth -- no --> fifteenth
+    fifteenth -- yes --> third
+    fifteenth -- no --> sixth
     fourth -- yes --> seventh
     seventh -- items --> eighth
     eighth -- no --> third
