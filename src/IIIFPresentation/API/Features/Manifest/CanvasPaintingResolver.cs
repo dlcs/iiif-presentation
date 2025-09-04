@@ -255,11 +255,11 @@ public class CanvasPaintingResolver(
     {
         try
         {
-            var itemsCanvasPaintings =
-                manifestItemsParser.ParseToCanvasPainting(presentationManifest, customerId).ToList();
-
             var paintedResourceCanvasPaintings = manifestPaintedResourceParser
                 .ParseToCanvasPainting(presentationManifest, customerId).ToList();
+            
+            var itemsCanvasPaintings =
+                manifestItemsParser.ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId).ToList();
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);

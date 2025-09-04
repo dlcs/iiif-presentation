@@ -1,4 +1,5 @@
-﻿using Core.IIIF;
+﻿using Core.Exceptions;
+using Core.IIIF;
 using DLCS;
 using FakeItEasy;
 using IIIF.Presentation.V3;
@@ -41,19 +42,19 @@ public class ManifestItemsParserTests
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), 123).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), [],123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, 123).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], 123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfCanvasHasNoAnnotationPages()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, 123).Should().HaveCount(1);
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], 123).Should().HaveCount(1);
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveNoAnnotations()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, 123)
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], 123)
             .Should().HaveCount(1);
 
     [Fact]
@@ -61,7 +62,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
-            }, 123)
+            }, [], 123)
             .Should().HaveCount(1);
 
     [Theory]
@@ -72,14 +73,34 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = host }]
-        }, customerId).Single().Id.Should().Be("foo");
+        }, [ new CanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
     
+    [Fact]
+    public void Parse_ReturnsNullCanvasId_IfCanvasIdValidUriNotMatchedToPaintedResource()
+        => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = "https://localhost:5000/123/canvases/foo" }]
+        }, [], 1).Single().Id.Should().BeNull();
+
+    [Fact]
+    public void Parse_ThrowsError_IfShortCanvasNotMatchedToPaintedResource()
+    {
+        // Act
+        Action action = () => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = "foo" }]
+        }, [], 1);
+        
+        //Assert
+        action.Should().ThrowExactly<InvalidCanvasIdException>().WithMessage("The canvas id is not a valid URI, and cannot be matched with a painted resource");
+    }
+
     [Fact]
     public void Parse_ReturnsCanvasPaintingWithoutId_IfCanvasIdNotRecognised()
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
-        }, 2).Single().Id.Should().BeNull();
+        }, [], 2).Single().Id.Should().BeNull();
     
     [Fact]
     public async Task Parse_Throws_MissingBody()
@@ -117,7 +138,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        Action action = () => sut.ParseToCanvasPainting(deserialised, 123);
+        Action action = () => sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         action.Should().Throw<InvalidOperationException>()
@@ -180,7 +201,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -282,7 +303,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -347,7 +368,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -417,7 +438,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -532,7 +553,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -649,7 +670,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -732,7 +753,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -920,7 +941,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -988,7 +1009,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new CanvasPainting { Id = "shortCanvas" }], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1052,7 +1073,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);

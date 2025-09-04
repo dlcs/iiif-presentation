@@ -289,7 +289,7 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
-    public async Task Create_CreatesManifestWithRandomlyGeneratedId_WhenShortCanvasIdUsedWithoutMatchingPaintedResource()
+    public async Task Create_ThrowsError_WhenShortCanvasIdUsedWithoutMatchingPaintedResource()
     {
         // Arrange
         dynamic asset = new JObject();
@@ -339,14 +339,7 @@ public class ManifestWriteServiceTests
         // Assert
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items.First().Id.Should().Be("shortCanvas");
-        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
-        paintedResource.CanvasPainting.StaticWidth.Should().Be(100);
-        paintedResource.CanvasPainting.StaticHeight.Should().Be(100);
-        paintedResource.CanvasPainting.CanvasId.Should().NotBe("shortCanvas");
-        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        ingestedManifest.Error.Should().Be("The canvas id shortCanvas is invalid - The canvas id is not a valid URI, and cannot be matched with a painted resource");
     }
 
     [Fact]
@@ -358,7 +351,7 @@ public class ManifestWriteServiceTests
         var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
 
         asset.id = assetId;
-
+        
         var manifest = new PresentationManifest
         {
             Slug = slug,
@@ -366,28 +359,7 @@ public class ManifestWriteServiceTests
             [
                 new Canvas
                 {
-                    Id = "shortCanvas",
-                    Items =
-                    [
-                        new AnnotationPage
-                        {
-                            Id = "shortCanvas/annopages/0",
-                            Items = 
-                            [
-                                new PaintingAnnotation
-                                {
-                                    Id = "shortCanvas/annotations/0",
-                                    Target = new Canvas { Id = "shortCanvas" },
-                                    Body = new Image
-                                    {
-                                        Id = "shortCanvas/annotations/0/image.png",
-                                        Width = 100,
-                                        Height = 100
-                                    }
-                                }
-                            ]
-                        }
-                    ]
+                    Id = "shortCanvas"
                 }
             ],
             PaintedResources = [
@@ -396,7 +368,8 @@ public class ManifestWriteServiceTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "shortCanvas"
-                    }
+                    },
+                    Asset = asset
                 }
             ]
         };
@@ -410,10 +383,9 @@ public class ManifestWriteServiceTests
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
         ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items.First().Id.Should().Be("shortCanvas");
+        ingestedManifest.Entity.Items.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
         var paintedResource = ingestedManifest.Entity.PaintedResources.First();
-        paintedResource.CanvasPainting.StaticWidth.Should().Be(100);
-        paintedResource.CanvasPainting.StaticHeight.Should().Be(100);
-        paintedResource.CanvasPainting.CanvasOriginalId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        paintedResource.CanvasPainting.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
     }
 }

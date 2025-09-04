@@ -22,17 +22,16 @@ public class ManifestItemsParser(
     IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
     IOptions<PathSettings> options,
-    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+    ILogger<ManifestItemsParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
-    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
+    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
+        List<CanvasPainting> paintedResourceCanvasPainting, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", manifest.Id);
-
-        var canvasPaintingsFromManifest = manifest.PaintedResources?.Select(pr => pr.CanvasPainting).ToList();
         
         var canvasPaintings = new List<CanvasPainting>(manifest.Items.Count);
         int canvasOrder = 0;
@@ -46,7 +45,7 @@ public class ManifestItemsParser(
             // in this case, we have an item with no painting annotation, so it could be tracked by a painted resource
             if (canvasPaintingsInCanvas.Count == 0)
             {
-                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer, canvasPaintingsFromManifest);
+                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer, paintedResourceCanvasPainting);
                 cp.CanvasLabel = canvas.Label;
                 canvasPaintings.Add(cp);
                 canvasOrder++;
@@ -75,7 +74,7 @@ public class ManifestItemsParser(
                         if (resource is Image or Video or Sound)
                         {
                             var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
-                                canvas, customer, canvasPaintingsFromManifest, choiceOrder);
+                                canvas, customer, paintedResourceCanvasPainting, choiceOrder);
 
                             choiceOrder++;
                             if (first)
@@ -116,7 +115,7 @@ public class ManifestItemsParser(
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, canvasPaintingsFromManifest);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, paintedResourceCanvasPainting);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -150,7 +149,7 @@ public class ManifestItemsParser(
         ResourceBase? target,
         Canvas currentCanvas,
         int customerId,
-        List<Models.API.Manifest.CanvasPainting>? canvasPaintings,
+        List<CanvasPainting>? paintedResourceCanvasPaintings,
         int? choiceOrder = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
@@ -169,7 +168,7 @@ public class ManifestItemsParser(
             cp.StaticHeight = spatial.Height;
         }
 
-        var canvasId = TryGetValidCanvasId(customerId, currentCanvas, canvasPaintings);
+        var canvasId = TryGetValidCanvasId(customerId, currentCanvas, paintedResourceCanvasPaintings);
         if (canvasId != null)
         {
             cp.Id = canvasId;
@@ -179,7 +178,7 @@ public class ManifestItemsParser(
     }
     
     private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas, 
-        List<Models.API.Manifest.CanvasPainting>? canvasPaintings)
+        List<CanvasPainting>? paintedResourceCanvasPaintings)
     {
         if (currentCanvas.Id == null) return null;
 
@@ -187,10 +186,9 @@ public class ManifestItemsParser(
         {
             currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
             
-            if (currentCanvas.Id != null && !(canvasPaintings?.Any(cp => cp.CanvasId == currentCanvas.Id) ?? false))
+            if (currentCanvas.Id != null && !(paintedResourceCanvasPaintings?.Any(cp => cp.Id == currentCanvas.Id) ?? false))
             {
-                logger.LogDebug("{CanvasId} could not be matched with a painted resource, so will not have the canvas painting id set", currentCanvas.Id);
-                return null;
+                throw new InvalidCanvasIdException(currentCanvas.Id, "The canvas id is not a valid URI, and cannot be matched with a painted resource");
             }
             
             return currentCanvas.Id;
@@ -203,6 +201,12 @@ public class ManifestItemsParser(
 
             var checkedCanvasId =
                 CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
+            
+            // cannot match up with a painted resource, so don't set the canvas id
+            if (!(paintedResourceCanvasPaintings?.Any(cp => cp.Id == checkedCanvasId) ?? false))
+            {
+                return null;
+            }
             
             return checkedCanvasId;
         }

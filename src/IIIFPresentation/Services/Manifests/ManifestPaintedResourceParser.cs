@@ -15,7 +15,7 @@ namespace Services.Manifests;
 public class ManifestPaintedResourceParser(
     IPathRewriteParser pathRewriteParser, 
     IPresentationPathGenerator presentationPathGenerator,
-    ILogger<ManifestPaintedResourceParser> logger) : ICanvasPaintingParser
+    ILogger<ManifestPaintedResourceParser> logger)
 {
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
