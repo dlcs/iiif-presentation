@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -7,6 +8,7 @@ using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.Database;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
@@ -21,11 +23,12 @@ public class ManifestItemsParser(
     IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
     IOptions<PathSettings> options,
-    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+    ILogger<ManifestItemsParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
-    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, int customer)
+    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
+        List<CanvasPainting> paintedResourceCanvasPainting, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
@@ -43,7 +46,7 @@ public class ManifestItemsParser(
             // in this case, we have an item with no painting annotation, so it could be tracked by a painted resource
             if (canvasPaintingsInCanvas.Count == 0)
             {
-                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer);
+                var cp = CreatePartialCanvasPainting(null, canvas.Id, canvasOrder, null, canvas, customer, paintedResourceCanvasPainting);
                 cp.CanvasLabel = canvas.Label;
                 canvasPaintings.Add(cp);
                 canvasOrder++;
@@ -72,7 +75,7 @@ public class ManifestItemsParser(
                         if (resource is Image or Video or Sound)
                         {
                             var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
-                                canvas, customer, choiceOrder);
+                                canvas, customer, paintedResourceCanvasPainting, choiceOrder);
 
                             choiceOrder++;
                             if (first)
@@ -113,7 +116,7 @@ public class ManifestItemsParser(
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, paintedResourceCanvasPainting);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -147,6 +150,7 @@ public class ManifestItemsParser(
         ResourceBase? target,
         Canvas currentCanvas,
         int customerId,
+        List<CanvasPainting>? paintedResourceCanvasPaintings,
         int? choiceOrder = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
@@ -165,7 +169,7 @@ public class ManifestItemsParser(
             cp.StaticHeight = spatial.Height;
         }
 
-        var canvasId = TryGetValidCanvasId(customerId, currentCanvas);
+        var canvasId = TryGetValidCanvasId(customerId, currentCanvas, paintedResourceCanvasPaintings);
         if (canvasId != null)
         {
             cp.Id = canvasId;
@@ -174,13 +178,20 @@ public class ManifestItemsParser(
         return cp;
     }
     
-    private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas)
+    private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas, 
+        List<CanvasPainting>? paintedResourceCanvasPaintings)
     {
         if (currentCanvas.Id == null) return null;
 
         if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
         {
-            CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id);
+            currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
+            
+            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.CanvasPaintingContainsId(currentCanvas.Id))
+            {
+                throw new InvalidCanvasIdException(currentCanvas.Id, "The canvas id is not a valid URI, and cannot be matched with a painted resource");
+            }
+            
             return currentCanvas.Id;
         }
 
@@ -188,8 +199,14 @@ public class ManifestItemsParser(
         {
             var parsedCanvasId =
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-            CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
-            return parsedCanvasId.Resource;
+
+            var checkedCanvasId =
+                CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
+            
+            if (paintedResourceCanvasPaintings.CanvasPaintingContainsId(checkedCanvasId))
+            {
+                return checkedCanvasId;
+            }
         }
 
         return null;

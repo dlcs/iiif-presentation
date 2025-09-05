@@ -1724,7 +1724,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     }
     
     [Fact]
-    public async Task PutFlatId_ReturnsError_WhenCanvasIdNotValid()
+    public async Task PutFlatId_ReturnsCanvasPaintingWithRandomId_WhenCanvasIdNotRecognised()
     {
         // Arrange
         var (slug, id) = TestIdentifiers.SlugResource();
@@ -1750,11 +1750,13 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var responseManifest = await response.ReadAsPresentationResponseAsync<Error>();
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseManifest.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/InvalidCanvasId");
-        responseManifest.Detail.Should().Be($"The canvas ID additionalSlug/{slug} is invalid");
+        var canvasPainting = responseManifest.PaintedResources.First().CanvasPainting;
+        canvasPainting.CanvasId.Split('/').Last().Should().NotBe(slug, "recognised host with unrecognised path");
+        canvasPainting.CanvasOriginalId.Should()
+            .Be($"https://localhost:7230/{Customer}/canvases/additionalSlug/{slug}");
     }
 }

@@ -8,6 +8,8 @@ using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
@@ -152,7 +154,7 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
-    public async Task Create_FailsToCreateManifest_WhenCanvasNotIdNotMatched()
+    public async Task Create_FailsToCreateManifest_WhenCanvasIdNotMatched()
     {
         // Arrange
         dynamic asset = new JObject();
@@ -190,7 +192,7 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"The canvas ID additionalSlug/{canvasId} is invalid");
+        ingestedManifest.Error.Should().Be($"Canvas painting records with the following id's conflict with the order from items - {canvasId}");
     }
     
     [Fact]
@@ -202,7 +204,7 @@ public class ManifestWriteServiceTests
         
         asset.id = assetId;
         
-        var manifest = new PresentationManifest()
+        var manifest = new PresentationManifest
         {
             Slug = slug,
             Items =
@@ -236,55 +238,6 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().Be($"Canvas painting with id {canvasId} does not have a matching canvas label");
-    }
-    
-    [Fact]
-    public async Task Create_SuccessfullyCreatesManifest_WhenShortFormCanvasOriginalId()
-    {
-        // Arrange
-        dynamic asset = new JObject();
-
-        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
-        
-        asset.id = assetId;
-
-        var manifest = new PresentationManifest
-        {
-            Slug = slug,
-            Items =
-            [
-                ManifestTestCreator.Canvas("alpha")
-                    .WithImage()
-                    .Build()
-            ],
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    Asset = asset,
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId",
-                        CanvasOriginalId = "beta",
-                        CanvasOrder = 1
-                    }
-                }
-            ]
-        };
-        
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
-        
-        // Act
-        var ingestedManifest = await sut.Create(request, CancellationToken.None);
-        
-        // Assert
-        ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(2);
-
-        var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
-            .First(x => x.Id == ingestedManifest.Entity.FlatId);
-        dbManifest.CanvasPaintings.Should().HaveCount(2);
     }
     
     [Fact]
@@ -336,44 +289,103 @@ public class ManifestWriteServiceTests
     }
     
     [Fact]
-    public async Task Create_SuccessfullyCreatesManifest_WhenPaintedResourcesFromGenerated()
+    public async Task Create_ThrowsError_WhenShortCanvasIdUsedWithoutMatchingPaintedResource()
     {
         // Arrange
         dynamic asset = new JObject();
 
         var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
-        
+
         asset.id = assetId;
 
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            PaintedResources =
+            Items =
             [
-                new PaintedResource
+                new Canvas
                 {
-                    Asset = asset,
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId"
-                    }
+                    Id = "shortCanvas",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Id = "shortCanvas/annopages/0",
+                            Items = 
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Id = "shortCanvas/annotations/0",
+                                    Target = new Canvas { Id = "shortCanvas" },
+                                    Body = new Image
+                                    {
+                                        Id = "shortCanvas/annotations/0/image.png",
+                                        Width = 100,
+                                        Height = 100
+                                    }
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
         };
-        
+
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
-        
+
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be("The canvas id shortCanvas is invalid - The canvas id is not a valid URI, and cannot be matched with a painted resource");
+    }
+
+    [Fact]
+    public async Task Create_SuccessfullyCreatesManifest_WhenShortCanvasIdUsedWithMatchingCanvasId()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        asset.id = assetId;
         
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "shortCanvas"
+                }
+            ],
+            PaintedResources = [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "shortCanvas"
+                    },
+                    Asset = asset
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
         ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items.First().Id.Should().Be(
-            $"https://presentation.api/{Customer}/canvases/someCanvasId",
-            "item id set from settings based path generator");
-        ingestedManifest.Entity.PublicId.Should().Be($"https://localhost:5000/{Customer}/{slug}", 
-            "public id set from config based path generator");
+        ingestedManifest.Entity.Items.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
+        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
+        paintedResource.CanvasPainting.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
     }
 }

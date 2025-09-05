@@ -15,7 +15,7 @@ namespace Services.Manifests;
 public class ManifestPaintedResourceParser(
     IPathRewriteParser pathRewriteParser, 
     IPresentationPathGenerator presentationPathGenerator,
-    ILogger<ManifestPaintedResourceParser> logger) : ICanvasPaintingParser
+    ILogger<ManifestPaintedResourceParser> logger)
 {
     public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
@@ -93,12 +93,12 @@ public class ManifestPaintedResourceParser(
 
         if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
         {
-            CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId);
+            CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId, logger);
             return canvasPainting.CanvasId;
         }
         
         var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-        CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
+        CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
 
         return parsedCanvasId.Resource;
     }

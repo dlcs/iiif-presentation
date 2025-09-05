@@ -1,4 +1,5 @@
-﻿using Core.IIIF;
+﻿using Core.Exceptions;
+using Core.IIIF;
 using DLCS;
 using FakeItEasy;
 using IIIF.Presentation.V3;
@@ -25,19 +26,7 @@ public class ManifestItemsParserTests
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
-        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
-        {
-            ApiUri = new Uri("https://dlcs.api")
-        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
-        {
-            PresentationApiUrl = new Uri("https://localhost:5000"),
-            CustomerPresentationApiUrl = new Dictionary<int, Uri>()
-            {
-                {2,new Uri("https://foo.com")}
-            },
-            PathRules = PathRewriteOptions.Default
-        })));
-        var pathSettings = new PathSettings()
+        var pathSettings = new PathSettings
         {
             PresentationApiUrl = new Uri("https://localhost:7230"), CustomerPresentationApiUrl =
                 new Dictionary<int, Uri>
@@ -45,26 +34,27 @@ public class ManifestItemsParserTests
                     { 2, new Uri("https://foo.com") }
                 }
         };
-        
-        sut = new ManifestItemsParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+
+        sut = new ManifestItemsParser(pathRewriteParser,
+            new TestPresentationConfigGenerator("http://base", PathRewriteOptions.Default),
             Options.Create(pathSettings), new NullLogger<ManifestItemsParser>());
     }
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), 123).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), [],123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, 123).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], 123).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfCanvasHasNoAnnotationPages()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, 123).Should().HaveCount(1);
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], 123).Should().HaveCount(1);
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveNoAnnotations()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, 123)
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], 123)
             .Should().HaveCount(1);
 
     [Fact]
@@ -72,7 +62,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
-            }, 123)
+            }, [], 123)
             .Should().HaveCount(1);
 
     [Theory]
@@ -83,63 +73,34 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = host }]
-        }, customerId).Single().Id.Should().Be("foo");
+        }, [ new CanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
     
+    [Fact]
+    public void Parse_ReturnsNullCanvasId_IfCanvasIdValidUriNotMatchedToPaintedResource()
+        => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = "https://localhost:5000/123/canvases/foo" }]
+        }, [], 1).Single().Id.Should().BeNull();
+
+    [Fact]
+    public void Parse_ThrowsError_IfShortCanvasNotMatchedToPaintedResource()
+    {
+        // Act
+        Action action = () => sut.ParseToCanvasPainting(new PresentationManifest
+        {
+            Items = [new Canvas { Id = "foo" }]
+        }, [], 1);
+        
+        //Assert
+        action.Should().ThrowExactly<InvalidCanvasIdException>().WithMessage("The canvas id is not a valid URI, and cannot be matched with a painted resource");
+    }
+
     [Fact]
     public void Parse_ReturnsCanvasPaintingWithoutId_IfCanvasIdNotRecognised()
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
-        }, 2).Single().Id.Should().BeNull();
-
-    [Fact]
-    public async Task Parse_Throws_CanvasIdInvalidUri()
-    {
-        // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
-    ""type"": ""Manifest"",
-    ""items"": [
-        {
-            ""id"": ""i-am-not-a-uri"",
-            ""type"": ""Canvas"",
-            ""height"": 1800,
-            ""width"": 1200,
-            ""items"": [
-                {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
-                        {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/png"",
-                                ""height"": 1800,
-                                ""width"": 1200
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1""
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-}";
-        
-        var deserialised = await manifest.ToPresentation<PresentationManifest>();
-         
-        // Act
-        Action action = () => sut.ParseToCanvasPainting(deserialised, 123);
-        
-        // Assert
-        action.Should().Throw<UriFormatException>();
-    }
+        }, [], 2).Single().Id.Should().BeNull();
     
     [Fact]
     public async Task Parse_Throws_MissingBody()
@@ -177,7 +138,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        Action action = () => sut.ParseToCanvasPainting(deserialised, 123);
+        Action action = () => sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         action.Should().Throw<InvalidOperationException>()
@@ -240,7 +201,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -342,7 +303,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -407,7 +368,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -477,7 +438,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -592,7 +553,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -709,7 +670,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -792,7 +753,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -980,8 +941,140 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
 
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public async Task Parse_AcceptsShortCanvasId()
+    {
+        // Arrange
+        var manifest = @"
+{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
+    ""type"": ""Manifest"",
+    ""items"": [
+        {
+            ""id"": ""shortCanvas"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {
+                    ""id"": ""shortCanvas/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {
+                            ""id"": ""shortCanvas/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {
+                                ""id"": ""shortCanvas/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    ""paintedResources"": [
+        {
+             ""canvasPainting"": {
+                 ""canvasId"": ""shortCanvas""
+             }
+        }
+    ]
+}";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "shortCanvas",
+                CanvasOriginalId = new Uri("http://base/123/canvases/shortCanvas"),
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null
+            }
+        };
+        
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
+        
+        // Act
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new CanvasPainting { Id = "shortCanvas" }], 123);
+        
+        // Assert
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData("https://localhost:7230/canvases/doesNotMatch")]
+    [InlineData("https://localhost:7230/1/canvases/withInvalidCharacter,")]
+    public async Task Parse_DoesNotThrowError_WhenRecognisedHostInCanvasIdDoesNotMatch(string canvasId)
+    {
+        // Arrange
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
+    ""type"": ""Manifest"",
+    ""items"": [
+        {{
+            ""id"": ""{canvasId}"",
+            ""type"": ""Canvas"",
+            ""height"": 1800,
+            ""width"": 1200,
+            ""items"": [
+                {{
+                    ""id"": ""{canvasId}/page/p1/1"",
+                    ""type"": ""AnnotationPage"",
+                    ""items"": [
+                        {{
+                            ""id"": ""{canvasId}/annotation/p0001-image"",
+                            ""type"": ""Annotation"",
+                            ""motivation"": ""painting"",
+                            ""body"": {{
+                                ""id"": ""{canvasId}/resources/page1-full.png"",
+                                ""type"": ""Image"",
+                                ""format"": ""image/png"",
+                                ""height"": 1800,
+                                ""width"": 1200
+                            }}
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}
+";
+        var expected = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = null,
+                CanvasOriginalId = new Uri(canvasId),
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 0,
+                ChoiceOrder = null,
+                Target = null
+            }
+        };
+        
+        var deserialised = await manifest.ToPresentation<PresentationManifest>();
+        
+        // Act
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
     }

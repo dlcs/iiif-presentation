@@ -85,9 +85,9 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId) 
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId, string reason) 
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
