@@ -16,9 +16,12 @@ As mentioned above, there are a few formats that will be accepted
 
 ## Basic process
 
-When we receive a canvas id, a series of actions happen to see if we can work out the canvas id based on the given value.  This can be quite complex to follow the logic, so the below flowchart shows the steps taken:
+When we receive a canvas id, a series of actions happen to see if we can work out the canvas id based on the given value.  This can be quite complex to follow the logic, so the below flowcharts show the steps taken. Given there is a difference between how the canvas id is processed from items versus painted resources 
 
 ```mermaid
+---
+title: Items
+---
 flowchart TD
     first[Canvas provided]
     second{is the canvas id null}
@@ -26,38 +29,56 @@ flowchart TD
     fourth{is the canvas id a URI}
     fifth{any invalid characters}
     sixth[use the provided canvas id]
-    seventh{where is this canvas id from?}
-    eighth{is this a recognised host}
-    ninth[parse path with rewrites]
-    tenth{is the path parsed}
-    eleventh{from items}
-    twelfth[throw an error]
-    thirteenth{from items}
-    fourteenth{matches painted resource}
-    fifteenth{from items, <br> no painted resource match}
+    seventh{is this a recognised host}
+    eighth[parse path with rewrites]
+    ninth{is the path parsed}
+    tenth[throw an error]
+    eleventh{matches painted resource}
+    twelfth{matches painted resource}
 
     first --> second
     second -- yes --> third
     second -- no --> fourth
-    fourth -- no --> thirteenth
-    thirteenth -- no --> fifth
-    thirteenth -- yes --> fourteenth
-    fourteenth -- no --> twelfth
-    fourteenth -- yes --> fifth
-    fifth -- yes --> eleventh
-    fifth -- no --> fifteenth
-    fifteenth -- yes --> third
-    fifteenth -- no --> sixth
+    fourth -- no --> eleventh
+    eleventh -- yes --> fifth
+    eleventh -- no --> tenth
+    fifth -- no --> sixth
+    fifth -- yes --> third
     fourth -- yes --> seventh
-    seventh -- items --> eighth
-    eighth -- no --> third
-    eighth -- yes --> ninth
-    seventh -- canvasPaintings --> ninth
-    ninth --> tenth
-    tenth -- no --> eleventh
-    tenth -- yes --> fifth
-    eleventh -- yes --> third
-    eleventh -- no --> twelfth
+    seventh -- no --> third
+    seventh -- yes --> eighth
+    eighth --> ninth
+    ninth -- no --> third
+    ninth -- yes --> twelfth
+    twelfth -- no --> third
+    twelfth -- yes --> fifth
+```
+
+```mermaid
+---
+title: Painted Resources
+---
+flowchart TD
+    first[Canvas provided]
+    second{is the canvas id null}
+    third[generate the canvas id]
+    fourth{is the canvas id a URI}
+    fifth{any invalid characters}
+    sixth[use the provided canvas id]
+    seventh[parse path with rewrites]
+    eighth{is the path parsed}
+    ninth[throw an error]
+
+    first --> second
+    second -- yes --> third
+    second -- no --> fourth
+    fourth -- no --> fifth
+    fifth -- no --> sixth
+    fifth -- yes --> ninth
+    fourth -- yes --> seventh
+    seventh --> eighth
+    eighth -- yes --> fifth
+    eighth -- no --> ninth
 ```
 
 There is a slight difference between the id being parsed from `items` versus `canvasPaintings`, in that `items` has an additional check for "is a recognised host".  This is because `items` needs to be slightly tighter than `canvasPaintings` as the `canvasId` will be _generated_ for the `canvasPainting` table, but the id in the `items`will be left alone, with a `canvasOriginalId` added to the `canvasPainting` record.  This ultimately helps to avoid rejecting payloads that are purely IIIF that have been copied around from another customer.  This check is essentially checking that the passed URL is either the general API URL or the customer specific URL.
@@ -129,3 +150,49 @@ A set of worked examples to try and show the final result, based on the flowchar
 | items | `someId` | `https://presentation-api.com/1/canvas/someId` |  `someId`  |
 | items | `https://presentation-api.com/1/canvas/someId` | `https:/customer-base.com/canvas/someId` |  `someId`  |
 | items | `https://presentation-api.com/1/canvas/someId` | not matched | generates id |
+
+## Combined flowchart
+
+Older flowchart containing both flows, left here for posterity
+
+```mermaid
+flowchart TD
+    first[Canvas provided]
+    second{is the canvas id null}
+    third[generate the canvas id]
+    fourth{is the canvas id a URI}
+    fifth{any invalid characters}
+    sixth[use the provided canvas id]
+    seventh{where is this canvas id from?}
+    eighth{is this a recognised host}
+    ninth[parse path with rewrites]
+    tenth{is the path parsed}
+    eleventh{from items}
+    twelfth[throw an error]
+    thirteenth{from items}
+    fourteenth{matches painted resource}
+    fifteenth{from items, <br> no painted resource match}
+
+    first --> second
+    second -- yes --> third
+    second -- no --> fourth
+    fourth -- no --> thirteenth
+    thirteenth -- no --> fifth
+    thirteenth -- yes --> fourteenth
+    fourteenth -- no --> twelfth
+    fourteenth -- yes --> fifth
+    fifth -- yes --> eleventh
+    fifth -- no --> fifteenth
+    fifteenth -- yes --> third
+    fifteenth -- no --> sixth
+    fourth -- yes --> seventh
+    seventh -- items --> eighth
+    eighth -- no --> third
+    eighth -- yes --> ninth
+    seventh -- canvasPaintings --> ninth
+    ninth --> tenth
+    tenth -- no --> eleventh
+    tenth -- yes --> fifth
+    eleventh -- yes --> third
+    eleventh -- no --> twelfth
+```
