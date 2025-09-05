@@ -8,6 +8,7 @@ using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.Database;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
@@ -186,7 +187,7 @@ public class ManifestItemsParser(
         {
             currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
             
-            if (currentCanvas.Id != null && !(paintedResourceCanvasPaintings?.Any(cp => cp.Id == currentCanvas.Id) ?? false))
+            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.CanvasPaintingContainsId(currentCanvas.Id))
             {
                 throw new InvalidCanvasIdException(currentCanvas.Id, "The canvas id is not a valid URI, and cannot be matched with a painted resource");
             }
@@ -202,13 +203,10 @@ public class ManifestItemsParser(
             var checkedCanvasId =
                 CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
             
-            // cannot match up with a painted resource, so don't set the canvas id
-            if (!(paintedResourceCanvasPaintings?.Any(cp => cp.Id == checkedCanvasId) ?? false))
+            if (paintedResourceCanvasPaintings.CanvasPaintingContainsId(checkedCanvasId))
             {
-                return null;
+                return checkedCanvasId;
             }
-            
-            return checkedCanvasId;
         }
 
         return null;
