@@ -2,6 +2,11 @@
 
 When parsing payloads, the `canvasId` can be used to generate a `paintedResource` `id` record.  This can be accepted either directly from a `paintedResource` `canvasId` and also from `items` `id` of a canvas.  In addition to the 2 locations that we can generate a `canvasId` from, we can accept either a short form (i.e.: just the id itself) or alternatively from a recognised URI.  Finally, this `canvasId` can be used to join a `canvas` declared in `items` with a `canvasPainting` record in order to decorate an asset from the DLCS with additional IIIF.   This document is set to explain the various ways this `canvasId` can be parsed from a payload.
 
+> [!NOTE]
+> - when talking about `canvas`, `items` is also used to mean "a group of canvases"
+> - `paintedResource` means taken from the payload
+> - `canvasPainting` means the database record
+
 ## Accepted formats
 
 As mentioned above, there are a few formats that will be accepted 
@@ -124,7 +129,7 @@ In addition to how the id is retrieved from the payload itself, `paintedResource
 
 ## Short canvas id
 
-When selecting from a short canvas id, there _must_ be a matching `paintedResource` if the canvas is set using a short canvas.  However, a painted resource can be specified with a short canvas without a matching canvas in `items`.  
+When using a short canvas id from `items`, there _must_ be a matching `paintedResource` if the canvas is set using a short canvas.  However, a painted resource can be specified with a short canvas without a matching canvas in `items`.  
 
 ## Matching examples
 
@@ -134,7 +139,7 @@ A set of worked examples to try and show the final result, based on the flowchar
 | ------------- | ------------- | ---- | ---- |
 | painted resource | `someId` | not matched |`someId`|
 | items | `someId` | not matched | throws error |
-| painted resource | `someId` | `someId` | `some id` |
+| painted resource | `someId` | `someId` | `someId` |
 | items | `someId` | `someId`|  `someId` |
 | painted resource | `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
 | items | `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
