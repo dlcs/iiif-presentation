@@ -342,6 +342,7 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront)
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
             request.PresentationManifest.Items = manifest.Items;
         }
         else
