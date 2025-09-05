@@ -39,6 +39,22 @@ public class CanvasHelperTests
         action.Should().ThrowExactly<InvalidCanvasIdException>();
     }
     
+    [Theory]
+    [InlineData('/')]
+    [InlineData('=')]
+    [InlineData(',')]
+    public void CheckForProhibitedCharacters_DoesNotThrowError_WithProhibitedCharactersWithThrowErrorsFalse(char invalidCharacter)
+    {
+        // Arrange
+        var stringToCheck = "invalid" + invalidCharacter;
+
+        // Act
+        var canvasId = CanvasHelper.CheckForProhibitedCharacters(stringToCheck, logger, false);
+
+        // Assert
+        canvasId.Should().BeNull();
+    }
+    
     [Fact]
     public void CheckParsedCanvasIdForErrors_AllowsCanvasId_WithNoProhibitedCharacters()
     {
@@ -68,6 +84,22 @@ public class CanvasHelperTests
         action.Should().ThrowExactly<InvalidCanvasIdException>();
     }
     
+    [Theory]
+    [InlineData('/')]
+    [InlineData('=')]
+    [InlineData(',')]
+    public void CheckParsedCanvasIdForErrors_DoesNotThrowError_WithProhibitedCharactersWhenthrowErrorsFalse(char invalidCharacter)
+    {
+        // Arrange
+        var pathPartsToCheck = new PathParts(1, "invalid" + invalidCharacter, false);
+
+        // Act
+        var canvasId =  CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
+
+        // Assert
+        canvasId.Should().BeNull();
+    }
+    
     [Fact]
     public void CheckParsedCanvasIdForErrors_ThrowsError_WhenPathPartsNull()
     {
@@ -79,5 +111,18 @@ public class CanvasHelperTests
 
         // Assert
         action.Should().ThrowExactly<InvalidCanvasIdException>();
+    }
+    
+    [Fact]
+    public void CheckParsedCanvasIdForErrors_DoesNotThrowError_WhenPathPartsNullWithThrowErrorsFalse()
+    {
+        // Arrange
+        var pathPartsToCheck = new PathParts(1, null, false);
+
+        // Act
+        var canvasId = CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
+
+        // Assert
+        canvasId.Should().BeNull();
     }
 }
