@@ -135,29 +135,26 @@ When using a short canvas id from `items`, there _must_ be a matching `paintedRe
 
 A set of worked examples to try and show the final result, based on the flowchart above
 
-| From      | id     | matched opposite value | final result|
-| ------------- | ------------- | ---- | ---- |
-| painted resource | `someId` | not matched |`someId`|
-| items | `someId` | not matched | throws error |
-| painted resource | `someId` | `someId` | `someId` |
-| items | `someId` | `someId`|  `someId` |
-| painted resource | `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| items | `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| painted resource | `https:/customer-base.com/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  |
-| items | `https:/customer-base.com/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  |
-| painted resource | `https://presentation-api.com/1/canvases/invalidCharacter=` | not matched |  throws error |
-| items | `https://presentation-api.com/1/canvases/invalidCharacter=` | not matched |  generates id |
-| painted resource | `https://presentation-api.com/invalidCanvasId` | not matched |  throws error  |
-| items | `https://presentation-api.com/invalidCanvasId` | not matched |  generates id  |
-| painted resource | `https://random.co.uk/someCanvasId` | not matched |  throws error  |
-| items | `https://random.co.uk/someCanvasId` | not matched |  generates id  |
-| painted resource | `https:/customer-base.com/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| painted resource | `someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| painted resource | `https://presentation-api.com/1/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  |
-| items | `https:/customer-base.com/canvas/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| items | `someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  |
-| items | `https://presentation-api.com/1/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  |
-| items | `https://presentation-api.com/1/canvases/someId` | not matched | generates id |
+| Painted Resource | Item | Result | Additional Information |
+| ---------------- | ---- | ------ | ---------------------- |
+| `someId` | null | `someId` | |
+| `someId` | `someId` | `someId` | |
+| null | `someId` | throws error | must match a PR record  |
+| `https://presentation-api.com/1/canvases/someId` | null | `someId` | |
+| null | `https://presentation-api.com/1/canvases/someId` | generates id | must match a PR record |
+| `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  | |
+| `https:/customer-base.com/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  | |
+| `https://presentation-api.com/1/canvases/invalidCharacter=` | null |  throws error | |
+| null | `https://presentation-api.com/1/canvases/invalidCharacter=` |  generates id | |
+| `https://presentation-api.com/invalidCanvasId` | null |  throws error  | |
+| null | `https://presentation-api.com/invalidCanvasId` | generates id  | |
+|  `https://random.co.uk/someCanvasId` | null |  throws error  | |
+| null |  `https://random.co.uk/someCanvasId` |  generates id  | |
+| `https:/customer-base.com/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  | |
+| `https://presentation-api.com/1/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  | |
+| `someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  | |
+| `https://presentation-api.com/1/canvases/someId` | `someId` |  `someId`  | |
+
 
 ## Combined flowchart
 
@@ -168,7 +165,7 @@ flowchart TD
     first[Canvas provided]
     second{is the canvas id null}
     third[generate the canvas id]
-    fourth{is the canvas id a URI}
+    fourth{is the canvas id a URI}   
     fifth{any invalid characters}
     sixth[use the provided canvas id]
     seventh{where is this canvas id from?}
