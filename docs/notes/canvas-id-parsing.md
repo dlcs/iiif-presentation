@@ -141,7 +141,7 @@ A set of worked examples to try and show the final result, based on the flowchar
 | `someId` | `someId` | `someId` | |
 | null | `someId` | throws error | must match a PR record  |
 | `https://presentation-api.com/1/canvases/someId` | null | `someId` | |
-| null | `https://presentation-api.com/1/canvases/someId` | generates id | must match a PR record |
+| null | `https://presentation-api.com/1/canvases/someId` | generates id | doesn't match a PR record, so we generate |
 | `https://presentation-api.com/1/canvases/someId` | `https://presentation-api.com/1/canvases/someId` |  `someId`  | |
 | `https:/customer-base.com/canvases/someId` | `https:/customer-base.com/canvases/someId` |  `someId`  | |
 | `https://presentation-api.com/1/canvases/invalidCharacter=` | null |  throws error | |
