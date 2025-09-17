@@ -225,6 +225,55 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
+    public async Task EntityCreationUnderRoot_UpdatesRootCollectionModified_ButNotOthers()
+    {
+        // tests scenario of issue #467
+        
+        const int otherCustomerId = 10; // as per db fixture
+        // Arrange
+        var slug = nameof(EntityCreationUnderRoot_UpdatesRootCollectionModified_ButNotOthers);
+        var collection = new PresentationCollection
+        {
+            Behavior = new List<string>
+            {
+                Behavior.IsPublic,
+                Behavior.IsStorageCollection
+            },
+            Label = new LanguageMap("en", ["test collection"]),
+            Slug = slug,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Thumbnail = [new Image { Id = "some/thumbnail" }],
+            Tags = "some, tags",
+            ItemsOrder = 1,
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        // note the current modified timestamp on this and other customer's root collection
+        var thisCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == Customer && c.Id == RootCollection.Id);
+        var thisCustomerRootModified = thisCustomerRootCollection.Modified;
+        
+        var otherCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
+        var otherCustomerRootModified = otherCustomerRootCollection.Modified; // save to var
+        
+        // make the modyfying call
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        
+        // get after action completed
+        thisCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == Customer && c.Id == RootCollection.Id);
+        otherCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created); // action succeeded
+        thisCustomerRootModified.Should().NotBe(thisCustomerRootCollection.Modified); // it changed
+        otherCustomerRootModified.Should().Be(otherCustomerRootCollection.Modified); // this did not (action on diff customer)
+    }
+    
+    [Fact]
     public async Task CreateCollection_FailsToCreatesCollection_WhenParentIsIIIFCollection()
     {
         var slug = nameof(CreateCollection_CreatesCollection_WhenAllValuesProvided);
