@@ -102,7 +102,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
-        }, [], 2).Single().Id.Should().BeNull();
+        }, [], 2, EmptyRecognizedDictionary).Single().Id.Should().BeNull();
     
     [Fact]
     public async Task Parse_Throws_MissingBody()
@@ -386,7 +386,7 @@ public class ManifestItemsParserTests
         };
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, 123, recognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, recognizedDictionary);
 
         
         // Assert
