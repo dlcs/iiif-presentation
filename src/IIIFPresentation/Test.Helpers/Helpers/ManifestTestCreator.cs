@@ -6,6 +6,7 @@ using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.Database;
 using Models.DLCS;
+using Services.Manifests.Model;
 
 namespace Test.Helpers.Helpers;
 
@@ -71,6 +72,9 @@ public static class ManifestTestCreatorX
 
     public static List<CanvasPainting> Build(this GenerateCanvasPaintingsOptions options) => 
         ManifestTestCreator.GenerateCanvasPaintings(options);
+    
+    public static List<InterimCanvasPainting> BuildInterim(this GenerateCanvasPaintingsOptions options) => 
+        ManifestTestCreator.GenerateInterimCanvasPaintings(options);
     
     public static GenerateCanvasPaintingOptions WithCanvasChoiceOrder(this GenerateCanvasPaintingOptions options, 
         int canvasOrder, int choiceOrder)
@@ -163,6 +167,38 @@ public class ManifestTestCreator
             ChoiceOrder = cp.ChoiceOrder,
             Label = cp.Label,
             CanvasLabel = cp.CanvasLabel
+        }).ToList();
+    }
+    
+    public static List<InterimCanvasPainting> GenerateInterimCanvasPaintings(GenerateCanvasPaintingsOptions options)
+    {
+        var canvasOrder = 0;
+        return options.GenerateCanvasPaintingOptions.Select(cp =>
+        {
+            int? space = null;
+            string? assetId = null;
+            int? customerId = null;
+            
+            if (cp.AssetId != null)
+            {
+                var convertedAssetId = AssetId.FromString(cp.AssetId);
+                assetId = convertedAssetId.Asset;
+                space = convertedAssetId.Space;
+                customerId = convertedAssetId.Customer;
+            }
+            
+            return new InterimCanvasPainting
+            {
+                Id = cp.Id,
+                AssetId = assetId,
+                CustomerId = customerId ?? 0,
+                Space = space,
+                CanvasOriginalId = cp.CanvasOriginalId != null ? cp.CanvasOriginalId : null,
+                CanvasOrder = cp.CanvasOrder,
+                ChoiceOrder = cp.ChoiceOrder,
+                Label = cp.Label,
+                CanvasLabel = cp.CanvasLabel
+            };
         }).ToList();
     }
     

@@ -8,6 +8,7 @@ using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Model;
 using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
@@ -101,16 +102,19 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -131,25 +135,31 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                CustomerId = CustomerId,
+                Space = DefaultSpace,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace + 1, assetIds[1]),
+                AssetId = assetIds[1],
+                CustomerId = CustomerId,
+                Space = DefaultSpace + 1,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -182,13 +192,15 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
                 StaticWidth = 513,
@@ -197,6 +209,7 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -243,13 +256,15 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
                 StaticWidth = 513,
@@ -257,13 +272,16 @@ public class ManifestPaintedResourceParserTests
                 Thumbnail = new Uri("https://localhost/thumbnail"),
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true
+                Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 CanvasOriginalId = null,
                 Id = "two",
-                AssetId = new AssetId(CustomerId, DefaultSpace + 1, assetIds[1]),
+                AssetId = assetIds[1],
+                Space = DefaultSpace + 1,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 10,
                 StaticWidth = 12,
@@ -271,7 +289,8 @@ public class ManifestPaintedResourceParserTests
                 Thumbnail = new Uri("https://localhost/thumbnail2"),
                 ChoiceOrder = null,
                 Target = null,
-                Ingesting = true
+                Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -320,13 +339,15 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
                 StaticWidth = 513,
@@ -335,12 +356,15 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = 1,
                 Target = null,
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = new AssetId(CustomerId, DefaultSpace + 1, assetIds[1]),
+                AssetId = assetIds[1],
+                Space = DefaultSpace + 1,
+                CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 10,
                 StaticWidth = 12,
@@ -349,6 +373,7 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = 2,
                 Target = null,
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -387,27 +412,33 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 Id = "one",
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = "#xywh=200,2000,200,200",
                 Ingesting = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 Id = "one",
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace + 1, assetIds[1]),
+                AssetId = assetIds[1],
+                Space = DefaultSpace + 1,
+                CustomerId = CustomerId,
                 CanvasOrder = 2,
                 ChoiceOrder = null,
                 Target = "#xywh=0,0,200,200",
                 Ingesting = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         
@@ -490,62 +521,77 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[0]),
+                AssetId = assetIds[0],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 18,
                 ChoiceOrder = null,
                 Ingesting = true,
                 CanvasLabel = new LanguageMap("en", "ms125 9r fragments and multi-spectral"),
                 Label = new LanguageMap("en", "ms125 9r background"),
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[1]),
+                AssetId = assetIds[1],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 19,
                 ChoiceOrder = null,
                 Label = new LanguageMap("en", "ms125 9r fragment 3"),
                 Target = "xywh=800,1000,900,900",
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[2]),
+                AssetId = assetIds[2],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 20,
                 ChoiceOrder = 1,
                 Label = new LanguageMap("en", "ms125 9r fragment 2 natural"),
                 Target = "xywh=300,500,650,900",
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[3]),
+                AssetId = assetIds[3],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 20,
                 ChoiceOrder = 2,
                 Label = new LanguageMap("en", "ms125 9r fragment 2 IR"),
                 Target = "xywh=300,500,650,900",
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = new AssetId(CustomerId, DefaultSpace, assetIds[4]),
+                AssetId = assetIds[4],
+                Space = DefaultSpace,
+                CustomerId = CustomerId,
                 CanvasOrder = 21,
                 ChoiceOrder = null,
                 Label = new LanguageMap("en", "ms125 9r fragment 1"),
                 Target = "xywh=100,100,1000,500",
                 Ingesting = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
         

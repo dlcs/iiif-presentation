@@ -5,6 +5,7 @@ using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -17,12 +18,12 @@ public class ManifestPaintedResourceParser(
     IPresentationPathGenerator presentationPathGenerator,
     ILogger<ManifestPaintedResourceParser> logger)
 {
-    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
+    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
         
         var paintedResources = presentationManifest.PaintedResources;
-        var canvasPaintings = new List<CanvasPainting>();
+        var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
 
@@ -45,26 +46,29 @@ public class ManifestPaintedResourceParser(
         
         return canvasPaintings;
     }
-
-    private CanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
+    
+    private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
         int canvasOrder)
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var assetId = GetAssetIdForAsset(paintedResource.Asset!, customerId);
+        var (space, assetId) = GetCanvasPaintingDetailsForAsset(paintedResource.Asset);
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
-        var cp = new CanvasPainting
+        var cp = new InterimCanvasPainting
         {
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
             AssetId = assetId,
+            Space = space,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,
             Target = payloadCanvasPainting?.Target,
+            CustomerId = customerId,
+            CanvasPaintingType = CanvasPaintingType.PaintedResource,
             CanvasOriginalId = payloadCanvasPainting?.CanvasOriginalId != null ? 
                 CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, payloadCanvasPainting.CanvasOriginalId) 
                 : null,
@@ -103,11 +107,11 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
     
-    private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
+    private static (int? space, string? id) GetCanvasPaintingDetailsForAsset(JObject asset)
     {
         // Read props from Asset - these must be there. If not, throw an exception
-        var space = asset.GetRequiredValue(AssetProperties.Space);
-        var id = asset.GetRequiredValue(AssetProperties.Id);
-        return AssetId.FromString($"{customerId}/{space}/{id}");
+        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var id = asset.GetRequiredValue<string>(AssetProperties.Id);
+        return (space, id);
     }
 }

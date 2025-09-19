@@ -18,8 +18,7 @@ public class ManagedAssetResultFinder(
     /// Checks a presentation manifest to find what assets require further processing by the DLCS
     /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
-        CancellationToken cancellationToken)
+         List<CanvasPainting>? existingCanvasPaintings, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
     {
         logger.LogTrace("Checking for known assets");
         var stopwatch = new Stopwatch();
@@ -41,9 +40,9 @@ public class ManagedAssetResultFinder(
             }
 
             // check if the asset is managed in this manifest
-            if (dbManifest != null)
+            if (existingCanvasPaintings != null)
             {
-                if (dbManifest.CanvasPaintings?.Any(cp => cp.AssetId == assetId) ?? false)
+                if (existingCanvasPaintings.Any(cp => cp.AssetId == assetId))
                 {
                     // set the asset to reingest, otherwise ignore the asset
                     if (paintedResource.Reingest ?? false)
@@ -197,6 +196,6 @@ public interface IManagedAssetResultFinder
 {
     public Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(
         PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
+        List<CanvasPainting>? existingCanvasPaintings, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken);
 }

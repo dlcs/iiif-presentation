@@ -1,18 +1,11 @@
 ﻿using IIIF.Presentation.V3.Strings;
-using Models.Database.Collections;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Models.Database;
 using Models.DLCS;
 
-namespace Models.Database;
+namespace Services.Manifests.Model;
 
-/// <summary>
-/// Table that allows us to express multiple content resources on a Canvas, which may or may not target the full Canvas,
-/// and which may or may not be Choice bodies.
-/// </summary>
-/// <remarks>
-/// CanvasId, CustomerId and ManifestId do not use "required" as they are initially created as partial entities and
-/// hydrated later
-/// </remarks>
-public class CanvasPainting : IIdentifiable, ICloneable
+public class InterimCanvasPainting
 {
     /// <summary>
     /// Unique identifier for canvas on a manifest.
@@ -21,11 +14,6 @@ public class CanvasPainting : IIdentifiable, ICloneable
     /// There can be multiple rows with the same CanvasId and ManifestId (e.g. if there are multiple choices)
     /// </remarks>
     public string Id { get; set; } = null!;
-    
-    /// <summary>
-    /// Id of related manifest
-    /// </summary>
-    public string ManifestId { get; set; } = null!;
     
     /// <summary>
     /// The customer identifier
@@ -79,6 +67,23 @@ public class CanvasPainting : IIdentifiable, ICloneable
     public string? Target { get; set; }
 
     /// <summary>
+    /// Unique identifier for this CanvasPainting object
+    /// </summary>
+    public int CanvasPaintingId { get; set; }
+    
+    public int? Space { get; set; }
+    
+    /// <summary>
+    /// An asset id showing this asset is an internal item
+    /// </summary>
+    public string? AssetId { get; set; }
+    
+    /// <summary>
+    /// Whether the asset is currently being ingested into the DLCS
+    /// </summary>
+    public bool Ingesting { get; set; }
+    
+    /// <summary>
     /// For spatial resources, the width of the resources on the canvas 
     /// </summary>
     public int? StaticWidth { get; set; }
@@ -93,8 +98,6 @@ public class CanvasPainting : IIdentifiable, ICloneable
     /// </summary>
     public double? Duration { get; set; }
     
-    public Manifest? Manifest { get; set; }
-    
     /// <summary>
     /// Created date/time
     /// </summary>
@@ -104,37 +107,43 @@ public class CanvasPainting : IIdentifiable, ICloneable
     /// Last modified date/time
     /// </summary>
     public DateTime Modified { get; set; }
-
-    /// <summary>
-    /// Unique identifier for this CanvasPainting object
-    /// </summary>
-    public int CanvasPaintingId { get; set; }
     
     /// <summary>
-    /// An asset id showing this asset is an internal item
+    /// Where is this canvas painting record from?
     /// </summary>
-    public AssetId? AssetId { get; set; }
-
-    /// <summary>
-    /// Whether the asset is currently being ingested into the DLCS
-    /// </summary>
-    public bool Ingesting { get; set; }
-
-    public CanvasPainting Clone()
-    {
-        return (CanvasPainting)MemberwiseClone();
-    }
-    
-    object ICloneable.Clone() { return Clone(); }
+    public CanvasPaintingType CanvasPaintingType { get; set; }
 }
 
-public static class CanvasPaintingX
+public enum CanvasPaintingType
 {
+    Unknown,
+    /// <summary>
+    /// This canvas painting is driven from items
+    /// </summary>
+    Items,
+    /// <summary>
+    /// This canvas painting is driven from painted resources
+    /// </summary>
+    PaintedResource,
+    /// <summary>
+    /// This canvas painting is a join between painted resources and items
+    /// </summary>
+    Mixed
+}
+
+public static class InterimCanvasPaintingX
+{
+    /// <summary>
+    /// Checks a list of canvas paintings for if they contain a specific id
+    /// </summary>
+    public static bool InterimCanvasPaintingContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
+        canvasPainting?.Any(cp => cp.Id == id) ?? false;
+    
     /// <summary>
     /// Update current object, with values from specified <see cref="CanvasPainting"/>
     /// Modified date is _always_ updated - whether there were changes or not
     /// </summary>
-    public static CanvasPainting UpdateFrom(this CanvasPainting canvasPainting, CanvasPainting updated)
+    public static InterimCanvasPainting UpdateFrom(this InterimCanvasPainting canvasPainting, InterimCanvasPainting updated)
     {
         canvasPainting.Label = updated.Label;
         canvasPainting.CanvasLabel = updated.CanvasLabel;
@@ -152,14 +161,64 @@ public static class CanvasPaintingX
         return canvasPainting;
     } 
 
-    public static void SetAssetsToIngesting(this List<CanvasPainting> canvasPaintings, List<AssetId>? ingestingAssets)
+    public static CanvasPainting ConvertInterimCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
-        if (ingestingAssets == null) return;
+        interimCanvasPainting.Space ??= space;
         
-        foreach (var canvasPainting in ingestingAssets.SelectMany(cp => canvasPaintings.Where(a => a.AssetId == cp)))
+        return new CanvasPainting
         {
-            canvasPainting.Ingesting = true;
-        }
+            Id = interimCanvasPainting.Id,
+            CustomerId = interimCanvasPainting.CustomerId,
+            Label = interimCanvasPainting.Label,
+            CanvasLabel = interimCanvasPainting.CanvasLabel,
+            CanvasOrder = interimCanvasPainting.CanvasOrder,
+            ChoiceOrder = interimCanvasPainting.ChoiceOrder,
+            Thumbnail = interimCanvasPainting.Thumbnail,
+            StaticHeight = interimCanvasPainting.StaticHeight,
+            StaticWidth = interimCanvasPainting.StaticWidth,
+            Created = interimCanvasPainting.Created,
+            Modified = interimCanvasPainting.Modified,
+            Target = interimCanvasPainting.Target,
+            AssetId = interimCanvasPainting is { AssetId: not null, Space: not null } ? 
+                new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.Space.Value, interimCanvasPainting.AssetId) : null,
+            Ingesting = interimCanvasPainting.Ingesting,
+            CanvasOriginalId = interimCanvasPainting.CanvasOriginalId,
+        };
+    }
+    
+    public static List<CanvasPainting> ConvertInterimCanvasPaintings(
+        this List<InterimCanvasPainting> interimCanvasPaintings, int? space)
+    {
+        return interimCanvasPaintings.Select(i =>
+        {
+            if (i.AssetId != null && i.Space == null)
+            {
+                if (space == null)
+                {
+                    throw new ArgumentNullException(nameof(i.Space), $"space of canvas {i.Id} cannot be inferred and cannot be null");
+                }
+                
+                i.Space = space.Value;
+            }
+            
+            return new CanvasPainting
+            {
+                Id = i.Id,
+                CustomerId = i.CustomerId,
+                Label = i.Label,
+                CanvasLabel = i.CanvasLabel,
+                CanvasOrder = i.CanvasOrder,
+                ChoiceOrder = i.ChoiceOrder,
+                Thumbnail = i.Thumbnail,
+                StaticHeight = i.StaticHeight,
+                StaticWidth = i.StaticWidth,
+                Created = i.Created,
+                Modified = i.Modified,
+                Target = i.Target,
+                AssetId = i.AssetId != null ? new AssetId(i.CustomerId, i.Space!.Value, i.AssetId) : null,
+                Ingesting = i.Ingesting,
+                CanvasOriginalId = i.CanvasOriginalId,
+            };
+        }).ToList();
     }
 }
-

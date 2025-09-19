@@ -6,6 +6,7 @@ using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
+using Services.Manifests.Model;
 using Test.Helpers.Helpers;
 
 namespace API.Tests.Features.Manifest;
@@ -33,7 +34,7 @@ public class CanvasPaintingMergerTests
         
         var canvasPaintings = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{id}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{id}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).Build();
+            .WithCanvasPainting($"{id}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources([], canvasPaintings, []);
@@ -52,7 +53,7 @@ public class CanvasPaintingMergerTests
         var canvasPaintings = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{id}_2", cp => cp.WithCanvasChoiceOrder(1, 0))
             .WithCanvasPainting($"{id}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{id}_3", cp => cp.WithCanvasChoiceOrder(0, 1)).Build();
+            .WithCanvasPainting($"{id}_3", cp => cp.WithCanvasChoiceOrder(0, 1)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources([], canvasPaintings, []);
@@ -70,7 +71,7 @@ public class CanvasPaintingMergerTests
         
         var canvasPaintings = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{id}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{id}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).Build();
+            .WithCanvasPainting($"{id}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintings, [], []);
@@ -87,12 +88,12 @@ public class CanvasPaintingMergerTests
         var itemsId = "items";
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemsId}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).Build();
+            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).BuildInterim();
         
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp => cp.WithCanvasChoiceOrder(2, 0))
-            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).Build();
+            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -111,12 +112,12 @@ public class CanvasPaintingMergerTests
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).Build();
+            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).BuildInterim();
         
         var itemsId = "items";
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemsId}_1", cp => cp.WithCanvasChoiceOrder(2, 0))
-            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).Build();
+            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -135,12 +136,12 @@ public class CanvasPaintingMergerTests
         var itemsId = "items";
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemsId}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).Build();
+            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(1, 0)).BuildInterim();
         
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp => cp.WithCanvasChoiceOrder(20, 0))
-            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(30, 0)).Build();
+            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(30, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -159,12 +160,12 @@ public class CanvasPaintingMergerTests
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(2, 0)).Build();
+            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(2, 0)).BuildInterim();
         
         var itemsId = "items";
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemsId}_1", cp => cp.WithCanvasChoiceOrder(1, 0))
-            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).Build();
+            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -182,13 +183,13 @@ public class CanvasPaintingMergerTests
         var itemsId = "items";
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemsId}_1", cp => cp.WithCanvasChoiceOrder(0, 0))
-            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(2, 0)).Build();
+            .WithCanvasPainting($"{itemsId}_2", cp => cp.WithCanvasChoiceOrder(2, 0)).BuildInterim();
         
         // Arrange
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp => cp.WithCanvasChoiceOrder(1, 0))
-            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).Build();
+            .WithCanvasPainting($"{paintedResourceId}_2", cp => cp.WithCanvasChoiceOrder(3, 0)).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -217,7 +218,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_2");
-            }).Build();
+            }).BuildInterim();
 
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
@@ -229,13 +230,15 @@ public class CanvasPaintingMergerTests
             {
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
 
         // Assert
-        merged.First().Id.Should().Be($"{paintedResourceId}_1");
+        var first = merged.First();
+        first.Id.Should().Be($"{paintedResourceId}_1");
+        first.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
         merged.Last().Id.Should().Be($"{paintedResourceId}_2");
     }
     
@@ -256,7 +259,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
@@ -268,7 +271,7 @@ public class CanvasPaintingMergerTests
             {
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
         
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -287,10 +290,10 @@ public class CanvasPaintingMergerTests
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
-            .WithCanvasPainting($"{paintedResourceId}_1").Build();
+            .WithCanvasPainting($"{paintedResourceId}_1").BuildInterim();
 
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
@@ -315,10 +318,10 @@ public class CanvasPaintingMergerTests
             {
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
                 cp.CanvasLabel = new LanguageMap("canvas", "label");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
-            .WithCanvasPainting($"{paintedResourceId}_1").Build();
+            .WithCanvasPainting($"{paintedResourceId}_1").BuildInterim();
 
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [
@@ -347,14 +350,14 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
 
         var canvas = ManifestTestCreator.Canvas($"https://localhost/1/{paintedResourceId}_1").WithImage().Build();
         
@@ -378,7 +381,7 @@ public class CanvasPaintingMergerTests
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
                 cp.CanvasLabel = new LanguageMap("mismatch", "mismatch_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
@@ -386,7 +389,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasLabel = new LanguageMap("mismatch", "mismatch_2");
-            }).Build();
+            }).BuildInterim();
 
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
@@ -411,7 +414,7 @@ public class CanvasPaintingMergerTests
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
                 cp.Label = new LanguageMap("mismatch", "mismatch_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
@@ -419,7 +422,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.Label = new LanguageMap("mismatch", "mismatch_2");
-            }).Build();
+            }).BuildInterim();
 
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
@@ -443,14 +446,14 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
 
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
@@ -474,14 +477,14 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 1;
-            }).Build();
+            }).BuildInterim();
 
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
@@ -505,7 +508,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-            }).Build();
+            }).BuildInterim();
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
@@ -516,7 +519,7 @@ public class CanvasPaintingMergerTests
             {
                 cp.CanvasOrder = 2;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
         
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
@@ -543,7 +546,7 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{itemId}_2");
-            }).Build();
+            }).BuildInterim();
 
         var paintedResourceId = "paintedResource";
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
@@ -555,7 +558,7 @@ public class CanvasPaintingMergerTests
             {
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
-            }).Build();
+            }).BuildInterim();
         
         // Act
         Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);

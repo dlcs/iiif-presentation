@@ -11,6 +11,7 @@ using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -73,7 +74,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = host }]
-        }, [ new CanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
+        }, [ new InterimCanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
     
     [Fact]
     public void Parse_ReturnsNullCanvasId_IfCanvasIdValidUriNotMatchedToPaintedResource()
@@ -185,7 +186,7 @@ public class ManifestItemsParserTests
         }
     ]
 }";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -194,7 +195,8 @@ public class ManifestItemsParserTests
                 StaticHeight = 1800,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
-                Target = null
+                Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
@@ -286,7 +288,7 @@ public class ManifestItemsParserTests
     ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -296,7 +298,8 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
-                Thumbnail = new Uri("https://iiif.io/api/cookbook/recipe/0001-mvm-image/image-example/full/648,1024/0/default.jpg")
+                Thumbnail = new Uri("https://iiif.io/api/cookbook/recipe/0001-mvm-image/image-example/full/648,1024/0/default.jpg"),
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
@@ -352,7 +355,7 @@ public class ManifestItemsParserTests
         }
     ]
 }";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -361,7 +364,8 @@ public class ManifestItemsParserTests
                 StaticHeight = null,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
-                Target = null
+                Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
@@ -422,7 +426,7 @@ public class ManifestItemsParserTests
     ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -431,7 +435,8 @@ public class ManifestItemsParserTests
                 StaticHeight = 360,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
-                Target = null
+                Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
@@ -526,7 +531,7 @@ public class ManifestItemsParserTests
     ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -537,6 +542,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 1,
                 Target = null,
                 Label = new LanguageMap("en", "Natural Light"),
+                CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
             {
@@ -547,6 +553,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 2,
                 Target = null,
                 Label = new LanguageMap("en", "X-Ray"),
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
@@ -642,7 +649,7 @@ public class ManifestItemsParserTests
     ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -653,6 +660,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Label = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
             {
@@ -664,6 +672,7 @@ public class ManifestItemsParserTests
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232",
                 Label = new LanguageMap("fr", "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
                 CanvasLabel = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
 
@@ -737,7 +746,7 @@ public class ManifestItemsParserTests
   ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -747,6 +756,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             },
         };
 
@@ -893,7 +903,7 @@ public class ManifestItemsParserTests
     ]
 }
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -904,6 +914,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Label = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
             {
@@ -915,6 +926,7 @@ public class ManifestItemsParserTests
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232",
                 Label = new LanguageMap("fr", "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
                 CanvasLabel = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
             {
@@ -925,6 +937,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 1,
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=0,0,1091,1232",
                 Label = new LanguageMap("en", "Natural Light"),
+                CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
             {
@@ -935,6 +948,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 2,
                 Target = null,
                 Label = new LanguageMap("en", "X-Ray"),
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
 
@@ -992,7 +1006,7 @@ public class ManifestItemsParserTests
         }
     ]
 }";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -1002,14 +1016,15 @@ public class ManifestItemsParserTests
                 StaticHeight = 1800,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
-                Target = null
+                Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new CanvasPainting { Id = "shortCanvas" }], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], 123);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1056,7 +1071,7 @@ public class ManifestItemsParserTests
     ]
 }}
 ";
-        var expected = new List<CanvasPainting>
+        var expected = new List<InterimCanvasPainting>
         {
             new()
             {
@@ -1066,7 +1081,8 @@ public class ManifestItemsParserTests
                 StaticHeight = 1800,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
-                Target = null
+                Target = null,
+                CanvasPaintingType = CanvasPaintingType.Items
             }
         };
         
