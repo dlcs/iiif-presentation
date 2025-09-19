@@ -97,7 +97,7 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
     }
 
     /// <summary>
-    /// 
+    /// Checks the "host" part of the URI against configured Orchestrator uri host
     /// </summary>
     /// <param name="uri">Asset URI</param>
     /// <returns><c>true</c>if the provided URI's host is recognized orcherstrator id</returns>
