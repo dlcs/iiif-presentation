@@ -3,6 +3,7 @@ using API.Infrastructure.Helpers;
 using Core.Exceptions;
 using DLCS.API;
 using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Traversal;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
@@ -125,14 +126,11 @@ public class ManagedAssetResultFinder(
     public async Task<List<(IPaintable? paintable, AssetId? assetId)>> FindManagedAssets(
         PresentationManifest presentationManifest, int customerId, CancellationToken cancellationToken)
     {
-        var identifiedManagedAssets = presentationManifest.Items?
-            .SelectMany(c => c.Items ?? [])
-            .SelectMany(ap => ap.Items ?? [])
-            .OfType<PaintingAnnotation>()
-            .Select(pa => pa.Body)
+        var identifiedManagedAssets = presentationManifest
+            .AllPaintingAnnoBodies()
             .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customerId)))
             .Where(tuple => tuple.assetId != null)
-            .ToList() ?? [];
+            .ToList();
 
         if (identifiedManagedAssets.Count == 0)
             return [];
