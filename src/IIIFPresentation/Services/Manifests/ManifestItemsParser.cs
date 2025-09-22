@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.Database;
+using Models.DLCS;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
@@ -29,7 +30,7 @@ public class ManifestItemsParser(
     private readonly PathSettings settings = options.Value;
     
     public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
-        List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer)
+        List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer, Dictionary<IPaintable, AssetId> recognizedItemsAssets)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
@@ -60,6 +61,8 @@ public class ManifestItemsParser(
                 var target = painting.Target;
 
                 var body = painting.Body;
+                var assetId = body is not null && recognizedItemsAssets.TryGetValue(body, out var resolvedId) ? resolvedId : null;
+                
                 if (body is PaintingChoice choice)
                 {
                     logger.LogTrace("Canvas {CanvasOrder}:'{CanvasId}' is a choice", canvasOrder, canvas.Id);
@@ -76,7 +79,7 @@ public class ManifestItemsParser(
                         if (resource is Image or Video or Sound)
                         {
                             var cp = CreatePartialCanvasPainting(resource, canvas.Id, choiceCanvasOrder, target,
-                                canvas, customer, paintedResourceCanvasPainting, choiceOrder);
+                                canvas, customer, paintedResourceCanvasPainting, choiceOrder, assetId);
 
                             choiceOrder++;
                             if (first)
@@ -117,7 +120,7 @@ public class ManifestItemsParser(
                             $"Body type '{body}' not supported as painting annotation body");
                     }
 
-                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, paintedResourceCanvasPainting);
+                    var cp = CreatePartialCanvasPainting(resource, canvas.Id, canvasOrder, target, canvas, customer, paintedResourceCanvasPainting, assetId: assetId);
 
                     canvasOrder++;
                     cp.Label = resource.Label ?? painting.Label ?? canvas.Label;
@@ -152,7 +155,8 @@ public class ManifestItemsParser(
         Canvas currentCanvas,
         int customerId,
         List<InterimCanvasPainting>? paintedResourceCanvasPaintings,
-        int? choiceOrder = null)
+        int? choiceOrder = null,
+        AssetId? assetId = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
         var cp = new InterimCanvasPainting
@@ -163,7 +167,7 @@ public class ManifestItemsParser(
             Target = TargetAsString(target, currentCanvas),
             Thumbnail = TryGetThumbnail(currentCanvas),
             CanvasPaintingType = CanvasPaintingType.Items,
-            ImplicitOrder = true
+            ImplicitOrder = true,
         };
         
         if (resource is ISpatial spatial)
@@ -176,6 +180,12 @@ public class ManifestItemsParser(
         if (canvasId != null)
         {
             cp.Id = canvasId;
+        }
+
+        if (assetId != null)
+        {
+            cp.AssetId = assetId.Asset;
+            cp.Space = assetId.Space;
         }
         
         return cp;

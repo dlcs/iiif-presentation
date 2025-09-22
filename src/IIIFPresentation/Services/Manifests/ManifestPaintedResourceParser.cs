@@ -1,4 +1,5 @@
 ﻿using Core.Helpers;
+using IIIF.Presentation.V3.Annotation;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -18,7 +19,8 @@ public class ManifestPaintedResourceParser(
     IPresentationPathGenerator presentationPathGenerator,
     ILogger<ManifestPaintedResourceParser> logger)
 {
-    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
+    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId,
+        Dictionary<IPaintable, AssetId> _)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
         
