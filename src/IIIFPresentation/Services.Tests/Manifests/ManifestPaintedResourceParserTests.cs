@@ -644,7 +644,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }

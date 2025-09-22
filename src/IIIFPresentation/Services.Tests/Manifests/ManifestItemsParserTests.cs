@@ -461,7 +461,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -533,7 +533,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -652,7 +652,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -773,7 +773,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -858,7 +858,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1054,7 +1054,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1124,7 +1124,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], 123, EmptyRecognizedDictionary);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1190,7 +1190,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], 123, EmptyRecognizedDictionary);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);

@@ -174,7 +174,7 @@ public class ManifestWriteService(
             
             var (canvasPaintingsError, interimCanvasPaintings) =
                 await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                    cancellationToken);
+                    recognizedItemsAssets, cancellationToken);
             if (canvasPaintingsError != null) return canvasPaintingsError;
             
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
@@ -242,7 +242,7 @@ public class ManifestWriteService(
             existingManifest.CanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
             
             var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, recognizedItemsAssets, cancellationToken);
+                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
             
             var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
@@ -313,15 +313,9 @@ public class ManifestWriteService(
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, DlcsInteractionResult dlcsInteractionResult,
-        Dictionary<IPaintable, AssetId> recognizedItemsAssets,
         CancellationToken cancellationToken)
     {
-        var presentationManifest = request.PresentationManifest;
-        var canvasPaintingsError = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
-            presentationManifest, existingManifest, recognizedItemsAssets, cancellationToken);
-        if (canvasPaintingsError != null) return (canvasPaintingsError, null);
-        
-        existingManifest.Label = presentationManifest.Label;
+        existingManifest.Label = request.PresentationManifest.Label;
         
         existingManifest.Modified = DateTime.UtcNow;
         existingManifest.ModifiedBy = Authorizer.GetUser();
