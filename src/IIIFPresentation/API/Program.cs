@@ -71,6 +71,7 @@ builder.Services
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
+    .AddSingleton<PaintableAssetIdentifier>()
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
