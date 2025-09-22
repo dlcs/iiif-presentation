@@ -196,6 +196,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -299,6 +300,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Thumbnail = new Uri("https://iiif.io/api/cookbook/recipe/0001-mvm-image/image-example/full/648,1024/0/default.jpg"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -365,6 +367,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -436,6 +439,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -542,6 +546,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 1,
                 Target = null,
                 Label = new LanguageMap("en", "Natural Light"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
@@ -553,6 +558,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 2,
                 Target = null,
                 Label = new LanguageMap("en", "X-Ray"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -660,6 +666,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Label = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
@@ -672,6 +679,7 @@ public class ManifestItemsParserTests
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232",
                 Label = new LanguageMap("fr", "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
                 CanvasLabel = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -756,6 +764,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
         };
@@ -914,6 +923,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Label = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
@@ -926,6 +936,7 @@ public class ManifestItemsParserTests
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232",
                 Label = new LanguageMap("fr", "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
                 CanvasLabel = new LanguageMap("none", "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
@@ -937,6 +948,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 1,
                 Target = "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=0,0,1091,1232",
                 Label = new LanguageMap("en", "Natural Light"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             },
             new()
@@ -948,6 +960,7 @@ public class ManifestItemsParserTests
                 ChoiceOrder = 2,
                 Target = null,
                 Label = new LanguageMap("en", "X-Ray"),
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -1017,6 +1030,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };
@@ -1082,6 +1096,7 @@ public class ManifestItemsParserTests
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.Items
             }
         };

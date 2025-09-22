@@ -163,6 +163,7 @@ public class ManifestItemsParser(
             Target = TargetAsString(target, currentCanvas),
             Thumbnail = TryGetThumbnail(currentCanvas),
             CanvasPaintingType = CanvasPaintingType.Items,
+            ImplicitOrder = true
         };
         
         if (resource is ISpatial spatial)

@@ -38,7 +38,9 @@ public class ManifestPaintedResourceParser(
             }
             
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder);
+            var implicitOrdering = paintedResource.CanvasPainting?.CanvasOrder == null;
+            
+            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder, implicitOrdering);
 
             count++;
             canvasPaintings.Add(cp);
@@ -48,7 +50,7 @@ public class ManifestPaintedResourceParser(
     }
     
     private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
-        int canvasOrder)
+        int canvasOrder, bool implicitOrdering)
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
@@ -76,7 +78,8 @@ public class ManifestPaintedResourceParser(
                 ? null
                 : Uri.TryCreate(payloadCanvasPainting.Thumbnail, UriKind.Absolute, out var thumbnail)
                     ? thumbnail
-                    : null
+                    : null,
+            ImplicitOrder = implicitOrdering
         };
 
         if (specifiedCanvasId != null)

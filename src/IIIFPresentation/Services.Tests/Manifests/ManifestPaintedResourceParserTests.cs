@@ -114,6 +114,7 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
@@ -147,6 +148,7 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
             new()
@@ -159,6 +161,7 @@ public class ManifestPaintedResourceParserTests
                 ChoiceOrder = null,
                 Target = null,
                 Ingesting = false,
+                ImplicitOrder = true,
                 CanvasPaintingType = CanvasPaintingType.PaintedResource
             },
         };
@@ -596,6 +599,53 @@ public class ManifestPaintedResourceParserTests
         };
         
         var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Fact]
+    public void Parse_MultiCanvas_WithMixOfImplicitOrdering()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource { Asset = GetAsset(), CanvasPainting = new PresCanvasPainting {CanvasOrder = 1}},
+                new PaintedResource { Asset = GetAsset(DefaultSpace + 1, assetIds[1]) }
+            ]
+        };
+
+        var expected = new List<InterimCanvasPainting>
+        {
+            new()
+            {
+                CanvasOriginalId = null,
+                AssetId = assetIds[0],
+                CustomerId = CustomerId,
+                Space = DefaultSpace,
+                CanvasOrder = 1,
+                ChoiceOrder = null,
+                Target = null,
+                Ingesting = false,
+                ImplicitOrder = false,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
+            },
+            new()
+            {
+                CanvasOriginalId = null,
+                AssetId = assetIds[1],
+                CustomerId = CustomerId,
+                Space = DefaultSpace + 1,
+                CanvasOrder = 1,
+                ChoiceOrder = null,
+                Target = null,
+                Ingesting = false,
+                ImplicitOrder = true,
+                CanvasPaintingType = CanvasPaintingType.PaintedResource
+            },
+        };
+        
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 

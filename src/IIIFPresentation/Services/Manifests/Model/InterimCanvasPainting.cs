@@ -112,6 +112,11 @@ public class InterimCanvasPainting
     /// Where is this canvas painting record from?
     /// </summary>
     public CanvasPaintingType CanvasPaintingType { get; set; }
+    
+    /// <summary>
+    /// Whether the ordering for this record is set explicitly, or set by the API
+    /// </summary>
+    public bool ImplicitOrder { get; set; }
 }
 
 public enum CanvasPaintingType
