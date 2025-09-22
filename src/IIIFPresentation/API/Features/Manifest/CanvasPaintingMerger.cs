@@ -1,8 +1,6 @@
 ﻿using API.Features.Manifest.Exceptions;
 using Core.Helpers;
 using IIIF.Presentation.V3;
-using Models.Database;
-using NuGet.Packaging;
 using Repository.Paths;
 using Services.Manifests.Model;
 

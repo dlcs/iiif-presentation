@@ -33,11 +33,11 @@ public class ManifestPaintedResourceParserTests
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId, null!).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId, null!).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
 
     [Theory]
     [InlineData("https://foo.com/example/1/canvases/canvas")]
@@ -61,7 +61,7 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
         action.Should().Throw<InvalidCanvasIdException>();
     }
     
@@ -86,7 +86,7 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var parsed = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var parsed = sut.ParseToCanvasPainting(manifest, CustomerId);
         
         parsed.First().Id.Should().Be("canvas");
     }
@@ -119,7 +119,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
@@ -166,7 +166,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
@@ -216,7 +216,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
@@ -297,7 +297,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
@@ -380,7 +380,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
@@ -445,7 +445,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
@@ -598,7 +598,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
@@ -644,7 +644,7 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId, null!);
+        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }

@@ -261,7 +261,7 @@ public class CanvasPaintingResolver(
         try
         {
             var paintedResourceCanvasPaintings = manifestPaintedResourceParser
-                .ParseToCanvasPainting(presentationManifest, customerId, recognizedItemsAssets).ToList();
+                .ParseToCanvasPainting(presentationManifest, customerId).ToList();
 
             var itemsCanvasPaintings =
                 manifestItemsParser
