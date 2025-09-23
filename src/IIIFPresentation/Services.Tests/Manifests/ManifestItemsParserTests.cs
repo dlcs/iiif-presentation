@@ -407,44 +407,45 @@ public class ManifestItemsParserTests
     {
         // https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json
         // Arrange
-        var manifest = @"
+        var manifest = """
         {
-            ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json"",
-            ""type"": ""Manifest"",
-            ""label"": {
-                ""en"": [
-                    ""Simplest Audio Example 1""
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json",
+            "type": "Manifest",
+            "label": {
+                "en": [
+                    "Simplest Audio Example 1"
                 ]
             },
-            ""items"": [
+            "items": [
                 {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas"",
-                    ""type"": ""Canvas"",
-                    ""duration"": 1985.024,
-                    ""items"": [
+                    "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas",
+                    "type": "Canvas",
+                    "duration": 1985.024,
+                    "items": [
                         {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas/page"",
-                            ""type"": ""AnnotationPage"",
-                            ""items"": [
+                            "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas/page",
+                            "type": "AnnotationPage",
+                            "items": [
                                 {
-                                    ""id"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas/page/annotation"",
-                                    ""type"": ""Annotation"",
-                                    ""motivation"": ""painting"",
-                                    ""body"": {
-                                        ""id"": ""https://fixtures.iiif.io/audio/indiana/mahler-symphony-3/CD1/medium/128Kbps.mp4"",
-                                        ""type"": ""Sound"",
-                                        ""format"": ""audio/mp4"",
-                                        ""duration"": 1985.024
+                                    "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas/page/annotation",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://fixtures.iiif.io/audio/indiana/mahler-symphony-3/CD1/medium/128Kbps.mp4",
+                                        "type": "Sound",
+                                        "format": "audio/mp4",
+                                        "duration": 1985.024
                                     },
-                                    ""target"": ""https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas""
+                                    "target": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas"
                                 }
                             ]
                         }
                     ]
                 }
             ]
-        }";
+        }
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -475,49 +476,49 @@ public class ManifestItemsParserTests
     {
         // https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json
         // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json"",
-    ""type"": ""Manifest"",
-    ""label"": {
-        ""en"": [
-            ""Video Example 3""
-        ]
-    },
-    ""items"": [
+        var manifest = """
         {
-            ""id"": ""https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas"",
-            ""type"": ""Canvas"",
-            ""height"": 360,
-            ""width"": 480,
-            ""duration"": 572.034,
-            ""items"": [
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json",
+            "type": "Manifest",
+            "label": {
+                "en": [
+                    "Video Example 3"
+                ]
+            },
+            "items": [
                 {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas/page"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
+                    "id": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas",
+                    "type": "Canvas",
+                    "height": 360,
+                    "width": 480,
+                    "duration": 572.034,
+                    "items": [
                         {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas/page/annotation"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4"",
-                                ""type"": ""Video"",
-                                ""height"": 360,
-                                ""width"": 480,
-                                ""duration"": 572.034,
-                                ""format"": ""video/mp4""
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas""
+                            "id": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas/page",
+                            "type": "AnnotationPage",
+                            "items": [
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas/page/annotation",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4",
+                                        "type": "Video",
+                                        "height": 360,
+                                        "width": 480,
+                                        "duration": 572.034,
+                                        "format": "video/mp4"
+                                    },
+                                    "target": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas"
+                                }
+                            ]
                         }
                     ]
                 }
             ]
         }
-    ]
-}
-";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -548,83 +549,83 @@ public class ManifestItemsParserTests
     {
         // https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json (with some small changes)
         // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json"",
-    ""type"": ""Manifest"",
-    ""label"": {
-        ""en"": [
-            ""John Dee performing an experiment before Queen Elizabeth I.""
-        ]
-    },
-    ""items"": [
+        var manifest = """
         {
-            ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/canvas/p1"",
-            ""type"": ""Canvas"",
-            ""height"": 1271,
-            ""width"": 2000,
-            ""items"": [
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json",
+            "type": "Manifest",
+            "label": {
+                "en": [
+                    "John Dee performing an experiment before Queen Elizabeth I."
+                ]
+            },
+            "items": [
                 {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/page/p1/1"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
+                    "id": "https://iiif.io/api/cookbook/recipe/0033-choice/canvas/p1",
+                    "type": "Canvas",
+                    "height": 1271,
+                    "width": 2000,
+                    "items": [
                         {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""type"": ""Choice"",
-                                ""items"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg"",
-                                        ""type"": ""Image"",
-                                        ""format"": ""image/jpeg"",
-                                        ""width"": 2000,
-                                        ""height"": 1271,
-                                        ""label"": {
-                                            ""en"": [
-                                                ""Natural Light""
-                                            ]
-                                        },
-                                        ""service"": [
+                            "id": "https://iiif.io/api/cookbook/recipe/0033-choice/page/p1/1",
+                            "type": "AnnotationPage",
+                            "items": [
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0033-choice/annotation/p0001-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "type": "Choice",
+                                        "items": [
                                             {
-                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural"",
-                                                ""type"": ""ImageService3"",
-                                                ""profile"": ""level1""
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg",
+                                                "type": "Image",
+                                                "format": "image/jpeg",
+                                                "width": 2000,
+                                                "height": 1271,
+                                                "label": {
+                                                    "en": [
+                                                        "Natural Light"
+                                                    ]
+                                                },
+                                                "service": [
+                                                    {
+                                                        "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural",
+                                                        "type": "ImageService3",
+                                                        "profile": "level1"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg",
+                                                "type": "Image",
+                                                "format": "image/jpeg",
+                                                "width": 2001,
+                                                "height": 1272,
+                                                "label": {
+                                                    "en": [
+                                                        "X-Ray"
+                                                    ]
+                                                },
+                                                "service": [
+                                                    {
+                                                        "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray",
+                                                        "type": "ImageService3",
+                                                        "profile": "level1"
+                                                    }
+                                                ]
                                             }
                                         ]
                                     },
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg"",
-                                        ""type"": ""Image"",
-                                        ""format"": ""image/jpeg"",
-                                        ""width"": 2001,
-                                        ""height"": 1272,
-                                        ""label"": {
-                                            ""en"": [
-                                                ""X-Ray""
-                                            ]
-                                        },
-                                        ""service"": [
-                                            {
-                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray"",
-                                                ""type"": ""ImageService3"",
-                                                ""profile"": ""level1""
-                                            }
-                                        ]
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0033-choice/canvas/p1""
+                                    "target": "https://iiif.io/api/cookbook/recipe/0033-choice/canvas/p1"
+                                }
+                            ]
                         }
                     ]
                 }
             ]
         }
-    ]
-}
-";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -669,84 +670,84 @@ public class ManifestItemsParserTests
     {
         // https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json
         // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json"",
-    ""type"": ""Manifest"",
-    ""label"": {
-        ""en"": [
-            ""Folio from Grandes Chroniques de France, ca. 1460""
-        ]
-    },
-    ""items"": [
+        var manifest = """
         {
-            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1"",
-            ""type"": ""Canvas"",
-            ""label"": {
-                ""none"": [
-                    ""f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]""
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json",
+            "type": "Manifest",
+            "label": {
+                "en": [
+                    "Folio from Grandes Chroniques de France, ca. 1460"
                 ]
             },
-            ""height"": 5412,
-            ""width"": 7216,
-            ""items"": [
+            "items": [
                 {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/page/p1/1"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
+                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1",
+                    "type": "Canvas",
+                    "label": {
+                        "none": [
+                            "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"
+                        ]
+                    },
+                    "height": 5412,
+                    "width": 7216,
+                    "items": [
                         {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/jpeg"",
-                                ""height"": 5412,
-                                ""width"": 7216,
-                                ""service"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux"",
-                                        ""type"": ""ImageService3"",
-                                        ""profile"": ""level1""
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1""
-                        },
-                        {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0002-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/jpeg"",
-                                ""label"": {
-                                    ""fr"": [
-                                        ""Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]""
-                                    ]
+                            "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/page/p1/1",
+                            "type": "AnnotationPage",
+                            "items": [
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0001-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg",
+                                        "type": "Image",
+                                        "format": "image/jpeg",
+                                        "height": 5412,
+                                        "width": 7216,
+                                        "service": [
+                                            {
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux",
+                                                "type": "ImageService3",
+                                                "profile": "level1"
+                                            }
+                                        ]
+                                    },
+                                    "target": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1"
                                 },
-                                ""width"": 2138,
-                                ""height"": 2414,
-                                ""service"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature"",
-                                        ""type"": ""ImageService3"",
-                                        ""profile"": ""level1""
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,DefaultCustomerId2""
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0002-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg",
+                                        "type": "Image",
+                                        "format": "image/jpeg",
+                                        "label": {
+                                            "fr": [
+                                                "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"
+                                            ]
+                                        },
+                                        "width": 2138,
+                                        "height": 2414,
+                                        "service": [
+                                            {
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature",
+                                                "type": "ImageService3",
+                                                "profile": "level1"
+                                            }
+                                        ]
+                                    },
+                                    "target": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,DefaultCustomerId2"
+                                }
+                            ]
                         }
                     ]
                 }
             ]
         }
-    ]
-}
-";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -792,62 +793,62 @@ public class ManifestItemsParserTests
     {
         // https://iiif.io/api/cookbook/recipe/0299-region/
         // Arrange
-        var manifest = @"
-{
-  ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-  ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/manifest.json"",
-  ""type"": ""Manifest"",
-  ""label"": {
-    ""en"": [
-      ""Berliner Tageblatt article, 'Ein neuer Sicherungsplan?'""
-    ]
-  },
-  ""items"": [
-    {
-      ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1"",
-      ""type"": ""Canvas"",
-      ""height"": 2080,
-      ""width"": 1768,
-      ""items"": [
+        var manifest = """
         {
-          ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/page/p1/1"",
-          ""type"": ""AnnotationPage"",
-          ""items"": [
+          "@context": "http://iiif.io/api/presentation/3/context.json",
+          "id": "https://iiif.io/api/cookbook/recipe/0299-region/manifest.json",
+          "type": "Manifest",
+          "label": {
+            "en": [
+              "Berliner Tageblatt article, 'Ein neuer Sicherungsplan?'"
+            ]
+          },
+          "items": [
             {
-              ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/annotation/p0001-image"",
-              ""type"": ""Annotation"",
-              ""motivation"": ""painting"",
-              ""body"": {
-                ""id"": ""https://iiif.io/api/cookbook/recipe/0299-region/body/b1"",
-                ""type"": ""SpecificResource"",
-                ""source"": {
-                  ""id"": ""https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2/full/max/0/default.jpg"",
-                  ""type"": ""Image"",
-                  ""format"": ""image/jpeg"",
-                  ""height"": 4999,
-                  ""width"": 3536,
-                  ""service"": [
+              "id": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1",
+              "type": "Canvas",
+              "height": 2080,
+              "width": 1768,
+              "items": [
+                {
+                  "id": "https://iiif.io/api/cookbook/recipe/0299-region/page/p1/1",
+                  "type": "AnnotationPage",
+                  "items": [
                     {
-                      ""id"": ""https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2"",
-                      ""profile"": ""level1"",
-                      ""type"": ""ImageService3""
+                      "id": "https://iiif.io/api/cookbook/recipe/0299-region/annotation/p0001-image",
+                      "type": "Annotation",
+                      "motivation": "painting",
+                      "body": {
+                        "id": "https://iiif.io/api/cookbook/recipe/0299-region/body/b1",
+                        "type": "SpecificResource",
+                        "source": {
+                          "id": "https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2/full/max/0/default.jpg",
+                          "type": "Image",
+                          "format": "image/jpeg",
+                          "height": 4999,
+                          "width": 3536,
+                          "service": [
+                            {
+                              "id": "https://iiif.io/api/image/3.0/example/reference/4ce82cef49fb16798f4c2440307c3d6f-newspaper-p2",
+                              "profile": "level1",
+                              "type": "ImageService3"
+                            }
+                          ]
+                        },
+                        "selector": {
+                          "type": "ImageApiSelector",
+                          "region": "1768,2423,1768,2080"
+                        }
+                      },
+                      "target": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1"
                     }
                   ]
-                },
-                ""selector"": {
-                  ""type"": ""ImageApiSelector"",
-                  ""region"": ""1768,2423,1768,2080""
                 }
-              },
-              ""target"": ""https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1""
+              ]
             }
           ]
         }
-      ]
-    }
-  ]
-}
-";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -880,133 +881,133 @@ public class ManifestItemsParserTests
         // and https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json
         
         // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json"",
-    ""type"": ""Manifest"",
-    ""label"": {
-        ""en"": [
-            ""Folio from Grandes Chroniques de France, ca. 1460""
-        ]
-    },
-    ""items"": [
+        var manifest = """
         {
-            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1"",
-            ""type"": ""Canvas"",
-            ""label"": {
-                ""none"": [
-                    ""f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]""
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json",
+            "type": "Manifest",
+            "label": {
+                "en": [
+                    "Folio from Grandes Chroniques de France, ca. 1460"
                 ]
             },
-            ""height"": 5412,
-            ""width"": 7216,
-            ""items"": [
+            "items": [
                 {
-                    ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/page/p1/1"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
+                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1",
+                    "type": "Canvas",
+                    "label": {
+                        "none": [
+                            "f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"
+                        ]
+                    },
+                    "height": 5412,
+                    "width": 7216,
+                    "items": [
                         {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/jpeg"",
-                                ""height"": 5412,
-                                ""width"": 7216,
-                                ""service"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux"",
-                                        ""type"": ""ImageService3"",
-                                        ""profile"": ""level1""
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1""
-                        },
-                        {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0002-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/jpeg"",
-                                ""label"": {
-                                    ""fr"": [
-                                        ""Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]""
-                                    ]
-                                },
-                                ""width"": 2138,
-                                ""height"": 2414,
-                                ""service"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature"",
-                                        ""type"": ""ImageService3"",
-                                        ""profile"": ""level1""
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,DefaultCustomerId2""
-                        },
-                        {
-                            ""id"": ""https://iiif.io/api/cookbook/recipe/0033-choice/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""type"": ""Choice"",
-                                ""items"": [
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg"",
-                                        ""type"": ""Image"",
-                                        ""format"": ""image/jpeg"",
-                                        ""width"": 2000,
-                                        ""height"": 1271,
-                                        ""label"": {
-                                            ""en"": [
-                                                ""Natural Light""
-                                            ]
-                                        },
-                                        ""service"": [
+                            "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/page/p1/1",
+                            "type": "AnnotationPage",
+                            "items": [
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0001-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg",
+                                        "type": "Image",
+                                        "format": "image/jpeg",
+                                        "height": 5412,
+                                        "width": 7216,
+                                        "service": [
                                             {
-                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural"",
-                                                ""type"": ""ImageService3"",
-                                                ""profile"": ""level1""
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux",
+                                                "type": "ImageService3",
+                                                "profile": "level1"
                                             }
                                         ]
                                     },
-                                    {
-                                        ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg"",
-                                        ""type"": ""Image"",
-                                        ""format"": ""image/jpeg"",
-                                        ""width"": 2001,
-                                        ""height"": 1272,
-                                        ""label"": {
-                                            ""en"": [
-                                                ""X-Ray""
+                                    "target": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1"
+                                },
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/annotation/p0002-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg",
+                                        "type": "Image",
+                                        "format": "image/jpeg",
+                                        "label": {
+                                            "fr": [
+                                                "Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]"
                                             ]
                                         },
-                                        ""service"": [
+                                        "width": 2138,
+                                        "height": 2414,
+                                        "service": [
                                             {
-                                                ""id"": ""https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray"",
-                                                ""type"": ""ImageService3"",
-                                                ""profile"": ""level1""
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature",
+                                                "type": "ImageService3",
+                                                "profile": "level1"
                                             }
                                         ]
-                                    }
-                                ]
-                            },
-                            ""target"": ""https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=0,0,1091,DefaultCustomerId2""
+                                    },
+                                    "target": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,DefaultCustomerId2"
+                                },
+                                {
+                                    "id": "https://iiif.io/api/cookbook/recipe/0033-choice/annotation/p0001-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "type": "Choice",
+                                        "items": [
+                                            {
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg",
+                                                "type": "Image",
+                                                "format": "image/jpeg",
+                                                "width": 2000,
+                                                "height": 1271,
+                                                "label": {
+                                                    "en": [
+                                                        "Natural Light"
+                                                    ]
+                                                },
+                                                "service": [
+                                                    {
+                                                        "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural",
+                                                        "type": "ImageService3",
+                                                        "profile": "level1"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg",
+                                                "type": "Image",
+                                                "format": "image/jpeg",
+                                                "width": 2001,
+                                                "height": 1272,
+                                                "label": {
+                                                    "en": [
+                                                        "X-Ray"
+                                                    ]
+                                                },
+                                                "service": [
+                                                    {
+                                                        "id": "https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray",
+                                                        "type": "ImageService3",
+                                                        "profile": "level1"
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "target": "https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=0,0,1091,DefaultCustomerId2"
+                                }
+                            ]
                         }
                     ]
                 }
             ]
         }
-    ]
-}
-";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -1077,47 +1078,48 @@ public class ManifestItemsParserTests
     public async Task Parse_AcceptsShortCanvasId()
     {
         // Arrange
-        var manifest = @"
-{
-    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
-    ""id"": ""https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json"",
-    ""type"": ""Manifest"",
-    ""items"": [
+        var manifest = """
         {
-            ""id"": ""shortCanvas"",
-            ""type"": ""Canvas"",
-            ""height"": 1800,
-            ""width"": 1200,
-            ""items"": [
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json",
+            "type": "Manifest",
+            "items": [
                 {
-                    ""id"": ""shortCanvas/page/p1/1"",
-                    ""type"": ""AnnotationPage"",
-                    ""items"": [
+                    "id": "shortCanvas",
+                    "type": "Canvas",
+                    "height": 1800,
+                    "width": 1200,
+                    "items": [
                         {
-                            ""id"": ""shortCanvas/annotation/p0001-image"",
-                            ""type"": ""Annotation"",
-                            ""motivation"": ""painting"",
-                            ""body"": {
-                                ""id"": ""shortCanvas/resources/page1-full.png"",
-                                ""type"": ""Image"",
-                                ""format"": ""image/png"",
-                                ""height"": 1800,
-                                ""width"": 1200
-                            }
+                            "id": "shortCanvas/page/p1/1",
+                            "type": "AnnotationPage",
+                            "items": [
+                                {
+                                    "id": "shortCanvas/annotation/p0001-image",
+                                    "type": "Annotation",
+                                    "motivation": "painting",
+                                    "body": {
+                                        "id": "shortCanvas/resources/page1-full.png",
+                                        "type": "Image",
+                                        "format": "image/png",
+                                        "height": 1800,
+                                        "width": 1200
+                                    }
+                                }
+                            ]
                         }
                     ]
                 }
+            ],
+            "paintedResources": [
+                {
+                     "canvasPainting": {
+                         "canvasId": "shortCanvas"
+                     }
+                }
             ]
         }
-    ],
-    ""paintedResources"": [
-        {
-             ""canvasPainting"": {
-                 ""canvasId"": ""shortCanvas""
-             }
-        }
-    ]
-}";
+        """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
