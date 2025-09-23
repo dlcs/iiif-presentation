@@ -1,10 +1,8 @@
 using System.Net;
-using Amazon.S3.Model;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
-using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -16,7 +14,6 @@ using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
-using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 

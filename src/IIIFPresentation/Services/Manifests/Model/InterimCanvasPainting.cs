@@ -1,5 +1,4 @@
 ﻿using IIIF.Presentation.V3.Strings;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Models.Database;
 using Models.DLCS;
 

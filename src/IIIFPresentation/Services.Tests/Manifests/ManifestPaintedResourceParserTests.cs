@@ -4,13 +4,11 @@ using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
-using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Model;
 using Test.Helpers.Helpers;
-using CanvasPainting = Models.Database.CanvasPainting;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
 namespace Services.Tests.Manifests;

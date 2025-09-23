@@ -8,7 +8,6 @@ using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
-using Models.Database;
 using Models.DLCS;
 using Repository.Paths;
 using Services.Manifests.Helpers;
@@ -168,6 +167,7 @@ public class ManifestItemsParser(
             Thumbnail = TryGetThumbnail(currentCanvas),
             CanvasPaintingType = CanvasPaintingType.Items,
             ImplicitOrder = true,
+            CustomerId = customerId
         };
         
         if (resource is ISpatial spatial)

@@ -1,6 +1,5 @@
 ﻿using API.Features.Manifest;
 using API.Features.Manifest.Exceptions;
-using Core.Web;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;

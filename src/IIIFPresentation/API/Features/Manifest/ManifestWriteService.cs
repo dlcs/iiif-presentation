@@ -7,7 +7,6 @@ using API.Infrastructure.IdGenerator;
 using AWS.Helpers;
 using Core;
 using Core.Auth;
-using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
 using IIIF.Presentation.V3.Annotation;
