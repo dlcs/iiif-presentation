@@ -1,17 +1,16 @@
 ﻿using System.Text.RegularExpressions;
-using API.Helpers;
 using Core.Exceptions;
-using Core.Web;
 using DLCS;
 using IIIF;
 using IIIF.ImageApi.V2;
 using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.DLCS;
 
-namespace API.Features.Manifest;
+namespace Services.Manifests;
 
 public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcsOptionsMonitor, ILogger<PaintableAssetIdentifier> logger)
 {

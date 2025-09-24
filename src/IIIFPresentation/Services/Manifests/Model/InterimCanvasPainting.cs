@@ -64,11 +64,6 @@ public class InterimCanvasPainting
     /// Null if Canvas fills whole canvas, otherwise a parseable IIIF selector (fragment or JSON)
     /// </summary>
     public string? Target { get; set; }
-
-    /// <summary>
-    /// Unique identifier for this CanvasPainting object
-    /// </summary>
-    public int CanvasPaintingId { get; set; }
     
     public int? Space { get; set; }
     
@@ -96,16 +91,6 @@ public class InterimCanvasPainting
     ///     For temporal resources, the duration of the resources on the canvas
     /// </summary>
     public double? Duration { get; set; }
-    
-    /// <summary>
-    /// Created date/time
-    /// </summary>
-    public DateTime Created { get; set; }
-
-    /// <summary>
-    /// Last modified date/time
-    /// </summary>
-    public DateTime Modified { get; set; }
     
     /// <summary>
     /// Where is this canvas painting record from?
@@ -142,28 +127,6 @@ public static class InterimCanvasPaintingX
     /// </summary>
     public static bool InterimCanvasPaintingContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
         canvasPainting?.Any(cp => cp.Id == id) ?? false;
-    
-    /// <summary>
-    /// Update current object, with values from specified <see cref="CanvasPainting"/>
-    /// Modified date is _always_ updated - whether there were changes or not
-    /// </summary>
-    public static InterimCanvasPainting UpdateFrom(this InterimCanvasPainting canvasPainting, InterimCanvasPainting updated)
-    {
-        canvasPainting.Label = updated.Label;
-        canvasPainting.CanvasLabel = updated.CanvasLabel;
-        canvasPainting.CanvasOrder = updated.CanvasOrder;
-        canvasPainting.ChoiceOrder = updated.ChoiceOrder;
-        canvasPainting.Thumbnail = updated.Thumbnail;
-        canvasPainting.StaticHeight = updated.StaticHeight;
-        canvasPainting.StaticWidth = updated.StaticWidth;
-        canvasPainting.Target = updated.Target;
-        canvasPainting.Modified = DateTime.UtcNow;
-        canvasPainting.AssetId = updated.AssetId;
-        canvasPainting.Ingesting = updated.Ingesting;
-        canvasPainting.CanvasOriginalId = updated.CanvasOriginalId;
-        if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
-        return canvasPainting;
-    } 
 
     public static CanvasPainting ConvertInterimCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
@@ -180,8 +143,6 @@ public static class InterimCanvasPaintingX
             Thumbnail = interimCanvasPainting.Thumbnail,
             StaticHeight = interimCanvasPainting.StaticHeight,
             StaticWidth = interimCanvasPainting.StaticWidth,
-            Created = interimCanvasPainting.Created,
-            Modified = interimCanvasPainting.Modified,
             Target = interimCanvasPainting.Target,
             AssetId = interimCanvasPainting is { AssetId: not null, Space: not null } ? 
                 new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.Space.Value, interimCanvasPainting.AssetId) : null,
@@ -216,8 +177,6 @@ public static class InterimCanvasPaintingX
                 Thumbnail = i.Thumbnail,
                 StaticHeight = i.StaticHeight,
                 StaticWidth = i.StaticWidth,
-                Created = i.Created,
-                Modified = i.Modified,
                 Target = i.Target,
                 AssetId = i.AssetId != null ? new AssetId(i.CustomerId, i.Space!.Value, i.AssetId) : null,
                 Ingesting = i.Ingesting,

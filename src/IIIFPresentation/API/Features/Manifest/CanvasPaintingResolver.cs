@@ -30,10 +30,9 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<(PresUpdateResult? updateResult, List<InterimCanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest,
-        Dictionary<IPaintable, AssetId> recognizedItemsAssets, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
     {
-        return await HandleInsert(customerId, presentationManifest, recognizedItemsAssets, cancellationToken);
+        return await HandleInsert(customerId, presentationManifest, cancellationToken);
     }
 
     /// <summary>
@@ -43,17 +42,15 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Error, if processing fails</returns>
     public async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintingsToAdd)> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
-        DbManifest existingManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
-        CancellationToken cancellationToken = default)
+        DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
-        return await HandleUpdate(customerId, presentationManifest, existingManifest, recognizedItemsAssets, cancellationToken);
+        return await HandleUpdate(customerId, presentationManifest, existingManifest, cancellationToken);
     }
 
     private async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintingsToAdd)> HandleUpdate(int customerId, PresentationManifest presentationManifest, 
-        DbManifest existingManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
-        CancellationToken cancellationToken)
+        DbManifest existingManifest, CancellationToken cancellationToken)
     {
-        var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest, recognizedItemsAssets);
+        var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest);
         if (error != null) return (error, null);
         
         existingManifest.CanvasPaintings ??= [];
@@ -232,12 +229,11 @@ public class CanvasPaintingResolver(
     }
 
     private async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings)> HandleInsert(int customerId, 
-        PresentationManifest presentationManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets,
-        CancellationToken cancellationToken)
+        PresentationManifest presentationManifest, CancellationToken cancellationToken)
     {
         try
         {
-            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest, recognizedItemsAssets);
+            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest);
             if (parseError != null) return (parseError, null);
 
             Debug.Assert(canvasPaintings is not null, "canvasPaintings is not null");
@@ -256,7 +252,7 @@ public class CanvasPaintingResolver(
     } 
     
     private (PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings) ParseManifest(int customerId, 
-        PresentationManifest presentationManifest, Dictionary<IPaintable, AssetId> recognizedItemsAssets)
+        PresentationManifest presentationManifest)
     {
         try
         {
@@ -265,7 +261,7 @@ public class CanvasPaintingResolver(
 
             var itemsCanvasPaintings =
                 manifestItemsParser
-                    .ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId, recognizedItemsAssets).ToList();
+                    .ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId).ToList();
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);

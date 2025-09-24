@@ -1,5 +1,6 @@
 ﻿using Core.Exceptions;
 using Core.IIIF;
+using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Strings;
@@ -12,19 +13,22 @@ using Services.Manifests;
 using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
+using Test.Helpers.Settings;
 
 namespace Services.Tests.Manifests;
 
 public class ManifestItemsParserTests
 {
     private readonly ManifestItemsParser sut;
-
     private const int DefaultCustomerId = 123;
+    private readonly DlcsSettings dlcsSettings;
     
     public ManifestItemsParserTests()
     {
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+
+        dlcsSettings = DefaultSettings.DlcsSettings();
         
         var pathSettings = new PathSettings
         {
@@ -37,25 +41,26 @@ public class ManifestItemsParserTests
 
         sut = new ManifestItemsParser(pathRewriteParser,
             new TestPresentationConfigGenerator("http://base", PathRewriteOptions.Default),
-            Options.Create(pathSettings), new NullLogger<ManifestItemsParser>());
+            new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings), new NullLogger<PaintableAssetIdentifier>()), 
+            Options.Create(pathSettings),
+            new NullLogger<ManifestItemsParser>());
     }
-
-    private static readonly Dictionary<IPaintable, AssetId> EmptyRecognizedDictionary = new();
+    
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), [],DefaultCustomerId, EmptyRecognizedDictionary).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), [],DefaultCustomerId).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], DefaultCustomerId, EmptyRecognizedDictionary).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], DefaultCustomerId).Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfCanvasHasNoAnnotationPages()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], DefaultCustomerId, EmptyRecognizedDictionary).Should().HaveCount(1);
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], DefaultCustomerId).Should().HaveCount(1);
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveNoAnnotations()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], DefaultCustomerId, EmptyRecognizedDictionary)
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], DefaultCustomerId)
             .Should().HaveCount(1);
 
     [Fact]
@@ -63,7 +68,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
-            }, [], DefaultCustomerId, EmptyRecognizedDictionary)
+            }, [], DefaultCustomerId)
             .Should().HaveCount(1);
 
     [Theory]
@@ -74,14 +79,14 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = host }]
-        }, [ new InterimCanvasPainting { Id = "foo" }], customerId, EmptyRecognizedDictionary).Single().Id.Should().Be("foo");
+        }, [ new InterimCanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
     
     [Fact]
     public void Parse_ReturnsNullCanvasId_IfCanvasIdValidUriNotMatchedToPaintedResource()
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://localhost:5000/DefaultCustomerId/canvases/foo" }]
-        }, [], 1, EmptyRecognizedDictionary).Single().Id.Should().BeNull();
+        }, [], 1).Single().Id.Should().BeNull();
 
     [Fact]
     public void Parse_ThrowsError_IfShortCanvasNotMatchedToPaintedResource()
@@ -90,7 +95,7 @@ public class ManifestItemsParserTests
         Action action = () => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "foo" }]
-        }, [], 1, EmptyRecognizedDictionary);
+        }, [], 1);
         
         //Assert
         action.Should().ThrowExactly<InvalidCanvasIdException>().WithMessage("The canvas id is not a valid URI, and cannot be matched with a painted resource");
@@ -101,7 +106,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
-        }, [], 2, EmptyRecognizedDictionary).Single().Id.Should().BeNull();
+        }, [], 2).Single().Id.Should().BeNull();
     
     [Fact]
     public async Task Parse_Throws_MissingBody()
@@ -141,7 +146,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        Action action = () => sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        Action action = () => sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         action.Should().Throw<InvalidOperationException>()
@@ -209,7 +214,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -316,7 +321,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -326,43 +331,42 @@ public class ManifestItemsParserTests
     public async Task Parse_SingleImage_RecognizedAsset()
     {
         // Arrange
-        var manifest = """
-
+        var manifest = $$"""
+       {
+           "@context": "http://iiif.io/api/presentation/3/context.json",
+           "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json",
+           "type": "Manifest",
+           "items": [
+               {
+                   "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1",
+                   "type": "Canvas",
+                   "height": 1800,
+                   "width": 1200,
+                   "items": [
                        {
-                           "@context": "http://iiif.io/api/presentation/3/context.json",
-                           "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json",
-                           "type": "Manifest",
+                           "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1",
+                           "type": "AnnotationPage",
                            "items": [
                                {
-                                   "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1",
-                                   "type": "Canvas",
-                                   "height": 1800,
-                                   "width": 1200,
-                                   "items": [
-                                       {
-                                           "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/page/p1/1",
-                                           "type": "AnnotationPage",
-                                           "items": [
-                                               {
-                                                   "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image",
-                                                   "type": "Annotation",
-                                                   "motivation": "painting",
-                                                   "body": {
-                                                       "id": "http://iiif.io/api/presentation/2.1/example/fixtures/resources/page1-full.png",
-                                                       "type": "Image",
-                                                       "format": "image/png",
-                                                       "height": 1800,
-                                                       "width": 1200
-                                                   },
-                                                   "target": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1"
-                                               }
-                                           ]
-                                       }
-                                   ]
+                                   "id": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/annotation/p0001-image",
+                                   "type": "Annotation",
+                                   "motivation": "painting",
+                                   "body": {
+                                       "id": "{{dlcsSettings.OrchestratorUri}}/iiif-img/{{DefaultCustomerId}}/1/theAssetId/full/155,200/0/default.jpg",
+                                       "type": "Image",
+                                       "format": "image/png",
+                                       "height": 1800,
+                                       "width": 1200
+                                   },
+                                   "target": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/canvas/p1"
                                }
                            ]
                        }
-                       """;
+                   ]
+               }
+           ]
+       }
+       """;
         var expected = new List<InterimCanvasPainting>
         {
             new()
@@ -382,20 +386,9 @@ public class ManifestItemsParserTests
         };
         
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
-         
-        // Note: this is manually replicating the behaviour impl elsewhere that is not performed in this test
-        var onlyPaintableAnnotation = (PaintingAnnotation)deserialised!.Items![0].Items![0].Items![0];
-        var onlyPaintable = onlyPaintableAnnotation.Body;
-
-        // Note that the actual asset recognition is NOT tested here, hence the AssetId is constructed regardless of the
-        // actual IPaintable's properties.
-        Dictionary<IPaintable, AssetId> recognizedDictionary = new()
-        {
-            { onlyPaintable!, new AssetId(DefaultCustomerId, 1, "theAssetId") }
-        };
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, recognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
 
         
         // Assert
@@ -465,7 +458,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -538,7 +531,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -659,7 +652,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -782,7 +775,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -868,7 +861,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1068,7 +1061,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1140,7 +1133,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1207,7 +1200,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId, EmptyRecognizedDictionary);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);

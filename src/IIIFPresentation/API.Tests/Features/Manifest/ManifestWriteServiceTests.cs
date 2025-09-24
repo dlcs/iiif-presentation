@@ -40,13 +40,13 @@ public class ManifestWriteServiceTests
     private readonly PresentationContext presentationContext;
     private const int Customer = 1;
     private const int NewlyCreatedSpace = 500;
-    private const string OrchestratorHostname = "localhost";
-    
-    IDlcsApiClient dlcsClient;
+    private readonly DlcsSettings dlcsSettings;
+    private readonly IDlcsApiClient dlcsClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
+        dlcsSettings = DefaultSettings.DlcsSettings();
 
         var typedPathTemplateOptions = Options.Create(PathRewriteOptions.Default);
         
@@ -62,7 +62,10 @@ public class ManifestWriteServiceTests
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
 
         var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
-            Options.Create(new PathSettings(){PresentationApiUrl = new Uri("https://base")}), new NullLogger<ManifestItemsParser>());
+            new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
+                new NullLogger<PaintableAssetIdentifier>()),
+            Options.Create(new PathSettings { PresentationApiUrl = new Uri("https://base") }),
+            new NullLogger<ManifestItemsParser>());
         
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
             new NullLogger<ManifestPaintedResourceParser>());
@@ -74,16 +77,8 @@ public class ManifestWriteServiceTests
         
         dlcsClient = A.Fake<IDlcsApiClient>();
         
-        var dlcsSettings = new DlcsSettings
-        {
-            ApiUri = new Uri("https://dlcs.api"),
-            OrchestratorUri = new Uri($"http://{OrchestratorHostname}")
-        };
-        
-        var paintableAssetIdentifier = new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
-            NullLogger<PaintableAssetIdentifier>.Instance);
             
-        var managedResultFinder = new ManagedAssetResultFinder(paintableAssetIdentifier, dlcsClient, presentationContext,
+        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
             new NullLogger<ManagedAssetResultFinder>());
         var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());
@@ -204,7 +199,7 @@ public class ManifestWriteServiceTests
         const string managedImageAssetName = "theAssetId";
         var paintingAnnotation = (PaintingAnnotation)manifest.Items![0].Items![0].Items![0];
         var image = (Image)paintingAnnotation.Body!;
-        image.Id = $"http://{OrchestratorHostname}/iiif-img/{Customer}/{managedImageSpace}/{managedImageAssetName}/full/max/0/default.jpg";
+        image.Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/{Customer}/{managedImageSpace}/{managedImageAssetName}/full/max/0/default.jpg";
         
         // set the DLCS fake to recognize the image
         var imageAssetId = new AssetId(Customer,managedImageSpace,managedImageAssetName);

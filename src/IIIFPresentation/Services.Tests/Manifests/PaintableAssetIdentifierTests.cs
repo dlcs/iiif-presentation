@@ -1,35 +1,28 @@
-﻿using API.Features.Manifest;
-using Core.Exceptions;
-using Core.Web;
+﻿using Core.Exceptions;
 using DLCS;
-using FakeItEasy;
 using IIIF;
 using IIIF.ImageApi.V2;
 using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using Services.Manifests;
+using Test.Helpers.Helpers;
 using Test.Helpers.Settings;
 
-namespace API.Tests.Features.Manifest;
+namespace Services.Tests.Manifests;
 
 public class PaintableAssetIdentifierTests
 {
-    private const string OrchestratorHostname = "localhost";
-    private const string OrchestratorScheme = "http";
+    private readonly DlcsSettings dlcsSettings;
 
     // --- Setup ---
     private PaintableAssetIdentifier pai; 
     public PaintableAssetIdentifierTests()
     {
-        var tptOptions = new DlcsSettings
-        {
-            ApiUri = new Uri("https://dlcs.api"),
-            OrchestratorUri = new Uri($"{OrchestratorScheme}://{OrchestratorHostname}")
-        };
+        dlcsSettings = DefaultSettings.DlcsSettings();
 
-        var optionsMonitor = OptionsHelpers.GetOptionsMonitor(tptOptions);
+        var optionsMonitor = OptionsHelpers.GetOptionsMonitor(dlcsSettings);
         
         var logger = new NullLogger<PaintableAssetIdentifier>();
         
@@ -52,7 +45,7 @@ public class PaintableAssetIdentifierTests
         const int spaceId = 2;
         const string assetId = "abc";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-av/{customerId}/{spaceId}/{assetId}/full/max/default.mp3";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-av/{customerId}/{spaceId}/{assetId}/full/max/default.mp3";
         var sound = new Sound { Id = id };
         
         var result = pai.ResolvePaintableAsset(sound, customerId);
@@ -76,7 +69,7 @@ public class PaintableAssetIdentifierTests
         const int spaceId = 2;
         const string assetId = "abc";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-av/{customerId}/{spaceId}/{assetId}/full/full/max/max/0/default.mp4";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-av/{customerId}/{spaceId}/{assetId}/full/full/max/max/0/default.mp4";
         var video = new Video { Id = id };
         
         var result = pai.ResolvePaintableAsset(video, customerId);
@@ -100,7 +93,7 @@ public class PaintableAssetIdentifierTests
         const int spaceId = 2;
         const string assetId = "abc";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = id };
         
         var result = pai.ResolvePaintableAsset(image, customerId);
@@ -117,7 +110,7 @@ public class PaintableAssetIdentifierTests
         const int spaceId = 2;
         const string assetId = "abc";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v2/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v2/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = "not-valid", Service = [new ImageService2{Id = id}]};
         
         var result = pai.ResolvePaintableAsset(image, customerId);
@@ -134,7 +127,7 @@ public class PaintableAssetIdentifierTests
         const int spaceId = 2;
         const string assetId = "abc";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = "not-valid", Service = [new ImageService3{Id = id}]};
         
         var result = pai.ResolvePaintableAsset(image, customerId);
@@ -152,8 +145,8 @@ public class PaintableAssetIdentifierTests
         const string assetId = "abc";
         const string otherAssetId = "def";
         
-        var id = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
-        var otherId = $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v3/{customerId}/{spaceId}/{otherAssetId}/full/155,200/0/default.jpg";
+        var id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+        var otherId = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{otherAssetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = otherId, Service = [new ImageService3{Id = id}]};
         
         Action act = () => pai.ResolvePaintableAsset(image, customerId);
@@ -168,7 +161,7 @@ public class PaintableAssetIdentifierTests
         const string assetId = "abc";
 
         var id =
-            $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+            $"{dlcsSettings.OrchestratorUri}/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id =  id };
 
         var result = pai.ResolvePaintableAsset(image, customerId + 1 /* force different id */);
@@ -183,7 +176,7 @@ public class PaintableAssetIdentifierTests
         const string assetId = "abc";
 
         var id =
-            $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v2/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+            $"{dlcsSettings.OrchestratorUri}/iiif-img/v2/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = "not-valid", Service = [new ImageService2 { Id = id }] };
 
         var result = pai.ResolvePaintableAsset(image, customerId + 1 /* force different id */);
@@ -198,7 +191,7 @@ public class PaintableAssetIdentifierTests
         const string assetId = "abc";
 
         var id =
-            $"{OrchestratorScheme}://{OrchestratorHostname}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+            $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id = "not-valid", Service = [new ImageService3 { Id = id }] };
 
         var result = pai.ResolvePaintableAsset(image, customerId + 1 /* force different id */);
@@ -213,7 +206,7 @@ public class PaintableAssetIdentifierTests
         const string assetId = "abc";
 
         var id =
-            $"{OrchestratorScheme}://invalid.domain/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+            $"http://invalid.domain/iiif-img/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
         var image = new Image { Id =  id };
 
         var result = pai.ResolvePaintableAsset(image, customerId + 1 /* force different id */);

@@ -4,6 +4,7 @@ using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Traversal;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,13 +24,14 @@ namespace Services.Manifests;
 public class ManifestItemsParser(
     IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
+    PaintableAssetIdentifier paintableAssetIdentifier,
     IOptions<PathSettings> options,
     ILogger<ManifestItemsParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
     public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
-        List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer, Dictionary<IPaintable, AssetId> recognizedItemsAssets)
+        List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
@@ -54,13 +56,19 @@ public class ManifestItemsParser(
                 continue;
             }
             
+            var identifiedManagedAssets = manifest
+                .AllPaintingAnnoBodies()
+                .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customer)))
+                .Where(tuple => tuple.assetId != null)
+                .ToDictionary();
+            
             var canvasLabelHasBeenSet = false;
             foreach (var painting in canvasPaintingsInCanvas)
             {
                 var target = painting.Target;
 
                 var body = painting.Body;
-                var assetId = body is not null && recognizedItemsAssets.TryGetValue(body, out var resolvedId) ? resolvedId : null;
+                var assetId = body is not null && identifiedManagedAssets.TryGetValue(body, out var resolvedId) ? resolvedId : null;
                 
                 if (body is PaintingChoice choice)
                 {

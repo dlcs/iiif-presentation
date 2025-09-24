@@ -14,6 +14,7 @@ using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -31,6 +32,8 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
     
+    public List<string>? ItemCanvasPaintingsWithAssets { get; set; }
+    
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
         
     public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
@@ -42,14 +45,6 @@ public class DlcsManifestCoordinator(
     IManagedAssetResultFinder knownAssetChecker,
     ILogger<DlcsManifestCoordinator> logger)
 {
-
-    public async Task<Dictionary<IPaintable, AssetId>> VerifyCanvasItemAssets(WriteManifestRequest request, 
-        CancellationToken cancellationToken = default)
-    {
-        var assets = await knownAssetChecker.FindManagedAssets(request.PresentationManifest, request.CustomerId, cancellationToken);
-        return assets.ToDictionary(tuple=>tuple.paintable!, tuple=>tuple.assetId!);
-    }
-    
     public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, Models.Database.Collections.Manifest? dbManifest,
         CancellationToken cancellationToken)
     {
@@ -77,17 +72,30 @@ public class DlcsManifestCoordinator(
             return null;
         }
     }
+
+    public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
+        string manifestId,
+        List<CanvasPainting>? existingCanvasPaintings = null,
+        Models.Database.Collections.Manifest? dbManifest = null,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
+        CancellationToken cancellationToken = default)
+    {
+        await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, cancellationToken);
+        
+        return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingCanvasPaintings,
+            dbManifest?.SpaceId, cancellationToken);
+    }
     
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
     /// </summary>
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
-    public async Task<DlcsInteractionResult> HandleDlcsInteractions(
+    private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
         string manifestId, 
         List<CanvasPainting>? existingCanvasPaintings = null,
-        Models.Database.Collections.Manifest? dbManifest = null,
+        int? manifestSpaceId = null,
         CancellationToken cancellationToken = default)
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
@@ -104,9 +112,9 @@ public class DlcsManifestCoordinator(
         
         if (request.CreateSpace || assetsWithoutSpaces.Length > 0)
         {
-            if (dbManifest?.SpaceId != null)
+            if (manifestSpaceId != null)
             {
-                spaceId = dbManifest.SpaceId.Value;
+                spaceId = manifestSpaceId.Value;
             }
             else
             {
