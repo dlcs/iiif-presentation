@@ -6,7 +6,6 @@ using Core;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
-using IIIF.Presentation.V3.Annotation;
 using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
@@ -15,7 +14,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.Model;
-using CanvasPainting = Models.Database.CanvasPainting;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
@@ -75,14 +73,14 @@ public class DlcsManifestCoordinator(
 
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId,
-        List<CanvasPainting>? existingCanvasPaintings = null,
+        List<AssetId>? existingAssetIds = null,
         Models.Database.Collections.Manifest? dbManifest = null,
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
         CancellationToken cancellationToken = default)
     {
         await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, cancellationToken);
         
-        return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingCanvasPaintings,
+        return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingAssetIds,
             dbManifest?.SpaceId, cancellationToken);
     }
     
@@ -94,7 +92,7 @@ public class DlcsManifestCoordinator(
     private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
         string manifestId, 
-        List<CanvasPainting>? existingCanvasPaintings = null,
+        List<AssetId>? existingAssetIds = null,
         int? manifestSpaceId = null,
         CancellationToken cancellationToken = default)
     {
@@ -140,16 +138,16 @@ public class DlcsManifestCoordinator(
             
         }
 
-        return await UpdateDlcsWithAssets(request, manifestId, existingCanvasPaintings, assets, spaceId,
+        return await UpdateDlcsWithAssets(request, manifestId, existingAssetIds, assets, spaceId,
             createdSpace, cancellationToken);
     }
 
     private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        List<CanvasPainting>? existingCanvasPaintings, List<JObject> assets, int? spaceId, bool spaceCreated, 
+        List<AssetId>? existingAssetIds, List<JObject> assets, int? spaceId, bool spaceCreated, 
         CancellationToken cancellationToken)
     {
         var dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
-            request.PresentationManifest, existingCanvasPaintings, spaceId, spaceCreated, request.CustomerId, cancellationToken);
+            request.PresentationManifest, existingAssetIds, spaceId, spaceCreated, request.CustomerId, cancellationToken);
         
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
         // create batches for assets
@@ -161,7 +159,7 @@ public class DlcsManifestCoordinator(
         await UpdateAssetsWithManifestId(request, manifestId,
             dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
-        await RemoveUnusedAssets(existingCanvasPaintings, manifestId, request.CustomerId, assets, cancellationToken);
+        await RemoveUnusedAssets(existingAssetIds, manifestId, request.CustomerId, assets, cancellationToken);
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
@@ -180,15 +178,13 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private async Task RemoveUnusedAssets(List<CanvasPainting>? existingCanvasPaintings, string dbManifestId, int customerId, List<JObject> assets, 
+    private async Task RemoveUnusedAssets(List<AssetId>? existingAssetIds, string dbManifestId, int customerId, List<JObject> assets, 
         CancellationToken cancellationToken)
     {
-        if (existingCanvasPaintings == null) return;
-
-        var canvasPaintingsInDatabase = (existingCanvasPaintings ?? []).Where(cp => cp.AssetId != null);
+        if (existingAssetIds == null) return;
         var assetIds = assets.Select(a => a.GetAssetId(customerId));
 
-        var assetsToRemove = canvasPaintingsInDatabase.Where(cp => assetIds.All(a => a != cp.AssetId)).ToList();
+        var assetsToRemove = existingAssetIds.Where(e => assetIds.All(a => a != e)).ToList();
 
         if (assetsToRemove.Any())
         {
@@ -197,9 +193,9 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task RemoveManifestsFromAssets(string dbManifestId, int customerId, 
-        IEnumerable<CanvasPainting> canvasPaintingsToRemove, CancellationToken cancellationToken) =>
+        IEnumerable<AssetId> assetsToRemove, CancellationToken cancellationToken) =>
         await dlcsApiClient.UpdateAssetManifest(customerId,
-        canvasPaintingsToRemove.Select(cp => cp.AssetId?.ToString()).ToList(), OperationType.Remove,
+            assetsToRemove.Select(cp => cp.ToString()).ToList(), OperationType.Remove,
     [dbManifestId], cancellationToken);
 
     private static List<JObject> GetAssetJObjectList(List<PaintedResource>? paintedResources) =>

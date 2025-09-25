@@ -3,13 +3,10 @@ using API.Infrastructure.Helpers;
 using Core.Exceptions;
 using Core.Helpers;
 using DLCS.API;
-using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Traversal;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
-using Services.Manifests;
 using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
@@ -24,7 +21,7 @@ public class ManagedAssetResultFinder(
     /// Checks a presentation manifest to find what assets require further processing by the DLCS
     /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
-         List<CanvasPainting>? existingCanvasPaintings, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
+         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
     {
         logger.LogTrace("Checking for known assets");
         var stopwatch = new Stopwatch();
@@ -46,9 +43,9 @@ public class ManagedAssetResultFinder(
             }
 
             // check if the asset is managed in this manifest
-            if (existingCanvasPaintings != null)
+            if (existingAssetIds != null)
             {
-                if (existingCanvasPaintings.Any(cp => cp.AssetId == assetId))
+                if (existingAssetIds.Any(cp => cp == assetId))
                 {
                     // set the asset to reingest, otherwise ignore the asset
                     if (paintedResource.Reingest ?? false)
@@ -238,7 +235,7 @@ public interface IManagedAssetResultFinder
 {
     public Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(
         PresentationManifest presentationManifest,
-        List<CanvasPainting>? existingCanvasPaintings, int? spaceId, bool spaceCreated, int customerId,
+        List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken);
     
     public Task CheckAssetsFromItemsExist(

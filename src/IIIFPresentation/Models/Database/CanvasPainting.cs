@@ -12,7 +12,7 @@ namespace Models.Database;
 /// CanvasId, CustomerId and ManifestId do not use "required" as they are initially created as partial entities and
 /// hydrated later
 /// </remarks>
-public class CanvasPainting : IIdentifiable, ICloneable
+public class CanvasPainting : IIdentifiable
 {
     /// <summary>
     /// Unique identifier for canvas on a manifest.
@@ -119,13 +119,6 @@ public class CanvasPainting : IIdentifiable, ICloneable
     /// Whether the asset is currently being ingested into the DLCS
     /// </summary>
     public bool Ingesting { get; set; }
-
-    public CanvasPainting Clone()
-    {
-        return (CanvasPainting)MemberwiseClone();
-    }
-    
-    object ICloneable.Clone() { return Clone(); }
 }
 
 public static class CanvasPaintingX

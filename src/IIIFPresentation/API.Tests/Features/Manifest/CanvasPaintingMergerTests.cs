@@ -657,13 +657,13 @@ public class CanvasPaintingMergerTests
         // Assert
         merged.Count.Should().Be(3);
         var first = merged.First();
-        first.Id.Should().Be($"{itemId}_1");
+        first.Id.Should().Be($"{itemId}_1", "items only - first in items from implicit ordering");
         
         var middle = merged[1];
-        middle.Id.Should().Be($"{itemId}_2");
+        middle.Id.Should().Be($"{itemId}_2", "mixed - comes second in items with implicit ordering");
         middle.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
         
         var last = merged.Last();
-        last.Id.Should().Be($"{paintedResourceId}_1");
+        last.Id.Should().Be($"{paintedResourceId}_1", "painted resource only, with explicit ordering");
     }
 }

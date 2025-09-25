@@ -9,14 +9,12 @@ using Core;
 using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
-using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
 using Models.Database.General;
-using Models.DLCS;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -206,7 +204,8 @@ public class ManifestWriteService(
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
                    request.ManifestId, request.CustomerId))
         {
-            var existingCanvasPaintings = existingManifest.CanvasPaintings?.Select(cp => cp.Clone()).ToList();
+            var existingAssetIds = existingManifest.CanvasPaintings?.Where(cp => cp.AssetId != null)
+                .Select(cp => cp.AssetId!).ToList();
             
             var (canvasPaintingsError, interimCanvasPaintingsToAdd) = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
                 request.PresentationManifest, existingManifest, cancellationToken);
@@ -219,7 +218,7 @@ public class ManifestWriteService(
             
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request,
-                existingManifest.Id, existingCanvasPaintings, existingManifest,
+                existingManifest.Id,  existingAssetIds, existingManifest,
                 interimCanvasPaintingsToAdd?.Where(icp => icp is
                     { AssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(), cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;

@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
-using Models.DLCS;
 using Services.Manifests;
 using Services.Manifests.Model;
 using Services.Manifests.Settings;
