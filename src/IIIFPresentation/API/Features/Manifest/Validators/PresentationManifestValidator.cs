@@ -19,11 +19,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
     {
-        RuleForEach(m => m.PaintedResources)
-            .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
-            .When(m => m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
-            .WithMessage("'canvasOrder' is required on all resources when used in at least one");
-        
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)

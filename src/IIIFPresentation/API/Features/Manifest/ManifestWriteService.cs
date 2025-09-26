@@ -160,11 +160,13 @@ public class ManifestWriteService(
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
+            // retrieve and validate the canvas paintings on the request
             var (canvasPaintingsError, interimCanvasPaintings) =
                 await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                     cancellationToken);
             if (canvasPaintingsError != null) return canvasPaintingsError;
             
+            // retrieve and validate the parent and slug on the request
             var parsedParentSlugResult =
                 await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, null, cancellationToken);
             if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
@@ -177,6 +179,7 @@ public class ManifestWriteService(
                 cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
+            // convert and update the canvas paintings from the interim object, to the database format
             var canvasPaintings = interimCanvasPaintings?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
             canvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
             
@@ -206,11 +209,12 @@ public class ManifestWriteService(
         {
             var existingAssetIds = existingManifest.CanvasPaintings?.Where(cp => cp.AssetId != null)
                 .Select(cp => cp.AssetId!).ToList();
-            
+            // retrieve, update and validate canvas paintings using the request
             var (canvasPaintingsError, interimCanvasPaintingsToAdd) = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
                 request.PresentationManifest, existingManifest, cancellationToken);
             if (canvasPaintingsError != null) return canvasPaintingsError;
             
+            // retrieve + validate the parent and slug from the request
             var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
                 request.ManifestId, cancellationToken);
             if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
@@ -223,7 +227,7 @@ public class ManifestWriteService(
                     { AssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(), cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
-            // update existing manifest with details following DLCS interactions
+            // update existing manifest with canvas paintings following DLCS interactions
             var canvasPaintings = interimCanvasPaintingsToAdd.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId);
             existingManifest.CanvasPaintings ??= [];
             existingManifest.CanvasPaintings.AddRange(canvasPaintings);
