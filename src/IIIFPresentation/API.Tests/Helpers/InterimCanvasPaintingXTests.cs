@@ -1,4 +1,5 @@
 ﻿using API.Helpers;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 
 namespace API.Tests.Helpers;

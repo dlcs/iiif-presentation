@@ -22,7 +22,7 @@ public static class JObjectX
 
     /// <summary>
     /// Try and get specified property value from jObject. This will throw a <see cref="FormatException"/> if the value
-    /// is not of the specified type or null
+    /// is not of the specified type
     /// </summary>
     public static T? TryGetValue<T>(this JObject jObject, string property)
     {

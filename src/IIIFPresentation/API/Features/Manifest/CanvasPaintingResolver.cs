@@ -11,6 +11,7 @@ using Models.API.Manifest;
 using Models.Database;
 using Models.DLCS;
 using Services.Manifests;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
