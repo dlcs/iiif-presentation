@@ -4,14 +4,15 @@ using Core.IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Traversal;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
-using Models.Database;
 using Models.DLCS;
 using Repository.Paths;
 using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using CanvasPainting = Models.Database.CanvasPainting;
 
@@ -23,19 +24,20 @@ namespace Services.Manifests;
 public class ManifestItemsParser(
     IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
+    PaintableAssetIdentifier paintableAssetIdentifier,
     IOptions<PathSettings> options,
     ILogger<ManifestItemsParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
-    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
-        List<CanvasPainting> paintedResourceCanvasPainting, int customer, Dictionary<IPaintable, AssetId> recognizedItemsAssets)
+    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
+        List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer)
     {
         if (manifest.Items.IsNullOrEmpty()) return [];
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", manifest.Id);
         
-        var canvasPaintings = new List<CanvasPainting>(manifest.Items.Count);
+        var canvasPaintings = new List<InterimCanvasPainting>(manifest.Items.Count);
         int canvasOrder = 0;
         
         foreach (var canvas in manifest.Items)
@@ -54,13 +56,19 @@ public class ManifestItemsParser(
                 continue;
             }
             
+            var identifiedManagedAssets = manifest
+                .AllPaintingAnnoBodies()
+                .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customer)))
+                .Where(tuple => tuple.assetId != null)
+                .ToDictionary();
+            
             var canvasLabelHasBeenSet = false;
             foreach (var painting in canvasPaintingsInCanvas)
             {
                 var target = painting.Target;
 
                 var body = painting.Body;
-                var assetId = body is not null && recognizedItemsAssets.TryGetValue(body, out var resolvedId) ? resolvedId : null;
+                var assetId = body is not null && identifiedManagedAssets.TryGetValue(body, out var resolvedId) ? resolvedId : null;
                 
                 if (body is PaintingChoice choice)
                 {
@@ -146,26 +154,28 @@ public class ManifestItemsParser(
 
         return resource;
     }
-
-    private CanvasPainting CreatePartialCanvasPainting(ResourceBase? resource,
+    
+    private InterimCanvasPainting CreatePartialCanvasPainting(ResourceBase? resource,
         string? canvasOriginalId,
         int canvasOrder,
         ResourceBase? target,
         Canvas currentCanvas,
         int customerId,
-        List<CanvasPainting>? paintedResourceCanvasPaintings,
+        List<InterimCanvasPainting>? paintedResourceCanvasPaintings,
         int? choiceOrder = null,
         AssetId? assetId = null)
     {
         // Create "partial" canvasPaintings that only contains values derived from manifest (no customer, manifest etc) 
-        var cp = new CanvasPainting
+        var cp = new InterimCanvasPainting
         {
             CanvasOriginalId = CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, canvasOriginalId), 
             CanvasOrder = canvasOrder,
             ChoiceOrder = choiceOrder,
             Target = TargetAsString(target, currentCanvas),
             Thumbnail = TryGetThumbnail(currentCanvas),
-            AssetId = assetId
+            CanvasPaintingType = CanvasPaintingType.Items,
+            ImplicitOrder = true,
+            CustomerId = customerId
         };
         
         if (resource is ISpatial spatial)
@@ -179,12 +189,18 @@ public class ManifestItemsParser(
         {
             cp.Id = canvasId;
         }
+
+        if (assetId != null)
+        {
+            cp.SuspectedAssetId = assetId.Asset;
+            cp.SuspectedSpace = assetId.Space;
+        }
         
         return cp;
     }
     
     private string? TryGetValidCanvasId(int customerId, Canvas currentCanvas, 
-        List<CanvasPainting>? paintedResourceCanvasPaintings)
+        List<InterimCanvasPainting>? paintedResourceCanvasPaintings)
     {
         if (currentCanvas.Id == null) return null;
 
@@ -192,7 +208,7 @@ public class ManifestItemsParser(
         {
             currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
             
-            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.CanvasPaintingContainsId(currentCanvas.Id))
+            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.ContainsId(currentCanvas.Id))
             {
                 throw new InvalidCanvasIdException(currentCanvas.Id, "The canvas id is not a valid URI, and cannot be matched with a painted resource");
             }
@@ -208,7 +224,7 @@ public class ManifestItemsParser(
             var checkedCanvasId =
                 CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
             
-            if (paintedResourceCanvasPaintings.CanvasPaintingContainsId(checkedCanvasId))
+            if (paintedResourceCanvasPaintings.ContainsId(checkedCanvasId))
             {
                 return checkedCanvasId;
             }

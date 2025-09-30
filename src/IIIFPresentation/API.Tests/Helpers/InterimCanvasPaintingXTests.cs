@@ -1,35 +1,36 @@
 ﻿using API.Helpers;
-using Models.Database;
+using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 
 namespace API.Tests.Helpers;
 
-public class CanvasPaintingXTests
+public class InterimCanvasPaintingXTests
 {
     [Fact]
     public void GetRequiredNumberOfCanvasIds_0_IfPaintedResourcesNull()
     {
-        List<CanvasPainting>? canvasPaintings = null;
+        List<InterimCanvasPainting>? canvasPaintings = null;
         canvasPaintings.GetRequiredNumberOfCanvasIds().Should().Be(0);
     }
     
     [Fact]
     public void GetRequiredNumberOfCanvasIds_0_IfPaintedResourcesEmpty()
     {
-        var canvasPaintings = new List<CanvasPainting>();
+        var canvasPaintings = new List<InterimCanvasPainting>();
         canvasPaintings.GetRequiredNumberOfCanvasIds().Should().Be(0);
     }
     
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_IfSingleCanvas()
     {
-        List<CanvasPainting> canvasPaintings = [new()];
+        List<InterimCanvasPainting> canvasPaintings = [new()];
         canvasPaintings.GetRequiredNumberOfCanvasIds().Should().Be(1);
     }
     
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_AllHaveId()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { Id = "1" },
             new() { Id = "2" },
@@ -40,7 +41,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_MultipleCanvasOrder()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOrder = 1 },
             new() { CanvasOrder = 2 },
@@ -51,7 +52,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_MultipleCanvasOriginalId()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOriginalId = new Uri("https://canvas.ex/1") },
             new() { CanvasOriginalId = new Uri("https://canvas.ex/2") },
@@ -62,7 +63,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_IfAllHaveCanvasOrderWithMultipleSame()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOrder = 1 },
             new() { CanvasOrder = 1 },
@@ -74,7 +75,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_IfAllHaveCanvasOriginalIdWithMultipleSame()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOriginalId = new Uri("https://canvas.ex/1") },
             new() { CanvasOriginalId = new Uri("https://canvas.ex/1") },
@@ -86,7 +87,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_MixedCanvasOrderAndNot()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOrder = 1 },
             new(),
@@ -100,7 +101,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_MixedCanvasOriginalIdAndNot()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOriginalId = new Uri("https://canvas.ex/1") },
             new(),
@@ -114,7 +115,7 @@ public class CanvasPaintingXTests
     [Fact]
     public void GetRequiredNumberOfCanvasIds_Correct_IgnoresItemsWithId_MixedCanvasOriginalIdAndCanvasOrder()
     {
-        List<CanvasPainting> canvasPaintings =
+        List<InterimCanvasPainting> canvasPaintings =
         [
             new() { CanvasOrder = 1 },
             new() { CanvasOriginalId = new Uri("https://canvas.ex/1"), CanvasOrder = 1 },

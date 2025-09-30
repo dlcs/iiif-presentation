@@ -15,8 +15,19 @@ public static class JObjectX
     
     /// <summary>
     /// Get specified property value from jObject. Property is required so <see cref="FormatException"/>
-    /// thrown if not found
+    /// thrown if not in the specified type
     /// </summary>
-    public static T? GetRequiredValue<T>(this JObject jObject, string property) 
-        => jObject.GetRequiredValue(property).Value<T>();
+    public static T GetRequiredValue<T>(this JObject jObject, string property) 
+        => jObject.GetRequiredValue(property).Value<T>().ThrowIfNull(nameof(jObject));
+
+    /// <summary>
+    /// Try and get specified property value from jObject. This will throw a <see cref="FormatException"/> if the value
+    /// is not of the specified type
+    /// </summary>
+    public static T? TryGetValue<T>(this JObject jObject, string property)
+    {
+        jObject.TryGetValue(property, out var value);
+
+        return value == null ? default : value.Value<T>();
+    }
 }

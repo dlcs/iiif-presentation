@@ -1,19 +1,18 @@
 ﻿using System.Diagnostics;
 using API.Infrastructure.Helpers;
 using Core.Exceptions;
+using Core.Helpers;
 using DLCS.API;
-using IIIF.Presentation.V3.Annotation;
-using IIIF.Presentation.V3.Traversal;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Features.Manifest;
 
 public class ManagedAssetResultFinder(
-    PaintableAssetIdentifier paintableAssetIdentifier,
     IDlcsApiClient dlcsApiClient,
     PresentationContext dbContext,
     ILogger<ManagedAssetResultFinder> logger) : IManagedAssetResultFinder
@@ -22,8 +21,7 @@ public class ManagedAssetResultFinder(
     /// Checks a presentation manifest to find what assets require further processing by the DLCS
     /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
-        CancellationToken cancellationToken)
+         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
     {
         logger.LogTrace("Checking for known assets");
         var stopwatch = new Stopwatch();
@@ -45,9 +43,9 @@ public class ManagedAssetResultFinder(
             }
 
             // check if the asset is managed in this manifest
-            if (dbManifest != null)
+            if (existingAssetIds != null)
             {
-                if (dbManifest.CanvasPaintings?.Any(cp => cp.AssetId == assetId) ?? false)
+                if (existingAssetIds.Any(cp => cp == assetId))
                 {
                     // set the asset to reingest, otherwise ignore the asset
                     if (paintedResource.Reingest ?? false)
@@ -118,29 +116,24 @@ public class ManagedAssetResultFinder(
 
         return dlcsInteractionRequests;
     }
-
+    
     /// <summary>
     /// Method looks in the provided manifest to find any assets, provided in the Items property
     /// that are managed by the configured DLCS instance
     /// </summary>
-    public async Task<List<(IPaintable? paintable, AssetId? assetId)>> FindManagedAssets(
-        PresentationManifest presentationManifest, int customerId, CancellationToken cancellationToken)
+    public async Task CheckAssetsFromItemsExist(
+        List<InterimCanvasPainting>? interimCanvasPaintings, int customerId, CancellationToken cancellationToken)
     {
-        var identifiedManagedAssets = presentationManifest
-            .AllPaintingAnnoBodies()
-            .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customerId)))
-            .Where(tuple => tuple.assetId != null)
-            .ToList();
+        if (interimCanvasPaintings.IsNullOrEmpty()) return;
 
-        if (identifiedManagedAssets.Count == 0)
-            return [];
+        var assetIdsToCheck = interimCanvasPaintings!
+            .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!).ToString()).ToList();
         
         IList<JObject> dlcsAssets;
-
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                identifiedManagedAssets.Select(a => a.assetId!.ToString()).ToList(), cancellationToken);
+                assetIdsToCheck, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -148,12 +141,17 @@ public class ManagedAssetResultFinder(
             throw;
         }
 
-        var missingAssets = identifiedManagedAssets.Select(tuple=>tuple.assetId).Except(dlcsAssets.Select(d => d.GetAssetId(customerId))).ToArray();
-        if(missingAssets.Length != 0)
-            throw new PresentationException($"Managed assets not found: {string.Join(", ", missingAssets.Select(a=>$"'{a}'"))}");
+        var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
+
+        var missingAssets = interimCanvasPaintings.Where(icp => !dlcsAssetIds.Any(a =>
+                icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space))
+            .Select(icp => icp.Id).ToList();
         
-        // All identified assets exist in DLCS
-        return identifiedManagedAssets;
+        if (missingAssets.Count != 0)
+        {
+            throw new PresentationException(
+                $"Managed assets not found: {string.Join(", ", missingAssets.Select(a => $"'{a}'"))}");
+        }
     }
 
     private List<CanvasPainting> FindAssetsInAnotherManifest(int customerId, 
@@ -238,10 +236,10 @@ public interface IManagedAssetResultFinder
 {
     public Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(
         PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
+        List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken);
     
-    public Task<List<(IPaintable? paintable, AssetId? assetId)>> FindManagedAssets(
-        PresentationManifest presentationManifest,
+    public Task CheckAssetsFromItemsExist(
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
         int customerId, CancellationToken cancellationToken);
 }

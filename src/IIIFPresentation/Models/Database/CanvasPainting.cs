@@ -144,10 +144,15 @@ public static class CanvasPaintingX
         if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
         return canvasPainting;
     } 
-    
-    /// <summary>
-    /// Checks a list of canvas paintings for if they contain a specific id
-    /// </summary>
-    public static bool CanvasPaintingContainsId(this List<CanvasPainting>? canvasPainting, string? id) =>
-        canvasPainting?.Any(cp => cp.Id == id) ?? false;
+
+    public static void SetAssetsToIngesting(this List<CanvasPainting> canvasPaintings, List<AssetId>? ingestingAssets)
+    {
+        if (ingestingAssets == null) return;
+        
+        foreach (var canvasPainting in ingestingAssets.SelectMany(cp => canvasPaintings.Where(a => a.AssetId == cp)))
+        {
+            canvasPainting.Ingesting = true;
+        }
+    }
 }
+
