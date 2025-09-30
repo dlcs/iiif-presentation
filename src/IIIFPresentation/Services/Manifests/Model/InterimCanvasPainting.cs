@@ -5,93 +5,17 @@ using Models.DLCS;
 
 namespace Services.Manifests.Model;
 
-public class InterimCanvasPainting
+public class InterimCanvasPainting : CanvasPainting
 {
     /// <summary>
-    /// Unique identifier for canvas on a manifest.
+    /// A potential space for the asset
     /// </summary>
-    /// <remarks>
-    /// There can be multiple rows with the same CanvasId and ManifestId (e.g. if there are multiple choices)
-    /// </remarks>
-    public string Id { get; set; } = null!;
+    public int? SuspectedSpace { get; set; }
     
     /// <summary>
-    /// The customer identifier
+    /// A potential id for the asset
     /// </summary>
-    public int CustomerId { get; set; }
-
-    /// <summary>
-    /// A fully qualified external URI specific with "items" property;
-    /// </summary>
-    /// <remarks>
-    /// This can be an externally managed Id (ie on a separate domain) or an id for another Canvas managed by
-    /// iiif-presentation
-    /// </remarks>
-    public Uri? CanvasOriginalId { get; set; }
-
-    /// <summary>
-    /// 0-based Canvas sequence order within a Manifest. This keeps incrementing for successive paintings on the same
-    /// canvas, it is always >= number of canvases in the manifest. For most manifests, the number of rows equals the
-    /// highest value of this. It stays the same for successive content resources within a Choice (see choice_order). It
-    /// gets recalculated on a Manifest save by walking through the manifest.items, incrementing as we go.
-    /// </summary>
-    public int CanvasOrder { get; set; }
-
-    /// <summary>
-    /// 1-based. Normally null; a positive integer indicates that the asset is part of a Choice body. 
-    /// Multiple choice bodies share same value of canvas_order. When the successive content resources are items in a
-    /// Choice body, canvas_order holds constant and this row increments.
-    /// </summary>
-    public int? ChoiceOrder { get; set; }
-
-    /// <summary>
-    /// Optional URI of a thumbnail for canvas. 
-    /// </summary>
-    /// <remarks>Could this be derived from asset id in the future?</remarks>
-    public Uri? Thumbnail { get; set; }
-
-    /// <summary>
-    /// Stored language map, is the same as the on the canvas, may be null where it is not contributing to the canvas,
-    /// should be used for choice, multiples etc.
-    /// </summary>
-    public LanguageMap? Label { get; set; }
-
-    /// <summary>
-    /// Only needed if the canvas label is not to be the first asset label; multiple assets on a canvas use the first.
-    /// </summary>
-    public LanguageMap? CanvasLabel { get; set; }
-    
-    /// <summary>
-    /// Null if Canvas fills whole canvas, otherwise a parseable IIIF selector (fragment or JSON)
-    /// </summary>
-    public string? Target { get; set; }
-    
-    public int? Space { get; set; }
-    
-    /// <summary>
-    /// An asset id showing this asset is an internal item
-    /// </summary>
-    public string? AssetId { get; set; }
-    
-    /// <summary>
-    /// Whether the asset is currently being ingested into the DLCS
-    /// </summary>
-    public bool Ingesting { get; set; }
-    
-    /// <summary>
-    /// For spatial resources, the width of the resources on the canvas 
-    /// </summary>
-    public int? StaticWidth { get; set; }
-
-    /// <summary>
-    /// For spatial resources, the height of the resources on the canvas
-    /// </summary>
-    public int? StaticHeight { get; set; }
-
-    /// <summary>
-    ///     For temporal resources, the duration of the resources on the canvas
-    /// </summary>
-    public double? Duration { get; set; }
+    public string? SuspectedAssetId { get; set; }
     
     /// <summary>
     /// Where is this canvas painting record from?
@@ -131,11 +55,11 @@ public static class InterimCanvasPaintingX
 
     public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
-        interimCanvasPainting.Space ??= space;
+        interimCanvasPainting.SuspectedSpace ??= space;
 
-        var assetId = interimCanvasPainting is { AssetId: not null, Space: not null }
-            ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.Space.Value,
-                interimCanvasPainting.AssetId)
+        var assetId = interimCanvasPainting is { SuspectedAssetId: not null, SuspectedSpace: not null }
+            ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.SuspectedSpace.Value,
+                interimCanvasPainting.SuspectedAssetId)
             : null;
 
         return GenerateCanvasPainting(interimCanvasPainting, assetId);
@@ -166,13 +90,13 @@ public static class InterimCanvasPaintingX
     {
         return interimCanvasPaintings.Select(icp =>
         {
-            if (icp.AssetId != null && icp.Space == null)
+            if (icp.SuspectedAssetId != null && icp.SuspectedSpace == null)
             {
                 space.ThrowIfNull($"Space of canvas {icp.Id} cannot be inferred and cannot be null");
-                icp.Space = space!.Value;
+                icp.SuspectedSpace = space!.Value;
             }
 
-            var assetId = icp.AssetId != null ? new AssetId(icp.CustomerId, icp.Space!.Value, icp.AssetId) : null;
+            var assetId = icp.SuspectedAssetId != null ? new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId) : null;
             
             return GenerateCanvasPainting(icp, assetId);
         }).ToList();

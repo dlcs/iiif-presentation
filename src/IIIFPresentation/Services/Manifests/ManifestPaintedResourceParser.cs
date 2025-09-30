@@ -54,15 +54,16 @@ public class ManifestPaintedResourceParser(
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var (space, assetId) = GetCanvasPaintingDetailsForAsset(paintedResource.Asset);
+        var (space, assetId) =
+            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
         var cp = new InterimCanvasPainting
         {
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
-            AssetId = assetId,
-            Space = space,
+            SuspectedAssetId = assetId,
+            SuspectedSpace = space,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -110,9 +111,9 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
     
-    private static (int? space, string? id) GetCanvasPaintingDetailsForAsset(JObject asset)
+    private static (int? space, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
     {
-        // Read props from Asset - these must be there. If not, throw an exception
+        // Read props from Asset - id must be there. If not, throw an exception
         var space = asset.TryGetValue<int?>(AssetProperties.Space);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
         return (space, id);

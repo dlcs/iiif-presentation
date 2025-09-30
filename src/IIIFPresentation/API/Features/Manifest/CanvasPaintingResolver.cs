@@ -181,7 +181,7 @@ public class CanvasPaintingResolver(
     {
         return !string.IsNullOrEmpty(incoming.Id)
             ? incoming.Id
-            : incoming.CanvasOriginalId?.ToString() ?? incoming.AssetId ?? "unknown";
+            : incoming.CanvasOriginalId?.ToString() ?? incoming.SuspectedAssetId ?? "unknown";
     }
     
     private async Task<PresUpdateResult?> HandleInserts(List<InterimCanvasPainting> canvasPaintings, int customerId,

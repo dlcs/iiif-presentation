@@ -192,8 +192,8 @@ public class ManifestItemsParser(
 
         if (assetId != null)
         {
-            cp.AssetId = assetId.Asset;
-            cp.Space = assetId.Space;
+            cp.SuspectedAssetId = assetId.Asset;
+            cp.SuspectedSpace = assetId.Space;
         }
         
         return cp;

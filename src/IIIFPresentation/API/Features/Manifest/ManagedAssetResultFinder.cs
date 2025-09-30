@@ -127,7 +127,7 @@ public class ManagedAssetResultFinder(
         if (interimCanvasPaintings.IsNullOrEmpty()) return;
 
         var assetIdsToCheck = interimCanvasPaintings!
-            .Select(icp => new AssetId(icp.CustomerId, icp.Space!.Value, icp.AssetId!).ToString()).ToList();
+            .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!).ToString()).ToList();
         
         IList<JObject> dlcsAssets;
         try
@@ -144,7 +144,7 @@ public class ManagedAssetResultFinder(
         var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
 
         var missingAssets = interimCanvasPaintings.Where(icp =>
-                !dlcsAssetIds.Any(a => icp.AssetId == a.Asset && icp.CustomerId == a.Customer && icp.Space == a.Space))
+                !dlcsAssetIds.Any(a => icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space))
             .Select(icp => icp.Id).ToList();
         
         if (missingAssets.Count != 0)

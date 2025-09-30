@@ -190,9 +190,9 @@ public class ManifestTestCreator
             return new InterimCanvasPainting
             {
                 Id = cp.Id,
-                AssetId = assetId,
+                SuspectedAssetId = assetId,
                 CustomerId = customerId ?? 0,
-                Space = space,
+                SuspectedSpace = space,
                 CanvasOriginalId = cp.CanvasOriginalId != null ? cp.CanvasOriginalId : null,
                 CanvasOrder = cp.CanvasOrder,
                 ChoiceOrder = cp.ChoiceOrder,

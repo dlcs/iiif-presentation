@@ -105,8 +105,8 @@ public class ManifestPaintedResourceParserTests
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
@@ -139,9 +139,9 @@ public class ManifestPaintedResourceParserTests
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = assetIds[0],
+                SuspectedAssetId = assetIds[0],
                 CustomerId = CustomerId,
-                Space = DefaultSpace,
+                SuspectedSpace = DefaultSpace,
                 CanvasOrder = 0,
                 ChoiceOrder = null,
                 Target = null,
@@ -152,9 +152,9 @@ public class ManifestPaintedResourceParserTests
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = assetIds[1],
+                SuspectedAssetId = assetIds[1],
                 CustomerId = CustomerId,
-                Space = DefaultSpace + 1,
+                SuspectedSpace = DefaultSpace + 1,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = null,
@@ -199,8 +199,8 @@ public class ManifestPaintedResourceParserTests
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
@@ -263,8 +263,8 @@ public class ManifestPaintedResourceParserTests
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
@@ -280,8 +280,8 @@ public class ManifestPaintedResourceParserTests
             {
                 CanvasOriginalId = null,
                 Id = "two",
-                AssetId = assetIds[1],
-                Space = DefaultSpace + 1,
+                SuspectedAssetId = assetIds[1],
+                SuspectedSpace = DefaultSpace + 1,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 10,
@@ -346,8 +346,8 @@ public class ManifestPaintedResourceParserTests
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 1023,
@@ -363,8 +363,8 @@ public class ManifestPaintedResourceParserTests
             {
                 CanvasOriginalId = null,
                 Id = "one",
-                AssetId = assetIds[1],
-                Space = DefaultSpace + 1,
+                SuspectedAssetId = assetIds[1],
+                SuspectedSpace = DefaultSpace + 1,
                 CustomerId = CustomerId,
                 CanvasOrder = 0,
                 StaticHeight = 10,
@@ -419,8 +419,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = "one",
                 CanvasOriginalId = null,
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
@@ -432,8 +432,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = "one",
                 CanvasOriginalId = null,
-                AssetId = assetIds[1],
-                Space = DefaultSpace + 1,
+                SuspectedAssetId = assetIds[1],
+                SuspectedSpace = DefaultSpace + 1,
                 CustomerId = CustomerId,
                 CanvasOrder = 2,
                 ChoiceOrder = null,
@@ -528,8 +528,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = assetIds[0],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[0],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 18,
                 ChoiceOrder = null,
@@ -542,8 +542,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = assetIds[1],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[1],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 19,
                 ChoiceOrder = null,
@@ -556,8 +556,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = assetIds[2],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[2],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 20,
                 ChoiceOrder = 1,
@@ -570,8 +570,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = assetIds[3],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[3],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 20,
                 ChoiceOrder = 2,
@@ -584,8 +584,8 @@ public class ManifestPaintedResourceParserTests
             {
                 Id = parsedCanvasId,
                 CanvasOriginalId = null,
-                AssetId = assetIds[4],
-                Space = DefaultSpace,
+                SuspectedAssetId = assetIds[4],
+                SuspectedSpace = DefaultSpace,
                 CustomerId = CustomerId,
                 CanvasOrder = 21,
                 ChoiceOrder = null,
@@ -617,9 +617,9 @@ public class ManifestPaintedResourceParserTests
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = assetIds[0],
+                SuspectedAssetId = assetIds[0],
                 CustomerId = CustomerId,
-                Space = DefaultSpace,
+                SuspectedSpace = DefaultSpace,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = null,
@@ -630,9 +630,9 @@ public class ManifestPaintedResourceParserTests
             new()
             {
                 CanvasOriginalId = null,
-                AssetId = assetIds[1],
+                SuspectedAssetId = assetIds[1],
                 CustomerId = CustomerId,
-                Space = DefaultSpace + 1,
+                SuspectedSpace = DefaultSpace + 1,
                 CanvasOrder = 1,
                 ChoiceOrder = null,
                 Target = null,

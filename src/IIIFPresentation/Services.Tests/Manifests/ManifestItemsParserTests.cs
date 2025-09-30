@@ -377,8 +377,8 @@ public class ManifestItemsParserTests
                 ChoiceOrder = null,
                 Target = null,
                 CustomerId = DefaultCustomerId,
-                AssetId = "theAssetId",
-                Space = 1,
+                SuspectedAssetId = "theAssetId",
+                SuspectedSpace = 1,
                 CanvasPaintingType = CanvasPaintingType.Items,
                 ImplicitOrder = true
             }

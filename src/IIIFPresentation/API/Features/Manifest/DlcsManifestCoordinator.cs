@@ -30,8 +30,6 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
     
-    public List<string>? ItemCanvasPaintingsWithAssets { get; set; }
-    
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
         
     public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);

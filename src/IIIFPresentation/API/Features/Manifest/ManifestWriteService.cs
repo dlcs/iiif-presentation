@@ -175,7 +175,7 @@ public class ManifestWriteService(
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
                 itemCanvasPaintingsWithAssets: interimCanvasPaintings?.Where(icp =>
-                    icp is { AssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(),
+                    icp is { SuspectedAssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(),
                 cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
@@ -224,11 +224,11 @@ public class ManifestWriteService(
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request,
                 existingManifest.Id,  existingAssetIds, existingManifest,
                 interimCanvasPaintingsToAdd?.Where(icp => icp is
-                    { AssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(), cancellationToken);
+                    { SuspectedAssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList(), cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             
             // update existing manifest with canvas paintings following DLCS interactions
-            var canvasPaintings = interimCanvasPaintingsToAdd.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId);
+            var canvasPaintings = interimCanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
             existingManifest.CanvasPaintings ??= [];
             existingManifest.CanvasPaintings.AddRange(canvasPaintings);
             existingManifest.CanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
