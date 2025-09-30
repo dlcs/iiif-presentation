@@ -32,7 +32,24 @@ public class CanvasPaintingResolver(
     public async Task<(PresUpdateResult? updateResult, List<InterimCanvasPainting>? canvasPaintings)> GenerateCanvasPaintings(
         int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
     {
-        return await HandleInsert(customerId, presentationManifest, cancellationToken);
+        try
+        {
+            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest);
+            if (parseError != null) return (parseError, null);
+
+            Debug.Assert(canvasPaintings is not null, "canvasPaintings is not null");
+
+            var insertCanvasPaintingsError = await HandleInserts(canvasPaintings, customerId, cancellationToken);
+            if (insertCanvasPaintingsError != null) return (insertCanvasPaintingsError, null);
+
+            return (null, canvasPaintings);
+        }
+        catch (InvalidCanvasIdException cpId)
+        {
+            logger.LogDebug(cpId, "InvalidCanvasId '{CanvasId}' encountered in {ManifestId}", cpId.CanvasId,
+                presentationManifest.Id);
+            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
+        }
     }
 
     /// <summary>
@@ -43,12 +60,6 @@ public class CanvasPaintingResolver(
     /// <returns>Error, if processing fails</returns>
     public async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintingsToAdd)> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
-    {
-        return await HandleUpdate(customerId, presentationManifest, existingManifest, cancellationToken);
-    }
-
-    private async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintingsToAdd)> HandleUpdate(int customerId, PresentationManifest presentationManifest, 
-        DbManifest existingManifest, CancellationToken cancellationToken)
     {
         var (error, incomingCanvasPaintings) = ParseManifest(customerId, presentationManifest);
         if (error != null) return (error, null);
@@ -227,29 +238,6 @@ public class CanvasPaintingResolver(
             return null;
         }
     }
-
-    private async Task<(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings)> HandleInsert(int customerId, 
-        PresentationManifest presentationManifest, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var (parseError, canvasPaintings) = ParseManifest(customerId, presentationManifest);
-            if (parseError != null) return (parseError, null);
-
-            Debug.Assert(canvasPaintings is not null, "canvasPaintings is not null");
-
-            var insertCanvasPaintingsError = await HandleInserts(canvasPaintings, customerId, cancellationToken);
-            if (insertCanvasPaintingsError != null) return (insertCanvasPaintingsError, null);
-
-            return (null, canvasPaintings);
-        }
-        catch (InvalidCanvasIdException cpId)
-        {
-            logger.LogDebug(cpId, "InvalidCanvasId '{CanvasId}' encountered in {ManifestId}", cpId.CanvasId,
-                presentationManifest.Id);
-            return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
-        }
-    } 
     
     private (PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings) ParseManifest(int customerId, 
         PresentationManifest presentationManifest)

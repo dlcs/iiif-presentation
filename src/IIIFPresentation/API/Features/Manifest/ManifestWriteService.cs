@@ -156,10 +156,6 @@ public class ManifestWriteService(
     {
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
-            // Ensure we have a manifestId
-            manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
-            if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
-
             // retrieve and validate the canvas paintings on the request
             var (canvasPaintingsError, interimCanvasPaintings) =
                 await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
@@ -171,6 +167,10 @@ public class ManifestWriteService(
                 await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, null, cancellationToken);
             if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
             var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
+            
+            // Ensure we have a manifestId
+            manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
+            if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
             
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,

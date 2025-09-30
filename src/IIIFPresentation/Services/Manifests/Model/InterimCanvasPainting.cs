@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using Core.Helpers;
+using IIIF.Presentation.V3.Strings;
 using Models.Database;
 using Models.DLCS;
 
@@ -131,7 +132,17 @@ public static class InterimCanvasPaintingX
     public static CanvasPainting ConvertInterimCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
         interimCanvasPainting.Space ??= space;
-        
+
+        var assetId = interimCanvasPainting is { AssetId: not null, Space: not null }
+            ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.Space.Value,
+                interimCanvasPainting.AssetId)
+            : null;
+
+        return GenerateCanvasPainting(interimCanvasPainting, assetId);
+    }
+
+    private static CanvasPainting GenerateCanvasPainting(InterimCanvasPainting interimCanvasPainting, AssetId? assetId)
+    {
         return new CanvasPainting
         {
             Id = interimCanvasPainting.Id,
@@ -144,44 +155,26 @@ public static class InterimCanvasPaintingX
             StaticHeight = interimCanvasPainting.StaticHeight,
             StaticWidth = interimCanvasPainting.StaticWidth,
             Target = interimCanvasPainting.Target,
-            AssetId = interimCanvasPainting is { AssetId: not null, Space: not null } ? 
-                new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.Space.Value, interimCanvasPainting.AssetId) : null,
+            AssetId = assetId,
             Ingesting = interimCanvasPainting.Ingesting,
             CanvasOriginalId = interimCanvasPainting.CanvasOriginalId,
         };
     }
-    
+
     public static List<CanvasPainting> ConvertInterimCanvasPaintings(
         this List<InterimCanvasPainting> interimCanvasPaintings, int? space)
     {
-        return interimCanvasPaintings.Select(i =>
+        return interimCanvasPaintings.Select(icp =>
         {
-            if (i.AssetId != null && i.Space == null)
+            if (icp.AssetId != null && icp.Space == null)
             {
-                if (space == null)
-                {
-                    throw new ArgumentNullException(nameof(i.Space), $"space of canvas {i.Id} cannot be inferred and cannot be null");
-                }
-                
-                i.Space = space.Value;
+                space.ThrowIfNull($"Space of canvas {icp.Id} cannot be inferred and cannot be null");
+                icp.Space = space!.Value;
             }
+
+            var assetId = icp.AssetId != null ? new AssetId(icp.CustomerId, icp.Space!.Value, icp.AssetId) : null;
             
-            return new CanvasPainting
-            {
-                Id = i.Id,
-                CustomerId = i.CustomerId,
-                Label = i.Label,
-                CanvasLabel = i.CanvasLabel,
-                CanvasOrder = i.CanvasOrder,
-                ChoiceOrder = i.ChoiceOrder,
-                Thumbnail = i.Thumbnail,
-                StaticHeight = i.StaticHeight,
-                StaticWidth = i.StaticWidth,
-                Target = i.Target,
-                AssetId = i.AssetId != null ? new AssetId(i.CustomerId, i.Space!.Value, i.AssetId) : null,
-                Ingesting = i.Ingesting,
-                CanvasOriginalId = i.CanvasOriginalId,
-            };
+            return GenerateCanvasPainting(icp, assetId);
         }).ToList();
     }
 }
