@@ -208,7 +208,7 @@ public class ManifestItemsParser(
         {
             currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
             
-            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.InterimCanvasPaintingContainsId(currentCanvas.Id))
+            if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.ContainsId(currentCanvas.Id))
             {
                 throw new InvalidCanvasIdException(currentCanvas.Id, "The canvas id is not a valid URI, and cannot be matched with a painted resource");
             }
@@ -224,7 +224,7 @@ public class ManifestItemsParser(
             var checkedCanvasId =
                 CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
             
-            if (paintedResourceCanvasPaintings.InterimCanvasPaintingContainsId(checkedCanvasId))
+            if (paintedResourceCanvasPaintings.ContainsId(checkedCanvasId))
             {
                 return checkedCanvasId;
             }

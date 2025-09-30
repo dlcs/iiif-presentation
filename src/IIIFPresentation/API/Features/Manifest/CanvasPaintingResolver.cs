@@ -123,7 +123,7 @@ public class CanvasPaintingResolver(
         {
             // Found matching DB record, update...
             logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-            matching.UpdateFrom(incoming.ConvertInterimCanvasPainting(matching.AssetId?.Space));
+            matching.UpdateFrom(incoming.ToCanvasPainting(matching.AssetId?.Space));
             processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
         }
     }

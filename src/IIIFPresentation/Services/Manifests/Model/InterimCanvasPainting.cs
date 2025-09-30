@@ -126,10 +126,10 @@ public static class InterimCanvasPaintingX
     /// <summary>
     /// Checks a list of canvas paintings for if they contain a specific id
     /// </summary>
-    public static bool InterimCanvasPaintingContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
+    public static bool ContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
         canvasPainting?.Any(cp => cp.Id == id) ?? false;
 
-    public static CanvasPainting ConvertInterimCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
+    public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
         interimCanvasPainting.Space ??= space;
 

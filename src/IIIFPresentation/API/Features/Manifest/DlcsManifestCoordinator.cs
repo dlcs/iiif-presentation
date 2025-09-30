@@ -70,7 +70,12 @@ public class DlcsManifestCoordinator(
             return null;
         }
     }
-
+    
+    /// <summary>
+    /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
+    /// creating a space and/or creating DLCS batches
+    /// </summary>
+    /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId,
         List<AssetId>? existingAssetIds = null,
@@ -84,11 +89,6 @@ public class DlcsManifestCoordinator(
             dbManifest?.SpaceId, cancellationToken);
     }
     
-    /// <summary>
-    /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
-    /// creating a space and/or creating DLCS batches
-    /// </summary>
-    /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
         string manifestId, 
