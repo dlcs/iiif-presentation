@@ -565,7 +565,7 @@ public class CanvasPaintingMergerTests
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage(
-                $"The following canvas painting records conflict with the order from items - {{id: {paintedResourceId}_1, canvasOrder: 0}},{{id: {paintedResourceId}_2, canvasOrder: 0}}");
+                $"The following canvas painting records conflict with the order from items - (id: {paintedResourceId}_1, canvasOrder: 0),(id: {paintedResourceId}_2, canvasOrder: 0)");
     }
     
     [Fact]

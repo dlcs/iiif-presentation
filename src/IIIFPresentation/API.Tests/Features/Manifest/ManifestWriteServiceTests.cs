@@ -274,7 +274,7 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"The following canvas painting records conflict with the order from items - {{id: {canvasId}, canvasOrder: 0}}");
+        ingestedManifest.Error.Should().Be($"The following canvas painting records conflict with the order from items - (id: {canvasId}, canvasOrder: 0)");
     }
     
     [Fact]
@@ -318,7 +318,7 @@ public class ManifestWriteServiceTests
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should()
             .Be(
-                "The following canvas painting records conflict with the order from items - {canvasOrder: 0}");
+                "The following canvas painting records conflict with the order from items - (canvasOrder: 0)");
     }
     
     [Fact]
