@@ -104,7 +104,12 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
-
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> PaintableAssetError<TCollection>(string error)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+            ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
+    
     private static string CollectionType(bool isStorageCollection)
     {
         return isStorageCollection ? "Storage" : "IIIF";

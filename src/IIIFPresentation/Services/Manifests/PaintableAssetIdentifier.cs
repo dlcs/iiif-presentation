@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using Core.Exceptions;
 using DLCS;
 using IIIF;
 using IIIF.ImageApi.V2;
@@ -9,6 +8,7 @@ using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.DLCS;
+using Services.Manifests.Exceptions;
 
 namespace Services.Manifests;
 
@@ -50,7 +50,7 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
         if (fromServices is not null
             && fromBody is not null
             && fromServices != fromBody)
-            throw new PresentationException("Image body and services point to different managed assets");
+            throw new PaintableAssetException($"Suspected asset from image body ({fromBody}) and services ({fromServices}) point to different managed assets");
 
         return fromServices ?? fromBody;
     }

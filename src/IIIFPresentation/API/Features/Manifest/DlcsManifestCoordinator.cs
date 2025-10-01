@@ -3,6 +3,7 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
+using Core.Exceptions;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -81,7 +82,16 @@ public class DlcsManifestCoordinator(
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
         CancellationToken cancellationToken = default)
     {
-        await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, cancellationToken);
+        try
+        {
+            await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId,
+                cancellationToken);
+        }
+        catch (PresentationException presentationException)
+        {
+            return DlcsInteractionResult.Fail(ErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
+        }
+                
         
         return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingAssetIds,
             dbManifest?.SpaceId, cancellationToken);

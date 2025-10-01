@@ -7,6 +7,7 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging.Abstractions;
 using Services.Manifests;
+using Services.Manifests.Exceptions;
 using Test.Helpers.Helpers;
 using Test.Helpers.Settings;
 
@@ -150,7 +151,9 @@ public class PaintableAssetIdentifierTests
         var image = new Image { Id = otherId, Service = [new ImageService3{Id = id}]};
         
         Action act = () => pai.ResolvePaintableAsset(image, customerId);
-        act.Should().Throw<PresentationException>("we prohibit images that point to different assets in body/services");
+        act.Should()
+            .Throw<PaintableAssetException>("we prohibit images that point to different assets in body/services")
+            .WithMessage("Suspected asset from image body (1/2/def) and services (1/2/abc) point to different managed assets");
     }
     
     [Fact]

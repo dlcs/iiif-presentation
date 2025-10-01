@@ -7,6 +7,7 @@ using DLCS;
 using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -513,5 +514,115 @@ public class ManifestWriteServiceTests
         var paintedResource = ingestedManifest.Entity.PaintedResources.First();
         paintedResource.CanvasPainting.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
         paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task Create_ErrorCreatingManifest_WhenErrorWithPaintableAsset()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        asset.id = assetId;
+        
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://test.com/item",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Body = new Image
+                                    {
+                                        Id = $"https://dlcs.orchestrator/iiif-img/{Customer}/1/someItem",
+                                        Service = 
+                                        [
+                                            new ImageService3
+                                            {
+                                                Id =  $"https://dlcs.orchestrator/iiif-img/{Customer}/1/different",
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
+    }
+    
+    [Fact]
+    public async Task Create_ErrorCreatingManifest_WhenCannotFindAssetFromItemsInDlcs()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        asset.id = assetId;
+        
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://test.com/item",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Body = new Image
+                                    {
+                                        Id = $"https://dlcs.orchestrator/iiif-img/{Customer}/1/someItem",
+                                        Service = 
+                                        [
+                                            new ImageService3
+                                            {
+                                                Id =  $"https://dlcs.orchestrator/iiif-img/{Customer}/1/someItem",
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be($"Suspected DLCS assets from items not found: (id: https://test.com/item, assetId: {Customer}/1/someItem)");
     }
 }
