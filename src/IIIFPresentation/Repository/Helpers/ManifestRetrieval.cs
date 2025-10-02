@@ -22,44 +22,43 @@ public static class ManifestRetrieval
     public static async Task<string> RetrieveFullPathForManifest(string manifestId, int customerId,
         PresentationContext dbContext,
         CancellationToken cancellationToken = default)
-    {
-        var query = $@"
-WITH RECURSIVE parentsearch AS (
- select
-    id,
-    collection_id,
-    manifest_id,
-    parent,
-    customer_id,
-    items_order,
-    slug,
-    canonical,
-    type,
-    0 AS generation_number
- FROM hierarchy
- WHERE manifest_id = '{manifestId}' AND customer_id = {customerId}
- UNION
- SELECT
-    child.id,
-    child.collection_id,
-    child.manifest_id,
-    child.parent,
-    child.customer_id,
-    child.items_order,
-    child.slug,
-    child.canonical,
-    child.type,
-    generation_number+1 AS generation_number
- FROM hierarchy child
-     JOIN parentsearch ps ON child.collection_id=ps.parent
- WHERE generation_number <= 1000 AND child.customer_id = {customerId}
-)
-SELECT * FROM parentsearch ps
-         ORDER BY generation_number DESC
-";
+    { 
         var parentCollections = await dbContext.Hierarchy
-            .FromSqlRaw(query)
-            .ToListAsync(cancellationToken);
+             .FromSql($"""
+                        WITH RECURSIVE parentsearch AS (
+                         select
+                            id,
+                            collection_id,
+                            manifest_id,
+                            parent,
+                            customer_id,
+                            items_order,
+                            slug,
+                            canonical,
+                            type,
+                            0 AS generation_number
+                         FROM hierarchy
+                         WHERE manifest_id = {manifestId} AND customer_id = {customerId}
+                         UNION
+                         SELECT
+                            child.id,
+                            child.collection_id,
+                            child.manifest_id,
+                            child.parent,
+                            child.customer_id,
+                            child.items_order,
+                            child.slug,
+                            child.canonical,
+                            child.type,
+                            generation_number+1 AS generation_number
+                         FROM hierarchy child
+                             JOIN parentsearch ps ON child.collection_id=ps.parent
+                         WHERE generation_number <= 1000 AND child.customer_id = {customerId}
+                        )
+                        SELECT * FROM parentsearch ps
+                                 ORDER BY generation_number DESC
+                        """)
+             .ToListAsync(cancellationToken);
 
         if (parentCollections.Count >= 1000)
             throw new PresentationException("Parent to child relationship exceeds 1000 records");
