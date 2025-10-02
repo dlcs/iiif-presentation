@@ -18,42 +18,6 @@ public static class CollectionRetrieval
     /// <remarks>Note that both 'root' level items and not-found items will return empty string</remarks>
     public static async Task<string> RetrieveFullPathForCollection(Collection collection, PresentationContext dbContext, CancellationToken cancellationToken = default)
     {
-        var query = $@"
-WITH RECURSIVE parentsearch AS (
- select
-    id,
-    collection_id,
-    manifest_id,
-    parent,
-    customer_id,
-    items_order,
-    slug,
-    canonical,
-    type,
-    0 AS generation_number
- FROM hierarchy
- WHERE collection_id = '{collection.Id}' AND customer_id = {collection.CustomerId}
- UNION
- SELECT
-    child.id,
-    child.collection_id,
-    child.manifest_id,
-    child.parent,
-    child.customer_id,
-    child.items_order,
-    child.slug,
-    child.canonical,
-    child.type,
-    generation_number+1 AS generation_number
- FROM hierarchy child
-     JOIN parentsearch ps ON child.collection_id=ps.parent
- WHERE generation_number <= 1000 AND child.customer_id = {collection.CustomerId}
-)
-SELECT * FROM parentsearch ps
-         ORDER BY generation_number DESC
-";
-        
-        
         var parentCollections = await dbContext.Hierarchy
             .FromSql($"""
         WITH RECURSIVE parentsearch AS (
