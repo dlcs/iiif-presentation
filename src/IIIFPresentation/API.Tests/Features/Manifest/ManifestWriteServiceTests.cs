@@ -274,7 +274,51 @@ public class ManifestWriteServiceTests
         
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"Canvas painting records with the following id's conflict with the order from items - {canvasId}");
+        ingestedManifest.Error.Should().Be($"The following canvas painting records conflict with the order from items - (id: {canvasId}, canvasOrder: 0)");
+    }
+    
+    [Fact]
+    public async Task Create_FailsToCreateManifest_WhenBlankCanvasIdNotMatched()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = assetId;
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/additionalSlug/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = null
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should()
+            .Be(
+                "The following canvas painting records conflict with the order from items - (canvasOrder: 0)");
     }
     
     [Fact]

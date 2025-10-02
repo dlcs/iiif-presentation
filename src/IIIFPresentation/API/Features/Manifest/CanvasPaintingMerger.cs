@@ -76,7 +76,9 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         if (matchedCanvasPainting.Count != 0)
         {
             throw new CanvasPaintingMergerException(
-                $"Canvas painting records with the following id's conflict with the order from items - {string.Join(',', matchedCanvasPainting.Select(m => m.Id))}");
+                "The following canvas painting records conflict with the order from items - " +
+                $"{string.Join(',', 
+                    matchedCanvasPainting.Select(m => $"({(m.Id != null ? $"id: {m.Id}, " : "")}canvasOrder: {m.CanvasOrder})"))}");
         }
     }
     
