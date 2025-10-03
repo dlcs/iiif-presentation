@@ -51,12 +51,9 @@ public class CanvasPaintingResolver(
         }
         catch (PaintableAssetException paintableAssetException)
         {
-            var error =
-                $"Suspected asset from image body ({paintableAssetException.FromBody}) and services ({paintableAssetException.FromServices}) point to different managed assets";
-            
             logger.LogError(paintableAssetException,
-                "{ErrorMessage}", error);
-            return (ErrorHelper.PaintableAssetError<PresentationManifest>(error), null);
+                "Error retrieving details of an asset from items when generating canvas paintings");
+            return (ErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message), null);
         }
     }
 

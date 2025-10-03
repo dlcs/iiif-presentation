@@ -89,6 +89,8 @@ public class DlcsManifestCoordinator(
         }
         catch (PresentationException presentationException)
         {
+            logger.LogError(presentationException, "Error checking for the existence of assets");
+            
             return DlcsInteractionResult.Fail(ErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
         }
                 
