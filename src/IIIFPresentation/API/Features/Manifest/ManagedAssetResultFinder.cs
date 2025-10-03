@@ -144,13 +144,13 @@ public class ManagedAssetResultFinder(
         var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
 
         var missingAssets = interimCanvasPaintings.Where(icp => !dlcsAssetIds.Any(a =>
-                icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space))
-            .Select(icp => icp.Id).ToList();
+                icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space)).ToList();
         
         if (missingAssets.Count != 0)
         {
             throw new PresentationException(
-                $"Managed assets not found: {string.Join(", ", missingAssets.Select(a => $"'{a}'"))}");
+                $"Suspected DLCS assets from items not found: {string.Join(", ", 
+                    missingAssets.Select(a => $"(id: {a.CanvasOriginalId}, assetId: {new AssetId(customerId, a.SuspectedSpace!.Value, a.SuspectedAssetId!)})"))}");
         }
     }
 

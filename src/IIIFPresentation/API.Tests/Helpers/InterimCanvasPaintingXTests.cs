@@ -131,4 +131,19 @@ public class InterimCanvasPaintingXTests
             .Be(4,
                 "1 for CanvasOrder=1, 1 for CanvasOriginalId='https://canvas.ex/1', 1 for CanvasOrder=3, 1 for CanvasOrder=0 (unset)");
     }
+    
+    [Fact]
+    public void GetItemsWithSuspectedAssets_ReturnsOnlyCanvasesWothSuspectedItems()
+    {
+        List<InterimCanvasPainting> canvasPaintings =
+        [
+            new() { CanvasPaintingType = CanvasPaintingType.Items },
+            new(),
+            new() { CanvasPaintingType = CanvasPaintingType.PaintedResource, SuspectedAssetId = "something" },
+            new(),
+            new() { CanvasPaintingType = CanvasPaintingType.Items, SuspectedAssetId = "something" },
+        ];
+        
+        canvasPaintings.GetItemsWithSuspectedAssets().Should().HaveCount(1);
+    }
 }

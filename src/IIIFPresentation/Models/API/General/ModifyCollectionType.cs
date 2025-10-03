@@ -24,6 +24,7 @@ public enum ModifyCollectionType
     DuplicateCanvasId = 20,
     ErrorMergingPaintedResourcesWithItems = 21,
     PublicIdIncorrect = 22,
+    PaintableAssetError = 23,
     AssetsDoNotMatch = 25,
     Unknown = 1000
 }

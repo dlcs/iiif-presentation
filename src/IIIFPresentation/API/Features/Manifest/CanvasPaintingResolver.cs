@@ -2,15 +2,13 @@
 using System.Diagnostics;
 using API.Features.Manifest.Exceptions;
 using API.Features.Storage.Helpers;
-using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
-using IIIF.Presentation.V3.Annotation;
 using Models.API.Manifest;
 using Models.Database;
-using Models.DLCS;
 using Services.Manifests;
+using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -50,6 +48,12 @@ public class CanvasPaintingResolver(
             logger.LogDebug(cpId, "InvalidCanvasId '{CanvasId}' encountered in {ManifestId}", cpId.CanvasId,
                 presentationManifest.Id);
             return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
+        }
+        catch (PaintableAssetException paintableAssetException)
+        {
+            logger.LogError(paintableAssetException,
+                "Error retrieving details of an asset from items when generating canvas paintings");
+            return (ErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message), null);
         }
     }
 
