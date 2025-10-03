@@ -49,10 +49,14 @@ public class CanvasPaintingResolver(
                 presentationManifest.Id);
             return (ErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null);
         }
-        catch (PaintableAssetException paintableAssetError)
+        catch (PaintableAssetException paintableAssetException)
         {
-            logger.LogError(paintableAssetError, "{Error}", paintableAssetError.Message);
-            return (ErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetError.Message), null);
+            var error =
+                $"Suspected asset from image body ({paintableAssetException.FromBody}) and services ({paintableAssetException.FromServices}) point to different managed assets";
+            
+            logger.LogError(paintableAssetException,
+                "{ErrorMessage}", error);
+            return (ErrorHelper.PaintableAssetError<PresentationManifest>(error), null);
         }
     }
 

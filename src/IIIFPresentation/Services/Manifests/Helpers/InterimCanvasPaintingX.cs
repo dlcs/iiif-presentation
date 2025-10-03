@@ -84,7 +84,7 @@ public static class InterimCanvasPaintingX
         }).ToList();
     }
 
-    public static List<InterimCanvasPainting>? GetItemsWithAssets(
+    public static List<InterimCanvasPainting>? GetItemsWithSuspectedAssets(
         this List<InterimCanvasPainting>? interimCanvasPaintings) =>
         interimCanvasPaintings?.Where(icp =>
             icp is { SuspectedAssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList();

@@ -50,7 +50,7 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
         if (fromServices is not null
             && fromBody is not null
             && fromServices != fromBody)
-            throw new PaintableAssetException($"Suspected asset from image body ({fromBody}) and services ({fromServices}) point to different managed assets");
+            throw new PaintableAssetException(fromBody, fromServices);
 
         return fromServices ?? fromBody;
     }

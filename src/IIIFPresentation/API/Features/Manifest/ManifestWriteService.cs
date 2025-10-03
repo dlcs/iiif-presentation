@@ -174,7 +174,7 @@ public class ManifestWriteService(
             
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
-                itemCanvasPaintingsWithAssets: interimCanvasPaintings?.GetItemsWithAssets(),
+                itemCanvasPaintingsWithAssets: interimCanvasPaintings?.GetItemsWithSuspectedAssets(),
                 cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
             

@@ -1,16 +1,16 @@
-﻿namespace Services.Manifests.Exceptions;
+﻿using Core.Exceptions;
+using Models.DLCS;
 
-public class PaintableAssetException : Exception
+namespace Services.Manifests.Exceptions;
+
+public class PaintableAssetException : PresentationException
 {
-    public PaintableAssetException()
+    public AssetId FromBody { get; set; }
+    public AssetId FromServices { get; set; }
+    
+    public PaintableAssetException(AssetId fromBody, AssetId fromServices)
     {
-    }
-
-    public PaintableAssetException(string? message) : base(message)
-    {
-    }
-
-    public PaintableAssetException(string? message, Exception? innerException) : base(message, innerException)
-    {
+        FromBody = fromBody;
+        FromServices = fromServices;
     }
 }
