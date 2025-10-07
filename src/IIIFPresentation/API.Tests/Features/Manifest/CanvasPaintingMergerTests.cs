@@ -401,8 +401,13 @@ public class CanvasPaintingMergerTests
             .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching canvas label");
     }
     
-    [Fact]
-    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedLabel()
+    [Theory]
+    [InlineData("mismatch", "label", "mismatch", "label_2", null)]
+    [InlineData(null, null, "mismatch", "label_2", null)]
+    [InlineData("mismatch", "label", null, null, null)]
+    [InlineData("mismatch", "label", "mismatch", "label", "additional")]
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedLabel(
+        string? itemLanguageMapKey, string? itemLanguageMapValue, string? paintedResourceLanguageMapKey, string? paintedResourceLanguageMapValue, string? additionalPaintedResourceValue)
     {
         // Arrange
         var paintedResourceId = "paintedResource";
@@ -412,15 +417,18 @@ public class CanvasPaintingMergerTests
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
                 cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-                cp.Label = new LanguageMap("mismatch", "mismatch_1");
+                cp.Label = itemLanguageMapKey != null ? new LanguageMap(itemLanguageMapKey, itemLanguageMapValue) : null;
             }).BuildInterim();
+
+        List<string> paintedResourceLanguageMapValues = paintedResourceLanguageMapValue != null ? [paintedResourceLanguageMapValue] : [];
+        if (additionalPaintedResourceValue != null) paintedResourceLanguageMapValues.Add(additionalPaintedResourceValue);
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
                 cp.CanvasOrder = 0;
                 cp.ChoiceOrder = 0;
-                cp.Label = new LanguageMap("mismatch", "mismatch_2");
+                cp.Label = paintedResourceLanguageMapKey != null ? new LanguageMap(paintedResourceLanguageMapKey, paintedResourceLanguageMapValues) : null;
             }).BuildInterim();
 
         // Act
@@ -432,6 +440,38 @@ public class CanvasPaintingMergerTests
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching label");
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_DoesNotThrowError_WhenItemsTrackedByPaintedResourcesWithMatchedLabel()
+    {
+        // Arrange
+        var paintedResourceId = "paintedResource";
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
+                cp.Label = new LanguageMap("mismatch", "no_mismatch");
+            }).BuildInterim();
+      
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.Label = new LanguageMap("mismatch", "no_mismatch");
+            }).BuildInterim();
+
+        // Act
+        // Act
+        var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        merged.Count.Should().Be(1);
+        var first = merged.First();
+        first.Id.Should().Be($"{paintedResourceId}_1");
     }
     
     [Fact]
