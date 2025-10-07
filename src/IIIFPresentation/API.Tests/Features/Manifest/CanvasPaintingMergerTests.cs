@@ -407,7 +407,7 @@ public class CanvasPaintingMergerTests
     [InlineData(null, null, "mismatch", "label_2", null)] // null item 
     [InlineData("mismatch", "label", null, null, null)] // null painted resource
     [InlineData("mismatch", null, "mismatch", "label_2", null)] // null item value
-    [InlineData("mismatch", "label", null, "mismatch", null)] // null painted resource
+    [InlineData("mismatch", "label", null, "mismatch", null)] // null painted resource value
     [InlineData("mismatch", "label", "mismatch", "label", "additional")] // additional value in painted resource
     public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedLabel(
         string? itemLanguageMapKey, string? itemLanguageMapValue, string? paintedResourceLanguageMapKey, string? paintedResourceLanguageMapValue, string? additionalPaintedResourceValue)
@@ -423,8 +423,8 @@ public class CanvasPaintingMergerTests
                 cp.Label = itemLanguageMapKey != null ? new LanguageMap(itemLanguageMapKey, itemLanguageMapValue) : null;
             }).BuildInterim();
 
-        List<string> paintedResourceLanguageMapValues = paintedResourceLanguageMapValue != null ? [paintedResourceLanguageMapValue] : [];
-        if (additionalPaintedResourceValue != null) paintedResourceLanguageMapValues.Add(additionalPaintedResourceValue);
+        List<string>? paintedResourceLanguageMapValues = paintedResourceLanguageMapValue != null ? [paintedResourceLanguageMapValue] : null;
+        if (additionalPaintedResourceValue != null) paintedResourceLanguageMapValues!.Add(additionalPaintedResourceValue);
         
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{paintedResourceId}_1", cp =>
