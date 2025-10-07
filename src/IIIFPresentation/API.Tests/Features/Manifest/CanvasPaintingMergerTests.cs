@@ -402,10 +402,13 @@ public class CanvasPaintingMergerTests
     }
     
     [Theory]
-    [InlineData("mismatch", "label", "mismatch", "label_2", null)]
-    [InlineData(null, null, "mismatch", "label_2", null)]
-    [InlineData("mismatch", "label", null, null, null)]
-    [InlineData("mismatch", "label", "mismatch", "label", "additional")]
+    [InlineData("mismatch", "label", "mismatch", "label_2", null)] // mismatch value
+    [InlineData("mismatch", "label", "mismatch_2", "label", null)] // mismatch key
+    [InlineData(null, null, "mismatch", "label_2", null)] // null item 
+    [InlineData("mismatch", "label", null, null, null)] // null painted resource
+    [InlineData("mismatch", null, "mismatch", "label_2", null)] // null item value
+    [InlineData("mismatch", "label", null, "mismatch", null)] // null painted resource
+    [InlineData("mismatch", "label", "mismatch", "label", "additional")] // additional value in painted resource
     public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedLabel(
         string? itemLanguageMapKey, string? itemLanguageMapValue, string? paintedResourceLanguageMapKey, string? paintedResourceLanguageMapValue, string? additionalPaintedResourceValue)
     {

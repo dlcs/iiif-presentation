@@ -172,9 +172,14 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         
         if (itemsCanvasPainting.Label != null || paintedResourceCanvasPainting.Label != null)
         {
-            // true means one of the labels is null
             if (itemsCanvasPainting.Label?.Any(entry =>
-                    !paintedResourceCanvasPainting.Label?[entry.Key].SequenceEqual(entry.Value) ?? true) ?? true)
+                {
+                    List<string>? languageMapValues = null;
+                    paintedResourceCanvasPainting.Label?.TryGetValue(entry.Key, out languageMapValues);
+                    if (languageMapValues == null) return true;
+                    
+                    return !languageMapValues.SequenceEqual(entry.Value);
+                }) ?? true)
             {
                 throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.Label?.ToString(),
                     itemsCanvasPainting.Label?.ToString(),
