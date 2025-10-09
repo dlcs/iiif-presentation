@@ -436,8 +436,7 @@ Single payload, contains both `"paintedResources"` and `"items"` to create 3 can
                                 "type": "Image",
                                 "format": "image/jpeg",
                                 "height": 180,
-                                "width": 120,
-                                "service": [ {} ]
+                                "width": 120
                             },
                             "target": "https://customer.example/canvas/beta"
                         },
