@@ -234,6 +234,11 @@ public class ManifestWriteServiceTests
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
         dbManifest.CanvasPaintings.Count(cp=>cp.AssetId.Equals(imageAssetId)).Should().Be(1);
+
+        // Call made to update assets with manifest ids where they are assets from items
+        A.CallTo(() => dlcsClient.UpdateAssetManifest(A<int>._,
+            A<ICollection<string>>.That.Matches(l => l.First() == imageAssetId.ToString()), OperationType.Add,
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
     }
     
     [Fact]

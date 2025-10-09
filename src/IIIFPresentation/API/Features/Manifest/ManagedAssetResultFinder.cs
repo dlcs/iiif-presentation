@@ -121,19 +121,46 @@ public class ManagedAssetResultFinder(
     /// Method looks in the provided manifest to find any assets, provided in the Items property
     /// that are managed by the configured DLCS instance
     /// </summary>
-    public async Task CheckAssetsFromItemsExist(
-        List<InterimCanvasPainting>? interimCanvasPaintings, int customerId, CancellationToken cancellationToken)
+    public async Task<List<AssetId>> CheckAssetsFromItemsExist(
+        List<InterimCanvasPainting>? interimCanvasPaintings, int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken)
     {
-        if (interimCanvasPaintings.IsNullOrEmpty()) return;
+        if (interimCanvasPaintings.IsNullOrEmpty()) return [];
 
-        var assetIdsToCheck = interimCanvasPaintings!
-            .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!).ToString()).ToList();
+        List<AssetId> assetsToAddToManifest = [];
+        List<AssetId> trackedAssets = [];
         
+        var assetIdsFromItems = interimCanvasPaintings!
+            .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!)).ToList();
+
+        foreach (var assetId in assetIdsFromItems)
+        {
+            if (existingAssetIds != null && existingAssetIds.Any(cp => cp == assetId))
+            {
+                trackedAssets.Add(assetId);
+            }
+            else
+            {
+                assetsToAddToManifest.Add(assetId);
+            }
+        }
+
+        var assetsToCheckInDlcs =
+            assetsToAddToManifest.Where(asset =>
+            {
+                if (dbContext.CanvasPaintings.Any(cp => cp.CustomerId == customerId && cp.AssetId == asset))
+                {
+                    trackedAssets.Add(asset);
+                    return false;
+                };
+                
+                return true;
+            });
+
         IList<JObject> dlcsAssets;
         try
         {
             dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
-                assetIdsToCheck, cancellationToken);
+                assetsToCheckInDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -142,8 +169,9 @@ public class ManagedAssetResultFinder(
         }
 
         var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
+        trackedAssets.AddRange(dlcsAssetIds);
 
-        var missingAssets = interimCanvasPaintings.Where(icp => !dlcsAssetIds.Any(a =>
+        var missingAssets = interimCanvasPaintings.Where(icp => !trackedAssets.Any(a =>
                 icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space)).ToList();
         
         if (missingAssets.Count != 0)
@@ -152,6 +180,8 @@ public class ManagedAssetResultFinder(
                 $"Suspected DLCS assets from items not found: {string.Join(", ", 
                     missingAssets.Select(a => $"(id: {a.CanvasOriginalId}, assetId: {new AssetId(customerId, a.SuspectedSpace!.Value, a.SuspectedAssetId!)})"))}");
         }
+
+        return assetsToAddToManifest;
     }
 
     private List<CanvasPainting> FindAssetsInAnotherManifest(int customerId, 
@@ -239,7 +269,7 @@ public interface IManagedAssetResultFinder
         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken);
     
-    public Task CheckAssetsFromItemsExist(
+    public Task<List<AssetId>> CheckAssetsFromItemsExist(
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
-        int customerId, CancellationToken cancellationToken);
+        int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken);
 }

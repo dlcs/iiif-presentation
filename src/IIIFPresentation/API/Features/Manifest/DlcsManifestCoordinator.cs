@@ -82,23 +82,35 @@ public class DlcsManifestCoordinator(
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId,
-                cancellationToken);
-        }
-        catch (PresentationException presentationException)
-        {
-            logger.LogError(presentationException, "Error checking for the existence of assets");
-            
-            return DlcsInteractionResult.Fail(ErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
-        }
-                
+        var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, existingAssetIds,
+            itemCanvasPaintingsWithAssets, cancellationToken);
+        if (errorFromItems != null) return errorFromItems;
         
         return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingAssetIds,
             dbManifest?.SpaceId, cancellationToken);
     }
-    
+
+    private async Task<DlcsInteractionResult?> HandleItemsDlcsInteractions(WriteManifestRequest request, string manifestId, List<AssetId>? existingAssetIds,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var assetsToUpdateWithManifestId = await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, existingAssetIds,
+                cancellationToken);
+            
+            await UpdateAssetsWithManifestId(request, manifestId,
+                assetsToUpdateWithManifestId, cancellationToken);
+        }
+        catch (PresentationException presentationException)
+        {
+            logger.LogError(presentationException, "Error checking for the existence of assets");
+
+            return DlcsInteractionResult.Fail(ErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
+        }
+
+        return null;
+    }
+
     private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
         string manifestId, 
