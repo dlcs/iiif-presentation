@@ -169,12 +169,23 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas label");
         }
         
-        if (itemsCanvasPainting.Label != paintedResourceCanvasPainting.Label)
+        
+        if (itemsCanvasPainting.Label != null || paintedResourceCanvasPainting.Label != null)
         {
-            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.Label?.ToString(),
-                itemsCanvasPainting.Label?.ToString(),
-                paintedResourceCanvasPainting.Id,
-                $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching label");
+            if (itemsCanvasPainting.Label?.Any(entry =>
+                {
+                    List<string>? languageMapValues = null;
+                    paintedResourceCanvasPainting.Label?.TryGetValue(entry.Key, out languageMapValues);
+                    if (languageMapValues == null) return true;
+                    
+                    return !languageMapValues.SequenceEqual(entry.Value);
+                }) ?? true)
+            {
+                throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.Label?.ToString(),
+                    itemsCanvasPainting.Label?.ToString(),
+                    paintedResourceCanvasPainting.Id,
+                    $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching label");
+            }
         }
 
         if (currentCanvasOrder != paintedResourceCanvasPainting.CanvasOrder)
