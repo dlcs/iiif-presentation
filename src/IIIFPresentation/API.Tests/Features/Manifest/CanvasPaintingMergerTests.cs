@@ -466,8 +466,7 @@ public class CanvasPaintingMergerTests
                 cp.ChoiceOrder = 0;
                 cp.Label = new LanguageMap("mismatch", "no_mismatch");
             }).BuildInterim();
-
-        // Act
+        
         // Act
         var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
 
