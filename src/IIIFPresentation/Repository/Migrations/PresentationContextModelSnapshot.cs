@@ -122,9 +122,9 @@ namespace Repository.Migrations
                         .HasDatabaseName("ix_canvas_paintings_canvas_id_customer_id_manifest_id_canvas_o")
                         .HasFilter("asset_id is null");
 
-                    b.HasIndex("Id", "CustomerId", "ManifestId", "AssetId", "CanvasOriginalId", "CanvasOrder", "ChoiceOrder")
+                    b.HasIndex("Id", "CustomerId", "ManifestId", "CanvasOriginalId", "AssetId", "CanvasOrder", "ChoiceOrder")
                         .IsUnique()
-                        .HasDatabaseName("ix_canvas_paintings_canvas_id_customer_id_manifest_id_asset_id1");
+                        .HasDatabaseName("ix_canvas_paintings_canvas_id_customer_id_manifest_id_canvas_o1");
 
                     b.ToTable("canvas_paintings", (string)null);
                 });
