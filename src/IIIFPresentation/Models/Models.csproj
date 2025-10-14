@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="iiif-net" Version="0.3.8" />
+      <PackageReference Include="iiif-net" Version="0.3.10" />
     </ItemGroup>
 
     <ItemGroup>
