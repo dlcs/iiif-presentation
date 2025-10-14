@@ -120,6 +120,9 @@ public class PresentationContext : DbContext
                     { cp.Id, cp.CustomerId, cp.ManifestId, cp.AssetId, cp.CanvasOrder, cp.ChoiceOrder })
                 .IsUnique()
                 .HasFilter("canvas_original_id is null");
+            entity.HasIndex(cp => new
+                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.AssetId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
+                .IsUnique();
 
             entity.Property(cp => cp.AssetId)
                 .HasConversion(id => id!.ToString(), id => AssetId.FromString(id));
