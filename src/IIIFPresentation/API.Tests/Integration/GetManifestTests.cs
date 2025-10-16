@@ -95,14 +95,12 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         );
         
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"1/2/{PaintedResource}".Equals(x))),
+                A<string>.That.Matches(l => l.EndsWith("_returnsPainted")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [sampleAsset]);
         
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"1/2/{IngestingPaintedResource}".Equals(x))),
+                A<string>.That.Matches(l => l.EndsWith("_ingestingAssets")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
     }
@@ -269,7 +267,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources()
     {
         // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
-        var id = nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources);
+        var id = $"{nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources)}_returnsPainted";
         var dbManifest = await dbContext.Manifests.AddTestManifest(id);
         var assetId = new AssetId(1, 2, PaintedResource);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
@@ -347,7 +345,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting()
     {
-        var id = nameof(Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting);
+        var id = $"{nameof(Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting)}_ingestingAssets";
 
         // Arrange and Act
         var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: 1);

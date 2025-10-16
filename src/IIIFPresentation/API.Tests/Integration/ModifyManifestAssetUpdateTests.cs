@@ -81,15 +81,14 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true, 
             spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
-
+        
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}")),
-                A<CancellationToken>._)).ReturnsLazily(() => Task.FromResult<IList<JObject>>(new List<JObject>()))
-            .Once().Then
+                A<string>._, A<CancellationToken>._))
             .ReturnsLazily(() =>
             [
                 JObject.Parse($"{{\"@id\": \"https://dlcs.test/customers/1/spaces/999/images/{assetId}\"}}")
             ]);
+
 
         var batchId = TestIdentifiers.BatchId();
         var payload = $$"""

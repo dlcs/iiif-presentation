@@ -220,8 +220,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var (slug, assetId) = TestIdentifiers.SlugResource();
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l => l.Any(x =>
-                    $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                A<string>._,
                 A<CancellationToken>._))
             .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
         
@@ -336,11 +335,9 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         // Arrange
         var (slug,  assetId) = TestIdentifiers.SlugResource();
-
           A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                  A<IList<string>>.That.Matches(l =>
-                      l.Any(x => $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
-                  A<CancellationToken>._)).ReturnsLazily(() => new List<JObject>()).Once().Then
+                  A<string>._,
+                  A<CancellationToken>._))
               .ReturnsLazily(() =>
               [
                   JObject.Parse($$"""
