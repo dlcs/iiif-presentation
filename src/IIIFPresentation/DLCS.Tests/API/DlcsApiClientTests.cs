@@ -302,6 +302,78 @@ public class DlcsApiClientTests
     }
     
     [Fact]
+    public async Task GetCustomerImagesManifest_ReturnsListOfAssets_WhenNoAssets()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                            "fnord": "I have no member prop even"
+                           }
+                          """)
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+
+        assets.Should().NotBeNull().And.BeEmpty();
+    }
+    
+    [Theory]
+    [InlineData(1, 20, 1)]
+    [InlineData(2, 1, 2)]
+    [InlineData(2, 2, 1)]
+    [InlineData(5, 2, 3)]
+    public async Task GetCustomerImagesManifest__ReturnsAssets_WhenDifferentPageCombinations(int totalItems, int pageSize, int manifestCalls)
+    {
+        // this works by the response only returning a single item, but changing the total items and page size to fool
+        // the client into thinking there are different numbers of items returned, so the number of times called is
+        // equal to the number of returned items
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var manifestId = "someManifest";
+        
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => $@"
+                          {{
+                           ""$@id"": ""customers/5/queue/batches/2137/assets"",
+                           ""totalItems"": {totalItems},
+                           ""pageSize"": {pageSize},
+                           ""member"": [
+                            {{ ""someAssetProp"": ""someAssetValue-this can be arbitrary"" }}
+                           ]
+                           }}
+                          ")
+            .StatusCode(201);
+        
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, manifestId, CancellationToken.None);
+
+        assets.Should().HaveCount(manifestCalls);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task GetCustomerImagesManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+    }
+    
+    [Fact]
     public async Task UpdateAssetWithManifest_ReturnsAssets_WhenSuccess()
     {
         using var stub = new ApiStub();

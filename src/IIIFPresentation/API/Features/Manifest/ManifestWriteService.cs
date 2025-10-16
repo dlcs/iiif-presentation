@@ -251,7 +251,7 @@ public class ManifestWriteService(
     {
         return PresUpdateResult.Success(
             presentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
+                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest!, cancellationToken)),
             hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
                 ? WriteResult.Accepted
                 : writeResult,

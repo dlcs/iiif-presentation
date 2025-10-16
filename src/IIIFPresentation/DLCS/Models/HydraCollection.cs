@@ -14,4 +14,13 @@ public class HydraCollection<T> : JsonLdBase
     [JsonPropertyOrder(3)]
     [JsonPropertyName("member")]
     public T[] Members { get; set; }
+    
+    [JsonPropertyOrder(10)]
+    [JsonPropertyName("totalItems")]
+    public int TotalItems { get; init; }
+
+    [JsonPropertyOrder(10)]
+    [JsonPropertyName("pageSize")]
+    public int? PageSize { get; init; }
 }
+

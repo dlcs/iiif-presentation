@@ -32,7 +32,9 @@ public interface IDlcsApiClient
 
     Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default);
-    
+
+    Task<IList<JObject>> GetCustomerImages(int customerId, string manifestId,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Updates an asset with a new manifest
@@ -143,6 +145,39 @@ internal class DlcsApiClient(
                 results.AddRange(batchResults);
         }
 
+        return results;
+    }
+    
+    public async Task<IList<JObject>> GetCustomerImages(int customerId, string manifestId,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Requesting images for customer {CustomerId} for the manifest {ManifestId}", customerId,
+            manifestId);
+
+        var page = 1;
+        var lastPage = false;
+        var results = new List<JObject>();
+
+        while (!lastPage)
+        {
+            var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page={page}";
+            var result =
+                await CallDlcsApiFor<HydraCollection<JObject>>(HttpMethod.Get, endpoint, null, cancellationToken);
+            
+            if (result?.Members is {Length: > 0} pageResults)
+                results.AddRange(pageResults);
+
+            // use the result page size as this can be overwritten by the DLCS if we ask for more than allowed
+            if (result != null && result.PageSize * page < result.TotalItems)
+            {
+                page++;
+            }
+            else
+            {
+                lastPage = true;
+            }
+        }
+        
         return results;
     }
     
