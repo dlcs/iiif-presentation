@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
@@ -185,9 +186,10 @@ public class ManifestWriteService(
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, dlcsInteractionResult, canvasPaintings, cancellationToken);
             if (error != null) return error;
+            Debug.Assert(dbManifest != null);
             
             var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+            request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
                 dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
             
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
@@ -235,9 +237,10 @@ public class ManifestWriteService(
             var (error, dbManifest) =
                 await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, dlcsInteractionResult, cancellationToken);
             if (error != null) return error;
+            Debug.Assert(dbManifest != null);
             
             var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            request.PresentationManifest.Items = await SaveToS3(dbManifest!, request, hasAssets,
+            request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
                 dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
 
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
@@ -246,12 +249,12 @@ public class ManifestWriteService(
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest, 
-        int customerId, DbManifest? dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult, 
+        int customerId, DbManifest dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult, 
         WriteResult writeResult, CancellationToken cancellationToken)
     {
         return PresUpdateResult.Success(
-            presentationManifest.SetGeneratedFields(dbManifest!, pathGenerator,
-                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest!, cancellationToken)),
+            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator,
+                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
             hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
                 ? WriteResult.Accepted
                 : writeResult,
