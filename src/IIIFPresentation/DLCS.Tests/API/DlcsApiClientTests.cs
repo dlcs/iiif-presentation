@@ -322,30 +322,31 @@ public class DlcsApiClientTests
     }
     
     [Theory]
-    [InlineData(1, 20, 1)]
-    [InlineData(2, 1, 2)]
-    [InlineData(2, 2, 1)]
-    [InlineData(5, 2, 3)]
-    public async Task GetCustomerImagesManifest__ReturnsAssets_WhenDifferentPageCombinations(int totalItems, int pageSize, int manifestCalls)
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task GetCustomerImagesManifest__ReturnsCorrectNumberOfAssets_WhenCalledRepeatedly(int manifestCalls)
     {
-        // this works by the response only returning a single item, but changing the total items and page size to fool
-        // the client into thinking there are different numbers of items returned, so the number of times called is
-        // equal to the number of returned items
         using var stub = new ApiStub();
         const int customerId = 5;
         var manifestId = "someManifest";
         
-        stub.Get($"/customers/{customerId}/allImages",
-                (_, _) => $@"
+        stub.Get($"/customers/{customerId}/allImages", (_, args) =>
+            {
+                var page = Convert.ToInt32(args.Query.page);
+                
+                return $@"
                           {{
-                           ""$@id"": ""customers/5/queue/batches/2137/assets"",
-                           ""totalItems"": {totalItems},
-                           ""pageSize"": {pageSize},
-                           ""member"": [
-                            {{ ""someAssetProp"": ""someAssetValue-this can be arbitrary"" }}
-                           ]
+                               ""$@id"": ""customers/5/queue/batches/2137/assets"",
+                               ""member"": [
+                                {{ ""someAssetProp"": ""someAssetValue-this can be arbitrary"" }}
+                               ],
+                                ""view"": {{
+                                    {(page < manifestCalls ? $"\"next\" : \"https://localhost/customers/{customerId}/allImages?page={++page}\"" : "")}
+                                }}
                            }}
-                          ")
+                          ";
+            })
             .StatusCode(201);
         
         var sut = GetClient(stub);

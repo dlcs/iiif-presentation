@@ -19,8 +19,12 @@ public class HydraCollection<T> : JsonLdBase
     [JsonPropertyName("totalItems")]
     public int TotalItems { get; init; }
 
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(11)]
     [JsonPropertyName("pageSize")]
     public int? PageSize { get; init; }
+    
+    [JsonPropertyOrder(12)]
+    [JsonPropertyName("view")]
+    public PartialCollectionView? View { get; init; }
 }
 
