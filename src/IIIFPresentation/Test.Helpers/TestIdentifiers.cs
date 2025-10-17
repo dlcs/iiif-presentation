@@ -14,6 +14,11 @@ public static class TestIdentifiers
     /// Helper method that returns single id
     /// </summary>
     public static string Id([CallerMemberName] string testMethod = "") => testMethod;
+    
+    /// <summary>
+    /// Helper method that returns an id with a suffix
+    /// </summary>
+    public static string IdWithSuffix([CallerMemberName] string testMethod = "", string suffix = "") => testMethod + suffix;
 
     /// <summary>
     /// Helper method that returns single id
