@@ -38,12 +38,14 @@ Some overall notes:
 - create canvas id based on the standard asset and external items from above
 - weave the created canvas painting records together based on canvas order and choice
 - drive Create/Update/Delete as above
+- more information on examples can be found [here](https://github.com/dlcs/iiif-presentation/blob/develop/docs/rfcs/0005-mixed-manifests.md#3-mix-of-items-only-and-paintedresources-in-single-transaction)
 
 ### POST/PUT manifest w/ matching of assets and items
 
 - requires that the canvas id matches between items and assets
 - perform validation to make sure the details match i.e.: no `body` in items and choice/canvas order
 - matched items will have only an `assetId` 
+- more information on examples can be found [here](https://github.com/dlcs/iiif-presentation/blob/develop/docs/rfcs/0005-mixed-manifests.md#2-ingest-assets-and-decorate-with-json-in-single-transaction)
 
 -----------
 
@@ -584,7 +586,3 @@ this will create the following in DB:
 | ----------- | --------- | ------------------ | ------------ | ------------ | ------------ |
 | def2        | alpha     | `null`             | 99/10/first  | 0            | `null`       |
 | def2        | beta      | `null`             | 99/10/second | 1            | `null`       |
-
-## Additional information
-
-More information on examples #6 and #7 can be found [here](https://github.com/dlcs/iiif-presentation/blob/develop/docs/rfcs/0005-mixed-manifests.md)
