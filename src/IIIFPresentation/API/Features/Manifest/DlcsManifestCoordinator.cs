@@ -45,14 +45,11 @@ public class DlcsManifestCoordinator(
     public async Task<Dictionary<string, JObject>?> GetAssets(int customerId, Models.Database.Collections.Manifest? dbManifest,
         CancellationToken cancellationToken)
     {
-        var assetIds = dbManifest?.CanvasPaintings?.Select(cp => cp.AssetId?.ToString())
-            .OfType<string>().ToArray();
-
-        if (assetIds == null) return null;
+        if (dbManifest == null) return null;
 
         try
         {
-            var assets = await dlcsApiClient.GetCustomerImages(customerId, assetIds, cancellationToken);
+            var assets = await dlcsApiClient.GetCustomerImages(customerId, dbManifest.Id, cancellationToken);
 
             return assets.Select(a => (asset: a,
                     id: a.TryGetValue(AssetProperties.FullId, out var value) && value.Type == JTokenType.String

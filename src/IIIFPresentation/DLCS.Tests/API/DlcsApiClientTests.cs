@@ -302,6 +302,79 @@ public class DlcsApiClientTests
     }
     
     [Fact]
+    public async Task GetCustomerImagesManifest_ReturnsListOfAssets_WhenNoAssets()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                            "fnord": "I have no member prop even"
+                           }
+                          """)
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+
+        assets.Should().NotBeNull().And.BeEmpty();
+    }
+    
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task GetCustomerImagesManifest__ReturnsCorrectNumberOfAssets_WhenCalledRepeatedly(int manifestCalls)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var manifestId = "someManifest";
+        
+        stub.Get($"/customers/{customerId}/allImages", (_, args) =>
+            {
+                var page = Convert.ToInt32(args.Query.page);
+                
+                return $@"
+                          {{
+                               ""$@id"": ""customers/5/queue/batches/2137/assets"",
+                               ""member"": [
+                                {{ ""someAssetProp"": ""someAssetValue-this can be arbitrary"" }}
+                               ],
+                                ""view"": {{
+                                    {(page < manifestCalls ? $"\"next\" : \"https://localhost/customers/{customerId}/allImages?page={++page}\"" : "")}
+                                }}
+                           }}
+                          ";
+            })
+            .StatusCode(201);
+        
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, manifestId, CancellationToken.None);
+
+        assets.Should().HaveCount(manifestCalls);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task GetCustomerImagesManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+    }
+    
+    [Fact]
     public async Task UpdateAssetWithManifest_ReturnsAssets_WhenSuccess()
     {
         using var stub = new ApiStub();
