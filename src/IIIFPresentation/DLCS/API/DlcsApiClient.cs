@@ -176,6 +176,8 @@ internal class DlcsApiClient(
     {
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
             customerId, operationType.ToString());
+
+        assets = assets.Distinct().ToList();
         
         var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
         var assetsResponse = new ConcurrentBag<Asset>();
