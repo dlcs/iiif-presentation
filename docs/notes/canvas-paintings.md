@@ -16,7 +16,7 @@ Some overall notes:
 ### POST manifest w/ external items:
 
 - store incoming id as `canvas_original_id`
-- create `canvas_id` (alphanumeric but surfaced in id)
+- create `canvas_id` (alphanumeric but surfaced in id) if it's not using a recognised host
 
 ### PUT manifest w/ external items:
 
@@ -32,6 +32,20 @@ Some overall notes:
 
 - drive Create/Update/Delete based on `asset_id` or `canvas_id`
 - as above re: `canvas_id`
+
+### POST/PUT manifest w/ mixture of assets and items
+
+- create canvas id based on the standard asset and external items from above
+- weave the created canvas painting records together based on canvas order and choice
+- drive Create/Update/Delete as above
+- more information on examples can be found [here](https://github.com/dlcs/iiif-presentation/blob/develop/docs/rfcs/0005-mixed-manifests.md#3-mix-of-items-only-and-paintedresources-in-single-transaction)
+
+### POST/PUT manifest w/ matching of assets and items
+
+- requires that the canvas id matches between items and assets
+- perform validation to make sure the details match i.e.: no `body` in items and choice/canvas order
+- matched items will have only an `assetId` 
+- more information on examples can be found [here](https://github.com/dlcs/iiif-presentation/blob/develop/docs/rfcs/0005-mixed-manifests.md#2-ingest-assets-and-decorate-with-json-in-single-transaction)
 
 -----------
 
@@ -367,3 +381,208 @@ Some overall notes:
 | 1   | def1        | aaaaag    | 2/2/1a   | 0            | 1            |
 | 2   | def1        | aaaaag    | 2/2/1b   | 0            | 2            |
 | 3   | def1        | aaaaah    | 2/2/2    | 1            | null         |
+
+# Example 6 - Mixed Manifest
+
+Use case - I have an automated process that takes images from _{source system}_ and metadata from _{metadata system}_ and I want to generate a Manifest from these in one single payload. In addition to that I want to include some pure IIIF Canvases.
+
+Single payload, contains both `"paintedResources"` and `"items"` to create 3 canvases:
+* Canvas1, `alpha`, will contain `"rendering"` and `"seeAlso"` from JSON. Painting annotations will come from Protagonist.
+* Canvas2, `beta`, will be as provided in JSON.
+* Canvas3, `gamma`, will only contain content from Protagonist.
+
+```json
+{
+    "type": "Manifest",
+    "slug": "three-example",
+    "parent": "-container-",
+    "label": { "en": ["Example Three"] },
+    "items": [
+        {
+            "id": "alpha",
+            "type": "Canvas",
+            "rendering": [
+                {
+                    "id": "https://customer.example/svg/first",
+                    "type": "Image",
+                    "label": {
+                        "en": [
+                            "SVG XML for page text"
+                        ]
+                    },
+                    "format": "image/svg+xml"
+                }
+            ],
+            "seeAlso": [
+                {
+                    "id": "https://customer.example/text/alto/alpha",
+                    "type": "Dataset",
+                    "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+                    "label": {
+                        "none": [
+                            "METS-ALTO XML"
+                        ]
+                    },
+                    "format": "application/xml+alto"
+                }
+            ]
+        },
+        {
+            "id": "beta",
+            "type": "Canvas",
+            "metadata": [
+                {
+                    "label": { "en": ["Something"] },
+                    "value": { "en": ["Another thing"] }
+                }
+            ],
+            "items": [
+                {
+                    "id": "https://customer.example/canvas/beta",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "https://customer.example/canvas/beta/annotations/1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "http://customer.example/static_images/full/120,180/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "height": 180,
+                                "width": 120
+                            },
+                            "target": "https://customer.example/canvas/beta"
+                        },
+                        {
+                            "id": "https://customer.example/canvas/beta/annotations/2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "type": "TextualBody",
+                                "format": "text/html",
+                                "value": "<p style='font-size:1000px; background-color: rgba(16, 16, 16, 0.5); padding:300px'>Something informative.</p>",
+                                "language": "en"
+                            },
+                            "target": "https://customer.example/canvas/beta/canvas#xywh=5500,12200,8000,5000"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "paintedResources": [
+        {
+            "canvasPainting": {
+                "canvasId": "alpha",
+                "canvasOrder": 0
+            },
+            "asset": {
+                "id": "first",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/first.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "gamma",
+                "canvasOrder": 2
+            },
+            "asset": {
+                "id": "second",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/second.tiff"
+            }
+        }
+    ]
+}
+```
+
+this will create the following in DB:
+
+| manifest_id | canvas_id | canvas_original_id                   | asset_id     | canvas_order | choice_order |
+| ----------- | --------- | ------------------------------------ | ------------ | ------------ | ------------ |
+| ghi3        | alpha     | `null`                               | 99/10/first  | 0            | `null`       |
+| ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 1            | `null`       |
+| ghi3        | beta      | https://customer.example/canvas/beta | `null`       | 2            | `null`       |
+| ghi3        | gamma     | `null`                               | 99/10/second | 3            | `null`       |
+
+# Example 7 - Matched Manifest
+
+```json
+{
+    "type": "Manifest",
+    "slug": "second-example",
+    "parent": "-container-",
+    "label": { "en": ["Example Two"] },
+    "service": [
+        {
+            "id": "https://customer.example/auth/clickthrough",
+            "type": "AuthAccessService2",
+            "label": { "en": ["This is just an example"] }
+        }
+    ],
+    "items": [
+        {
+            "id": "alpha", 
+            "type": "Canvas",
+            "rendering": [ 
+                { 
+                    "id": "https://customer.example/svg/first",
+                    "type": "Image",
+                    "label": { "en": ["SVG XML for page text"] },
+                    "format": "image/svg+xml"
+                }
+            ],
+            "seeAlso": [
+                { 
+                    "id": "https://customer.example/text/alto/alpha",
+                    "type": "Dataset",
+                    "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+                    "label": { "none": ["METS-ALTO XML"] },
+                    "format": "application/xml+alto"
+                }
+            ]
+        },
+        {
+            "id": "beta",
+            "type": "Canvas",
+            "metadata": [
+                { 
+                    "label": { "en": ["Something"] },
+                    "value": { "en": ["Another thing"] }
+                }
+            ]
+        }
+    ],
+    "paintedResources": [
+        {
+            "canvasPainting": {
+                "canvasId": "alpha",
+                "canvasOrder": 0
+            },
+            "asset": {
+                "id": "first",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/first.tiff"
+            }
+        },
+        {
+            "canvasPainting": {
+                "canvasId": "beta",
+                "canvasOrder": 1
+            },
+            "asset": {
+                "id": "second",
+                "mediaType": "image/tiff",
+                "origin": "https://example.org/images/second.tiff"
+            }
+        }
+    ]
+}
+```
+
+| manifest_id | canvas_id | canvas_original_id | asset_id     | canvas_order | choice_order |
+| ----------- | --------- | ------------------ | ------------ | ------------ | ------------ |
+| def2        | alpha     | `null`             | 99/10/first  | 0            | `null`       |
+| def2        | beta      | `null`             | 99/10/second | 1            | `null`       |

@@ -110,16 +110,10 @@ public class PresentationContext : DbContext
             entity.Property(cp => cp.Label).HasColumnType("jsonb");
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
-
-            entity.HasIndex(cp => new
-                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOriginalId, cp.CanvasOrder, cp.ChoiceOrder })
-                .IsUnique()
-                .HasFilter("asset_id is null");
             
             entity.HasIndex(cp => new
-                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.AssetId, cp.CanvasOrder, cp.ChoiceOrder })
-                .IsUnique()
-                .HasFilter("canvas_original_id is null");
+                    { cp.Id, cp.CustomerId, cp.ManifestId, cp.CanvasOrder, cp.ChoiceOrder })
+                .IsUnique();
 
             entity.Property(cp => cp.AssetId)
                 .HasConversion(id => id!.ToString(), id => AssetId.FromString(id));
