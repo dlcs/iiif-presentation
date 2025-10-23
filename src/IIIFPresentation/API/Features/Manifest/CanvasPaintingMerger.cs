@@ -129,7 +129,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         var distinctCanvasPaintings =
             matchedPaintedResourceCanvasPaintings.Select(cp => cp.Id).Distinct().ToList();
 
-        if (distinctCanvasPaintings.Count > 1 || itemsCanvasPainting.Id != distinctCanvasPaintings.Single())
+        if (distinctCanvasPaintings.Count > 1 || itemsCanvasPainting.Id != distinctCanvasPaintings.SingleOrDefault())
         {
             throw new CanvasPaintingMergerException(
                 $"Canvas painting from items with id {itemsCanvasPainting.Id} has a mismatched case with painted resource(s) {string.Join(',', distinctCanvasPaintings)}");
