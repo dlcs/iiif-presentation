@@ -177,9 +177,9 @@ internal class DlcsApiClient(
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
             customerId, operationType.ToString());
 
-        assets = assets.Distinct().ToList();
+        var distinctAssets = assets.Distinct().ToList();
         
-        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = distinctAssets.Chunk(settings.MaxBatchSize);
         var assetsResponse = new ConcurrentBag<Asset>();
         var endpoint = $"/customers/{customerId}/allImages";
 
@@ -209,7 +209,7 @@ internal class DlcsApiClient(
         await Task.WhenAll(tasks);
         
         // this is extremely unlikely to happen, as the DLCS should have already been checked at this point
-        if (assetsResponse.Count != assets.Count)
+        if (assetsResponse.Count != distinctAssets.Count)
         {
             var missingAssets = assets.Where(a => assetsResponse.All(ar => a != $"{customerId}/{ar.Space}/{ar.Id}")).ToList();
 

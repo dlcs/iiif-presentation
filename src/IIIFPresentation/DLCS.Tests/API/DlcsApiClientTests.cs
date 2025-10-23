@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -406,16 +407,17 @@ public class DlcsApiClientTests
         using var stub = new ApiStub();
         const int customerId = 4;
         stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
-            .Response((_, _) => """
-                                {
-                                 "@type": "Collection",
-                                 "totalItems": 1,
-                                 "pageSize": 1,
-                                 "member": [
-                                  { "id": "someAssetId" }
-                                 ]
-                                 }
-                                """).StatusCode(200);
+            .Response((request, _) =>
+            {
+                var body = request.Body.ReadAsStringAsync().Result;
+                var parsed = JsonSerializer.Deserialize<BulkPatchAssets>(body);
+
+                var members = parsed!.Members.Select(m => new Asset
+                        { Id = m.Id.GetLastPathElement(), Space = Int32.Parse(m.Id.Split('/').SkipLast(1).Last()) })
+                    .ToArray();
+                
+                return JsonSerializer.Serialize(new HydraCollection<Asset>(members));
+            }).StatusCode(200);
         var sut = GetClient(stub);
 
         var assets = await sut.UpdateAssetManifest(customerId, 
@@ -426,8 +428,8 @@ public class DlcsApiClientTests
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(2);
-        assets.First().Id.Should().Be("someAssetId");
-        assets.Last().Id.Should().Be("someAssetId");
+        assets.First().Id.Should().Be("someString");
+        assets.Last().Id.Should().Be("someString2");
     }
     
     [Fact]

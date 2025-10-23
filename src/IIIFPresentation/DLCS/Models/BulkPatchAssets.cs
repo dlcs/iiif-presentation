@@ -32,5 +32,6 @@ public enum OperationType
 
 public class IdentifierOnly(string id)
 {
+    [JsonPropertyName("id")]
     public string Id { get; set; } = id;
 }
