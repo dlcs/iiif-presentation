@@ -1,4 +1,6 @@
 ﻿using System.Net;
+using System.Text.Json;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -405,28 +407,29 @@ public class DlcsApiClientTests
         using var stub = new ApiStub();
         const int customerId = 4;
         stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
-            .Response((_, _) => """
-                                {
-                                 "@type": "Collection",
-                                 "totalItems": 1,
-                                 "pageSize": 1,
-                                 "member": [
-                                  { "id": "someAssetId" }
-                                 ]
-                                 }
-                                """).StatusCode(200);
+            .Response((request, _) =>
+            {
+                var body = request.Body.ReadAsStringAsync().Result;
+                var parsed = JsonSerializer.Deserialize<BulkPatchAssets>(body);
+
+                var members = parsed!.Members.Select(m => new Asset
+                        { Id = m.Id.GetLastPathElement(), Space = Int32.Parse(m.Id.Split('/').SkipLast(1).Last()) })
+                    .ToArray();
+                
+                return JsonSerializer.Serialize(new HydraCollection<Asset>(members));
+            }).StatusCode(200);
         var sut = GetClient(stub);
 
         var assets = await sut.UpdateAssetManifest(customerId, 
             [
                 $"{customerId}/1/someString",
-                $"{customerId}/1/someString"
+                $"{customerId}/1/someString2"
             ],
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(2);
-        assets.First().Id.Should().Be("someAssetId");
-        assets.Last().Id.Should().Be("someAssetId");
+        assets.First().Id.Should().Be("someString");
+        assets.Last().Id.Should().Be("someString2");
     }
     
     [Fact]
@@ -478,12 +481,58 @@ public class DlcsApiClientTests
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
+    
+    [Fact]
+    public async Task UpdateAssetWithManifest_ReturnsDistinctAssets_WhenMultipleOfSameAsset()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .IfBody(body =>
+            {
+                var convertedBody = JsonSerializer.Deserialize<BulkPatchAssets>(body);
+
+                if (convertedBody!.Members.GroupBy(m => m.Id).Any(g => g.Count() > 1))
+                {
+                    return true;
+                }
+                
+                return false;
+            })
+            .Response((_, _) => JsonSerializer.Serialize(new DlcsError
+            {
+                Description = "duplicate assets found"
+            })).StatusCode(400);
+        
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => """
+                                {
+                                 "@type": "Collection",
+                                 "totalItems": 1,
+                                 "pageSize": 1,
+                                 "member": [
+                                  { "id": "someString", "space": 1 }
+                                 ]
+                                 }
+                                """).StatusCode(200);
+        var sut = GetClient(stub, 2);
+
+        var assets = await sut.UpdateAssetManifest(customerId, 
+            [
+                $"{customerId}/1/someString",
+                $"{customerId}/1/someString"
+            ],
+            OperationType.Add, ["first"], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+        assets.First().Id.Should().Be("someString");
+    }
 
 
-    private static DlcsApiClient GetClient(ApiStub stub)
+    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1)
     {
         stub.EnsureStarted();
-        
+
         var httpClient = new HttpClient
         {
             BaseAddress = new Uri(stub.Address)
@@ -492,9 +541,9 @@ public class DlcsApiClientTests
         var options = Options.Create(new DlcsSettings()
         {
             ApiUri = new Uri("https://localhost"),
-            MaxBatchSize = 1
+            MaxBatchSize = maxBatchSize
         });
-        
+
         return new DlcsApiClient(httpClient, options, new NullLogger<DlcsApiClient>());
     }
 }
