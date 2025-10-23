@@ -90,12 +90,12 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         foreach (var itemsCanvasPainting in itemsCanvasPaintings.ToList())
         {
             var matchedPaintedResourceCanvasPaintings = paintedResourceCanvasPaintings.Where(cp =>
-                itemsCanvasPainting.CanvasOriginalId != null && !string.IsNullOrEmpty(cp.Id) &&
-                cp.Id == itemsCanvasPainting.Id).ToList();
-
-            CheckForMismatchedCase(matchedPaintedResourceCanvasPaintings, itemsCanvasPainting, paintedResourceCanvasPaintings);
+                !string.IsNullOrEmpty(cp.Id) && string.Equals(cp.Id, itemsCanvasPainting.Id,
+                    StringComparison.OrdinalIgnoreCase)).ToList();
 
             if (matchedPaintedResourceCanvasPaintings.Count == 0) continue;
+            
+            CheckForMismatchedCase(matchedPaintedResourceCanvasPaintings, itemsCanvasPainting);
             
             // we check by canvas/choice order as well, in case there are multiple canvases with the same id (possible with placeholders etc.)
             InterimCanvasPainting? orderedCanvasPainting;
@@ -124,19 +124,15 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         }
     }
 
-    private void CheckForMismatchedCase(List<InterimCanvasPainting> matchedPaintedResourceCanvasPaintings, InterimCanvasPainting itemsCanvasPainting, 
-        List<InterimCanvasPainting> paintedResourceCanvasPaintings)
+    private void CheckForMismatchedCase(List<InterimCanvasPainting> matchedPaintedResourceCanvasPaintings, InterimCanvasPainting itemsCanvasPainting)
     {
-        if (matchedPaintedResourceCanvasPaintings.Count != 0) return;
-        
-        var itemsWithMismatchedCase =  paintedResourceCanvasPaintings.Where(cp =>
-            itemsCanvasPainting.CanvasOriginalId != null && !string.IsNullOrEmpty(cp.Id) &&
-            string.Equals(cp.Id, itemsCanvasPainting.Id, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        var distinctCanvasPaintings =
+            matchedPaintedResourceCanvasPaintings.Select(cp => cp.Id).Distinct().ToList();
 
-        if (itemsWithMismatchedCase.Count != 0)
+        if (distinctCanvasPaintings.Count > 1 || itemsCanvasPainting.Id != distinctCanvasPaintings.Single())
         {
             throw new CanvasPaintingMergerException(
-                $"canvas painting from items with id {itemsCanvasPainting.Id} has a mismatched case with painted resource(s) {string.Join(',', itemsWithMismatchedCase.Select(c => c.Id))}");
+                $"Canvas painting from items with id {itemsCanvasPainting.Id} has a mismatched case with painted resource(s) {string.Join(',', distinctCanvasPaintings)}");
         }
     }
 

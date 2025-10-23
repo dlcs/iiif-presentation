@@ -710,7 +710,33 @@ public class CanvasPaintingMergerTests
     }
     
     [Fact]
-    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedCase()
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithSingleMismatchedCase()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).BuildInterim();
+
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"PaintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage("Canvas painting from items with id paintedResource_1 has a mismatched case with painted resource(s) PaintedResource_1");
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMultipleMismatchedCase()
     {
         var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"paintedResource_1", cp =>
@@ -737,6 +763,6 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage("canvas painting from items with id paintedResource_1 has a mismatched case with painted resource(s) PaintedResource_1,painteDResource_1");
+            .WithMessage("Canvas painting from items with id paintedResource_1 has a mismatched case with painted resource(s) PaintedResource_1,painteDResource_1");
     }
 }
