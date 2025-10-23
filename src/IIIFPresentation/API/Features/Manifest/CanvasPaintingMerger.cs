@@ -93,6 +93,8 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 itemsCanvasPainting.CanvasOriginalId != null && !string.IsNullOrEmpty(cp.Id) &&
                 cp.Id == itemsCanvasPainting.Id).ToList();
 
+            CheckForMismatchedCase(matchedPaintedResourceCanvasPaintings, itemsCanvasPainting, paintedResourceCanvasPaintings);
+
             if (matchedPaintedResourceCanvasPaintings.Count == 0) continue;
             
             // we check by canvas/choice order as well, in case there are multiple canvases with the same id (possible with placeholders etc.)
@@ -119,6 +121,22 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
 
             itemsCanvasPaintings.Remove(itemsCanvasPainting);
             currentCanvasOrder += matchedPaintedResourceCanvasPaintings.Count;
+        }
+    }
+
+    private void CheckForMismatchedCase(List<InterimCanvasPainting> matchedPaintedResourceCanvasPaintings, InterimCanvasPainting itemsCanvasPainting, 
+        List<InterimCanvasPainting> paintedResourceCanvasPaintings)
+    {
+        if (matchedPaintedResourceCanvasPaintings.Count != 0) return;
+        
+        var itemsWithMismatchedCase =  paintedResourceCanvasPaintings.Where(cp =>
+            itemsCanvasPainting.CanvasOriginalId != null && !string.IsNullOrEmpty(cp.Id) &&
+            string.Equals(cp.Id, itemsCanvasPainting.Id, StringComparison.CurrentCultureIgnoreCase)).ToList();
+
+        if (itemsWithMismatchedCase.Count != 0)
+        {
+            throw new CanvasPaintingMergerException(
+                $"canvas painting from items with id {itemsCanvasPainting.Id} has a mismatched case with painted resource(s) {string.Join(',', itemsWithMismatchedCase.Select(c => c.Id))}");
         }
     }
 

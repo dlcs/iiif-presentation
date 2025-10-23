@@ -708,4 +708,35 @@ public class CanvasPaintingMergerTests
         var last = merged.Last();
         last.Id.Should().Be($"{paintedResourceId}_1", "painted resource only, with explicit ordering");
     }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedCase()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).BuildInterim();
+
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"PaintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            })
+            .WithCanvasPainting($"painteDResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage("canvas painting from items with id paintedResource_1 has a mismatched case with painted resource(s) PaintedResource_1,painteDResource_1");
+    }
 }
