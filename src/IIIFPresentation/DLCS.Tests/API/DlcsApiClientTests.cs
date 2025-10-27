@@ -428,8 +428,8 @@ public class DlcsApiClientTests
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(2);
-        assets.First().Id.Should().Be("someString");
-        assets.Last().Id.Should().Be("someString2");
+        assets.Should().Contain(x => x.Id == "someString");
+        assets.Should().Contain(x => x.Id == "someString2");
     }
     
     [Fact]

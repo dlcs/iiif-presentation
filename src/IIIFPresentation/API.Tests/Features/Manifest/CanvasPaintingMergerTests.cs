@@ -708,4 +708,61 @@ public class CanvasPaintingMergerTests
         var last = merged.Last();
         last.Id.Should().Be($"{paintedResourceId}_1", "painted resource only, with explicit ordering");
     }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithSingleMismatchedCase()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).BuildInterim();
+
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"PaintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1.  Canvases and canvas paintings cannot differ by case");
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMultipleMismatchedCase()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).BuildInterim();
+
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"PaintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            })
+            .WithCanvasPainting($"painteDResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1,painteDResource_1.  Canvases and canvas paintings cannot differ by case");
+    }
 }

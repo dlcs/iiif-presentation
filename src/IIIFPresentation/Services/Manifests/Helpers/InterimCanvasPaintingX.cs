@@ -33,7 +33,7 @@ public static class InterimCanvasPaintingX
     /// Checks a list of canvas paintings for if they contain a specific id
     /// </summary>
     public static bool ContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
-        canvasPainting?.Any(cp => cp.Id == id) ?? false;
+        canvasPainting?.Any(cp => cp.Id?.Equals(id, StringComparison.OrdinalIgnoreCase) ?? false) ?? false;
 
     public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
     {
