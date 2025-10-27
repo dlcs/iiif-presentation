@@ -732,7 +732,7 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1.  Canvases and canvas paintings cannopt differ by case");
+            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1.  Canvases and canvas paintings cannot differ by case");
     }
     
     [Fact]
@@ -763,6 +763,6 @@ public class CanvasPaintingMergerTests
 
         // Assert
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1,painteDResource_1.  Canvases and canvas paintings cannopt differ by case");
+            .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1,painteDResource_1.  Canvases and canvas paintings cannot differ by case");
     }
 }

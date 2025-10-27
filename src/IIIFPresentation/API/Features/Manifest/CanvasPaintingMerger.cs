@@ -132,7 +132,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         if (distinctCanvasPaintings.Count > 1 || itemsCanvasPainting.Id != distinctCanvasPaintings.SingleOrDefault())
         {
             throw new CanvasPaintingMergerException(
-                $"Canvas with id {itemsCanvasPainting.Id} has a mismatched case with matched canvas painting(s) {string.Join(',', distinctCanvasPaintings)}.  Canvases and canvas paintings cannopt differ by case");
+                $"Canvas with id {itemsCanvasPainting.Id} has a mismatched case with matched canvas painting(s) {string.Join(',', distinctCanvasPaintings)}.  Canvases and canvas paintings cannot differ by case");
         }
     }
 
