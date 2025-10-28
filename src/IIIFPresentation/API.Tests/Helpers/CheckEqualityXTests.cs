@@ -134,7 +134,7 @@ public class CheckEqualityXTests
     }
     
     [Fact]
-    public void CheckEqualityX_CheckMultipleKey_NotEqual()
+    public void CheckEqualityX_CheckMultipleKeyValue_NotEqual()
     {
         // Arrange
         var first = new LanguageMap
@@ -152,7 +152,7 @@ public class CheckEqualityXTests
         var equal = first.CheckEquality(second);
         
         // Assert
-        equal.Should().BeTrue();
+        equal.Should().BeFalse();
     }
     
     [Fact]
@@ -188,6 +188,48 @@ public class CheckEqualityXTests
         var equal = first.CheckEquality(second);
         
         // Assert
-        equal.Should().BeTrue();
+        equal.Should().BeFalse();
+    }
+    
+    [Fact]
+    public void CheckEqualityX_CheckMultipleDictionaryAdditionalSecond_NotEqual()
+    {
+        // Arrange
+        var first = new LanguageMap
+        {
+            {"en", ["test", "test"] }
+        };
+        var second = new LanguageMap
+        {
+            {"en", ["test", "test"] },
+            {"fr", ["test", "test"] }
+        };
+        
+        // Act
+        var equal = first.CheckEquality(second);
+        
+        // Assert
+        equal.Should().BeFalse();
+    }
+    
+    [Fact]
+    public void CheckEqualityX_CheckMultipleDictionaryAdditionalFirst_NotEqual()
+    {
+        // Arrange
+        var first = new LanguageMap
+        {
+            {"en", ["test", "test"] },
+            {"fr", ["test", "test"] }
+        };
+        var second = new LanguageMap
+        {
+            {"en", ["test", "test"] }
+        };
+        
+        // Act
+        var equal = first.CheckEquality(second);
+        
+        // Assert
+        equal.Should().BeFalse();
     }
 }

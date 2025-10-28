@@ -6,7 +6,9 @@ public static class LanguageMapX
 {
     public static bool CheckEquality(this LanguageMap? first, LanguageMap? second)
     {
-        return first?.Any(entry =>
+        if (first?.Count != second?.Count) return false;
+        
+        return first?.All(entry =>
         {
             List<string>? languageMapValues = null;
             second?.TryGetValue(entry.Key, out languageMapValues);
