@@ -1,4 +1,5 @@
 ﻿using API.Features.Manifest.Exceptions;
+using API.Features.Storage.Helpers;
 using Core.Helpers;
 using IIIF.Presentation.V3;
 using Repository.Paths;
@@ -173,27 +174,21 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         {
             paintedResourceCanvasPainting.CanvasLabel = itemsCanvasPainting.CanvasLabel;
         }
-        
-        
-        if (itemsCanvasPainting.CanvasLabel != paintedResourceCanvasPainting.CanvasLabel)
+
+        if (itemsCanvasPainting.CanvasLabel != null || paintedResourceCanvasPainting.CanvasLabel != null)
         {
-            throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.CanvasLabel?.ToString(),
-                itemsCanvasPainting.CanvasLabel?.ToString(),
-                paintedResourceCanvasPainting.Id,
-                $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas label");
+            if (!itemsCanvasPainting.CanvasLabel.CheckEquality(paintedResourceCanvasPainting.CanvasLabel))
+            {
+                throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.CanvasLabel?.ToString(),
+                    itemsCanvasPainting.CanvasLabel?.ToString(),
+                    paintedResourceCanvasPainting.Id,
+                    $"Canvas painting with id {paintedResourceCanvasPainting.Id} does not have a matching canvas label");
+            }
         }
-        
         
         if (itemsCanvasPainting.Label != null || paintedResourceCanvasPainting.Label != null)
         {
-            if (itemsCanvasPainting.Label?.Any(entry =>
-                {
-                    List<string>? languageMapValues = null;
-                    paintedResourceCanvasPainting.Label?.TryGetValue(entry.Key, out languageMapValues);
-                    if (languageMapValues == null) return true;
-                    
-                    return !languageMapValues.SequenceEqual(entry.Value);
-                }) ?? true)
+            if (!itemsCanvasPainting.Label.CheckEquality(paintedResourceCanvasPainting.Label))
             {
                 throw new CanvasPaintingMergerException(paintedResourceCanvasPainting.Label?.ToString(),
                     itemsCanvasPainting.Label?.ToString(),
