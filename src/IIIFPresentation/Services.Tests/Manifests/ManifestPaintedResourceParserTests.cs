@@ -3,37 +3,48 @@ using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Model;
-using Services.Tests.Manifests.Helpers;
+using Test.Helpers;
 using Test.Helpers.Helpers;
-using Test.Helpers.Integration;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
 namespace Services.Tests.Manifests;
 
-[Trait("Category", "Database")]
-[Collection(CollectionDefinitions.DatabaseCollection.CollectionName)]
 public class ManifestPaintedResourceParserTests
 {
     private readonly ManifestPaintedResourceParser sut;
     private const int CustomerId = 1234;
     private const int DefaultSpace = 10;
     private readonly string[] assetIds = ["frodo", "merry", "pippin", "sam", "gandalf", "balrog"];
-    private readonly PresentationContext presentationContext;
 
-    public ManifestPaintedResourceParserTests(PresentationContextFixture dbFixture)
+    private const string ExistingCanvasId = "cp_20251029_exists";
+    private const string ExistingManifestId = "mf_20251029_exists";
+    public ManifestPaintedResourceParserTests()
     {
-        presentationContext = dbFixture.DbContext;
+      
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
 
+        var existingCanvasPaintings = new List<Models.Database.CanvasPainting>()
+        {
+            new Models.Database.CanvasPainting
+            {
+                Id = ExistingCanvasId,
+                ManifestId = ExistingManifestId,
+                CustomerId = CustomerId
+            }
+        };
+        var dbContextMock = A.Fake<PresentationContext>();
+        var mockCanvasPaintings = existingCanvasPaintings.BuildMockDbSet();
+        A.CallTo(() => dbContextMock.CanvasPaintings).Returns(mockCanvasPaintings);
         sut = new ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
-            presentationContext, new NullLogger<ManifestPaintedResourceParser>());
+            dbContextMock, new NullLogger<ManifestPaintedResourceParser>());
     }
 
     [Fact]
@@ -68,6 +79,64 @@ public class ManifestPaintedResourceParserTests
 
         Func<Task> action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
         await action.Should().ThrowAsync<InvalidCanvasIdException>();
+    }
+    
+    [Fact]
+    public async Task Parse_SingleItem_Throws_CanvasPaintingValidationException()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}",
+                        CanvasOrder = 0,
+                        StaticHeight = 1023,
+                        StaticWidth = 513,
+                        Label = new LanguageMap("en", "label"),
+                        Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+
+        await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
+    }
+    
+    [Fact]
+    public async Task Parse_SingleItem_Throws_CanvasPaintingValidationException_Unless_Same_Manifest()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}",
+                        CanvasOrder = 0,
+                        StaticHeight = 1023,
+                        StaticWidth = 513,
+                        Label = new LanguageMap("en", "label"),
+                        Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, ExistingManifestId);
+
+        await parseAction.Should().NotThrowAsync();
     }
     
     [Theory]
