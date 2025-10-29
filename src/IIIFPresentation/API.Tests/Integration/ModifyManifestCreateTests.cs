@@ -1551,6 +1551,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1564,7 +1565,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "manifestFromPainted"
+                        CanvasId = canvasPaintingId
                     },
                     Asset = new JObject
                     {
@@ -1587,7 +1588,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         presentationManifest.PaintedResources.Count.Should().Be(1);
         presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
-            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
+            .Be($"http://localhost/{Customer}/canvases/{canvasPaintingId}");
         presentationManifest.Items.Count.Should().Be(1);
     }
     
@@ -1596,6 +1597,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1609,7 +1612,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = $"https://localhost:7230/{Customer}/canvases/manifestFromPainted"
+                        CanvasId = $"https://localhost:7230/{Customer}/canvases/{{canvasPaintingId}}"
                     },
                     Asset = new JObject
                     {
@@ -1632,7 +1635,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         presentationManifest.PaintedResources.Count.Should().Be(1);
         presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
-            .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
+            .Be($"http://localhost/{Customer}/canvases/{canvasPaintingId}");
         presentationManifest.Items.Count.Should().Be(1);
     }
     
@@ -1654,7 +1657,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "https://iiif.io/incorrect"
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId + "/incorrect"
                     },
                     Asset = new JObject
                     {

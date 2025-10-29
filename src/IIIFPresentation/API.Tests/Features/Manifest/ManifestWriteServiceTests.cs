@@ -75,7 +75,7 @@ public class ManifestWriteServiceTests
             new NullLogger<ManifestItemsParser>());
         
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            Options.Create(pathSettings), new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), presentationContext, new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
@@ -151,7 +151,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
                         CanvasOrder = 1
                     }
                 }
