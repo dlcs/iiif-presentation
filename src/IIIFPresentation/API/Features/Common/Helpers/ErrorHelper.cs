@@ -90,6 +90,16 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(params (string canvasId, string reason)[] multiple) 
+        where TCollection : JsonLdBase
+    {
+        var failures = string.Join(", ", multiple.Select(p => $"{p.canvasId}: {p.reason}"));
+        var message = $"Errors encountered when parsing painted resources: {failures}.";
+        
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(message,
+            ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+    }
+
     public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,

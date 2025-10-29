@@ -72,7 +72,7 @@ builder.Services
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<PaintableAssetIdentifier>()
-    .AddSingleton<ManifestPaintedResourceParser>()
+    .AddScoped<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
