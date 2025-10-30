@@ -31,7 +31,7 @@ public interface IManifestMerger
         List<CanvasPainting>? canvasPaintings);
 }
 
-public class ManifestMerger(IPathGenerator pathGenerator, ILogger<ManifestMerger> logger) : IManifestMerger
+public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, ILogger<ManifestMerger> logger) : IManifestMerger
 {
     /// <summary>
     /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the

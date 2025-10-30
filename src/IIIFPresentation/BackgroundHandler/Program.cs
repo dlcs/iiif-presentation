@@ -1,13 +1,12 @@
 ﻿using AWS.Settings;
-using BackgroundHandler.Helpers;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
-using Core.Web;
 using DLCS;
-using Repository.Paths;
 using Serilog;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,8 +23,8 @@ builder.Host.UseSerilog((hostContext, loggerConfig) =>
 
 builder.Services.AddOptions<BackgroundHandlerSettings>()
     .BindConfiguration(string.Empty);
-var typedPathTemplateOptions = builder.Configuration.GetSection(TypedPathTemplateOptions.SettingsName);
-builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
+var pathSettings = builder.Configuration.GetSection(PathSettings.SettingsName);
+builder.Services.Configure<PathSettings>(pathSettings);
 
 var aws = builder.Configuration.GetSection(AWSSettings.SettingsName).Get<AWSSettings>() ?? new AWSSettings();
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
@@ -35,8 +34,8 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
-    .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
-    .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
+    .AddSingleton<SettingsBasedPathGenerator>()
+    .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .Configure<DlcsSettings>(dlcsSettings);

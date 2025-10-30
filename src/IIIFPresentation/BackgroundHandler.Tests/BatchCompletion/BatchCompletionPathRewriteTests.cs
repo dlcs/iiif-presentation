@@ -1,11 +1,9 @@
 ﻿using AWS.Helpers;
-using AWS.Settings;
 using BackgroundHandler.BatchCompletion;
-using BackgroundHandler.Helpers;
-using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
 using Core.Web;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -16,6 +14,8 @@ using Models.DLCS;
 using Repository;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -32,7 +32,7 @@ public class BatchCompletionPathRewriteTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
-    private readonly BackgroundHandlerSettings backgroundHandlerSettings;
+    private readonly PathSettings pathsettings;
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -46,7 +46,7 @@ public class BatchCompletionPathRewriteTests
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
-        backgroundHandlerSettings = new BackgroundHandlerSettings
+        pathsettings = new PathSettings
         {
             PresentationApiUrl = new Uri("https://localhost:5000"),
             CustomerPresentationApiUrl = new Dictionary<int, Uri>
@@ -75,13 +75,13 @@ public class BatchCompletionPathRewriteTests
                         ["Canvas"] = "https://base/{customerId}/canvases/{resourceId}",
                     }
                 }
-            },
-            AWS = new AWSSettings(),
+            }
         };
 
-        var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var pathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(pathsettings)));
         
         var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
 
@@ -115,7 +115,7 @@ public class BatchCompletionPathRewriteTests
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathsettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>.That.Contains(identifier), false,
@@ -159,7 +159,7 @@ public class BatchCompletionPathRewriteTests
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathsettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>.That.Contains(identifier), false,
@@ -203,7 +203,7 @@ public class BatchCompletionPathRewriteTests
         var message = QueueHelper.CreateQueueMessage(batchId, customerId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathsettings.PresentationApiUrl));
         
         IIIFManifest updatedManifest = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<IHierarchyResource>._, A<string>.That.Contains(identifier), false,

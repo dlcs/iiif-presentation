@@ -72,7 +72,7 @@ public static class ManifestConverter
     /// Generate provisional <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These
     /// provisional canvases have the structure of the final canvases without the full content-resource details
     /// </summary>
-    private static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
+    public static List<Canvas> GenerateProvisionalItems(this IList<CanvasPainting> canvasPaintings,
         IPathGenerator pathGenerator)
     {
         // ToLookup, rather than GroupBy - the former maintains order of input. The latter orders by key.

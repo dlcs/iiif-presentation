@@ -53,7 +53,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "foo-paintedResource",
                    "ingesting": false,
@@ -66,7 +66,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/errorPaintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/errorPaintedResource",
                    "@type": "vocab:Image",
                    "id": "errorPaintedResource",
                    "error": "random error",
@@ -79,7 +79,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "ingestingPaintedResource",
                    "ingesting": true,
