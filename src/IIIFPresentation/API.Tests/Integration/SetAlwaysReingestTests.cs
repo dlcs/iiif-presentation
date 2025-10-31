@@ -17,7 +17,7 @@ namespace API.Tests.Integration;
 
 [Trait("Category", "Integration")]
 [Collection(CollectionDefinitions.StorageCollection.CollectionName)]
-public class AssetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Program>>
+public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
@@ -26,7 +26,7 @@ public class AssetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Pro
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private static readonly IDlcsOrchestratorClient DLCSOrchestratorClient = A.Fake<IDlcsOrchestratorClient>();
 
-    public AssetAlwaysReingestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
+    public SetAlwaysReingestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         
