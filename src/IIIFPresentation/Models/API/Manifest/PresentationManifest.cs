@@ -49,7 +49,7 @@ public class PaintedResource
     
     [JsonProperty(Order = 3)]
     public JObject? Asset { get; set; }
-    
+
     public bool Reingest { get; set; }
 }
 
