@@ -23,6 +23,9 @@ public class ApiSettings
     /// </summary>
     public bool IgnorePaintedResourcesWithItems { get; set; }
     
+    /// <summary>
+    /// Forces reingestion to always occur
+    /// </summary>
     public bool AlwaysReingest { get; set; }
     
     public required AWSSettings AWS { get; set; }
