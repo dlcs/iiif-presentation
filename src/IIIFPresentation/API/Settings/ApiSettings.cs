@@ -23,6 +23,8 @@ public class ApiSettings
     /// </summary>
     public bool IgnorePaintedResourcesWithItems { get; set; }
     
+    public bool AlwaysReingest { get; set; }
+    
     public required AWSSettings AWS { get; set; }
 
     public required DlcsSettings DLCS { get; set; }
