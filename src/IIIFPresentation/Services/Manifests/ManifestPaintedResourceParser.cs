@@ -33,8 +33,6 @@ public class ManifestPaintedResourceParser(
         var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
-
-        var existingCanvasIds = await LoadCustomerExistingCanvasIds(customerId,existingManifestId);
         
         var count = 0;
         foreach (var paintedResource in paintedResources)
@@ -49,62 +47,56 @@ public class ManifestPaintedResourceParser(
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
             var implicitOrdering = paintedResource.CanvasPainting?.CanvasOrder == null;
 
-            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder, implicitOrdering, existingCanvasIds);
+            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder, implicitOrdering);
 
             count++;
             canvasPaintings.Add(cp);
         }
 
-        ThrowIfAnyCanvasPaintingsFailed(canvasPaintings);
+        await ValidateCanvasIds(canvasPaintings, customerId, existingManifestId);
 
         return canvasPaintings;
     }
 
-    private static void ThrowIfAnyCanvasPaintingsFailed(ICollection<InterimCanvasPainting> canvasPaintings)
+    private async Task ValidateCanvasIds(ICollection<InterimCanvasPainting> canvasPaintings, int customerId, string? exceptInManifest)
     {
-        var failedPaintings = canvasPaintings.OfType<FailedInterimCanvasPainting>().ToList();
-        if (failedPaintings.Count == 0) return;
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - contract lies
+        var canvasPaintingIds = canvasPaintings
+            .Select(cp => cp.Id)
+            .Where(id => id != null)
+            .Distinct()
+            .ToList();
         
-        throw new CanvasPaintingValidationException(failedPaintings.Select(p=>(p.Id,p.Reason)));
-    }
-
-    private async Task<ISet<string>> LoadCustomerExistingCanvasIds(int customerId, string? exceptInManifest)
-    {
         var customerPaintingsQuery =
-            dbContext.CanvasPaintings.AsNoTracking().Where(painting => painting.CustomerId == customerId);
+            dbContext.CanvasPaintings.AsNoTracking()
+                .Where(painting => painting.CustomerId == customerId)
+                .Where(painting => canvasPaintingIds.Contains(painting.Id));
 
         if (exceptInManifest is { Length: > 0 })
         {
             customerPaintingsQuery =
                 customerPaintingsQuery.Where(painting => painting.ManifestId != exceptInManifest);
         }
-
+        
         var results = await customerPaintingsQuery.Select(painting => painting.Id).Distinct().ToListAsync();
-        return results.ToImmutableHashSet();
+
+        // `results` now contains any canvas ids from manifests of this customer, that also were found in created canvas paintings
+        // for a successful operation the results should be empty
+        if (results.Count == 0) return;
+        
+        throw new CanvasPaintingValidationException(results.Select(p=>(p,"Id used in one of your other manifests")));
     }
 
     private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
-        int canvasOrder, bool implicitOrdering, ISet<string> existingCanvasIds)
+        int canvasOrder, bool implicitOrdering)
     {
-        var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
-        // Check if not used in a different manifest of this user - we will check for failures after we check all resources
-        if (specifiedCanvasId != null
-            && existingCanvasIds.Contains(specifiedCanvasId))
-        {
-            return new FailedInterimCanvasPainting
-            {
-                Id = specifiedCanvasId,
-                Reason = "Id already used in a different manifest"
-            };
-        }
-
         var payloadCanvasPainting = paintedResource.CanvasPainting;
         var (space, assetId) =
             GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
         var cp = new InterimCanvasPainting
         {
-            Id = specifiedCanvasId!, // might be null, but is `null!` in prop initializer
+            Id = TryGetValidCanvasId(customerId, paintedResource)!, // might be null, but is `null!` in prop initializer
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
