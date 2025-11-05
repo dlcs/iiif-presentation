@@ -15,4 +15,10 @@ public class CollectionDefinitions
     {
         public const string CollectionName = "Storage Collection";
     }
+    
+    [CollectionDefinition(CollectionName, DisableParallelization = true)]
+    public class RestCollection : ICollectionFixture<StorageFixture>
+    {
+        public const string CollectionName = "Rest Collection";
+    }
 }
