@@ -25,17 +25,6 @@ public class InterimCanvasPainting : CanvasPainting
     public bool ImplicitOrder { get; set; }
 }
 
-/// <summary>
-/// Used internally to gather any failed interim canvas painting generation occurences
-/// </summary>
-internal class FailedInterimCanvasPainting : InterimCanvasPainting
-{
-    /// <summary>
-    /// Reason why this painting failed to be created
-    /// </summary>
-    public required string Reason { get; set; }
-}
-
 public enum CanvasPaintingType
 {
     Unknown,
