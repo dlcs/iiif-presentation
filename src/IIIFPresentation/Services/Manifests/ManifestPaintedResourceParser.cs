@@ -60,12 +60,13 @@ public class ManifestPaintedResourceParser(
             canvasPaintings.Add(cp);
         }
 
-        await ValidateCanvasIds(canvasPaintings, customerId, existingManifestId);
+        await CheckInterimCanvasIds(canvasPaintings, customerId, existingManifestId);
 
         return canvasPaintings;
     }
 
-    private async Task ValidateCanvasIds(ICollection<InterimCanvasPainting> canvasPaintings, int customerId, string? exceptInManifest)
+    private async Task CheckInterimCanvasIds(ICollection<InterimCanvasPainting> canvasPaintings, int customerId,
+        string? exceptInManifest)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - contract lies
         var canvasPaintingIds = canvasPaintings
@@ -73,7 +74,7 @@ public class ManifestPaintedResourceParser(
             .Where(id => id != null)
             .Distinct()
             .ToList();
-        
+
         var customerPaintingsQuery =
             dbContext.CanvasPaintings.AsNoTracking()
                 .Where(painting => painting.CustomerId == customerId)
@@ -84,14 +85,14 @@ public class ManifestPaintedResourceParser(
             customerPaintingsQuery =
                 customerPaintingsQuery.Where(painting => painting.ManifestId != exceptInManifest);
         }
-        
+
         var results = await customerPaintingsQuery.Select(painting => painting.Id).Distinct().ToListAsync();
 
         // `results` now contains any canvas ids from manifests of this customer, that also were found in created canvas paintings
         // for a successful operation the results should be empty
         if (results.Count == 0) return;
-        
-        throw new CanvasPaintingValidationException(results.Select(p=>(p,"Id used in one of your other manifests")));
+
+        throw new CanvasPaintingValidationException(results.Select(p => (p, "Id used in one of your other manifests")));
     }
 
     private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
