@@ -1756,4 +1756,62 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
         presentationManifest.Items.Count.Should().Be(1);
     }
+
+    [Fact]
+    public async Task CreateManifest_BadRequest_WhenCanvasIdDuplicated_SameOrder_NoChoice()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Behavior =
+            [
+                Behavior.IsPublic
+            ],
+            Slug = slug,
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = canvasPaintingId,
+                        CanvasOrder = 1
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = assetId,
+                        ["mediaType"] = "image/jpeg"
+                    },
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = canvasPaintingId,
+                        CanvasOrder = 1
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = assetId,
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
+    }
 }

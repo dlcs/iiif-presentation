@@ -38,6 +38,12 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .When(m => m.PaintedResources.All(pr => pr.CanvasPainting?.ChoiceOrder != null))
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
         
+        RuleFor(m => m.PaintedResources)
+            .Must(lpr => lpr.Where(pr => pr.CanvasPainting?.CanvasId != null && pr.CanvasPainting?.CanvasOrder != null)
+                .GroupBy(pr => new{ pr.CanvasPainting?.CanvasId,  pr.CanvasPainting?.CanvasOrder})
+                .All(grp => grp.Count() <= 1 || grp.All(pr=>pr.CanvasPainting?.ChoiceOrder != null)))
+            .WithMessage("'choiceOrder' is mandatory when multiple entries with the same 'canvasOrder'");
+        
         RuleForEach(f => f.PaintedResources)
             .Where(pr => pr.CanvasPainting != null)
             .Must(pr => pr.CanvasPainting!.StaticHeight.HasValue == pr.CanvasPainting.StaticWidth.HasValue)
