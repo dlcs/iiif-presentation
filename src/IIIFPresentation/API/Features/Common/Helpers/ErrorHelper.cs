@@ -105,6 +105,11 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> MismatchedId<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("id mismatch between URL and body",
+            ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
+    
     public static ModifyEntityResult<TCollection, ModifyCollectionType> PaintableAssetError<TCollection>(string error)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
