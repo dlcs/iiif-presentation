@@ -229,13 +229,13 @@ public class ManifestWriteService(
             ? null
             : CanvasHelper.CheckForProhibitedCharacters(parsedId.Resource, logger, false); // returns null if invalid
 
-        if (idFromUrl != null && manifestId != idFromUrl) // if both in body and URL, and it doesn't match, it's a bad request
+        if (idFromUrl != null && manifestId != null && manifestId != idFromUrl) // if both in body and URL, and it doesn't match, it's a bad request
         {
             return (null, ErrorHelper.MismatchedId<PresentationManifest>());
         }
         
         // at this point `manifestId` is either null, or it's a valid, non-null `parsedId.Resource`
-        return (manifestId, null);
+        return (manifestId ?? idFromUrl, null);
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,

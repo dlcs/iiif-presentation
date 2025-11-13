@@ -96,10 +96,21 @@ public class StorageController(
 
     [Authorize]
     [HttpPost("{*slug}")]
-    public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
+    public async Task<IActionResult> PostHierarchical(int customerId, string slug)
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, rawRequestBody));
+        
+        // This will load string value of `type` property on the top level of the JSON, if present
+        var type = FastJsonPropertyRead.FindAtLevel(rawRequestBody, "type");
+        
+        return type switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
+                new PostHierarchicalManifest(customerId, slug, rawRequestBody)),
+            nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
+                new PostHierarchicalCollection(customerId, slug, rawRequestBody)),
+            _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
+        };
     }
 }
