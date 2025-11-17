@@ -146,6 +146,84 @@ public class RestPathBehaviourTests : IClassFixture<RestPathFixture>
             _ = await httpClient.AsCustomer().SendAsync(requestMessage);
         }
     }
+    
+    [Theory]
+    [ClassData(typeof(CollectionPathTestProvider))]
+    public async Task TestCollectionPaths(string method, string url, string? id, string? parent, string? slug, string? publicId)
+    {
+        // passing as string because XUnit asked me to - parsing back to typed obj
+        var httpMethod = HttpMethod.Parse(method);
+
+        // Arrange
+        var collection = new PresentationCollection();
+        if (parent != null)
+            collection.Parent = $"http://localhost/{Customer}/{parent}";
+        if (slug != null)
+            collection.Slug = slug;
+        if (id != null)
+            collection.Id = $"http://localhost/{Customer}/{id}";
+        if (publicId != null)
+            collection.PublicId = $"http://localhost/{Customer}/{publicId}";
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(httpMethod,
+            $"{Customer}/{url}",
+            collection.AsJson());
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        var collectionId = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
+        try
+        {
+            responseCollection.Slug.Should().Be(CollectionPathTestProvider.Slug);
+        }
+        finally
+        {
+            // clean up
+            requestMessage =
+                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{collectionId}");
+            _ = await httpClient.AsCustomer().SendAsync(requestMessage);
+        }
+    }
+}
+
+public class CollectionPathTestProvider : TheoryData<string, string, string?, string?, string?, string?>
+{
+    private const string Collections = "collections/";
+
+    public const string Id = "example-abc";
+    public const string Slug = "my-slug";
+    public const string Parent = "parent";
+    public const string ParentId = "foobar";
+    public const string Grandparent = "grandparent";
+
+    public CollectionPathTestProvider()
+    {
+        // ( method,  url,  id,  parent,  slug,  publicId)
+        
+        // POST to flat collections endpoint, use FLAT parent
+        Add(HttpMethod.Post.ToString(),Collections,null,ParentId,Slug,null);
+        
+        // POST to flat collections endpoint, use HIERARCHICAL parent
+        Add(HttpMethod.Post.ToString(),Collections,null,$"{Grandparent}/{Parent}",Slug,null);
+
+        // PUT to the desired PUBLIC hierarchical path
+        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{Slug}", null, null, null, null);
+        
+        // POST into the parent public hierarchical collection
+        Add(HttpMethod.Post.ToString(),$"{Grandparent}/{Parent}", null, null, Slug,null);
+        
+        // PUT to the FLAT API Collections endpoint (2 variants, hier/flat parent)
+        Add(HttpMethod.Put.ToString(), Collections + Id, null, $"{Grandparent}/{Parent}", Slug, null);
+        Add(HttpMethod.Put.ToString(), Collections + Id, null, ParentId, Slug, null);
+        
+        // POST Vanilla IIIF into the parent public hierarchical collection
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", $"{Grandparent}/{Parent}/{Slug}", null, null, null);
+        
+        // PUT Vanilla IIIF to the public hierarchical URL
+        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{Slug}", $"{Grandparent}/{Parent}/{Slug}", null, null,
+            null);
+    }
 }
 
 public class ManifestPathTestProvider : TheoryData<string, string, string?, string?, string?, string?>
@@ -164,7 +242,6 @@ OPTIONAL id - will mint
 
  */
 
-
     private const string Collections = "collections/";
     private const string Manifests = "manifests/";
 
@@ -176,6 +253,8 @@ OPTIONAL id - will mint
     
     public ManifestPathTestProvider()
     {
+        // ( method,  url,  id,  parent,  slug,  publicId)
+
         // API PUT
         Add(HttpMethod.Put.ToString(), Manifests + Id, null, null, null, $"{Grandparent}/{Parent}/{Slug}");
         Add(HttpMethod.Put.ToString(), Manifests + Id, null, Collections + ParentId, Slug, null);
