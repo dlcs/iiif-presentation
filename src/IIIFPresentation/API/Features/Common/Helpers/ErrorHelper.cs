@@ -110,6 +110,16 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("id mismatch between URL and body",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> MissingSlug<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("slug must be provided to create resource",
+            ModifyCollectionType.MissingSlug, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> MismatchedParent<TCollection>()
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("parent mismatch between URL and body",
+            ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
+    
     public static ModifyEntityResult<TCollection, ModifyCollectionType> PaintableAssetError<TCollection>(string error)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,

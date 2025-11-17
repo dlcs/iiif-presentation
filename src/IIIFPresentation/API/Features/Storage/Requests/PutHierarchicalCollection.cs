@@ -22,7 +22,7 @@ using DatabaseCollection = Models.Database.Collections;
 
 namespace API.Features.Storage.Requests;
 
-public class PostHierarchicalCollection(
+public class PutHierarchicalCollection(
     int customerId,
     string slug, 
     string rawRequestBody) : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
@@ -34,70 +34,48 @@ public class PostHierarchicalCollection(
     public string RawRequestBody { get; } = rawRequestBody;
 }
 
-public class PostHierarchicalCollectionHandler(
+public class PutHierarchicalCollectionHandler(
     PresentationContext dbContext,    
-    ILogger<PostHierarchicalCollectionHandler> logger,
+    ILogger<PutHierarchicalCollectionHandler> logger,
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
     IParentSlugParser parentSlugParser)
-    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
+    : IRequestHandler<PutHierarchicalCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
 {
     
-    public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
+    public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(PutHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         // Info:
-        // 1. Parent provided hierarchical (grandparent/parent)
-        // 2. Slug can be provided in body (`slug`)
-        // 3. Slug can be provided in body as id (grandparent/parent/desired-slug)
-        // 4. If neither as `slug` nor `id`, we can't proceed because we don't have slug from anywhere else - 400
-        // 5. If provided in both props, they have to match (or 400)
-        // 6. If using `id`, the parent path also has to match (or 400)
+        // 1. Parent provided hierarchical (grandparent/parent/desired-slug)
+        // 2. Can be vanilla IIIF collection (no slug/parent in body)
+        // 3. Can be Presentation Collection (with slug and or parent in body)
+        // 4. Body-supplied parent can be hierarchical OR flat
+        // 5. Primarily the parent AND slug are taken from the PUT url
+        // 6. Body id can contain desired hierarchical path, just like url
+        // 7. If mismatch between body and url: bad request
+        
         
         var convertResult = await request.RawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
         if (convertResult.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
         var collectionFromBody = convertResult.ConvertedIIIF!;
-
-        string? resourceSlugFromId = null;
-        DatabaseCollection.Collection? parentFromId = null;
-        if (collectionFromBody.Id is { Length: > 0 })
-        {
-            // First, let's set the `PublicId` to the id
-            // this will let us use the ParentSlugParser, and we'll be minting an id anyway
-            collectionFromBody.PublicId = collectionFromBody.Id;
-
-            var parentSlugResult =
-                await parentSlugParser.Parse(collectionFromBody, request.CustomerId, null, cancellationToken);
-
-            if (parentSlugResult.IsError)
-                return parentSlugResult.Errors;
-
-            parentFromId = parentSlugResult.ParsedParentSlug.Parent;
-            resourceSlugFromId = parentSlugResult.ParsedParentSlug.Slug;
-        }
-
-
-        // this will make sense in a moment
-        collectionFromBody.Slug ??= resourceSlugFromId;
         
-        // Check: if slug provided in `id` AND in `slug`, they must match:
-        if (resourceSlugFromId != null)
+        var splitSlug = request.Slug.Split('/');
+        var resourceSlugFromUrl = splitSlug[^1];
+        
+        // Check: slug mismatch
+        if (collectionFromBody.Slug is { Length: > 0 } bodySlug && !string.Equals(resourceSlugFromUrl, bodySlug))
         {
-            // as we did ??=, this will fail only if there is indeed mismatch
-            if(!string.Equals(collectionFromBody.Slug, resourceSlugFromId))
-                return ErrorHelper.MismatchedId<PresentationCollection>();
+            return ErrorHelper.MismatchedId<PresentationCollection>();
         }
         
-        // Check: we require slug
-        if (collectionFromBody.Slug is not { Length: > 0 } resourceSlug)
-        {
-            return ErrorHelper.MissingSlug<PresentationCollection>();
-        }
+        // if it wasn't set, do it here as "normalization" - this simplifies code later
+        collectionFromBody.Slug ??= resourceSlugFromUrl;
         
+        var parentSlug = string.Join("/", splitSlug.Take(..^1));
         var parentCollection =
-            await dbContext.RetrieveHierarchy(request.CustomerId, request.Slug, cancellationToken);
-        
+            await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
         
         var parentValidationError =
             ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection?.Collection);
@@ -105,17 +83,29 @@ public class PostHierarchicalCollectionHandler(
         
         // by the above validation
         Debug.Assert(parentCollection != null, $"{nameof(parentCollection)} != null");
-
-        // Check: if we resolved parent+slug from id, it must match the URL parent
-        if (parentFromId != null && parentFromId.Id != parentCollection.Collection?.Id)
+        
+        // Check: parent mismatch
+        if (collectionFromBody.Parent is { Length: > 0 })
         {
-            return ErrorHelper.MismatchedId<PresentationCollection>();
-        }
+            var parseResult =
+                await parentSlugParser.Parse(collectionFromBody, request.CustomerId, null, cancellationToken);
+
+            if (parseResult.IsError)
+                return parseResult.Errors;
             
+            if(parseResult.ParsedParentSlug?.Parent is {} parsedParent
+               && !string.Equals(parsedParent.Id, parentCollection.Collection?.Id))
+            {
+                return ErrorHelper.MismatchedId<PresentationCollection>();
+            }
+        }
+        
+        // TODO (Possibly): body `id` can contain the same path as URL-derived slug, but it's really only useful for POST - this is already complex, and the only reason to check the `id` here would be to verify it matches the PUT path
+        
         var id = await GenerateUniqueId(request, cancellationToken);
         if (id == null) return ErrorHelper.CannotGenerateUniqueId<PresentationCollection>();
 
-        var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, resourceSlug);
+        var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
         dbContext.Collections.Add(collection);
 
         var saveErrors =
@@ -142,8 +132,8 @@ public class PostHierarchicalCollectionHandler(
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
     }
 
-    private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
-        Hierarchy parentHierarchy, string resourceSlug)
+    private static DatabaseCollection.Collection CreateDatabaseCollection(PutHierarchicalCollection request, Collection collectionFromBody, string id,
+        Hierarchy parentHierarchy, string[] splitSlug)
     {
         var thumbnails = collectionFromBody.Thumbnail?.OfType<Image>().ToList();    
         
@@ -164,7 +154,7 @@ public class PostHierarchicalCollectionHandler(
                 {
                     CollectionId = id,
                     Type = ResourceType.IIIFCollection,
-                    Slug = resourceSlug,
+                    Slug = splitSlug.Last(),
                     CustomerId = request.CustomerId,
                     Canonical = true,
                     ItemsOrder = 0,
@@ -176,7 +166,7 @@ public class PostHierarchicalCollectionHandler(
         return collection;
     }
 
-    private async Task<string?> GenerateUniqueId(PostHierarchicalCollection request, CancellationToken cancellationToken)
+    private async Task<string?> GenerateUniqueId(PutHierarchicalCollection request, CancellationToken cancellationToken)
     {
         try
         {

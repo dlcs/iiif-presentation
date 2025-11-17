@@ -21,7 +21,7 @@ using Repository.Paths;
 
 namespace API.Features.Storage;
 
-[Route("/{customerId:int}")]
+[Route("/{customerId:int}/{*slug}")]
 [ApiController]
 public class StorageController(
     IAuthenticator authenticator,
@@ -33,7 +33,7 @@ public class StorageController(
     ILogger<StorageController> logger)
     : PresentationController(options.Value, mediator, eTagCache, logger)
 {
-    [HttpGet("{*slug}")]
+    [HttpGet("")]
     [VaryHeader]
     public async Task<IActionResult> GetHierarchical(int customerId, string slug = "")
     {
@@ -95,7 +95,7 @@ public class StorageController(
     }
 
     [Authorize]
-    [HttpPost("{*slug}")]
+    [HttpPost("")]
     public async Task<IActionResult> PostHierarchical(int customerId, string slug)
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
@@ -110,6 +110,26 @@ public class StorageController(
                 new PostHierarchicalManifest(customerId, slug, rawRequestBody)),
             nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
                 new PostHierarchicalCollection(customerId, slug, rawRequestBody)),
+            _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
+        };
+    }
+    
+    [Authorize]
+    [HttpPut("")]
+    public async Task<IActionResult> PutHierarchical(int customerId, string slug)
+    {
+        // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
+        var rawRequestBody = await Request.GetRawRequestBodyAsync();
+        
+        // This will load string value of `type` property on the top level of the JSON, if present
+        var type = FastJsonPropertyRead.FindAtLevel(rawRequestBody, "type");
+        
+        return type switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
+                new PutHierarchicalManifest(customerId, slug, rawRequestBody)),
+            nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
+                new PutHierarchicalCollection(customerId, slug, rawRequestBody)),
             _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
         };
     }

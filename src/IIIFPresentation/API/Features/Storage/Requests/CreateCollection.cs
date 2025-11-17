@@ -59,7 +59,7 @@ public class CreateCollectionHandler(
         }
         
         var parsedParentSlugResult =
-            await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, null, cancellationToken);
+            await parentSlugParser.Parse(request.Collection, request.CustomerId, null, cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
             
