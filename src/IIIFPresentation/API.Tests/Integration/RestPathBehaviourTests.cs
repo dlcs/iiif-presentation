@@ -149,8 +149,9 @@ public class RestPathBehaviourTests : IClassFixture<RestPathFixture>
     
     [Theory]
     [ClassData(typeof(CollectionPathTestProvider))]
-    public async Task TestCollectionPaths(string method, string url, string? id, string? parent, string? slug, string? publicId)
+    public async Task TestCreateCollectionPaths(string method, string url, string? id, string? parent, string? slug, string? publicId, string expectedSlug)
     {
+        
         // passing as string because XUnit asked me to - parsing back to typed obj
         var httpMethod = HttpMethod.Parse(method);
 
@@ -172,24 +173,13 @@ public class RestPathBehaviourTests : IClassFixture<RestPathFixture>
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
-        var collectionId = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-        try
-        {
-            responseCollection.Slug.Should().Be(CollectionPathTestProvider.Slug);
-        }
-        finally
-        {
-            // clean up
-            requestMessage =
-                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{collectionId}");
-            _ = await httpClient.AsCustomer().SendAsync(requestMessage);
-        }
+        responseCollection!.Slug.Should().Be(expectedSlug);
     }
 }
 
-public class CollectionPathTestProvider : TheoryData<string, string, string?, string?, string?, string?>
+public class CollectionPathTestProvider : TheoryData<string, string, string?, string?, string?, string?, string>
 {
-    private const string Collections = "collections/";
+    public const string Collections = "collections/";
 
     public const string Id = "example-abc";
     public const string Slug = "my-slug";
@@ -197,51 +187,49 @@ public class CollectionPathTestProvider : TheoryData<string, string, string?, st
     public const string ParentId = "foobar";
     public const string Grandparent = "grandparent";
 
+    private int _slugCounter = 1;
+    private string UniqueSlug() => $"{Slug}-{_slugCounter++}";
+
     public CollectionPathTestProvider()
     {
         // ( method,  url,  id,  parent,  slug,  publicId)
         
         // POST to flat collections endpoint, use FLAT parent
-        Add(HttpMethod.Post.ToString(),Collections,null,ParentId,Slug,null);
+        var slug = UniqueSlug();
+        Add(HttpMethod.Post.ToString(),Collections,null,Collections+ParentId, slug,null, slug);
+        
         
         // POST to flat collections endpoint, use HIERARCHICAL parent
-        Add(HttpMethod.Post.ToString(),Collections,null,$"{Grandparent}/{Parent}",Slug,null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Post.ToString(),Collections,null,$"{Grandparent}/{Parent}",slug,null, slug);
 
         // PUT to the desired PUBLIC hierarchical path
-        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{Slug}", null, null, null, null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{slug}", null, null, null, null, slug);
         
         // POST into the parent public hierarchical collection
-        Add(HttpMethod.Post.ToString(),$"{Grandparent}/{Parent}", null, null, Slug,null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Post.ToString(),$"{Grandparent}/{Parent}", null, null, slug,null, slug);
         
         // PUT to the FLAT API Collections endpoint (2 variants, hier/flat parent)
-        Add(HttpMethod.Put.ToString(), Collections + Id, null, $"{Grandparent}/{Parent}", Slug, null);
-        Add(HttpMethod.Put.ToString(), Collections + Id, null, ParentId, Slug, null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Put.ToString(), Collections + Id + "-1", null, $"{Grandparent}/{Parent}", slug, null, slug);
+        slug = UniqueSlug();
+        Add(HttpMethod.Put.ToString(), Collections + Id + "-2", null, Collections+ParentId, slug, null, slug);
         
         // POST Vanilla IIIF into the parent public hierarchical collection
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", $"{Grandparent}/{Parent}/{Slug}", null, null, null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", $"{Grandparent}/{Parent}/{slug}", null, null, null, slug);
         
         // PUT Vanilla IIIF to the public hierarchical URL
-        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{Slug}", $"{Grandparent}/{Parent}/{Slug}", null, null,
-            null);
+        slug = UniqueSlug();
+        Add(HttpMethod.Put.ToString(), $"{Grandparent}/{Parent}/{slug}", $"{Grandparent}/{Parent}/{slug}", null, null,
+            null, slug);
     }
 }
 
 public class ManifestPathTestProvider : TheoryData<string, string, string?, string?, string?, string?>
 {
-    /*
-METHOD | Path after /{Customer} | Action                       | id                               | parent                                    | slug
--------|------------------------|------------------------------|----------------------------------|-------------------------------------------|---------------------------------------------------
-POST   | /collections           | create flat collection       | OPTIONAL, "id" (flat)            | "parent", "publicId", "id" (hierarchical) | "slug", "publicId" (derived), "id" (hierarchical)
-PUT    | /collections/{id}      | upsert flat collection       | {id}                             | "parent", "publicId", "id" (hierarchical) | "slug", "publicId" (derived), "id" (hierarchical)
-POST   | /manifests             | create flat manifest         | OPTIONAL, "id" (flat)            | "parent", "publicId", "id" (hierarchical) | "slug", "publicId" (derived), "id" (hierarchical)
-PUT    | /manifests/{id}        | upsert flat manifest         | {id}                             | "parent", "publicId", "id" (hierarchical) | "slug", "publicId" (derived), "id" (hierarchical)
-POST   | /{parent-path}         | create hierarchical resource | OPTIONAL, "id" (flat)            | {parent-path} (final segment)             | N/A
-PUT    | /{parent-path}/{slug}  | upsert hierarchical resource | {slug}-derived                   | {parent-path} (final segment)             | {slug}
-
-OPTIONAL id - will mint
-
- */
-
     private const string Collections = "collections/";
     private const string Manifests = "manifests/";
 
