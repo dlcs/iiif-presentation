@@ -72,9 +72,12 @@ public class UpsertCollectionHandler(
 
         var parentCollection = parsedParentSlug.Parent;
 
+        WriteResult result;
         if (databaseCollection == null)
         {
             // No existing collection = create
+            result = WriteResult.Created;
+            
             if (!string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNotRequired<PresentationCollection>();
 
             var createdDate = DateTime.UtcNow;
@@ -106,6 +109,9 @@ public class UpsertCollectionHandler(
         }
         else
         {
+            // exists, so update
+            result = WriteResult.Updated;
+            
             if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
                 return ErrorHelper.EtagNonMatching<PresentationCollection>();
             
@@ -185,7 +191,7 @@ public class UpsertCollectionHandler(
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
             parentCollection, pathGenerator);
 
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
+        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection, result, etag: databaseCollection.Etag);
     }
 
     /// <summary>
