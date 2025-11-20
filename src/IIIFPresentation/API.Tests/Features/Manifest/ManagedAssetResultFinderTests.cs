@@ -1,9 +1,13 @@
 ﻿using API.Features.Manifest;
+using API.Settings;
 using API.Tests.Integration.Infrastructure;
+using AWS.Settings;
 using Core.Exceptions;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Models.Database;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
@@ -30,7 +34,16 @@ public class ManagedAssetResultFinderTests
         
         dlcsApiClient = A.Fake<IDlcsApiClient>();
         
-        sut = new ManagedAssetResultFinder(dlcsApiClient, dbContext,
+        var options = Options.Create(new ApiSettings()
+        {
+            AWS = new AWSSettings(),
+            DLCS = new DlcsSettings
+            {
+                ApiUri = new Uri("https://localhost")
+            }
+        });
+        
+        sut = new ManagedAssetResultFinder(dlcsApiClient, dbContext, options,
             new NullLogger<ManagedAssetResultFinder>());
     }
 

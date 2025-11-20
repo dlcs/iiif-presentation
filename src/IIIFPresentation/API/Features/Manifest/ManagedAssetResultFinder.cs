@@ -53,7 +53,7 @@ public class ManagedAssetResultFinder(
                 if (existingAssetIds.Any(cp => cp == assetId))
                 {
                     // set the asset to reingest, otherwise ignore the asset
-                    if (settings.AlwaysReingest || paintedResource.Reingest ?? false)
+                    if (settings.AlwaysReingest || (paintedResource.Reingest ?? false))
                     {
                         // ingest without the manifest id, then don't patch the manifest id
                         logger.LogTrace("Asset {AssetId} found within existing manifest - reingest", assetId);
@@ -82,7 +82,7 @@ public class ManagedAssetResultFinder(
             {
                 IngestType ingestType;
                 
-                if (settings.AlwaysReingest || assetNotFoundInSameManifest.paintedResource.Reingest ?? false)
+                if (settings.AlwaysReingest || (assetNotFoundInSameManifest.paintedResource.Reingest ?? false))
                 {
                     // reingest - ingest with no manifest id, then patch afterwards
                     logger.LogTrace("Asset {AssetId} found within another manifest - reingest", assetNotFoundInSameManifest.assetId);
@@ -101,7 +101,7 @@ public class ManagedAssetResultFinder(
             }
 
             // check in the DLCS (unless reingest where we treat it as an unmanaged asset)
-            if (settings.AlwaysReingest || assetNotFoundInSameManifest.paintedResource.Reingest ?? false)
+            if (settings.AlwaysReingest || (assetNotFoundInSameManifest.paintedResource.Reingest ?? false))
             {
                 // ingest with the manifest id, then don't patch the manifest id
                 logger.LogTrace("Asset {AssetId} not found within another manifest, but set to reingest", assetNotFoundInSameManifest.assetId);
