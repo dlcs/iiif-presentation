@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using API.Auth;
 using API.Converters;
@@ -96,8 +97,10 @@ public class StorageController(
 
     [Authorize]
     [HttpPost("")]
-    public async Task<IActionResult> PostHierarchical(int customerId, string slug)
+    public async Task<IActionResult> PostHierarchical(int customerId, string? slug)
     {
+        slug ??= string.Empty;
+        
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
@@ -109,7 +112,8 @@ public class StorageController(
             nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
                 new PostHierarchicalManifest(customerId, slug, rawRequestBody)),
             nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
-                new PostHierarchicalCollection(customerId, slug, rawRequestBody)),
+                new CollectionWriteRequest(customerId, HttpMethod.Post, slug, rawRequestBody,
+                    true, Request.HasShowExtraHeader(), Request.Headers.IfMatch)),
             _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
         };
     }
@@ -118,7 +122,6 @@ public class StorageController(
     [HttpPut("")]
     public async Task<IActionResult> PutHierarchical(int customerId, string slug)
     {
-        // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
         
         // This will load string value of `type` property on the top level of the JSON, if present
@@ -129,8 +132,33 @@ public class StorageController(
             nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
                 new PutHierarchicalManifest(customerId, slug, rawRequestBody)),
             nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
-                new PutHierarchicalCollection(customerId, slug, rawRequestBody)),
+                new CollectionWriteRequest(customerId, HttpMethod.Put,  slug, rawRequestBody,
+                    true, Request.HasShowExtraHeader(), Request.Headers.IfMatch)),
             _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
         };
+    }
+
+    [Authorize]
+    [HttpDelete("")]
+    public async Task<IActionResult> DeleteHierarchical(int customerId, string slug)
+    {
+        var hierarchy = await dbContext.RetrieveHierarchy(customerId, slug);
+        if (hierarchy == null) return this.PresentationNotFound();
+        
+        switch (hierarchy.Type)
+        {
+            case ResourceType.IIIFManifest:
+                Debug.Assert(hierarchy.ManifestId != null, "hierarchy.ManifestId != null");
+                return await HandleDelete(new DeleteManifest(customerId, hierarchy.ManifestId));
+            
+            case ResourceType.IIIFCollection:
+            case ResourceType.StorageCollection:
+                Debug.Assert(hierarchy.CollectionId != null, "hierarchy.CollectionId != null");
+                return await HandleDelete(new DeleteCollection(customerId, hierarchy.CollectionId));
+            
+            default:
+                return this.PresentationProblem("Cannot fulfill this resource type", null,
+                    (int)HttpStatusCode.InternalServerError, "Cannot fulfill this resource type");
+        }
     }
 }

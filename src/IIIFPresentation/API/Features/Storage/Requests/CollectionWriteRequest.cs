@@ -23,15 +23,15 @@ using Models.API.Collection;
 using Models.API.General;
 using Models.Database.Collections;
 using Models.Database.General;
+using Repository;
+using Repository.Helpers;
+using Repository.Paths;
 using DBCollection = Models.Database.Collections.Collection;
 using Result =
     API.Infrastructure.Requests.ModifyEntityResult<Models.API.Collection.PresentationCollection,
         Models.API.General.ModifyCollectionType>;
-using Repository;
-using Repository.Helpers;
-using Repository.Paths;
 
-namespace API.Features.Storage;
+namespace API.Features.Storage.Requests;
 
 /// <summary>
 /// Common encapsulation of data available in a controller action, including the caller's intent
@@ -84,12 +84,12 @@ public class CollectionWriteService(
     {
         // This method should encapsulate all the rules, checks and actions in all scenarios where
         // a Collection (storage or not) is created or updated.
-
+        
         // 1. Non-hierarchical requests must include the extra prop header
         // source: pre-existing CollectionController logic
         if (request is { IsHierarchical: false, IsShowExtras: false })
             return Result.Failure($"This request requires '{CustomHttpHeaders.ShowExtras}' header",
-                ModifyCollectionType.ValidationFailed, WriteResult.FailedValidation);
+                ModifyCollectionType.ExtraHeaderRequired, WriteResult.Forbidden);
 
         // 2. Deserialize raw body as PresentationCollection
         var deserializedCollection =
@@ -97,7 +97,10 @@ public class CollectionWriteService(
         if (deserializedCollection.Error)
             return Result.Failure("Could not deserialize collection.", ModifyCollectionType.CannotDeserialize,
                 WriteResult.BadRequest);
-
+        
+        var collection = deserializedCollection.ConvertedIIIF;
+        Debug.Assert(collection != null, "collection != null"); // by validation above
+        
         // 3. Find out if we have externally supplied `id`.
         // This can happen for flat PUT requests, and will be the last path segment
         string? suppliedId = null;
@@ -108,18 +111,20 @@ public class CollectionWriteService(
 
         // 4. Execute validator
         // source: pre-existing CollectionController logic
-        var validation = suppliedId != null && KnownCollections.IsRoot(suppliedId)
-            ? await rootValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken)
-            : await presentationValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken);
+        // Removed: the rules make assumptions about data provided as properties, while
+        // the information might be coming from the URL. The validation of parent/publicId is
+        // done below in a more comprehensive fashion.
+        
+        // var validation = suppliedId != null && KnownCollections.IsRoot(suppliedId)
+        //     ? await rootValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken)
+        //     : await presentationValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken);
+        //
+        // if (!validation.IsValid)
+        // {
+        //     var message = string.Join(". ", validation.Errors.Select(s => s.ErrorMessage).Distinct());
+        //     return Result.Failure(message, ModifyCollectionType.ValidationFailed, WriteResult.FailedValidation);
+        // }
 
-        if (!validation.IsValid)
-        {
-            var message = string.Join(". ", validation.Errors.Select(s => s.ErrorMessage).Distinct());
-            return Result.Failure(message, ModifyCollectionType.ValidationFailed, WriteResult.FailedValidation);
-        }
-
-        var collection = deserializedCollection.ConvertedIIIF;
-        Debug.Assert(collection != null, "collection != null"); // by validation above
 
         // 5. If not storage collection (i.e. "IIIF Collection"), ensure it's convertible
         // source: pre-existing logic in UpsertCollection/CreateCollection requests
@@ -215,129 +220,155 @@ public class CollectionWriteService(
         DBCollection? parent = null;
         string? resourceSlug;
 
-        // 11.1. Hierarchical
-        if (request.IsHierarchical)
+        // Special case: updating root collection
+        var isRootUpdate =
+            request.RequestMethod == HttpMethod.Put // root is created automatically so it can only be updated
+            && databaseCollection != null // it's guaranteed to already exist, so this will be true
+            && KnownCollections.IsRoot(databaseCollection.Id);
+        
+        // For root update we don't need parent, and we have slug already
+        if (isRootUpdate)
         {
-            // Info/assumptions:
-            // a. Parent provided hierarchical (grandparent/parent/desired-slug) [PUT]
-            // b. Parent provided hierarchical (grandparent/parent) [POST]
-            // c. Slug can be provided in body as id (grandparent/parent/desired-slug)
-            // d. Can be Presentation Collection (with slug and or parent in body)
-            // e. Body-supplied parent can be hierarchical OR flat
-            // f. Primarily the parent AND slug are taken from the PUT url
-            // g. Body id can contain desired hierarchical path, just like url
-            // h. If mismatch between body and url: bad request
-
-            string parentSlug;
-            
-            // In hierarchical call, RequestPath is slug (a) [PUT]
-            if (request.RequestMethod == HttpMethod.Put)
-            {
-                // PUT
-                var splitSlug = request.RequestPath.Split('/');
-                var resourceSlugFromUrl = splitSlug[^1];
-
-                // 11.1.1. Check: slug mismatch
-                if (collection.Slug is { Length: > 0 } bodySlug
-                    && !string.Equals(resourceSlugFromUrl, bodySlug))
-                {
-                    return ErrorHelper.MismatchedId<PresentationCollection>();
-                }
-
-                // if it wasn't set, do it here as "normalization" - this simplifies code later
-                collection.Slug ??= resourceSlugFromUrl;
-                parentSlug = string.Join("/", splitSlug.Take(..^1));
-            }
-            else
-            {
-                // POST
-                parentSlug = request.RequestPath;
-                
-                string? resourceSlugFromId = null;
-                if (collection.Id is { Length: > 0 })
-                {
-                    // First, let's set the `PublicId` to the id
-                    // this will let us use the ParentSlugParser, and we'll be minting an id anyway
-                    collection.PublicId = collection.Id;
-
-                    var parentSlugResult =
-                        await parentSlugParser.Parse(collection, request.CustomerId, null, cancellationToken);
-
-                    if (parentSlugResult.IsError)
-                        return parentSlugResult.Errors;
-
-                    parent = parentSlugResult.ParsedParentSlug.Parent;
-                    resourceSlugFromId = parentSlugResult.ParsedParentSlug.Slug;
-
-                    collection.Slug ??= resourceSlugFromId;
-                }
-                
-                // Check: if slug provided in `id` AND in `slug`, they must match:
-                if (resourceSlugFromId != null)
-                {
-                    // as we did ??=, this will fail only if there is indeed mismatch
-                    if(!string.Equals(collection.Slug, resourceSlugFromId))
-                        return ErrorHelper.MismatchedId<PresentationCollection>();
-                }
-            }
-            
-            var parentCollection =
-                await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
-
-            var parentValidationError =
-                ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection?.Collection);
-            
-            if (parentValidationError != null)
-                return parentValidationError;
-            
-            // by the above validation
-            Debug.Assert(parentCollection != null, $"{nameof(parentCollection)} != null");
-            
-            // 11.1.2. Check: parent mismatch
-            // -with `parent` variable? [this is clanky, but it's even worse otherwise]
-            if (parent != null)
-            {
-                if(!string.Equals(parent.Id, parentCollection.Collection?.Id))
-                    return ErrorHelper.MismatchedParent<PresentationCollection>();
-            }
-            // -with `parent` property?
-            if (collection.Parent is { Length: > 0 })
-            {
-                var parseResult =
-                    await parentSlugParser.Parse(collection, request.CustomerId, null, cancellationToken);
-
-                if (parseResult.IsError)
-                    return parseResult.Errors;
-
-                if (parseResult.ParsedParentSlug?.Parent is { } parsedParent
-                    && !string.Equals(parsedParent.Id, parentCollection.Collection?.Id))
-                {
-                    return ErrorHelper.MismatchedParent<PresentationCollection>();
-                }
-            }
-            // 11.1.3: Set variables for use below
-            parent = parentCollection.Collection;
-            resourceSlug = collection.Slug;
+            resourceSlug = databaseCollection!.Hierarchy!.Single().Slug;
         }
         else
         {
-            // 11.2. Flat
-            var parsedParentSlugResult = await parentSlugParser.Parse(collection, request.CustomerId,
-                collectionId, cancellationToken);
-            if (parsedParentSlugResult.IsError)
-                return parsedParentSlugResult.Errors;
+            // 11.1. Hierarchical
+            if (request.IsHierarchical)
+            {
+                // Info/assumptions:
+                // a. Parent provided hierarchical (grandparent/parent/desired-slug) [PUT]
+                // b. Parent provided hierarchical (grandparent/parent) [POST]
+                // c. Slug can be provided in body as id (grandparent/parent/desired-slug)
+                // d. Can be Presentation Collection (with slug and or parent in body)
+                // e. Body-supplied parent can be hierarchical OR flat
+                // f. Primarily the parent AND slug are taken from the PUT url
+                // g. Body id can contain desired hierarchical path, just like url
+                // h. If mismatch between body and url: bad request
 
-            // By above error check
-            Debug.Assert(parsedParentSlugResult.ParsedParentSlug.Parent != null, "parsedParentSlugResult.ParsedParentSlug.Parent != null");
-            
-            parent = parsedParentSlugResult.ParsedParentSlug.Parent;
-            resourceSlug = parsedParentSlugResult.ParsedParentSlug.Slug;
+                string parentSlug;
+
+                // In hierarchical call, RequestPath is slug (a) [PUT]
+                if (request.RequestMethod == HttpMethod.Put)
+                {
+                    // PUT
+                    var splitSlug = request.RequestPath.Split('/');
+                    var resourceSlugFromUrl = splitSlug[^1];
+
+                    // 11.1.1. Check: slug mismatch
+                    if (collection.Slug is { Length: > 0 } bodySlug
+                        && !string.Equals(resourceSlugFromUrl, bodySlug))
+                    {
+                        return ErrorHelper.MismatchedId<PresentationCollection>();
+                    }
+
+                    // if it wasn't set, do it here as "normalization" - this simplifies code later
+                    collection.Slug ??= resourceSlugFromUrl;
+                    parentSlug = string.Join("/", splitSlug.Take(..^1));
+                }
+                else
+                {
+                    // POST
+                    parentSlug = request.RequestPath;
+
+                    string? resourceSlugFromId = null;
+                    if (collection.Id is { Length: > 0 })
+                    {
+                        // First, let's set the `PublicId` to the id
+                        // this will let us use the ParentSlugParser, and we'll be minting an id anyway
+                        collection.PublicId = collection.Id;
+
+                        var parentSlugResult =
+                            await parentSlugParser.Parse(collection, request.CustomerId, null, cancellationToken);
+
+                        if (parentSlugResult.IsError)
+                            return parentSlugResult.Errors;
+
+                        parent = parentSlugResult.ParsedParentSlug.Parent;
+                        resourceSlugFromId = parentSlugResult.ParsedParentSlug.Slug;
+
+                        collection.Slug ??= resourceSlugFromId;
+                    }
+
+                    // Check: if slug provided in `id` AND in `slug`, they must match:
+                    if (resourceSlugFromId != null)
+                    {
+                        // as we did ??=, this will fail only if there is indeed mismatch
+                        if (!string.Equals(collection.Slug, resourceSlugFromId))
+                            return ErrorHelper.MismatchedId<PresentationCollection>();
+                    }
+                }
+
+                var parentCollection =
+                    await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
+
+                var parentValidationError =
+                    ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection?.Collection);
+
+                if (parentValidationError != null)
+                    return parentValidationError;
+
+                // by the above validation
+                Debug.Assert(parentCollection != null, $"{nameof(parentCollection)} != null");
+
+                // 11.1.2. Check: parent mismatch
+                // -with `parent` variable? [this is clanky, but it's even worse otherwise]
+                if (parent != null)
+                {
+                    if (!string.Equals(parent.Id, parentCollection.Collection?.Id))
+                        return ErrorHelper.MismatchedParent<PresentationCollection>();
+                }
+
+                // -with `parent` property?
+                if (collection.Parent is { Length: > 0 })
+                {
+                    var parseResult =
+                        await parentSlugParser.Parse(collection, request.CustomerId, null, cancellationToken);
+
+                    if (parseResult.IsError)
+                        return parseResult.Errors;
+
+                    if (parseResult.ParsedParentSlug?.Parent is { } parsedParent
+                        && !string.Equals(parsedParent.Id, parentCollection.Collection?.Id))
+                    {
+                        return ErrorHelper.MismatchedParent<PresentationCollection>();
+                    }
+                }
+
+                // 11.1.3: Set variables for use below
+                parent = parentCollection.Collection;
+                resourceSlug = collection.Slug;
+            }
+            else
+            {
+                // 11.2. Flat
+                var parsedParentSlugResult = await parentSlugParser.Parse(collection, request.CustomerId,
+                    collectionId, cancellationToken);
+                if (parsedParentSlugResult.IsError)
+                    return parsedParentSlugResult.Errors;
+
+                // By above error check
+                Debug.Assert(parsedParentSlugResult.ParsedParentSlug.Parent != null,
+                    "parsedParentSlugResult.ParsedParentSlug.Parent != null");
+
+                parent = parsedParentSlugResult.ParsedParentSlug.Parent;
+                resourceSlug = parsedParentSlugResult.ParsedParentSlug.Slug;
+            }
         }
 
         // By above
-        Debug.Assert(parent != null, $"{nameof(parent)} != null");
+        if(!isRootUpdate)
+        {
+            Debug.Assert(parent != null, $"{nameof(parent)} != null");
+        }
         Debug.Assert(resourceSlug != null, $"{nameof(resourceSlug)} != null");
 
+        // finally check the slug against prohibited list
+        // source: from PresentationValidator
+        if(SpecConstants.ProhibitedSlugs.Contains(resourceSlug))
+            return ErrorHelper.ProhibitedSlug<PresentationCollection>(resourceSlug);
+
+        
         // 12. Create/update the db collection object
         // source: pre-existing logic in UpsertCollection
         if (databaseCollection == null)
@@ -416,7 +447,7 @@ public class CollectionWriteService(
             }
             catch (PresentationException)
             {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                return Result.Failure(
                     "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
                     ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
             }
@@ -440,9 +471,23 @@ public class CollectionWriteService(
         await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection?.ConvertedIIIF, isStorageCollection,
             cancellationToken);
 
+        
+        // If we want just plain IIIF output, we'll clean (i.e. rewrite the standard props) and return as-is.
+        if (!request.IsShowExtras)
+        {
+            // Note: skipping "IsHierarchical" check because it has to be
+            collection.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
+            return Result.Success(PresentationIIIFCleaner.OnlyIIIFProperties(collection), WriteResult.Created, databaseCollection.Etag);
+        }
+        
         var enrichedPresentationCollection = collection.EnrichPresentationCollection(databaseCollection,
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
             parent, pathGenerator);
+
+        if (request.IsHierarchical)
+        {
+            enrichedPresentationCollection.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
+        }
 
         return Result.Success(enrichedPresentationCollection, result, etag: databaseCollection.Etag);
     
