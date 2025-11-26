@@ -76,6 +76,10 @@ public static class CollectionRetrieval
     public static async Task<Hierarchy?> RetrieveHierarchy(this PresentationContext dbContext, int customerId, 
         string slug, CancellationToken cancellationToken = default)
     {
+        // If the slug is/ends with `/` it will cause issues with the query
+        if (slug.EndsWith('/'))
+            slug = slug[..^1];
+        
         // no need to include the batch as this is only hit for the root collection
         if (slug.Equals(string.Empty))
         {
