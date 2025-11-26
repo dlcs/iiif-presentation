@@ -15,6 +15,16 @@ public static class HttpRequestMessageBuilder
 
         return requestMessage;
     }
+    
+    public static HttpRequestMessage GetPlainRequest(HttpMethod method, string path, string content,
+        Guid? etag = null)
+    {
+        var requestMessage = new HttpRequestMessage(method, path).WithJsonContent(content);
+        if (etag is not null)
+            requestMessage.Headers.IfMatch.Add(new EntityTagHeaderValue($"\"{etag:N}\""));
+
+        return requestMessage;
+    }
 
     public static HttpRequestMessage GetPrivateRequest(HttpMethod method, string path, Guid? etag = null)
     {
