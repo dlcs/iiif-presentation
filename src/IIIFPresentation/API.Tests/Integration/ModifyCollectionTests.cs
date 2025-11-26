@@ -610,7 +610,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error!.Detail.Should().Be("Could not deserialize collection");
+        error!.Detail.Should().Be("Could not deserialize collection.");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
     
@@ -1590,7 +1590,7 @@ $$"""
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Should().Be("createFromUpdate");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
@@ -1820,7 +1820,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(), initialCollection.Etag);
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -2191,7 +2191,7 @@ $$"""
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error.Detail.Should().Be("Could not deserialize collection");
+        error.Detail.Should().Be("Could not deserialize collection.");
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/CannotDeserialize");
     }
     
@@ -2226,7 +2226,7 @@ $$"""
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Should().Be(collectionId);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
@@ -2252,20 +2252,25 @@ $$"""
         // Arrange
         var slug = "iiif-collection-post";
 
-        var collection = @"{
-   ""type"": ""Collection"",
-   ""behavior"": [
-       ""public-iiif""
-   ],
-   ""label"": {
-       ""en"": [
-           ""iiif hierarchical post""
-       ]
-   }
-}";
+        // Note setting the `id` to the "desired path with slug" - otherwise we CANNOT create it.
+        // This is per https://deploy-preview-3--dlcs-docs.netlify.app/api-doc/iiif#example-create-a-iiif-collection-within-a-storage-collection
+        var collection = $$"""
+                         {
+                            "id": "http://localhost/1/{{slug}}",
+                            "type": "Collection",
+                            "behavior": [
+                                "public-iiif"
+                            ],
+                            "label": {
+                                "en": [
+                                    "iiif hierarchical post"
+                                ]
+                            }
+                         }
+                         """;
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+            $"{Customer}/", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -2282,7 +2287,7 @@ $$"""
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection!.Items.Should().BeNull();
-        responseCollection.Id.Should().Be(requestMessage.RequestUri!.AbsoluteUri);
+        responseCollection.Id.Should().Be("http://localhost/1/"+slug);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
@@ -2300,20 +2305,23 @@ $$"""
         // Arrange
         var slug = nameof(CreateCollection_CreatesMultipleNestedIIIFCollection_ViaHierarchicalCollection);
 
-        var collection = @"{
-   ""type"": ""Collection"",
-   ""behavior"": [
-       ""public-iiif""
-   ],
-   ""label"": {
-       ""en"": [
-           ""iiif hierarchical post""
-       ]
-   }
-}";
+        var collection = $$"""
+                         {
+                            "slug": "{{slug}}",
+                            "type": "Collection",
+                            "behavior": [
+                                "public-iiif"
+                            ],
+                            "label": {
+                                "en": [
+                                    "iiif hierarchical post"
+                                ]
+                            }
+                         }
+                         """;
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/first-child/second-child/{slug}", collection);
+            $"{Customer}/first-child/second-child/", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -2347,50 +2355,53 @@ $$"""
         // Arrange
         var slug = "iiif-collection-post-2";
 
-        var collection = @"{
-   ""type"": ""Collection"",
-   ""behavior"": [
-       ""public-iiif""
-   ],
-   ""label"": {
-       ""en"": [
-           ""iiif hierarchical post""
-       ]
-   },
-    ""thumbnail"": [
-        {
-          ""id"": ""https://example.org/img/thumb.jpg"",
-          ""type"": ""Image"",
-          ""format"": ""image/jpeg"",
-          ""width"": 300,
-          ""height"": 200
-        }
-    ],
-    ""items"": [
-        {
-        ""id"": ""https://some.id/iiif/collection"",
-        ""type"": ""Collection"",
-        }
-    ],
-""homepage"": [
-  {
-    ""id"": ""https://www.getty.edu/art/collection/object/103RQQ"",
-    ""type"": ""Text"",
-    ""label"": {
-      ""en"": [
-        ""Home page at the Getty Museum Collection""
-      ]
-    },
-    ""format"": ""text/html"",
-    ""language"": [
-      ""en""
-    ]
-  }
-]
-}";
+        var collection = $$"""
+                         {
+                            "type": "Collection",
+                            "slug": "{{slug}}",
+                            "behavior": [
+                                "public-iiif"
+                            ],
+                            "label": {
+                                "en": [
+                                    "iiif hierarchical post"
+                                ]
+                            },
+                             "thumbnail": [
+                                 {
+                                   "id": "https://example.org/img/thumb.jpg",
+                                   "type": "Image",
+                                   "format": "image/jpeg",
+                                   "width": 300,
+                                   "height": 200
+                                 }
+                             ],
+                             "items": [
+                                 {
+                                 "id": "https://some.id/iiif/collection",
+                                 "type": "Collection",
+                                 }
+                             ],
+                         "homepage": [
+                           {
+                             "id": "https://www.getty.edu/art/collection/object/103RQQ",
+                             "type": "Text",
+                             "label": {
+                               "en": [
+                                 "Home page at the Getty Museum Collection"
+                               ]
+                             },
+                             "format": "text/html",
+                             "language": [
+                               "en"
+                             ]
+                           }
+                         ]
+                         }
+                         """;
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+            $"{Customer}/", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -2427,53 +2438,57 @@ $$"""
     [Fact]
     public async Task CreateCollection_CreatesCollection_SavesInS3Correctly()
     {
+        //Requires a 'parent' to be set. Requires a 'slug' to be set. 'public ID' is required if the 'slug' and 'parent' are not specified
         // Arrange
         var slug = nameof(CreateCollection_CreatesCollection_SavesInS3Correctly);
 
-        var collection = @"{
-   ""type"": ""Collection"",
-   ""behavior"": [
-       ""public-iiif"", ""auto-advance""
-   ],
-   ""label"": {
-       ""en"": [
-           ""iiif hierarchical post""
-       ]
-   },
-    ""thumbnail"": [
-        {
-          ""id"": ""https://example.org/img/thumb.jpg"",
-          ""type"": ""Image"",
-          ""format"": ""image/jpeg"",
-          ""width"": 300,
-          ""height"": 200
-        }
-    ],
-    ""items"": [
-        {
-        ""id"": ""https://some.id/iiif/collection"",
-        ""type"": ""Collection"",
-        }
-    ],
-""homepage"": [
-  {
-    ""id"": ""https://presentation.example.com"",
-    ""type"": ""Text"",
-    ""label"": {
-      ""en"": [
-        ""Foo""
-      ]
-    },
-    ""format"": ""text/html"",
-    ""language"": [
-      ""en""
-    ]
-  }
-]
-}";
+        var collection = $$"""
+                         {
+                            "type": "Collection",
+                            "slug": "{{slug}}",
+                            "behavior": [
+                                "public-iiif", "auto-advance"
+                            ],
+                            "label": {
+                                "en": [
+                                    "iiif hierarchical post"
+                                ]
+                            },
+                             "thumbnail": [
+                                 {
+                                   "id": "https://example.org/img/thumb.jpg",
+                                   "type": "Image",
+                                   "format": "image/jpeg",
+                                   "width": 300,
+                                   "height": 200
+                                 }
+                             ],
+                             "items": [
+                                 {
+                                 "id": "https://some.id/iiif/collection",
+                                 "type": "Collection",
+                                 }
+                             ],
+                         "homepage": [
+                           {
+                             "id": "https://presentation.example.com",
+                             "type": "Text",
+                             "label": {
+                               "en": [
+                                 "Foo"
+                               ]
+                             },
+                             "format": "text/html",
+                             "language": [
+                               "en"
+                             ]
+                           }
+                         ]
+                         }
+                         """;
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+        var requestMessage = HttpRequestMessageBuilder.GetPlainRequest(HttpMethod.Post,
+            $"{Customer}/", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
