@@ -1881,7 +1881,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection),dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);

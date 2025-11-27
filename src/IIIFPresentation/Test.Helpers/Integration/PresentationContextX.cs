@@ -16,4 +16,16 @@ public static class PresentationContextX
             EntityEntry<Manifest> c => db.GetETag(c.Entity),
             _ => null
         };
+
+    public static Guid? GetETagById(this PresentationContext db, int customerId, string id) =>
+        db.Hierarchy.AsNoTracking()
+                .Include(x => x.Collection)
+                .Include(x => x.Manifest)
+                .FirstOrDefault(h => (h.CollectionId == id || h.ManifestId == id) && h.CustomerId == customerId)
+            switch
+            {
+                { Manifest: { } m } => m.Etag,
+                { Collection: { } c } => c.Etag,
+                _ => null
+            };
 }
