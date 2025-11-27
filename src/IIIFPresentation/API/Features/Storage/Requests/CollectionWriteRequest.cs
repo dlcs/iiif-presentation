@@ -111,20 +111,18 @@ public class CollectionWriteService(
 
         // 4. Execute validator
         // source: pre-existing CollectionController logic
-        // Removed: the rules make assumptions about data provided as properties, while
-        // the information might be coming from the URL. The validation of parent/publicId is
-        // done below in a more comprehensive fashion.
-        
-        // var validation = suppliedId != null && KnownCollections.IsRoot(suppliedId)
-        //     ? await rootValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken)
-        //     : await presentationValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken);
-        //
-        // if (!validation.IsValid)
-        // {
-        //     var message = string.Join(". ", validation.Errors.Select(s => s.ErrorMessage).Distinct());
-        //     return Result.Failure(message, ModifyCollectionType.ValidationFailed, WriteResult.FailedValidation);
-        // }
+        // Note: only doing root validation, as the `PresentationValidator` is too narrow
+        //       instead of that the various validations are done in this method
 
+        if (suppliedId != null && KnownCollections.IsRoot(suppliedId))
+        {
+            var validation = await rootValidator.ValidateAsync(deserializedCollection.ConvertedIIIF, cancellationToken);
+            if (!validation.IsValid)
+            {
+                var message = string.Join(". ", validation.Errors.Select(s => s.ErrorMessage).Distinct());
+                return Result.Failure(message, ModifyCollectionType.ValidationFailed, WriteResult.FailedValidation);
+            }
+        }
 
         // 5. If not storage collection (i.e. "IIIF Collection"), ensure it's convertible
         // source: pre-existing logic in UpsertCollection/CreateCollection requests
