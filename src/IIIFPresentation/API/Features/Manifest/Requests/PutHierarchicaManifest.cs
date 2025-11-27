@@ -21,7 +21,7 @@ using DatabaseCollection = Models.Database.Collections;
 
 namespace API.Features.Manifest.Requests;
 
-public class PostHierarchicalManifest(
+public class PutHierarchicalManifest(
     int customerId,
     string slug, 
     string rawRequestBody) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
@@ -33,16 +33,16 @@ public class PostHierarchicalManifest(
     public string RawRequestBody { get; } = rawRequestBody;
 }
 
-public class PostHierarchicalManifestHandler(
+public class PutHierarchicalManifestHandler(
     PresentationContext dbContext,    
-    ILogger<PostHierarchicalManifestHandler> logger,
+    ILogger<PutHierarchicalManifestHandler> logger,
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
-    : IRequestHandler<PostHierarchicalManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    : IRequestHandler<PutHierarchicalManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
 {
     
-    public async Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(PostHierarchicalManifest request,
+    public async Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(PutHierarchicalManifest request,
         CancellationToken cancellationToken)
     {
         var convertResult = await request.RawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
