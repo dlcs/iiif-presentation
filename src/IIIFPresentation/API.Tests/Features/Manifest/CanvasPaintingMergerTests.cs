@@ -402,39 +402,6 @@ public class CanvasPaintingMergerTests
     }
     
     [Fact]
-    public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedLabel()
-    {
-        // Arrange
-        var paintedResourceId = "paintedResource";
-        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
-            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
-            {
-                cp.CanvasOrder = 0;
-                cp.ChoiceOrder = 0;
-                cp.CanvasOriginalId = new Uri($"https://localhost/1/{paintedResourceId}_1");
-                cp.Label = new LanguageMap("mismatch", "label");
-            }).BuildInterim();
-        
-        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
-            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
-            {
-                cp.CanvasOrder = 0;
-                cp.ChoiceOrder = 0;
-                cp.Label = new LanguageMap("mismatch", "not equal");
-            }).BuildInterim();
-
-        // Act
-        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [new Canvas()
-        {
-            Id = $"https://localhost/1/{paintedResourceId}_1",
-        }]);
-
-        // Assert
-        action.Should().ThrowExactly<CanvasPaintingMergerException>()
-            .WithMessage($"canvas painting with id {paintedResourceId}_1 does not have a matching label");
-    }
-    
-    [Fact]
     public void CombinePaintedResources_DoesNotThrowError_WhenItemsTrackedByPaintedResourcesWithMatchedLabel()
     {
         // Arrange

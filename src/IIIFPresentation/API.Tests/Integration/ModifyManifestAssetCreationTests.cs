@@ -14,6 +14,7 @@ using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
+using Models.API.Collection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -1542,5 +1543,69 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         secondAssetId!.Type.Should().Be(JTokenType.String);
         secondAssetId.Value<string>().Should()
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}-2");
+    }
+     
+     [Fact]
+     public async Task CreateManifest_CreatesManifest_WhenMatchedManifestWithLabelFromItems()
+     {
+         // Arrange
+         var (slug, _, postedAssetId) = TestIdentifiers.SlugResourceAsset();
+         var batchId = TestIdentifiers.BatchId();
+         
+         var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources = new List<PaintedResource>()
+            {
+                new ()
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = "specified",
+                        Label = new LanguageMap("a label", "sets canvasLabel")
+                    },
+                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", batchId))
+                }
+            },
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "specified",
+                    Label = new LanguageMap("label", "sets canvasLabel")
+                }
+            ],
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Should().NotContainKey(HeaderNames.ETag);
+        
+        requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Should().NotBeNull();
+        responseManifest!.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources!.Count.Should().Be(1);
+
+        var paintedResource = responseManifest.PaintedResources.First();
+
+        paintedResource.CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/specified");
+        paintedResource.CanvasPainting.CanvasLabel.First().Key.Should().Be("label");
+        paintedResource.Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
+        assetId!.Type.Should().Be(JTokenType.String);
+        assetId.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
 }
