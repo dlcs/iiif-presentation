@@ -172,10 +172,6 @@ public class ManifestWriteService(
             if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
             var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
 
-            // Check if manifest id was provided, and whether it's valid AND worth preserving
-            (manifestId, var idError) = TryGetValidManifestId(manifestId, request);
-            if (idError != null) return idError;
-
             // Ensure we have a manifestId
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
@@ -204,38 +200,6 @@ public class ManifestWriteService(
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
                 hasAssets, dlcsInteractionResult, WriteResult.Created, cancellationToken);
         }
-    }
-
-    private (string? id, PresUpdateResult? error) TryGetValidManifestId(string? idFromUrl, WriteManifestRequest request)
-    {
-        // We only care if the body contained `id`
-        if (request.PresentationManifest.Id is not { Length: > 0 } manifestId)
-        {
-            return (idFromUrl, null);
-        }
-
-        // we have an id from request - now we check if it matters
-        if (!Uri.TryCreate(manifestId, UriKind.Absolute, out var idAsUri))
-        {
-            manifestId =
-                CanvasHelper.CheckForProhibitedCharacters(manifestId, logger, false); // returns null if invalid
-            return (manifestId, null); // we'll just mint new id
-        }
-
-        var parsedId =
-            pathRewriteParser.ParsePathWithRewrites(idAsUri.Host, idAsUri.AbsolutePath, request.CustomerId);
-            
-        manifestId = parsedId.Resource == null
-            ? null
-            : CanvasHelper.CheckForProhibitedCharacters(parsedId.Resource, logger, false); // returns null if invalid
-
-        if (idFromUrl != null && manifestId != null && manifestId != idFromUrl) // if both in body and URL, and it doesn't match, it's a bad request
-        {
-            return (null, ErrorHelper.MismatchedId<PresentationManifest>());
-        }
-        
-        // at this point `manifestId` is either null, or it's a valid, non-null `parsedId.Resource`
-        return (manifestId ?? idFromUrl, null);
     }
 
     private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
