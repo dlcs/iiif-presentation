@@ -110,7 +110,8 @@ public class StorageController(
         return type switch
         {
             nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
-                new PostHierarchicalManifest(customerId, slug, rawRequestBody)),
+                new DispatchManifestRequest(customerId, HttpMethod.Post, slug, rawRequestBody, true,
+                    Request.HasShowExtraHeader(), Request.HasCreateSpaceHeader(), Request.Headers.IfMatch)),
             nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
                 new CollectionWriteRequest(customerId, HttpMethod.Post, slug, rawRequestBody,
                     true, Request.HasShowExtraHeader(), Request.Headers.IfMatch)),
@@ -126,13 +127,14 @@ public class StorageController(
         
         // This will load string value of `type` property on the top level of the JSON, if present
         var type = FastJsonPropertyRead.FindAtLevel(rawRequestBody, "type");
-        
+
         return type switch
         {
             nameof(IIIF.Presentation.V3.Manifest) => await HandleUpsert(
-                new PutHierarchicalManifest(customerId, slug, rawRequestBody)),
+                new DispatchManifestRequest(customerId, HttpMethod.Put, slug, rawRequestBody, true,
+                    Request.HasShowExtraHeader(), Request.HasCreateSpaceHeader(), Request.Headers.IfMatch)),
             nameof(IIIF.Presentation.V3.Collection) => await HandleUpsert(
-                new CollectionWriteRequest(customerId, HttpMethod.Put,  slug, rawRequestBody,
+                new CollectionWriteRequest(customerId, HttpMethod.Put, slug, rawRequestBody,
                     true, Request.HasShowExtraHeader(), Request.Headers.IfMatch)),
             _ => this.PresentationProblem("Unsupported resource type", statusCode: 400)
         };
