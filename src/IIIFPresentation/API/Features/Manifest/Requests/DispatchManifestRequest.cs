@@ -1,5 +1,7 @@
-﻿using API.Features.Manifest.Validators;
+﻿using System.Diagnostics;
+using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
 using API.Infrastructure.Http;
@@ -109,11 +111,11 @@ public class DispatchManifestRequestHandler(
                 }
                 else
                 {
-                    // property already set, check if it matches posted path
-                    if (!string.Equals(presentationManifest.ConvertedIIIF.Parent, hierarchicalParentPath))
-                        return Result.Failure(
-                            "Parent property of posted manifest does not match the hierarchical path of the request.",
-                            ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
+                    // Note: we're passing `RequestPath` because the underlying hierarchy retrieval does not handle full uris - just the /path/to/resource
+                    if (await CheckForParentMismatch(request, presentationManifest, request.RequestPath, cancellationToken) is
+                        { } error)
+                        return error;
+                    // else no error, so proceed to calling MWS (it will use the matching value from parent property)
                 }
             }
 
@@ -124,113 +126,156 @@ public class DispatchManifestRequestHandler(
 
             return await manifestService.Create(upsertRequest, cancellationToken);
         }
-        else
+
+        // else
+        // PUT
+        // We will need manifestId later, if one was provided, to facilitate <<update>> scenario
+        string? manifestId = null;
+
+        // If this is a hierarchical request, the parent and the slug might be provided via the path
+        if (request.IsHierarchical)
         {
-            // PUT
-            // We will need manifestId later, if one was provided, to facilitate <<update>> scenario
-            string? manifestId = null;
+            var splitPath = request.RequestPath.Split('/');
+            var pathSlug = splitPath[^1];
+            var pathParent = string.Join("/", splitPath.Take(..^1));
 
-            // If this is a hierarchical request, the parent and the slug might be provided via the path
-            if (request.IsHierarchical)
+            if (presentationManifest.ConvertedIIIF.Slug == null)
             {
-                var splitPath = request.RequestPath.Split('/');
-                var pathSlug = splitPath[^1];
-                var pathParent = string.Join("/", splitPath.Take(..^1));
+                // Slug prop not provided, set from path
+                presentationManifest.ConvertedIIIF.Slug = pathSlug;
+            }
+            else
+            {
+                // Slug prop provided, verify it matches path
+                if (!string.Equals(presentationManifest.ConvertedIIIF.Slug, pathSlug))
+                    return Result.Failure(
+                        "Slug property of posted manifest does not match the slug part of hierarchical path of the request.",
+                        ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
+            }
 
-                if (presentationManifest.ConvertedIIIF.Slug == null)
-                {
-                    // Slug prop not provided, set from path
-                    presentationManifest.ConvertedIIIF.Slug = pathSlug;
-                }
-                else
-                {
-                    // Slug prop provided, verify it matches path
-                    if (!string.Equals(presentationManifest.ConvertedIIIF.Slug, pathSlug))
-                        return Result.Failure(
-                            "Slug property of posted manifest does not match the slug part of hierarchical path of the request.",
-                            ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
-                }
+            if (presentationManifest.ConvertedIIIF.Parent == null)
+            {
+                // set property for use by ManifestWriteService
+                presentationManifest.ConvertedIIIF.Parent = pathParent;
+            }
+            else
+            {
+                if (await CheckForParentMismatch(request, presentationManifest, pathParent, cancellationToken) is
+                    { } error)
+                    return error;
+                // else no error, so proceed to calling MWS (it will use the matching value from parent property)
+            }
 
-                if (presentationManifest.ConvertedIIIF.Parent == null)
-                {
-                    // set property for use by ManifestWriteService
-                    presentationManifest.ConvertedIIIF.Parent = pathParent;
-                }
-                else
-                {
-                    // property already set, check if it matches posted path
-                    if (!string.Equals(presentationManifest.ConvertedIIIF.Parent, pathParent))
-                        return Result.Failure(
-                            "Parent property of posted manifest does not match the hierarchical path of the request.",
-                            ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
-                }
+            // for a hierarchical PUT <<update>>, the id has to be provided in the body.
+            if (presentationManifest.ConvertedIIIF.FlatId is { Length: > 0 } flatFromBody)
+            {
+                // Simplest case: this is an update of existing manifest, and flatId was provided "back".
+                manifestId = flatFromBody;
+            }
+            else if (presentationManifest.ConvertedIIIF.Id is { Length: > 0 } bodyId
+                     && Uri.TryCreate(bodyId, UriKind.Absolute, out var bodyUriId))
+            {
+                // Can be flat or hierarchical, with rewrites or not, so let's use a rewrite parser
+                var pathParts = pathRewriteParser.ParsePathWithRewrites(bodyUriId.Host, bodyUriId.AbsolutePath,
+                    request.CustomerId);
 
-                // for a hierarchical PUT <<update>>, the id has to be provided in the body.
-                if (presentationManifest.ConvertedIIIF.FlatId is { Length: > 0 } flatFromBody)
+                if (pathParts.Resource is not null)
                 {
-                    // Simplest case: this is an update of existing manifest, and flatId was provided "back".
-                    manifestId = flatFromBody;
-                }
-                else if (presentationManifest.ConvertedIIIF.Id is { Length: > 0 } bodyId
-                         && Uri.TryCreate(bodyId, UriKind.Absolute, out var bodyUriId))
-                {
-                    // Can be flat or hierarchical, with rewrites or not, so let's use a rewrite parser
-                    var pathParts = pathRewriteParser.ParsePathWithRewrites(bodyUriId.Host, bodyUriId.AbsolutePath,
-                        request.CustomerId);
-
-                    if (pathParts.Resource is not null)
+                    // we got a seemingly valid id - but what we need is a flat id (or null if this is NOT update)
+                    if (pathParts.Hierarchical)
                     {
-                        // we got a seemingly valid id - but what we need is a flat id (or null if this is NOT update)
-                        if (pathParts.Hierarchical)
-                        {
-                            // This is probably a rare scenario, so to not make it even more complicated we'll
-                            // resolve it with DB into a flatId
-                            var existingManifestHierarchy = await dbContext.RetrieveHierarchy(request.CustomerId,
-                                pathParts.Resource,
-                                cancellationToken);
-                            manifestId =
-                                existingManifestHierarchy
-                                    ?.ManifestId; // <- if it's null, that's fine, we'll handlke it below
-                        }
-                        else
-                        {
-                            // it's flat, we're in luck
-                            manifestId = pathParts.Resource;
-                        }
+                        // This is probably a rare scenario, so to not make it even more complicated we'll
+                        // resolve it with DB into a flatId
+                        var existingManifestHierarchy = await dbContext.RetrieveHierarchy(request.CustomerId,
+                            pathParts.Resource,
+                            cancellationToken);
+                        manifestId =
+                            existingManifestHierarchy?.ManifestId; // <- if it's null, that's fine, we'll handle it below
+                    }
+                    else
+                    {
+                        // it's flat, we're in luck
+                        manifestId = pathParts.Resource;
                     }
                 }
             }
-            else
-            {
-                // it's a flat request, so we can just grab last path segment
-                manifestId = request.RequestPath.Split('/')[^1];
-            }
-
-            // Finally, we're ready
-            // If we got manifestId it will be an upsert request, but if not - we should be able to treat this
-            // as a create request and save ourselves some effort
-
-            if (manifestId is null)
-            {
-                var upsertRequest = new WriteManifestRequest(request.CustomerId,
-                    presentationManifest.ConvertedIIIF,
-                    request.RawRequestBody,
-                    request.IsCreateSpace);
-
-                return await manifestService.Create(upsertRequest, cancellationToken);
-            }
-            else
-            {
-                var upsertRequest = new UpsertManifestRequest(
-                    manifestId,
-                    request.ETag,
-                    request.CustomerId,
-                    presentationManifest.ConvertedIIIF,
-                    request.RawRequestBody,
-                    request.IsCreateSpace);
-
-                return await manifestService.Upsert(upsertRequest, cancellationToken);
-            }
         }
+        else
+        {
+            // it's a flat request, so we can just grab last path segment
+            manifestId = request.RequestPath; // in flat controller it's manifests/<id>, and <id> is passed as path, skipping the manifests part
+        }
+
+        // Finally, we're ready
+        // If we got manifestId it will be an upsert request, but if not - we should be able to treat this
+        // as a create request and save ourselves some effort
+
+        if (manifestId is null)
+        {
+            var upsertRequest = new WriteManifestRequest(request.CustomerId,
+                presentationManifest.ConvertedIIIF,
+                request.RawRequestBody,
+                request.IsCreateSpace);
+
+            return await manifestService.Create(upsertRequest, cancellationToken);
+        }
+        else
+        {
+            var upsertRequest = new UpsertManifestRequest(
+                manifestId,
+                request.ETag,
+                request.CustomerId,
+                presentationManifest.ConvertedIIIF,
+                request.RawRequestBody,
+                request.IsCreateSpace);
+
+            return await manifestService.Upsert(upsertRequest, cancellationToken);
+        }
+    }
+
+    private async Task<Result?> CheckForParentMismatch(DispatchManifestRequest request,
+        TryConvertIIIFResult<PresentationManifest> presentationManifest, string pathParent,
+        CancellationToken cancellationToken)
+    {
+        // should already have been checked
+        Debug.Assert(presentationManifest.ConvertedIIIF != null, "presentationManifest.ConvertedIIIF != null");
+        
+        // we're here because the property is already set, we're gonna check if it matches posted path
+        if (string.Equals(presentationManifest.ConvertedIIIF.Parent, pathParent)) return null; // no error
+        
+        // edge-case: parent might be flat and point at the same parent as the path
+        
+        // if not uri => not valid flat id => mismatch, return error
+        if (!Uri.TryCreate(presentationManifest.ConvertedIIIF.Parent, UriKind.Absolute, out var parentUri))
+            return Result.Failure(
+                "Parent property of posted manifest does not match the hierarchical path of the request.",
+                ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
+        
+        var parentPath = pathRewriteParser.ParsePathWithRewrites(parentUri.Host, parentUri.AbsolutePath,
+            request.CustomerId);
+
+        // if is hierarchical, we would have not been here in the first place
+        // also, if no flat id resolved from URL then it's obviously not valid
+        if (parentPath is not { Hierarchical: false, Resource: { Length: > 0 } flatParentId })
+            return Result.Failure(
+                "Parent property of posted manifest does not match the hierarchical path of the request or is not a valid parent collection.",
+                ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
+        
+        // This is not great as it will be done again in MWS, but it's an edge case that we should handle here
+        var parentFromPathHierarchy =
+            await dbContext.RetrieveHierarchy(request.CustomerId, pathParent, cancellationToken);
+
+        // If the db check from hierarchical path returned an existing collection (so CollectionId is not null),
+        // then ensure that (flat) id matches the one we got from the parent property
+        if (parentFromPathHierarchy?.CollectionId is not { Length: > 0 } parentCollectionId
+            || !string.Equals(parentCollectionId, flatParentId))
+        {
+            return Result.Failure(
+                "Parent property of posted manifest does not match the hierarchical path of the request or is not a valid parent collection.",
+                ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
+        }
+
+        // the flat parent from prop matches the hierarchical parent from path, no error
+        return null;
     }
 }

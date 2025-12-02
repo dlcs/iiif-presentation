@@ -263,20 +263,20 @@ public class ManifestPathTestProvider : TheoryData<string, string, string?, stri
             $"/{Grandparent}/{Parent}/{Slug}");
 
         // Hierarchical POST
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug, null, null, null);
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug, null, null,
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id, null, null, null);
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id, null, null,
             $"/{Grandparent}/{Parent}/{Slug}");
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug, Collections + ParentId,
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id, Collections + ParentId,
             Slug,
             null);
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug,
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id,
             $"{Grandparent}/{Parent}",
             Slug, null);
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug, Collections + ParentId,
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id, Collections + ParentId,
             Slug,
             $"/{Grandparent}/{Parent}/{Slug}");
-        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}/{Slug}", Manifests + Slug,
+        Add(HttpMethod.Post.ToString(), $"{Grandparent}/{Parent}", Manifests + Id,
             $"{Grandparent}/{Parent}",
-            Slug, $"/{Grandparent}/{Parent}/{Slug}");
+            Slug, $"/{Grandparent}/{Parent}");
     }
 }
