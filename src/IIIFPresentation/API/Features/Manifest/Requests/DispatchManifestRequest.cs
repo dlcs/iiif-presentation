@@ -1,4 +1,5 @@
-﻿using API.Features.Storage.Helpers;
+﻿using API.Features.Manifest.Validators;
+using API.Features.Storage.Helpers;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
 using API.Infrastructure.Http;
@@ -51,7 +52,7 @@ public class DispatchManifestRequestHandler(
     ILogger<CollectionWriteService> logger,
     IPathGenerator pathGenerator,
     IPathRewriteParser pathRewriteParser,
-    PresentationValidator presentationValidator,
+    PresentationManifestValidator presentationManifestValidator,
     IManifestWrite manifestService)
     : IRequestHandler<DispatchManifestRequest, Result>
 
@@ -76,7 +77,7 @@ public class DispatchManifestRequestHandler(
         // 2. Validation
         // source: existing logic in ManifestController
         var validation =
-            await presentationValidator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
+            await presentationManifestValidator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
         if (!validation.IsValid)
         {
             var message = string.Join(". ", validation.Errors.Select(s => s.ErrorMessage).Distinct());

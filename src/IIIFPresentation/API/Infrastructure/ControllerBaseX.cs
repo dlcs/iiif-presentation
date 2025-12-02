@@ -83,7 +83,7 @@ public static class ControllerBaseX
                 $"{errorTitle}: Conflict", controller.GetErrorType(entityResult.ErrorType)),
             WriteResult.FailedValidation => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.BadRequest,
-                $"{errorTitle}: Validation failed"),
+                $"{errorTitle}: Validation failed", controller.GetErrorType(ModifyCollectionType.ValidationFailed)),
             WriteResult.Forbidden => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.Forbidden,
                 $"{errorTitle}: Forbidden"),
