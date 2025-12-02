@@ -1549,7 +1549,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      public async Task CreateManifest_CreatesManifest_WhenMatchedManifestWithLabelFromItems()
      {
          // Arrange
-         var (slug, _, postedAssetId) = TestIdentifiers.SlugResourceAsset();
+         var (slug, _, postedAssetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
          var batchId = TestIdentifiers.BatchId();
          
          var manifest = new PresentationManifest
@@ -1562,7 +1562,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = "specified",
+                        CanvasId = canvasId,
                         Label = new LanguageMap("a label", "sets canvasLabel")
                     },
                     Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", batchId))
@@ -1572,10 +1572,10 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             [
                 new Canvas
                 {
-                    Id = "specified",
+                    Id = canvasId,
                     Label = new LanguageMap("label", "sets canvasLabel")
                 }
-            ],
+            ]
         };
 
         var requestMessage =
@@ -1601,7 +1601,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         var paintedResource = responseManifest.PaintedResources.First();
 
-        paintedResource.CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/specified");
+        paintedResource.CanvasPainting.CanvasId.Should().Be($"http://localhost/1/canvases/{canvasId}");
         paintedResource.CanvasPainting.CanvasLabel.First().Key.Should().Be("label");
         paintedResource.Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
         assetId!.Type.Should().Be(JTokenType.String);
