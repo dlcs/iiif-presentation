@@ -1,8 +1,10 @@
 ﻿using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
+using AWS.Settings;
 using DLCS;
 using DLCS.API;
 using DLCS.Models;
@@ -78,8 +80,13 @@ public class ManifestWriteServiceTests
         
         dlcsClient = A.Fake<IDlcsApiClient>();
         
+        var apiOptions = Options.Create(new ApiSettings()
+        {
+            AWS = new AWSSettings(),
+            DLCS = dlcsSettings
+        });
             
-        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext,
+        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext, apiOptions,
             new NullLogger<ManagedAssetResultFinder>());
         var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());

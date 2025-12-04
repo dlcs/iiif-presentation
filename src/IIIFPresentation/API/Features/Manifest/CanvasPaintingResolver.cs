@@ -100,7 +100,7 @@ public class CanvasPaintingResolver(
 
         return toInsert;
     }
-
+    
     private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, InterimCanvasPainting incoming,
         List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert)
     {

@@ -19,6 +19,11 @@ public class ApiSettings
     
     public string? PathBase { get; set; }
     
+    /// <summary>
+    /// Forces reingestion to always occur
+    /// </summary>
+    public bool AlwaysReingest { get; set; }
+    
     public required AWSSettings AWS { get; set; }
 
     public required DlcsSettings DLCS { get; set; }
