@@ -88,8 +88,4 @@ public static class InterimCanvasPaintingX
         this List<InterimCanvasPainting>? interimCanvasPaintings) =>
         interimCanvasPaintings?.Where(icp =>
             icp is { SuspectedAssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList();
-
-    public static IEnumerable<InterimCanvasPainting> OrderInterimCanvasPaintings(
-        this IEnumerable<InterimCanvasPainting> interimCanvasPaintings) =>
-        interimCanvasPaintings.OrderBy(cp => cp.CanvasOrder).ThenBy(cp => cp.ChoiceOrder);
 }

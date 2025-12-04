@@ -94,7 +94,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         {
             var matchedPaintedResourceCanvasPaintings = paintedResourceCanvasPaintings.Where(cp =>
                 !string.IsNullOrEmpty(cp.Id) && string.Equals(cp.Id, itemsCanvasPainting.Id,
-                    StringComparison.OrdinalIgnoreCase)).OrderInterimCanvasPaintings().ToList();
+                    StringComparison.OrdinalIgnoreCase)).OrderCanvasPaintings().ToList();
 
             if (matchedPaintedResourceCanvasPaintings.Count == 0) continue;
             
@@ -168,7 +168,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
 
     private void ValidateItemCanvasPainting(InterimCanvasPainting itemsCanvasPainting,
         InterimCanvasPainting paintedResourceCanvasPainting,
-        List<Canvas>? items, int currentCanvasOrder, bool isMultiCanvas, LanguageMap? firstCanvasLabelInMultiItemCanvas)
+        List<Canvas>? items, int currentCanvasOrder, bool isMultiItemCanvas, LanguageMap? firstCanvasLabelInMultiItemCanvas)
     {
         var canvas = items?.FirstOrDefault(c =>
             pathRewriteParser.ParsePathWithRewrites(c.Id, itemsCanvasPainting.CustomerId).Resource ==
@@ -183,7 +183,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
             }
         }
         
-        if (IsCanvasLabelFromItems(itemsCanvasPainting, paintedResourceCanvasPainting, isMultiCanvas, 
+        if (IsCanvasLabelFromItems(itemsCanvasPainting, paintedResourceCanvasPainting, isMultiItemCanvas, 
                 firstCanvasLabelInMultiItemCanvas))
         {
             paintedResourceCanvasPainting.CanvasLabel = itemsCanvasPainting.CanvasLabel;
@@ -225,7 +225,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         if (!itemsCanvasPainting.CanvasLabel.CheckEquality(toCheck))
         {
             throw new CanvasPaintingMergerException(toCheck.ToString(),
-                itemsCanvasPainting.Label?.ToString(),
+                itemsCanvasPainting.CanvasLabel?.ToString(),
                 paintedResourceCanvasPaintingId,
                 $"Canvas painting with id {paintedResourceCanvasPaintingId} does not have a matching canvas label");
         }
