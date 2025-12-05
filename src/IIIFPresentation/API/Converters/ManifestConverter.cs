@@ -11,6 +11,7 @@ using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 using Manifest = Models.Database.Collections.Manifest;
 
@@ -170,8 +171,7 @@ public static class ManifestConverter
         if (canvasPaintings.IsNullOrEmpty()) return null;
 
         return canvasPaintings
-            .OrderBy(cp => cp.CanvasOrder)
-            .ThenBy(cp => cp.ChoiceOrder);
+            .OrderCanvasPaintings();
     }
 
     private static List<PaintedResource> GetPaintedResources(this IList<CanvasPainting> canvasPaintings, IPathGenerator pathGenerator,

@@ -98,8 +98,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         // Get the canvasPaintings in the order we want to process them (Canvas => Choice) but group by CanvasId as
         // canvases with differing orders can share an id
         var canvasGrouping = canvasPaintings
-            .OrderBy(cp => cp.CanvasOrder)
-            .ThenBy(cp => cp.ChoiceOrder ?? 0)
+            .OrderCanvasPaintings()
             .ToLookup(cp => cp.Id, cp => cp);
         
         logger.LogDebug("Processing {CanvasCount} canvases on Manifest {ManifestId}", canvasGrouping.Count,
