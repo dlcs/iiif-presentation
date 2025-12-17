@@ -75,7 +75,7 @@ builder.Services
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
-    .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<IPresentationPathGenerator, HostnameDrivenPresentationPathGenerator>()
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()

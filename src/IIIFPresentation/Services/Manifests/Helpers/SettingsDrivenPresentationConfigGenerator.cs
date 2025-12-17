@@ -5,6 +5,10 @@ using Services.Manifests.Settings;
 
 namespace Services.Manifests.Helpers;
 
+/// <summary>
+/// Implementation of <see cref="IPresentationPathGenerator"/> that uses customer configured PresentationApiUrl to
+/// determine path templates, regardless of hostname. 
+/// </summary>
 public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> settings)
     : IPresentationPathGenerator
 {
