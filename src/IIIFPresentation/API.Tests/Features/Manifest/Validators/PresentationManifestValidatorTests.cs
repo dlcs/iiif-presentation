@@ -104,6 +104,29 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
+    public void PaintedResource_Manifest_ErrorWhenChoiceOrderZero()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = 0
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Canvases cannot have a 'choiceOrder' of 0");
+    }
+    
+    [Fact]
     public void PaintedResource_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
     {
         var manifest = new PresentationManifest

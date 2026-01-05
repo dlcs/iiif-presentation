@@ -19,6 +19,10 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
     {
+        RuleForEach(a => a.PaintedResources)
+            .Must(pr => pr.CanvasPainting?.ChoiceOrder != 0)
+            .WithMessage("Canvases cannot have a 'choiceOrder' of 0");
+        
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)

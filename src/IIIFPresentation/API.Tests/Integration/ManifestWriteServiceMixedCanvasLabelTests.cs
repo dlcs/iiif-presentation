@@ -368,8 +368,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 0, 0, 1, "_1")]
-    [InlineData(0, 0, 1, 0, "_2")]
+    [InlineData(0, 1, 0, 2, "_1")]
+    [InlineData(0, 1, 1, 1, "_2")]
     [InlineData(0, null, 1, null, "_3")]
     public async Task Create_SuccessfullyCreatesMultiItemCanvasManifest_WhenMatchingLabel(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
@@ -439,8 +439,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 0, 0, 1, "_1")]
-    [InlineData(0, 0, 1, 0, "_2")]
+    [InlineData(0, 1, 0, 2, "_1")]
+    [InlineData(0, 1, 1, 1, "_2")]
     [InlineData(0, null, 1, null, "_3")]
     public async Task Create_SuccessfullyCreatesMultiItemCanvasManifest_WhenMatchingCanvasLabel(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
@@ -511,8 +511,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 0, 0, 1, "_1")]
-    [InlineData(0, 0, 1, 0, "_2")]
+    [InlineData(0, 1, 0, 2, "_1")]
+    [InlineData(0, 1, 1, 1, "_2")]
     [InlineData(0, null, 1, null, "_3")]
     public async Task Create_SuccessfullyCreatesMultiItemCanvasManifest_WhenMatchingCanvasLabelFromNotTheFirstCanvas(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
@@ -584,8 +584,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 1, 0, 0, "_1")]
-    [InlineData(1, 0, 0, 0, "_2")]
+    [InlineData(0, 2, 0, 1, "_1")]
+    [InlineData(1, 1, 0, 1, "_2")]
     [InlineData(1, null, 0, null, "_3")]
     public async Task Create_SuccessfullyCreatesMultiItemCanvasManifest_WhenMatchingCanvasLabelOrderedBadly(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
@@ -657,8 +657,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 0, 0, 1, "_1")]
-    [InlineData(0, 0, 1, 0, "_2")]
+    [InlineData(0, 1, 0, 2, "_1")]
+    [InlineData(0, 1, 1, 1, "_2")]
     [InlineData(0, null, 1, null, "_3")]
     public async Task Create_FailsToCreateMultiItemCanvasManifest_WhenNonMatchingCanvasLabelFromNotTheFirstCanvas(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
@@ -721,8 +721,8 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
     }
     
     [Theory]
-    [InlineData(0, 0, 0, 1, "_1")]
-    [InlineData(0, 0, 1, 0, "_2")]
+    [InlineData(0, 1, 0, 2, "_1")]
+    [InlineData(0, 1, 1, 1, "_2")]
     [InlineData(0, null, 1, null, "_3")]
     public async Task Create_SuccessfullyCreatesMultiItemCanvasManifest_WhenNoCanvasLabelSet(int firstCanvasOrder, 
         int? firstChoiceOrder, int secondCanvasOrder, int? secondChoiceOrder, string slugAppend)
