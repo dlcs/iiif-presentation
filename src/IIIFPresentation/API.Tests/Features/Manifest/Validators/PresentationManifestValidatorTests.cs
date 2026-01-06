@@ -103,6 +103,31 @@ public class PresentationManifestValidatorTests
             .WithErrorMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
     }
     
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void PaintedResource_Manifest_ErrorWhenChoiceOrderNotValid(int choiceOrder)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = choiceOrder
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Canvases cannot have a 'choiceOrder' of 0 or less");
+    }
+    
     [Fact]
     public void PaintedResource_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
     {
