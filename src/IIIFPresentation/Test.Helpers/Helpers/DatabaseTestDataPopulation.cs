@@ -30,6 +30,7 @@ public static class DatabaseTestDataPopulation
             Modified = createdDate.Value,
             Label = label,
             LastProcessed = ingested ? DateTime.UtcNow : null,
+            Etag = Guid.NewGuid(),
             Hierarchy =
             [
                 new Hierarchy
