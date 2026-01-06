@@ -1,9 +1,7 @@
 ﻿using System.Net;
 using API.Auth;
 using API.Features.Storage.Helpers;
-using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
-using API.Features.Storage.Validators;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
@@ -14,9 +12,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models;
-using Models.API.Collection;
-using Models.API.General;
 
 namespace API.Features.Storage;
 
@@ -42,7 +37,8 @@ public class CollectionController(
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
 
         var entityResult =
-            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), page.Value,
+            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(),
+                page.Value,
                 pageSize.Value, orderByField,
                 descending));
 
@@ -67,60 +63,22 @@ public class CollectionController(
 
     [Authorize]
     [HttpPost("collections")]
-    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
+    public async Task<IActionResult> Post(int customerId)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(validator, null, null);
-        if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
-
-        return await HandleUpsert(new CreateCollection(customerId,
-            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody));
+        return await HandleUpsert(new CollectionWriteRequest(customerId, HttpMethod.Post, string.Empty,
+            await Request.GetRawRequestBodyAsync(), false, Request.HasShowExtraHeader(),
+            Request.Headers.IfMatch));
     }
 
     [Authorize]
     [HttpPut("collections/{id}")]
-    public async Task<IActionResult> Put(int customerId, string id,
-        [FromServices] RootCollectionValidator rootValidator,
-        [FromServices] PresentationValidator presentationValidator)
+    public async Task<IActionResult> Put(int customerId, string id)
     {
-        var deserializeValidationResult = await DeserializeAndValidate(presentationValidator, id, rootValidator);
-        if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
-
-        return await HandleUpsert(new UpsertCollection(customerId, id,
-            deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
-            deserializeValidationResult.RawRequestBody), invalidatesEtag:Request.Headers.IfMatch);
+        return await HandleUpsert(new CollectionWriteRequest(customerId, HttpMethod.Put,
+            id, await Request.GetRawRequestBodyAsync(), false,
+            Request.HasShowExtraHeader(), Request.Headers.IfMatch
+        ));
     }
-
-
-    private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
-        PresentationValidator presentationValidator, string? id, RootCollectionValidator? rootValidator)
-    {
-        if (!Request.HasShowExtraHeader())
-        {
-            return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
-        }
-
-        var rawRequestBody = await Request.GetRawRequestBodyAsync();
-
-        var deserializedCollection =
-            await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
-        if (deserializedCollection.Error)
-        {
-            return DeserializeValidationResult<PresentationCollection>.Failure(PresentationUnableToSerialize());
-        }
-
-        var validation = id != null && KnownCollections.IsRoot(id)
-            ? rootValidator!.Validate(deserializedCollection.ConvertedIIIF)
-            : presentationValidator.Validate(deserializedCollection.ConvertedIIIF);
-
-        if (!validation.IsValid)
-        {
-            return DeserializeValidationResult<PresentationCollection>.Failure(this.ValidationFailed(validation));
-        }
-
-        return DeserializeValidationResult<PresentationCollection>.Success(deserializedCollection.ConvertedIIIF,
-            rawRequestBody);
-    }
-
 
     [Authorize]
     [HttpDelete("collections/{id}")]
@@ -130,12 +88,4 @@ public class CollectionController(
 
         return await HandleDelete(new DeleteCollection(customerId, id));
     }
-
-    /// <summary> 
-    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="ObjectResult"/> response with 400 status code.
-    /// </summary>
-    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
-    private ObjectResult PresentationUnableToSerialize() =>
-        this.PresentationProblem("Could not deserialize collection", null, (int)HttpStatusCode.BadRequest,
-            "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
 }

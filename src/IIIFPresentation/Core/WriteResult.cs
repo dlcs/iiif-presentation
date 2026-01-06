@@ -58,5 +58,10 @@ public enum WriteResult
     /// <summary>
     /// Request failed a precondition
     /// </summary>
-    PreConditionFailed
+    PreConditionFailed,
+    
+    /// <summary>
+    /// Request tried to perform operation that is not allowed
+    /// </summary>
+    Forbidden
 }

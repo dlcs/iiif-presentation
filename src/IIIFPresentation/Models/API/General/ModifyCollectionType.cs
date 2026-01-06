@@ -26,5 +26,7 @@ public enum ModifyCollectionType
     PublicIdIncorrect = 22,
     PaintableAssetError = 23,
     AssetsDoNotMatch = 25,
+    MissingSlug = 26,
+    ExtraHeaderRequired = 27,
     Unknown = 1000
 }

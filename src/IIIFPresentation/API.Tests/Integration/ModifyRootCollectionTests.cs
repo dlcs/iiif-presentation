@@ -50,7 +50,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         };
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson(),dbContext.GetETagById(1, RootCollection.Id));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
@@ -71,7 +71,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         };
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson(),dbContext.GetETagById(1, RootCollection.Id));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");
@@ -90,7 +90,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         };
         
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson());
+            $"{PresentationContextFixture.CustomerId}/collections/{RootCollection.Id}", collection.AsJson(),dbContext.GetETagById(1, RootCollection.Id));
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "Unable to change root slug");

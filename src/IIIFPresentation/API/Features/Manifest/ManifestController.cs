@@ -2,24 +2,20 @@
 using API.Auth;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
-using API.Features.Storage.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
-using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.API.General;
-using Models.API.Manifest;
 
 namespace API.Features.Manifest;
 
-[Route("/{customerId:int}")]
+[Route("/{customerId:int}/manifests")]
 [ApiController]
 public class ManifestController(
     IOptions<ApiSettings> options,
@@ -29,14 +25,15 @@ public class ManifestController(
     ILogger<ManifestController> logger)
     : PresentationController(options.Value, mediator, eTagCache, logger)
 {
-    [HttpGet("manifests/{id}")]
+    [HttpGet("{id}")]
     [VaryHeader]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
         var pathOnly = !Request.HasShowExtraHeader() ||
                        await authenticator.ValidateRequest(Request) != AuthResult.Success;
 
-        var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), pathOnly));
+        var entityResult =
+            await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), pathOnly));
 
         switch (entityResult)
         {
@@ -64,15 +61,14 @@ public class ManifestController(
     /// Create a new Manifest on Flat URL
     /// </summary>
     [Authorize]
-    [HttpPost("manifests")]
+    [HttpPost("")]
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
         [FromServices] PresentationManifestValidator validator,
         CancellationToken cancellationToken)
-        => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest,
-                rawRequestBody, Request.HasCreateSpaceHeader()),
-            validator,
+        => await HandleUpsert(new DispatchManifestRequest(customerId, HttpMethod.Post, string.Empty,
+                await Request.GetRawRequestBodyAsync(cancellationToken),
+                false, Request.HasShowExtraHeader(), Request.HasCreateSpaceHeader(), Request.Headers.IfMatch),
             cancellationToken: cancellationToken);
 
     /// <summary>
@@ -80,57 +76,25 @@ public class ManifestController(
     /// If id exists valid E-Tag must be provided 
     /// </summary>
     [Authorize]
-    [HttpPut("manifests/{id}")]
+    [HttpPut("{id}")]
     public async Task<IActionResult> UpsertManifest(
         [FromRoute] int customerId,
         [FromRoute] string id,
         [FromServices] PresentationManifestValidator validator,
         CancellationToken cancellationToken)
-        => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) =>
-                new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
-                    Request.HasCreateSpaceHeader()),
-            validator,
-            invalidatesEtag:Request.Headers.IfMatch,
+        => await HandleUpsert(
+            new DispatchManifestRequest(customerId, HttpMethod.Put, id,
+                await Request.GetRawRequestBodyAsync(cancellationToken),
+                false, Request.HasShowExtraHeader(), Request.HasCreateSpaceHeader(), Request.Headers.IfMatch),
+            invalidatesEtag: Request.Headers.IfMatch,
             cancellationToken: cancellationToken);
 
     [Authorize]
-    [HttpDelete("manifests/{id}")]
+    [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
         return await HandleDelete(new DeleteManifest(customerId, id));
-    }
-
-    private async Task<IActionResult> ManifestUpsert<T, TEnum>(
-        Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
-        PresentationManifestValidator validator,
-        string? instance = null,
-        string? errorTitle = "Operation failed",
-        string? invalidatesEtag = null,
-        CancellationToken cancellationToken = default)
-        where T : JsonLdBase
-        where TEnum : Enum
-    {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
-        var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
-        var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
-
-        if (presentationManifest.Error)
-        {
-            return this.PresentationProblem("Could not deserialize manifest", null, (int)HttpStatusCode.BadRequest,
-                "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
-        }
-
-        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
-        if (!validation.IsValid)
-        {
-            return this.ValidationFailed(validation);
-        }
-
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance,
-            errorTitle, invalidatesEtag, cancellationToken);
     }
 }
