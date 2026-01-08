@@ -2634,4 +2634,57 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             A<OperationType>.That.Matches(a => a == OperationType.Remove),
             A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
     }
+    
+    [Fact]
+    public async Task UpdateManifest_RemovesAssetRecord_WhenManifestClearedDown()
+    {
+        // Arrange
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}_2")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($"{{\"id\": \"{assetId}_2\", \"space\": {NewlyCreatedSpace} }}")
+            ]);
+        
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: true, canvasPaintings:
+            [
+                new CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1,
+                    AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId),
+                    CanvasOriginalId = new Uri("https://localhost:6010/test")
+                }
+            ])).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+
+        var presentationManifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
+
+        presentationManifest.PaintedResources = null;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                dbManifest.ToPresentationManifest(parent: parent, slug: slug).AsJson(), dbContext.GetETag(dbManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        responseManifest.PaintedResources.Should().BeNull();
+        
+        // removes the old asset
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}"),
+            A<OperationType>.That.Matches(a => a == OperationType.Remove),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
 }

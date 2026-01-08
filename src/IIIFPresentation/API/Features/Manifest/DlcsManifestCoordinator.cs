@@ -4,6 +4,7 @@ using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
 using Core.Exceptions;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -120,7 +121,7 @@ public class DlcsManifestCoordinator(
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0 && existingAssetIds?.Count == 0)
+        if (!request.CreateSpace && assets.Count <= 0 && existingAssetIds.IsNullOrEmpty())
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -185,7 +186,7 @@ public class DlcsManifestCoordinator(
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
-        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest);
+        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0;;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
     }
 

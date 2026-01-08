@@ -365,20 +365,19 @@ public class ManifestWriteService(
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        
-        if (hasAssets)
-        {
-            if (canBeBuiltUpfront)
-            {
-                var manifest =
-                    await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
-                await dbContext.SaveChangesAsync(cancellationToken);
-                request.PresentationManifest.Items = manifest.Items;
-            }
-            else
-            {
-                var canvasPaintings = dbManifest.CanvasPaintings;
 
+        if (canBeBuiltUpfront)
+        {
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            request.PresentationManifest.Items = manifest.Items;
+        }
+        else
+        {
+            if (hasAssets)
+            {
+                var canvasPaintings =  dbManifest.CanvasPaintings;
+                
                 if (canvasPaintings is not null)
                 {
                     iiifManifest.Items =
@@ -386,11 +385,10 @@ public class ManifestWriteService(
                             pathRewriteParser);
                 }
             }
+            
+            await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+                hasAssets, cancellationToken);
         }
-
-        await iiifS3.SaveIIIFToS3(iiifManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            hasAssets, cancellationToken);
-
 
         return iiifManifest.Items;
     }
