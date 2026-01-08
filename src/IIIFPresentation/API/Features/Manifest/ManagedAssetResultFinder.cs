@@ -275,6 +275,6 @@ public interface IManagedAssetResultFinder
         CancellationToken cancellationToken);
     
     public Task<List<AssetId>> CheckAssetsFromItemsExist(
-        List<InterimCanvasPainting>? assetsToCheck,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
         int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken);
 }
