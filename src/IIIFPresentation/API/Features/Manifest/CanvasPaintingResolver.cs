@@ -257,10 +257,10 @@ public class CanvasPaintingResolver(
                 manifestItemsParser
                     .ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId);
 
-            var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings.CanvasPaintings.ToList(),
+            var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings.ToList(),
                 paintedResourceCanvasPaintings, presentationManifest.Items);
 
-            return new ManifestParseResult(null, res, itemsCanvasPaintings.IdentifiedAssetIds);
+            return new ManifestParseResult(null, res, itemsCanvasPaintings.Where(cp => cp.SuspectedAssetId != null).ToList());
         }
         catch (InvalidCanvasIdException cpId)
         {
@@ -286,7 +286,7 @@ public class CanvasPaintingResolver(
 
     private class ManifestParseResult()
     {
-        public ManifestParseResult(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings, List<AssetId>? assetsIdentifiedInItems) : this()
+        public ManifestParseResult(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings, List<InterimCanvasPainting>? assetsIdentifiedInItems) : this()
         {
             Error = error;
             CanvasPaintings = canvasPaintings;
@@ -297,6 +297,6 @@ public class CanvasPaintingResolver(
         
         public List<InterimCanvasPainting>? CanvasPaintings { get; set; }
         
-        public List<AssetId>? AssetsIdentifiedInItems { get; set; }
+        public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; }
     }
 }

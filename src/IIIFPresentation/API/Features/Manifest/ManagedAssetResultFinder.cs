@@ -9,6 +9,8 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Features.Manifest;
@@ -126,14 +128,16 @@ public class ManagedAssetResultFinder(
     /// that are managed by the configured DLCS instance
     /// </summary>
     public async Task<List<AssetId>> CheckAssetsFromItemsExist(
-        List<AssetId>? assetsToCheck, int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken)
+        List<InterimCanvasPainting>? interimCanvasPaintings, int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken)
     {
-        if (assetsToCheck.IsNullOrEmpty()) return [];
+        if (interimCanvasPaintings.IsNullOrEmpty()) return [];
 
         List<AssetId> assetsToAddToManifest = [];
         List<AssetId> trackedAssets = [];
+        
+        var assetIdsFromItems = interimCanvasPaintings.GetAssetIds();
 
-        foreach (var assetId in assetsToCheck)
+        foreach (var assetId in assetIdsFromItems)
         {
             if (existingAssetIds != null && existingAssetIds.Any(cp => cp == assetId))
             {
@@ -172,13 +176,14 @@ public class ManagedAssetResultFinder(
         var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
         trackedAssets.AddRange(dlcsAssetIds);
 
-        var missingAssets = assetsToCheck.Where(icp => !trackedAssets.Any(icp.Equals)).ToList();
+        var missingAssets = interimCanvasPaintings.Where(icp => !trackedAssets.Any(a =>
+            icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space)).ToList();
         
         if (missingAssets.Count != 0)
         {
             throw new PresentationException(
                 $"Suspected DLCS assets from items not found: {string.Join(", ", 
-                    missingAssets.Select(a => $"(assetId: {a})"))}");
+                    missingAssets.Select(a => $"(id: {a.CanvasOriginalId}, assetId: {new AssetId(customerId, a.SuspectedSpace!.Value, a.SuspectedAssetId!)})"))}");
         }
 
         return assetsToAddToManifest;
@@ -270,6 +275,6 @@ public interface IManagedAssetResultFinder
         CancellationToken cancellationToken);
     
     public Task<List<AssetId>> CheckAssetsFromItemsExist(
-        List<AssetId>? assetsToCheck,
+        List<InterimCanvasPainting>? assetsToCheck,
         int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken);
 }

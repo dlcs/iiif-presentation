@@ -14,16 +14,16 @@ public class UpdatedCanvasPaintingRecords
             Error = updateResult
         };
     
-    public static UpdatedCanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<AssetId>? assetsIdentifiedInItems) =>
+    public static UpdatedCanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,
-            AssetsIdentifiedInItems = assetsIdentifiedInItems
+            ItemsWithAssets = itemsWithAssets
         };
     
     public ModifyEntityResult<PresentationManifest, ModifyCollectionType>? Error { get; set; }
 
     public List<InterimCanvasPainting>? CanvasPaintingsToAdd { get; set; }
     
-    public List<AssetId>? AssetsIdentifiedInItems { get; set; }
+    public List<InterimCanvasPainting>? ItemsWithAssets { get; set; }
 }

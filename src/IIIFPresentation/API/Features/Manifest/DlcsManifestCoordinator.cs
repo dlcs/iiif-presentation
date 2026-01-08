@@ -14,6 +14,8 @@ using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
@@ -75,20 +77,20 @@ public class DlcsManifestCoordinator(
         string manifestId,
         List<AssetId>? existingAssetIds = null,
         Models.Database.Collections.Manifest? dbManifest = null,
-        List<AssetId>? assetsIdentifiedInItems = null,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
         CancellationToken cancellationToken = default)
     {
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, existingAssetIds,
-            assetsIdentifiedInItems, cancellationToken);
+            itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
 
         return await HandlePaintedResourceDlcsInteractions(request, manifestId,
-            assetsIdentifiedInItems ?? [], existingAssetIds, dbManifest?.SpaceId,
+            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], existingAssetIds, dbManifest?.SpaceId,
             cancellationToken);
     }
 
     private async Task<DlcsInteractionResult?> HandleItemsDlcsInteractions(WriteManifestRequest request, string manifestId, List<AssetId>? existingAssetIds,
-        List<AssetId>? itemCanvasPaintingsWithAssets, CancellationToken cancellationToken)
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets, CancellationToken cancellationToken)
     {
         try
         {

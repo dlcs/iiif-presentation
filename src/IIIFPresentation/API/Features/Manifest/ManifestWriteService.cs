@@ -174,12 +174,9 @@ public class ManifestWriteService(
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
-            var assetsIdentifiedInItems = interimCanvasPaintings?.GetItemsWithSuspectedAssets()?
-                .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!)).ToList();
-
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
-                assetsIdentifiedInItems: assetsIdentifiedInItems,
+                itemCanvasPaintingsWithAssets: interimCanvasPaintings?.GetItemsWithSuspectedAssets(),
                 cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
@@ -230,7 +227,7 @@ public class ManifestWriteService(
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request,
                 existingManifest.Id, existingAssetIds, existingManifest,
-                updatedCanvasPaintingRecords.AssetsIdentifiedInItems, cancellationToken);
+                updatedCanvasPaintingRecords.ItemsWithAssets, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             // update existing manifest with canvas paintings following DLCS interactions
