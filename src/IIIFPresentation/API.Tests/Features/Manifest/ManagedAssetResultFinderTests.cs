@@ -12,7 +12,6 @@ using Models.Database;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
-using Services.Manifests.Model;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -51,30 +50,18 @@ public class ManagedAssetResultFinderTests
     public async Task CheckAssetsFromItemsExist_ThrowsError_IfNoAssetFoundInDlcs()
     {
         // Arrange
-        var canvasPaintings = new List<InterimCanvasPainting>
+        var assetsToCheck = new List<AssetId>
         {
-            new ()
-            {
-                SuspectedAssetId = "doesNotExist",
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/doesNotExist")
-            },
-            new ()
-            {
-                SuspectedAssetId = "doesNotExist2",
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/doesNotExist2")
-            }
+            new (DefaultCustomer, DefaultSpace, "doesNotExist"),
+            new (DefaultCustomer, DefaultSpace, "doesNotExist2")
         };
         
         // Act
-        Func<Task> action = () => sut.CheckAssetsFromItemsExist(canvasPaintings, DefaultCustomer, [], CancellationToken.None);
+        Func<Task> action = () => sut.CheckAssetsFromItemsExist(assetsToCheck, DefaultCustomer, [], CancellationToken.None);
         
         // Assert
         await action.Should().ThrowAsync<PresentationException>()
-            .WithMessage($"Suspected DLCS assets from items not found: (id: {canvasPaintings[0].CanvasOriginalId}, assetId: {DefaultCustomer}/{DefaultSpace}/doesNotExist), (id: {canvasPaintings[1].CanvasOriginalId}, assetId: {DefaultCustomer}/{DefaultSpace}/doesNotExist2)");
+            .WithMessage($"Suspected DLCS assets from items not found: (assetId: {DefaultCustomer}/{DefaultSpace}/doesNotExist), (assetId: {DefaultCustomer}/{DefaultSpace}/doesNotExist2)");
     }
     
     [Fact]
@@ -83,21 +70,15 @@ public class ManagedAssetResultFinderTests
         var assetId = "inExisting";
         
         // Arrange
-        var canvasPaintings = new List<InterimCanvasPainting>
+        var assetsToCheck = new List<AssetId>
         {
-            new ()
-            {
-                SuspectedAssetId = assetId,
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/{assetId}")
-            }
+            new (DefaultCustomer, DefaultSpace, assetId)
         };
 
         List<AssetId> existingAssets = [new(DefaultCustomer, DefaultSpace, assetId)];
         
         // Act
-        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(canvasPaintings, DefaultCustomer, existingAssets,
+        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(assetsToCheck, DefaultCustomer, existingAssets,
             CancellationToken.None);
         
         // Assert
@@ -110,15 +91,9 @@ public class ManagedAssetResultFinderTests
         var assetId = "inAnother";
         
         // Arrange
-        var canvasPaintings = new List<InterimCanvasPainting>
+        var assetsToCheck = new List<AssetId>
         {
-            new ()
-            {
-                SuspectedAssetId = assetId,
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/{assetId}")
-            }
+            new (DefaultCustomer, DefaultSpace, assetId)
         };
 
         await dbContext.Manifests.AddTestManifest(canvasPaintings:
@@ -131,7 +106,7 @@ public class ManagedAssetResultFinderTests
         await dbContext.SaveChangesAsync();
         
         // Act
-        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(canvasPaintings, DefaultCustomer, [],
+        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(assetsToCheck, DefaultCustomer, [],
             CancellationToken.None);
         
         // Assert
@@ -146,29 +121,11 @@ public class ManagedAssetResultFinderTests
         var inDlcs = "inDlcs";
         
         // Arrange
-        var canvasPaintings = new List<InterimCanvasPainting>
+        var assetsToCheck = new List<AssetId>
         {
-            new ()
-            {
-                SuspectedAssetId = inAnotherManifest,
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/{inAnotherManifest}")
-            },
-            new ()
-            {
-                SuspectedAssetId = inExistingManifest,
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/{inExistingManifest}")
-            },
-            new ()
-            {
-                SuspectedAssetId = inDlcs,
-                SuspectedSpace = DefaultSpace,
-                CustomerId = DefaultCustomer,
-                CanvasOriginalId = new Uri($"https://dlcs.api/{DefaultCustomer}/{DefaultSpace}/{inDlcs}")
-            }
+            new (DefaultCustomer, DefaultSpace, inAnotherManifest),
+            new (DefaultCustomer, DefaultSpace, inExistingManifest),
+            new (DefaultCustomer, DefaultSpace, inDlcs)
         };
 
         await dbContext.Manifests.AddTestManifest(canvasPaintings:
@@ -195,7 +152,7 @@ public class ManagedAssetResultFinderTests
             ]);
         
         // Act
-        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(canvasPaintings, DefaultCustomer, existingAssets,
+        var assetsToUpdate = await sut.CheckAssetsFromItemsExist(assetsToCheck, DefaultCustomer, existingAssets,
             CancellationToken.None);
         
         // Assert

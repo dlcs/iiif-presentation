@@ -635,6 +635,6 @@ public class ManifestWriteServiceTests
 
         // Assert
         ingestedManifest.Should().NotBeNull();
-        ingestedManifest.Error.Should().Be($"Suspected DLCS assets from items not found: (id: https://test.com/item, assetId: {Customer}/1/someItem)");
+        ingestedManifest.Error.Should().Be($"Suspected DLCS assets from items not found: (assetId: {Customer}/1/someItem)");
     }
 }

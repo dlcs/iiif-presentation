@@ -47,19 +47,19 @@ public class ManifestItemsParserTests
     
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), [],DefaultCustomerId).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest(), [],DefaultCustomerId).CanvasPaintings.Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], DefaultCustomerId).Should().BeEmpty();
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [] }, [], DefaultCustomerId).CanvasPaintings.Should().BeEmpty();
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfCanvasHasNoAnnotationPages()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], DefaultCustomerId).Should().HaveCount(1);
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [] }] }, [], DefaultCustomerId).CanvasPaintings.Should().HaveCount(1);
 
     [Fact]
     public void Parse_ReturnsCanvasPainting_IfAnnotationPagesHaveNoAnnotations()
-        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], DefaultCustomerId)
+        => sut.ParseToCanvasPainting(new PresentationManifest { Items = [new Canvas { Items = [new AnnotationPage()] }] }, [], DefaultCustomerId).CanvasPaintings
             .Should().HaveCount(1);
 
     [Fact]
@@ -67,7 +67,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
             {
                 Items = [new Canvas { Items = [new AnnotationPage { Items = [new TypeClassifyingAnnotation()] }] }]
-            }, [], DefaultCustomerId)
+            }, [], DefaultCustomerId).CanvasPaintings
             .Should().HaveCount(1);
 
     [Theory]
@@ -78,14 +78,14 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = host }]
-        }, [ new InterimCanvasPainting { Id = "foo" }], customerId).Single().Id.Should().Be("foo");
+        }, [ new InterimCanvasPainting { Id = "foo" }], customerId).CanvasPaintings.Single().Id.Should().Be("foo");
     
     [Fact]
     public void Parse_ReturnsNullCanvasId_IfCanvasIdValidUriNotMatchedToPaintedResource()
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://localhost:5000/DefaultCustomerId/canvases/foo" }]
-        }, [], 1).Single().Id.Should().BeNull();
+        }, [], 1).CanvasPaintings.Single().Id.Should().BeNull();
 
     [Fact]
     public void Parse_ThrowsError_IfShortCanvasNotMatchedToPaintedResource()
@@ -105,7 +105,7 @@ public class ManifestItemsParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest
         {
             Items = [new Canvas { Id = "https://unrecognized.host/2/canvases/foo" }]
-        }, [], 2).Single().Id.Should().BeNull();
+        }, [], 2).CanvasPaintings.Single().Id.Should().BeNull();
     
     [Fact]
     public async Task Parse_Throws_MissingBody()
@@ -213,7 +213,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -320,7 +320,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -387,7 +387,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
 
         
         // Assert
@@ -457,7 +457,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -530,7 +530,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -651,7 +651,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
          
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -774,7 +774,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -860,7 +860,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1060,7 +1060,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
 
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
 
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1132,7 +1132,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [new InterimCanvasPainting { Id = "shortCanvas" }], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);
@@ -1199,7 +1199,7 @@ public class ManifestItemsParserTests
         var deserialised = await manifest.ToPresentation<PresentationManifest>();
         
         // Act
-        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId);
+        var canvasPaintings = sut.ParseToCanvasPainting(deserialised, [], DefaultCustomerId).CanvasPaintings;
         
         // Assert
         canvasPaintings.Should().BeEquivalentTo(expected);

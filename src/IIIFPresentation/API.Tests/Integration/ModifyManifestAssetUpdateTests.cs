@@ -2460,4 +2460,178 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                     o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<CancellationToken>._))
             .MustNotHaveHappened();
     }
+    
+    [Fact]
+    public async Task UpdateManifest_ReplacesAssetCanvasPainting_WhenItemsOnlyWithProtagonistAsset()
+    {
+        // Arrange
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}_2")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($"{{\"id\": \"{assetId}_2\", \"space\": {NewlyCreatedSpace} }}")
+            ]);
+        
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: true, canvasPaintings:
+            [
+                new CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1,
+                    AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId),
+                    CanvasOriginalId = new Uri("https://localhost:6010/test")
+                }
+            ])).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+
+        var presentationManifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
+        presentationManifest.Items = 
+        [
+            new Canvas
+            {
+                Id = "https://localhost:6010/test_2",
+                Items = 
+                [
+                    new AnnotationPage
+                    {
+                        Items = 
+                        [
+                            new PaintingAnnotation
+                            {
+                                Body = new Image
+                                {
+                                    Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}_2",
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                presentationManifest.AsJson(), dbContext.GetETag(dbManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        responseManifest.PaintedResources.Should().HaveCount(1);
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasOriginalId.Should().Be("https://localhost:6010/test_2");
+        responseManifest.PaintedResources[0].Asset.Should().NotBeNull("asset found in the DLCS");
+        
+        // Adds the new asset
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_2"),
+            A<OperationType>.That.Matches(a => a == OperationType.Add),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        // removes the old asset
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}"),
+            A<OperationType>.That.Matches(a => a == OperationType.Remove),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_ReplacesAssetCanvasPainting_WhenMixedManifestWithProtagonistAssetFromItems()
+    {
+        // Arrange
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}_2")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($"{{\"id\": \"{assetId}_2\", \"space\": {NewlyCreatedSpace} }}")
+            ]);
+        
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: true, canvasPaintings:
+            [
+                new CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1,
+                    AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId),
+                    CanvasOriginalId = new Uri("https://localhost:6010/test")
+                },
+                new CanvasPainting
+                {
+                    Id = "second",
+                    CanvasOrder = 2,
+                    ChoiceOrder = 1,
+                    AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_3")
+                }
+            ])).Entity;
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+
+        var presentationManifest = dbManifest.ToPresentationManifest(parent: parent, slug: slug);
+        presentationManifest.Items = 
+        [
+            new Canvas
+            {
+                Id = "https://localhost:6010/test_2",
+                Items = 
+                [
+                    new AnnotationPage
+                    {
+                        Items = 
+                        [
+                            new PaintingAnnotation
+                            {
+                                Body = new Image
+                                {
+                                    Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}_2",
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                presentationManifest.AsJson(), dbContext.GetETag(dbManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        responseManifest.PaintedResources.Should().HaveCount(1);
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasOriginalId.Should().Be("https://localhost:6010/test_2");
+        responseManifest.PaintedResources[0].Asset.Should().NotBeNull("asset found in the DLCS");
+        
+        // Adds the new asset
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_2"),
+            A<OperationType>.That.Matches(a => a == OperationType.Add),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        // removes the old assets
+        A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
+            A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}" &&
+                                              a.Last() == $"{Customer}/{NewlyCreatedSpace}/{assetId}_3"),
+            A<OperationType>.That.Matches(a => a == OperationType.Remove),
+            A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
+    }
 }

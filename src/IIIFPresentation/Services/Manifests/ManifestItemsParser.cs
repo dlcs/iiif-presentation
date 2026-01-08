@@ -30,15 +30,16 @@ public class ManifestItemsParser(
 {
     private readonly PathSettings settings = options.Value;
     
-    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest manifest, 
+    public (IEnumerable<InterimCanvasPainting> CanvasPaintings, List<AssetId> IdentifiedAssetIds) ParseToCanvasPainting(PresentationManifest manifest, 
         List<InterimCanvasPainting> paintedResourceCanvasPainting, int customer)
     {
-        if (manifest.Items.IsNullOrEmpty()) return [];
+        if (manifest.Items.IsNullOrEmpty()) return ([], []);
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", manifest.Id);
         
         var canvasPaintings = new List<InterimCanvasPainting>(manifest.Items.Count);
         int canvasOrder = 0;
+        List<AssetId> itemsWithAssets = [];
         
         foreach (var canvas in manifest.Items)
         {
@@ -61,6 +62,8 @@ public class ManifestItemsParser(
                 .Select(paintable =>(paintable,  assetId: paintableAssetIdentifier.ResolvePaintableAsset(paintable, customer)))
                 .Where(tuple => tuple.assetId != null)
                 .ToDictionary();
+            
+            itemsWithAssets.AddRange(identifiedManagedAssets.Values!);
             
             var canvasLabelHasBeenSet = false;
             foreach (var painting in canvasPaintingsInCanvas)
@@ -141,7 +144,7 @@ public class ManifestItemsParser(
             }
         }
 
-        return canvasPaintings;
+        return (canvasPaintings, itemsWithAssets);
     }
     
     private static ResourceBase? GetResourceFromBody(IPaintable? body)
