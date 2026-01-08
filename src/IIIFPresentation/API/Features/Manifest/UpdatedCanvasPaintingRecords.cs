@@ -6,15 +6,15 @@ using Services.Manifests.Model;
 
 namespace API.Features.Manifest;
 
-public class UpdatedCanvasPaintingRecords
+public class CanvasPaintingRecords
 {
-    public static UpdatedCanvasPaintingRecords Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
+    public static CanvasPaintingRecords Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
         new()
         {
             Error = updateResult
         };
     
-    public static UpdatedCanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets) =>
+    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,

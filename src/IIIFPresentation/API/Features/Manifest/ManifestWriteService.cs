@@ -159,10 +159,10 @@ public class ManifestWriteService(
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
             // retrieve and validate the canvas paintings on the request
-            var (canvasPaintingsError, interimCanvasPaintings) =
+            var createdCanvaSPaintingRecords =
                 await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                     cancellationToken);
-            if (canvasPaintingsError != null) return canvasPaintingsError;
+            if (createdCanvaSPaintingRecords.Error != null) return createdCanvaSPaintingRecords.Error;
 
             // retrieve and validate the parent and slug on the request
             var parsedParentSlugResult =
@@ -176,13 +176,13 @@ public class ManifestWriteService(
 
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
-                itemCanvasPaintingsWithAssets: interimCanvasPaintings?.GetItemsWithSuspectedAssets(),
+                itemCanvasPaintingsWithAssets: createdCanvaSPaintingRecords.ItemsWithAssets,
                 cancellationToken: cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             // convert and update the canvas paintings from the interim object, to the database format
             var canvasPaintings =
-                interimCanvasPaintings?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
+                createdCanvaSPaintingRecords.CanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
             canvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
 
             var (error, dbManifest) =
