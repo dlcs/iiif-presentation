@@ -286,7 +286,7 @@ public class CanvasPaintingResolver(
 
     private class ManifestParseResult()
     {
-        public ManifestParseResult(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings,List<AssetId>? assetsIdentifiedInItems) : this()
+        public ManifestParseResult(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings, List<AssetId>? assetsIdentifiedInItems) : this()
         {
             Error = error;
             CanvasPaintings = canvasPaintings;
