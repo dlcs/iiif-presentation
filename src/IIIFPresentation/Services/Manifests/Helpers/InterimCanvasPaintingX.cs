@@ -88,4 +88,8 @@ public static class InterimCanvasPaintingX
         this List<InterimCanvasPainting>? interimCanvasPaintings) =>
         interimCanvasPaintings?.Where(icp =>
             icp is { SuspectedAssetId: not null, CanvasPaintingType: CanvasPaintingType.Items }).ToList();
+
+    public static List<AssetId> GetAssetIds(
+        this List<InterimCanvasPainting> interimCanvasPaintings) => interimCanvasPaintings
+        .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId.ThrowIfNull(nameof(icp.SuspectedAssetId)))).ToList();
 }

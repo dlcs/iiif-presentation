@@ -4,6 +4,7 @@ using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
 using Core.Exceptions;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -14,6 +15,7 @@ using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -71,20 +73,27 @@ public class DlcsManifestCoordinator(
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
     /// </summary>
+    /// <param name="request">The full request to get a manifest</param>
+    /// <param name="manifestId">The id of the manifest</param>
+    /// <param name="previousManifestAssetIds">every asset id in the previous manifest</param>
+    /// <param name="dbManifest">The current manifest in the database</param>
+    /// <param name="itemCanvasPaintingsWithAssets">canvas paintings from items that contain asset ids</param>
+    /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId,
-        List<AssetId>? existingAssetIds = null,
+        List<AssetId>? previousManifestAssetIds = null,
         Models.Database.Collections.Manifest? dbManifest = null,
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
         CancellationToken cancellationToken = default)
     {
-        var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, existingAssetIds,
+        var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
             itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
-        
-        return await HandlePaintedResourceDlcsInteractions(request, manifestId, existingAssetIds,
-            dbManifest?.SpaceId, cancellationToken);
+
+        return await HandlePaintedResourceDlcsInteractions(request, manifestId,
+            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
+            cancellationToken);
     }
 
     private async Task<DlcsInteractionResult?> HandleItemsDlcsInteractions(WriteManifestRequest request, string manifestId, List<AssetId>? existingAssetIds,
@@ -111,13 +120,14 @@ public class DlcsManifestCoordinator(
     private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
         string manifestId, 
-        List<AssetId>? existingAssetIds = null,
+        List<AssetId> assetsFromItems,
+        List<AssetId>? previousManifestAssetIds = null,
         int? manifestSpaceId = null,
         CancellationToken cancellationToken = default)
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0)
+        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty())
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -157,16 +167,16 @@ public class DlcsManifestCoordinator(
             
         }
 
-        return await UpdateDlcsWithAssets(request, manifestId, existingAssetIds, assets, spaceId,
+        return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, assetsFromItems, spaceId,
             createdSpace, cancellationToken);
     }
 
     private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        List<AssetId>? existingAssetIds, List<JObject> assets, int? spaceId, bool spaceCreated, 
+        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
         CancellationToken cancellationToken)
     {
         var dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
-            request.PresentationManifest, existingAssetIds, spaceId, spaceCreated, request.CustomerId, cancellationToken);
+            request.PresentationManifest, previousManifestAssetIds, spaceId, spaceCreated, request.CustomerId, cancellationToken);
         
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
         // create batches for assets
@@ -178,11 +188,11 @@ public class DlcsManifestCoordinator(
         await UpdateAssetsWithManifestId(request, manifestId,
             dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
-        await RemoveUnusedAssets(existingAssetIds, manifestId, request.CustomerId, assets, cancellationToken);
+        await RemoveUnusedAssets(previousManifestAssetIds, manifestId, request.CustomerId, assets, assetsFromItems, cancellationToken);
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
-        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0;
+        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0;;
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
     }
 
@@ -197,13 +207,14 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private async Task RemoveUnusedAssets(List<AssetId>? existingAssetIds, string dbManifestId, int customerId, List<JObject> assets, 
+    private async Task RemoveUnusedAssets(List<AssetId>? previousManifestAssetIds, string dbManifestId, int customerId, List<JObject> assets, List<AssetId> assetsFromItems,
         CancellationToken cancellationToken)
     {
-        if (existingAssetIds == null) return;
+        if (previousManifestAssetIds == null) return;
         var assetIds = assets.Select(a => a.GetAssetId(customerId));
 
-        var assetsToRemove = existingAssetIds.Where(e => assetIds.All(a => a != e)).ToList();
+        var assetsToRemove = previousManifestAssetIds.Where(e => assetIds.All(a => a != e) && assetsFromItems.All(a => a != e))
+            .ToList();
 
         if (assetsToRemove.Any())
         {

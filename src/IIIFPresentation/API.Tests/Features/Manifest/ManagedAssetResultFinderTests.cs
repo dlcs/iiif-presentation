@@ -1,4 +1,4 @@
-﻿using API.Features.Manifest;
+﻿﻿using API.Features.Manifest;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
