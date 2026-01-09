@@ -96,7 +96,11 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 !string.IsNullOrEmpty(cp.Id) && string.Equals(cp.Id, itemsCanvasPainting.Id,
                     StringComparison.OrdinalIgnoreCase)).OrderCanvasPaintings().ToList();
 
-            if (matchedPaintedResourceCanvasPaintings.Count == 0) continue;
+            if (matchedPaintedResourceCanvasPaintings.Count == 0)
+            {
+                currentCanvasOrder++;
+                continue;
+            }
             
             CheckForMismatchedCase(matchedPaintedResourceCanvasPaintings, itemsCanvasPainting);
             
