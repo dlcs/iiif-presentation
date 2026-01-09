@@ -283,19 +283,15 @@ public class CanvasPaintingResolver(
         }
     }
 
-    private class ManifestParseResult()
+    private class ManifestParseResult(
+        PresUpdateResult? error,
+        List<InterimCanvasPainting>? canvasPaintings,
+        List<InterimCanvasPainting>? assetsIdentifiedInItems)
     {
-        public ManifestParseResult(PresUpdateResult? error, List<InterimCanvasPainting>? canvasPaintings, List<InterimCanvasPainting>? assetsIdentifiedInItems) : this()
-        {
-            Error = error;
-            CanvasPaintings = canvasPaintings;
-            AssetsIdentifiedInItems = assetsIdentifiedInItems;
-        }
-        
-        public PresUpdateResult? Error { get; set; } 
-        
-        public List<InterimCanvasPainting>? CanvasPaintings { get; set; }
-        
-        public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; }
+        public PresUpdateResult? Error { get; set; } = error;
+
+        public List<InterimCanvasPainting>? CanvasPaintings { get; set; } = canvasPaintings;
+
+        public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; } = assetsIdentifiedInItems;
     }
 }

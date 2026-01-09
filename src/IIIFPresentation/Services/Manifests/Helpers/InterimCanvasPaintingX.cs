@@ -91,5 +91,5 @@ public static class InterimCanvasPaintingX
 
     public static List<AssetId> GetAssetIds(
         this List<InterimCanvasPainting> interimCanvasPaintings) => interimCanvasPaintings
-        .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId!)).ToList();
+        .Select(icp => new AssetId(icp.CustomerId, icp.SuspectedSpace!.Value, icp.SuspectedAssetId.ThrowIfNull(nameof(icp.SuspectedAssetId)))).ToList();
 }
