@@ -281,6 +281,12 @@ public class CanvasPaintingResolver(
                 presentationManifest.Id);
             return new ManifestParseResult(ErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null, null);
         }
+        catch (PaintableAssetException paintableAssetException)
+        {
+            logger.LogDebug(paintableAssetException,
+                "Error retrieving paintable assets from items");
+            return new ManifestParseResult(ErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message), null, null);
+        }
     }
 
     private class ManifestParseResult(

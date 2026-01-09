@@ -5,6 +5,7 @@ using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
 using AWS.Settings;
+using Core;
 using DLCS;
 using DLCS.API;
 using DLCS.Models;
@@ -581,6 +582,65 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
+    }
+    
+    [Fact]
+    public async Task Upsert_ErrorCreatingManifest_WhenErrorWithPaintableAsset()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId);
+        await presentationContext.SaveChangesAsync();
+
+        asset.id = assetId;
+        
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://test.com/item",
+                    Items =
+                    [
+                        new AnnotationPage
+                        {
+                            Items =
+                            [
+                                new PaintingAnnotation
+                                {
+                                    Body = new Image
+                                    {
+                                        Id = $"https://dlcs.orchestrator/iiif-img/{Customer}/1/someItem",
+                                        Service = 
+                                        [
+                                            new ImageService3
+                                            {
+                                                Id =  $"https://dlcs.orchestrator/iiif-img/{Customer}/1/different",
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
+        ingestedManifest.WriteResult.Should().Be(WriteResult.BadRequest);
     }
     
     [Fact]
