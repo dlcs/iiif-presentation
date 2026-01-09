@@ -283,7 +283,7 @@ public class CanvasPaintingResolver(
         }
         catch (PaintableAssetException paintableAssetException)
         {
-            logger.LogError(paintableAssetException,
+            logger.LogDebug(paintableAssetException,
                 "Error retrieving paintable assets from items");
             return new ManifestParseResult(ErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message), null, null);
         }

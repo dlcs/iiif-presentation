@@ -5,6 +5,7 @@ using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Helpers;
 using AWS.Settings;
+using Core;
 using DLCS;
 using DLCS.API;
 using DLCS.Models;
@@ -639,6 +640,7 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
+        ingestedManifest.WriteResult.Should().Be(WriteResult.BadRequest);
     }
     
     [Fact]
