@@ -94,7 +94,7 @@ public static class ManifestConverter
             // Incoming grouping is by canvasId - so could contain 1:n paintingAnnos, some of which are choices
             var canvasPainting = groupedCanvasPaintings.First();
             var canvasIdFromCanvases = existingCanvases.Select(c =>
-                (canvasId: pathRewriteParser.ParsePathWithRewrites(c.Id, canvasPainting.CustomerId).Resource, canvas: c));
+                (canvasId: pathRewriteParser.ParsePathWithRewrites(c.Id, canvasPainting.CustomerId).Resource ?? canvasPainting.Id, canvas: c));
             
             // if there's a canvas original id, it means items only
             if (canvasPainting.CanvasOriginalId != null)

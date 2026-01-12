@@ -147,13 +147,18 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
         if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
         {
+            logger.LogDebug("Couldn't find a canvas matched in the canvas paintings for the id {CanvasPaintingId}. Creating a new one", firstCanvasPaintingInCanvas.Id);
             canvas = new Canvas { Id = canvasId };
         }
-        
         // modifies the id to match the rewritten path from settings
         else if (canvas.Id != canvasId)
         {
+            logger.LogDebug("Found a matched canvas in the canvas paintings, but the id needs rewriting: actual - {CanvasId}, rewritten - {CanvasPaintingId}", canvas.Id, canvasId);
             canvas.Id = canvasId;
+        }
+        else
+        {
+            logger.LogDebug("Found a matched canvas in the canvas paintings for id {CanvasPaintingId}", firstCanvasPaintingInCanvas.Id);
         }
         
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below

@@ -80,7 +80,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         if (Uri.TryCreate(uri, UriKind.Absolute, out var uriResult))
         {
             return ParsePathWithRewrites(uriResult.Host, uriResult.AbsolutePath, customer);
-        };
+        }
 
         return new PathParts(null, null, true);;
     }

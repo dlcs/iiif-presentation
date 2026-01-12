@@ -1,6 +1,7 @@
 ﻿using AWS.Settings;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
+using Core.Web;
 using DLCS;
 using Repository.Paths;
 using Serilog;
@@ -26,6 +27,8 @@ builder.Services.AddOptions<BackgroundHandlerSettings>()
     .BindConfiguration(string.Empty);
 var pathSettings = builder.Configuration.GetSection(PathSettings.SettingsName);
 builder.Services.Configure<PathSettings>(pathSettings);
+var typedPathTemplateOptions = pathSettings.GetSection(TypedPathTemplateOptions.SettingsName);
+builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
 
 var aws = builder.Configuration.GetSection(AWSSettings.SettingsName).Get<AWSSettings>() ?? new AWSSettings();
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
