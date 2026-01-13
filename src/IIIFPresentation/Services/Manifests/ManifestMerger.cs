@@ -142,25 +142,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
         }
         
-        // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
-        // Check to see if we can use an existing Canvas, falling back to creating a new one
-        var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
-        if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
-        {
-            logger.LogDebug("Couldn't find a canvas matched in the canvas paintings for the id {CanvasPaintingId}. Creating a new one", firstCanvasPaintingInCanvas.Id);
-            canvas = new Canvas { Id = canvasId };
-        }
-        // modifies the id to match the rewritten path from settings
-        else if (canvas.Id != canvasId)
-        {
-            logger.LogDebug("Found a matched canvas in the canvas paintings, but the id needs rewriting: actual - {CanvasId}, rewritten - {CanvasPaintingId}", canvas.Id, canvasId);
-            canvas.Id = canvasId;
-        }
-        else
-        {
-            logger.LogDebug("Found a matched canvas in the canvas paintings for id {CanvasPaintingId}", firstCanvasPaintingInCanvas.Id);
-        }
-        
+        var canvas = GetWorkingCanvas(manifestCanvasDictionary, firstCanvasPaintingInCanvas);
+
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
         var annoPage = new AnnotationPage
         {
@@ -204,6 +187,30 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         }
         
         canvas.Items = [annoPage];
+        return canvas;
+    }
+
+    private Canvas GetWorkingCanvas(Dictionary<string, Canvas> manifestCanvasDictionary, CanvasPainting firstCanvasPaintingInCanvas)
+    {
+        // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
+        // Check to see if we can use an existing Canvas, falling back to creating a new one
+        var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
+        if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
+        {
+            logger.LogDebug("Couldn't find a canvas for the id {CanvasPaintingId}. Creating a new one", firstCanvasPaintingInCanvas.Id);
+            canvas = new Canvas { Id = canvasId };
+        }
+        // modifies the id to match the rewritten path from settings
+        else if (canvas.Id != canvasId)
+        {
+            logger.LogDebug("Found a matched canvas, but the id needs rewriting: actual - {CanvasId}, rewritten - {CanvasPaintingId}", canvas.Id, canvasId);
+            canvas.Id = canvasId;
+        }
+        else
+        {
+            logger.LogDebug("Found a canvas for the id {CanvasPaintingId}", firstCanvasPaintingInCanvas.Id);
+        }
+
         return canvas;
     }
 
