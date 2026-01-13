@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using Repository;
 using Repository.Paths;
 using Serilog;
+using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
@@ -48,14 +49,11 @@ builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
-var pathSettings = builder.Configuration.GetSection(PathSettings.SettingsName);
-builder.Services.Configure<PathSettings>(pathSettings);
-var typedPathTemplateOptions = pathSettings.GetSection(TypedPathTemplateOptions.SettingsName);
-builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+builder.RegisterSharedServiceSettings();
 builder.Services
     .AddDlcsApiClient(dlcs)
     .AddDlcsOrchestratorClient(dlcs)

@@ -599,14 +599,16 @@ public class ManifestConverterTests
             .BeOfType<PaintingChoice>();
     }
     
-    [Fact]
-    public void GenerateProvisionalCanvases_RewritesProvisionalItemId_FromMatchedPaintedResource()
+    [Theory]
+    [InlineData("https://foo.com/0/canvases/foo")]
+    [InlineData("foo")]
+    public void GenerateProvisionalCanvases_RewritesProvisionalItemId_FromMatchedPaintedResource(string canvasId)
     {
         var canvases = new List<Canvas>
         {
             new()
             {
-                Id = "https://foo.com/0/canvases/foo",
+                Id = canvasId,
                 Homepage = 
                 [
                     new Image
