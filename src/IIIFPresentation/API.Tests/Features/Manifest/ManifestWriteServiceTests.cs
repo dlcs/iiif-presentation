@@ -697,4 +697,78 @@ public class ManifestWriteServiceTests
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().Be($"Suspected DLCS assets from items not found: (id: https://test.com/item, assetId: {Customer}/1/someItem)");
     }
+    
+    [Fact]
+    public async Task Create_SuccessfullyCreatesManifest_WhenItemOnlyFollowedByMatched()
+    {
+        // Arrange
+        dynamic asset = new JObject();
+        dynamic assetTwo = new JObject();
+
+        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        
+        asset.id = $"{assetId}_1";
+        assetTwo.id = $"{assetId}_2";
+
+        var manifest = new PresentationManifest()
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}_1")
+                    .WithImage()
+                    .Build(),
+                new Canvas
+                {
+                    Id = $"https://base/0/canvases/{canvasId}_2",
+                },
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}_3")
+                    .WithImage()
+                    .Build(),
+                new Canvas
+                {
+                    Id = $"https://base/0/canvases/{canvasId}_4",
+                },
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"{canvasId}_2",
+                        CanvasOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = assetTwo,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = $"{canvasId}_4",
+                        CanvasOrder = 3
+                    }
+                }
+            ]
+        };
+        
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+        
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        ingestedManifest.Entity.PaintedResources.Should().HaveCount(4);
+        
+        var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
+            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+        dbManifest.CanvasPaintings.Should().HaveCount(4);
+        dbManifest.CanvasPaintings[0].CanvasOriginalId.Should().Be( $"https://base/0/canvases/{canvasId}_1");
+        dbManifest.CanvasPaintings[1].Id.Should().Be( $"{canvasId}_2");
+        dbManifest.CanvasPaintings[2].CanvasOriginalId.Should().Be( $"https://base/0/canvases/{canvasId}_3");
+        dbManifest.CanvasPaintings[3].Id.Should().Be( $"{canvasId}_4");
+    }
 }

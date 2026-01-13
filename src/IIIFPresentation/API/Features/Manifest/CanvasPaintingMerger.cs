@@ -25,7 +25,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
     {
         var combinedCanvasPaintings = new List<InterimCanvasPainting>();
         
-        JoinPaintedResourcesWithItems(itemsCanvasPaintings, paintedResourceCanvasPaintings, items);
+        MatchPaintedResourcesWithItems(itemsCanvasPaintings, paintedResourceCanvasPaintings, items);
         
         CheckForDuplicates(itemsCanvasPaintings, paintedResourceCanvasPaintings);
         
@@ -85,7 +85,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         }
     }
     
-    private void JoinPaintedResourcesWithItems(List<InterimCanvasPainting> itemsCanvasPaintings, 
+    private void MatchPaintedResourcesWithItems(List<InterimCanvasPainting> itemsCanvasPaintings, 
         List<InterimCanvasPainting> paintedResourceCanvasPaintings, List<Canvas>? items)
     {
         // this avoids issues with joined composite canvas paintings, by making sure the order correctly matches
@@ -96,7 +96,11 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
                 !string.IsNullOrEmpty(cp.Id) && string.Equals(cp.Id, itemsCanvasPainting.Id,
                     StringComparison.OrdinalIgnoreCase)).OrderCanvasPaintings().ToList();
 
-            if (matchedPaintedResourceCanvasPaintings.Count == 0) continue;
+            if (matchedPaintedResourceCanvasPaintings.Count == 0)
+            {
+                currentCanvasOrder++;
+                continue;
+            }
             
             CheckForMismatchedCase(matchedPaintedResourceCanvasPaintings, itemsCanvasPainting);
             

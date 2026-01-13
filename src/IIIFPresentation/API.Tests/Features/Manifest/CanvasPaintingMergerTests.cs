@@ -608,7 +608,7 @@ public class CanvasPaintingMergerTests
         var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
             .WithCanvasPainting($"{itemId}_2", cp =>
             {
-                cp.CanvasOrder = 0;
+                cp.CanvasOrder = 1;
                 cp.ChoiceOrder = 0;
             }).WithCanvasPainting($"{paintedResourceId}_1", cp =>
             {
