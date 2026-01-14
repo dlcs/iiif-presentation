@@ -31,6 +31,18 @@ public class ManifestS3Manager(
         return mergedManifest;
     }
 
+    public async Task UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, bool saveToStaging,
+        CancellationToken cancellationToken)
+    {
+        if (!saveToStaging)
+        {
+            dbManifest.LastProcessed = DateTime.UtcNow;
+        }
+
+        await iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+            saveToStaging, cancellationToken);
+    }
+
     /// <summary>
     /// Upserts a manifest from the staging environment
     /// </summary>
@@ -61,6 +73,9 @@ public class ManifestS3Manager(
 
         await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             false, cancellationToken);
+        
+        dbManifest.LastProcessed = DateTime.UtcNow;
+        
         return mergedManifest;
     }
 }
@@ -72,4 +87,7 @@ public interface IManifestStorageManager
     
     public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
+
+    public Task UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        bool saveToStaging, CancellationToken cancellationToken);
 }

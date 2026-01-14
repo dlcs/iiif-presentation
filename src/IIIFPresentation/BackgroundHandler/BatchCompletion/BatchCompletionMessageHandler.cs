@@ -54,7 +54,7 @@ public class BatchCompletionMessageHandler(
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))
         {
-            CompleteBatch(batch, batchCompletionMessage.Finished, false);
+            CompleteBatch(batch, batchCompletionMessage.Finished);
         }
         else
         {
@@ -64,7 +64,7 @@ public class BatchCompletionMessageHandler(
 
             try
             {
-                CompleteBatch(batch, batchCompletionMessage.Finished, true);
+                CompleteBatch(batch, batchCompletionMessage.Finished);
                 await manifestS3Manager.UpsertManifestInStorage(batch.Manifest!, cancellationToken);
             }
             catch (Exception e)
@@ -100,17 +100,10 @@ public class BatchCompletionMessageHandler(
         return deserializedBatchCompletionMessage.ThrowIfNull(nameof(deserializedBatchCompletionMessage));
     }
     
-    private static void CompleteBatch(Batch batch, DateTime finished, bool finalBatch)
+    private static void CompleteBatch(Batch batch, DateTime finished)
     {
-        var processed = DateTime.UtcNow;
-        
-        batch.Processed = processed;
+        batch.Processed = DateTime.UtcNow;
         batch.Finished = finished;
         batch.Status = BatchStatus.Completed;
-
-        if (finalBatch)
-        {
-            batch.Manifest!.LastProcessed = processed;
-        }
     }
 }

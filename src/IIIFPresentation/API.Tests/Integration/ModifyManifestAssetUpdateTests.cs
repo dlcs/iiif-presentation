@@ -2687,4 +2687,84 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             A<OperationType>.That.Matches(a => a == OperationType.Remove),
             A<List<string>>._, A<CancellationToken>._)).MustHaveHappened();
     }
+    
+    [Fact]
+    public async Task UpdateManifest_AssetsFoundThroughItems_WhenManifestReplaced()
+    {
+        // Arrange
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains($"{Customer}/{NewlyCreatedSpace}/{assetId}")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            [
+                JObject.Parse($"{{\"id\": \"{assetId}\", \"space\": {NewlyCreatedSpace} }}")
+            ]);
+        
+        var dbManifest =
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: false, canvasPaintings:
+            [
+                new CanvasPainting
+                {
+                    Id = "first",
+                    CanvasOrder = 1,
+                    ChoiceOrder = 1,
+                    AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId),
+                    CanvasOriginalId = new Uri("https://localhost:6010/test")
+                }
+            ]));
+        await dbContext.SaveChangesAsync();
+        var parent = RootCollection.Id;
+
+        var presentationManifest = dbManifest.Entity.ToPresentationManifest(parent: parent, slug: slug);
+
+        presentationManifest.Items =
+        [
+            new Canvas
+            {
+                Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}",
+                Items =
+                [
+                    new AnnotationPage
+                    {
+                        Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}",
+                        Items =
+                        [
+                            new PaintingAnnotation
+                            {
+                                Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}",
+                                Body = new Image
+                                {
+                                    Id = $"https://localhost:6010/iiif-img/{Customer}/{NewlyCreatedSpace}/{assetId}/full/1024,683/0/default.jpg",
+                                    Width = 1024,
+                                    Height = 683
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        presentationManifest.PaintedResources = null;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Entity.Id}",
+                presentationManifest.AsJson(), dbContext.GetETag(dbManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        responseManifest.PaintedResources.Should().HaveCount(1);
+
+        await dbManifest.ReloadAsync();
+        dbManifest.Entity.Etag.Should().NotBeEmpty();
+        dbManifest.Entity.LastProcessed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+    }
 }

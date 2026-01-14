@@ -192,7 +192,8 @@ public class DlcsManifestCoordinator(
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
-        var canBeBuiltUpfront = dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0;;
+        var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
+                                (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
     }
 
