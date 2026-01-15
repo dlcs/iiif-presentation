@@ -3,9 +3,8 @@ using Models.DLCS;
 
 namespace Services.Manifests.Exceptions;
 
-public class PaintableAssetException(AssetId fromBody, AssetId fromServices) : PresentationException(
-    $"Suspected asset from image body ({fromBody}) and services ({fromServices}) point to different managed assets")
+public class PaintableAssetException(AssetId firstIdentifiedAsset, AssetId secondIdentifiedAsset, string message) : PresentationException(message)
 {
-    public AssetId FromBody { get; } = fromBody;
-    public AssetId FromServices { get; } = fromServices;
+    public AssetId FirstIdentifiedAsset { get; } = firstIdentifiedAsset;
+    public AssetId SecondIdentifiedAsset { get; } = secondIdentifiedAsset;
 }
