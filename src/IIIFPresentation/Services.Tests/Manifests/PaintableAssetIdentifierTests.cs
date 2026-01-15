@@ -261,8 +261,6 @@ public class PaintableAssetIdentifierTests
             .WithMessage(
                 $"Suspected asset from image service ({customerId}/{spaceId}/{assetId}) is not matched by a second value found in the service ({customerId}/{spaceId}/{assetId}_2)");
     }
-    
-    
 
     // --- Helpers ---
     class UnrecognizedPaintable : IPaintable
