@@ -348,8 +348,16 @@ public class ManifestWriteService(
     /// </summary>
     /// <param name="dbManifest">The manifest record</param>
     /// <param name="request">The request made by the caller</param>
-    /// <param name="hasAssets">Whether there are any assets identified in the request</param>
-    /// <param name="canBeBuiltUpfront">Whether there's assets, but they're all tracked by the DLCS</param>
+    /// <param name="hasAssets">
+    /// Whether there are any assets identified in the request
+    ///
+    /// TThis is relevant for both painted resources and assets from items
+    /// </param>
+    /// <param name="canBeBuiltUpfront">
+    /// Whether there's assets, but they're all tracked by the DLCS
+    ///
+    /// This is only relevant for painted resources
+    /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>A list of canvases to be returned to the caller</returns>
     private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
