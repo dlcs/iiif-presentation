@@ -59,30 +59,33 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
     private AssetId? ResolveFromImageServices(List<IService>? services, int customerId)
     {
         if (services is null) return null;
-
         AssetId? assetFromServices = null;
+        var regex = CanonicalImageRegex();
 
         foreach (var service in services)
         {
             AssetId? resultFromService = null;
-            
+
             switch (service)
             {
                 case ImageService3 service3:
-                    if (ParseId(CanonicalImageRegex(), service3.Id, customerId) is {} result3) resultFromService = result3;
+                    if (ParseId(regex, service3.Id, customerId) is {} result3) resultFromService = result3;
                     break;
                 case ImageService2 service2:
-                    if (ParseId(CanonicalImageRegex(), service2.Id, customerId) is {} result2) resultFromService = result2;
+                    if (ParseId(regex, service2.Id, customerId) is {} result2) resultFromService = result2;
                     break;
             }
 
-            if (assetFromServices != null && resultFromService != null && assetFromServices != resultFromService)
+            var hasMismatchBetweenServices = assetFromServices != null && resultFromService != null &&
+                                             assetFromServices != resultFromService;
+
+            if (hasMismatchBetweenServices)
             {
-                throw new PaintableAssetException(assetFromServices, resultFromService,
-                    $"Suspected asset from image service ({assetFromServices}) is not matched by a second value found in the service ({resultFromService})");
+                throw new PaintableAssetException(assetFromServices!, resultFromService!,
+                    $"Suspected asset from image services reference different assets ({assetFromServices}) and ({resultFromService})");
             }
             
-            if (assetFromServices == null) assetFromServices = resultFromService;
+            assetFromServices ??= resultFromService;
         }
 
         return assetFromServices;

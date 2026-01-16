@@ -232,7 +232,7 @@ public class PaintableAssetIdentifierTests
         act.Should()
             .Throw<PaintableAssetException>("we prohibit images that point to different assets in services")
             .WithMessage(
-                $"Suspected asset from image service ({customerId}/{spaceId}/{assetId}) is not matched by a second value found in the service ({customerId}/{spaceId}/{assetId}_2)");
+                $"Suspected asset from image services reference different assets ({customerId}/{spaceId}/{assetId}) and ({customerId}/{spaceId}/{assetId}_2)");
     }
     
     [Fact]
@@ -259,7 +259,7 @@ public class PaintableAssetIdentifierTests
         act.Should()
             .Throw<PaintableAssetException>("we prohibit images that point to different assets in services")
             .WithMessage(
-                $"Suspected asset from image service ({customerId}/{spaceId}/{assetId}) is not matched by a second value found in the service ({customerId}/{spaceId}/{assetId}_2)");
+                $"Suspected asset from image services reference different assets ({customerId}/{spaceId}/{assetId}) and ({customerId}/{spaceId}/{assetId}_2)");
     }
 
     // --- Helpers ---
