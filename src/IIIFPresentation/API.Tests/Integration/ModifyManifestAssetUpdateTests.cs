@@ -2689,7 +2689,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_AssetsFoundThroughItems_WhenManifestReplaced()
+    public async Task UpdateManifest_CheckEtagUpdated_WhenManifestReplacedAndAssetsFoundThroughItems()
     {
         // Arrange
         var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();

@@ -17,9 +17,6 @@ public class ManifestS3Manager(
     IManifestMerger manifestMerger,
     ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
-    /// <summary>
-    /// Writes a manifest to the final manifest location
-    /// </summary>
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
         Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken)
@@ -30,23 +27,8 @@ public class ManifestS3Manager(
 
         return mergedManifest;
     }
-
-    public async Task UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, bool saveToStaging,
-        CancellationToken cancellationToken)
-    {
-        if (!saveToStaging)
-        {
-            dbManifest.LastProcessed = DateTime.UtcNow;
-        }
-
-        await iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            saveToStaging, cancellationToken);
-    }
-
-    /// <summary>
-    /// Upserts a manifest from the staging environment
-    /// </summary>
-    public async Task UpsertManifestInStorage(Models.Database.Collections.Manifest dbManifest,
+    
+    public async Task UpsertManifestFromStagingInStorage(Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
@@ -57,6 +39,18 @@ public class ManifestS3Manager(
         await UpsertManifest(manifest!, dbManifest, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
+    }
+    
+    public async Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, bool saveToStaging,
+        CancellationToken cancellationToken)
+    {
+        await iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+            saveToStaging, cancellationToken);
+        
+        if (!saveToStaging)
+        {
+            dbManifest.LastProcessed = DateTime.UtcNow;
+        }
     }
     
     private async Task<Manifest> UpsertManifest(Manifest manifest, Models.Database.Collections.Manifest dbManifest, 
@@ -71,10 +65,7 @@ public class ManifestS3Manager(
             namedQueryManifest,
             dbManifest.CanvasPaintings);
 
-        await iiifS3.SaveIIIFToS3(mergedManifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
-            false, cancellationToken);
-        
-        dbManifest.LastProcessed = DateTime.UtcNow;
+        await SaveManifestInStorage(mergedManifest, dbManifest,false, cancellationToken);
         
         return mergedManifest;
     }
@@ -82,12 +73,21 @@ public class ManifestS3Manager(
 
 public interface IManifestStorageManager
 {
-    public Task UpsertManifestInStorage(Models.Database.Collections.Manifest dbManifest,
+    /// <summary>
+    /// Upserts a final manifest that requires setting items from the staging environment
+    /// </summary>
+    public Task UpsertManifestFromStagingInStorage(Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
     
+    /// <summary>
+    /// Upserts a manifest that requires setting items to the final location directly
+    /// </summary>
     public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
 
-    public Task UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+    /// <summary>
+    /// Saves a manifest that does not require further processing
+    /// </summary>
+    public Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         bool saveToStaging, CancellationToken cancellationToken);
 }

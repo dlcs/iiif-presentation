@@ -370,7 +370,7 @@ public class ManifestWriteService(
                 }
             }
 
-            await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, hasAssets,
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, hasAssets,
                 cancellationToken);
         }
 

@@ -65,7 +65,7 @@ public class BatchCompletionMessageHandler(
             try
             {
                 CompleteBatch(batch, batchCompletionMessage.Finished);
-                await manifestS3Manager.UpsertManifestInStorage(batch.Manifest!, cancellationToken);
+                await manifestS3Manager.UpsertManifestFromStagingInStorage(batch.Manifest!, cancellationToken);
             }
             catch (Exception e)
             {
