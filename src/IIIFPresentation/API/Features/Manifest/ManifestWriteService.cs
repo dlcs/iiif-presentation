@@ -343,12 +343,20 @@ public class ManifestWriteService(
         }
     }
 
+    /// <summary>
+    /// Saves a manifest into S3
+    /// </summary>
+    /// <param name="dbManifest">The manifest record</param>
+    /// <param name="request">The request made by the caller</param>
+    /// <param name="hasAssets">Whether there are any assets identified in the request</param>
+    /// <param name="canBeBuiltUpfront">Whether there's assets, but they're all tracked by the DLCS</param>
+    /// <param name="cancellationToken">A cancellation token</param>
+    /// <returns>A list of canvases to be returned to the caller</returns>
     private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-
-        // canBeBuiltUpfront is where there's assets, but they're all tracked by the DLCS
+        
         if (canBeBuiltUpfront && hasAssets)
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
