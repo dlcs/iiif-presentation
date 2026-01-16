@@ -216,7 +216,51 @@ public class PaintableAssetIdentifierTests
         result.Should().BeNull("the resolved asset is from an unrecognized domain");
     }
     
+    [Fact]
+    public void ResolvePaintableAsset_Image_ReturnsNull_WhenMultipleServicesPointToDifferentAssets()
+    {
+        const int customerId = 1;
+        const int spaceId = 2;
+        const string assetId = "abc";
+        
+        var image = new Image { Service = [
+            new ImageService3 { Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg" }, 
+            new ImageService3 { Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}_2/full/155,200/0/default.jpg" }
+        ]};
+
+        Action act = () => pai.ResolvePaintableAsset(image, customerId);
+        act.Should()
+            .Throw<PaintableAssetException>("we prohibit images that point to different assets in services")
+            .WithMessage(
+                $"Suspected asset from image services reference different assets ({customerId}/{spaceId}/{assetId}) and ({customerId}/{spaceId}/{assetId}_2)");
+    }
     
+    [Fact]
+    public void ResolvePaintableAsset_Image_ReturnsNull_WhenMultipleServicesPointToDifferentAssetsWithBodyMatchingFirst()
+    {
+        const int customerId = 1;
+        const int spaceId = 2;
+        const string assetId = "abc";
+
+        var id =
+            $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}/full/155,200/0/default.jpg";
+        
+        var image = new Image 
+        { 
+            Id = id, 
+            Service = 
+            [
+                new ImageService3 { Id = id }, 
+                new ImageService3 { Id = $"{dlcsSettings.OrchestratorUri}/iiif-img/v3/{customerId}/{spaceId}/{assetId}_2/full/155,200/0/default.jpg" }
+            ]
+        };
+
+        Action act = () => pai.ResolvePaintableAsset(image, customerId);
+        act.Should()
+            .Throw<PaintableAssetException>("we prohibit images that point to different assets in services")
+            .WithMessage(
+                $"Suspected asset from image services reference different assets ({customerId}/{spaceId}/{assetId}) and ({customerId}/{spaceId}/{assetId}_2)");
+    }
 
     // --- Helpers ---
     class UnrecognizedPaintable : IPaintable

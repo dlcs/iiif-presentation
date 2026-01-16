@@ -50,7 +50,8 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
         if (fromServices is not null
             && fromBody is not null
             && fromServices != fromBody)
-            throw new PaintableAssetException(fromBody, fromServices);
+            throw new PaintableAssetException(fromBody, fromServices,
+                $"Suspected asset from image body ({fromBody}) and services ({fromServices}) point to different managed assets");
 
         return fromServices ?? fromBody;
     }
@@ -58,22 +59,36 @@ public partial class PaintableAssetIdentifier(IOptionsMonitor<DlcsSettings> dlcs
     private AssetId? ResolveFromImageServices(List<IService>? services, int customerId)
     {
         if (services is null) return null;
+        AssetId? assetFromServices = null;
+        var regex = CanonicalImageRegex();
 
         foreach (var service in services)
         {
+            AssetId? resultFromService = null;
+
             switch (service)
             {
                 case ImageService3 service3:
-                    if (ParseId(CanonicalImageRegex(), service3.Id, customerId) is {} result3) return result3;
+                    if (ParseId(regex, service3.Id, customerId) is {} result3) resultFromService = result3;
                     break;
                 case ImageService2 service2:
-                    if (ParseId(CanonicalImageRegex(), service2.Id, customerId) is {} result2) return result2;
+                    if (ParseId(regex, service2.Id, customerId) is {} result2) resultFromService = result2;
                     break;
-                // default: break;
             }
+
+            var hasMismatchBetweenServices = assetFromServices != null && resultFromService != null &&
+                                             assetFromServices != resultFromService;
+
+            if (hasMismatchBetweenServices)
+            {
+                throw new PaintableAssetException(assetFromServices!, resultFromService!,
+                    $"Suspected asset from image services reference different assets ({assetFromServices}) and ({resultFromService})");
+            }
+            
+            assetFromServices ??= resultFromService;
         }
 
-        return null; // no recognizable asset id found
+        return assetFromServices;
     }
     
 
