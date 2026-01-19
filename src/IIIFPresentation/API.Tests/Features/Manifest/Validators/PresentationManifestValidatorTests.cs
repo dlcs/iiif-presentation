@@ -140,8 +140,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
                 new PaintedResource
@@ -149,8 +148,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
-                        CanvasOrder = 2,
-                        ChoiceOrder = 1
+                        CanvasOrder = 2
                     }
                 }
             ],
@@ -203,8 +201,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting()
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
                 new PaintedResource
@@ -308,8 +305,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
                 new PaintedResource
@@ -317,8 +313,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
-                        CanvasOrder = 2,
-                        ChoiceOrder = 1
+                        CanvasOrder = 2
                     }
                 }
             ],
@@ -326,5 +321,52 @@ public class PresentationManifestValidatorTests
         
         var result = sut.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder_NoCanvasOrderSet()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
     }
 }

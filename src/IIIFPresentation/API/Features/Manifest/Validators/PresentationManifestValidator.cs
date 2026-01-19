@@ -31,6 +31,14 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 .Any(grp => grp.Select(pr => pr.CanvasPainting.CanvasId).Distinct().Count() > 1))
             .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
             .WithMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
+        
+        RuleFor(m => m.PaintedResources)
+            .Must(lpr => !lpr
+                .Where(pr => pr.CanvasPainting?.ChoiceOrder > 0)
+                .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
+                .Any(g => g.Count() == 1))
+            .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
 
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr.Where(pr => pr.CanvasPainting.CanvasOrder != null)
