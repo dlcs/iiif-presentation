@@ -346,4 +346,27 @@ public class PresentationManifestValidatorTests
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("Canvases with a single 'canvasOrder' cannot have a positive 'choiceOrder'");
     }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder_NoCanvasOrderSet()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Canvases with a single 'canvasOrder' cannot have a positive 'choiceOrder'");
+    }
 }
