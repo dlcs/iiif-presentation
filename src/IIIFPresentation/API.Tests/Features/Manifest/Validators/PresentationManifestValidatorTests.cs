@@ -344,7 +344,7 @@ public class PresentationManifestValidatorTests
         
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
-            .WithErrorMessage("Canvases with a single 'canvasOrder' cannot have a positive 'choiceOrder'");
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
     }
     
     [Fact]
@@ -367,6 +367,6 @@ public class PresentationManifestValidatorTests
         
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
-            .WithErrorMessage("Canvases with a single 'canvasOrder' cannot have a positive 'choiceOrder'");
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
     }
 }
