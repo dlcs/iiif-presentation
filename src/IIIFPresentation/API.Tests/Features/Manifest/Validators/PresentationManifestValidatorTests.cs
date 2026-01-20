@@ -324,7 +324,7 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void PaintedResource_Manifest_NoErrorForNullChoiceOrderInFilledOutXChoiceConstruct()
+    public void PaintedResource_Manifest_NoError_ForNullChoiceOrderInFilledOutChoiceConstruct()
     {
         var manifest = new PresentationManifest
         {
