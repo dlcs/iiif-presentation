@@ -324,6 +324,40 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
+    public void PaintedResource_Manifest_NoError_ForNullChoiceOrderInFilledOutChoiceConstruct()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 0
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().NotContain(e =>
+            e.ErrorMessage ==
+            "'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
     public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder()
     {
         var manifest = new PresentationManifest
@@ -368,5 +402,36 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenNullChoiceOrder_InChoice()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
     }
 }

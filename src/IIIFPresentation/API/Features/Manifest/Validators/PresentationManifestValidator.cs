@@ -34,9 +34,9 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
         
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr
-                .Where(pr => pr.CanvasPainting?.ChoiceOrder > 0)
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
-                .Any(g => g.Count() == 1))
+                .Where(g => g.Count() == 1)
+                .Any(grp => grp.Any(pr => pr.CanvasPainting?.ChoiceOrder > 0)))
             .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
             .WithMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
 
@@ -50,6 +50,13 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 }))
             .When(m => m.PaintedResources.All(pr => pr.CanvasPainting?.ChoiceOrder != null))
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
+        
+        RuleFor(m => m.PaintedResources)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting!.CanvasOrder != null && pr.CanvasPainting.CanvasId != null && pr.CanvasPainting.ChoiceOrder == null)
+                .GroupBy(pr => new {pr.CanvasPainting!.CanvasId, pr.CanvasPainting.CanvasOrder})
+                .Any(grp => grp.Count() > 1))
+            .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
+            .WithMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
         
         RuleForEach(f => f.PaintedResources)
             .Where(pr => pr.CanvasPainting != null)
