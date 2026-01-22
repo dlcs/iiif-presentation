@@ -16,7 +16,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
     {
         var path = context.Request.Path.Value;
 
-        if (context.Request.Method == HttpMethods.Get && (path?.EndsWith('/') ?? false))
+        if (context.Request.Method == HttpMethods.Get && (path?.EndsWith('/') ?? false) && path != "/")
         {
             logger.LogDebug("Trailing slash redirect detected");
             var pathElements = path.Split('/');
