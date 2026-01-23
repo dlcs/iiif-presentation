@@ -205,7 +205,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be("FirstChildManifest");
-        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
+        manifest.PublicId.Should().Be("https://localhost:7230/1/iiif-manifest",
+            "iiif-manifest is slug and under root + different slug due to using settings based path generator");
     }
 
     [Fact]
@@ -259,8 +260,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
             manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
             manifest.FlatId.Should().Be("AStillIngestingManifest");
-            manifest.PublicId.Should().Be("http://localhost/1/an-iiif-manifest-ingesting",
-                "an-iiif-manifest-ingesting is slug and under root");
+            manifest.PublicId.Should().Be("https://localhost:7230/1/an-iiif-manifest-ingesting",
+                "an-iiif-manifest-ingesting is slug and under root + different slug due to using settings based path generator");
        
     }
 
@@ -392,7 +393,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
         manifest.Items.Should().HaveCount(2, "there are 2 canvas painting records");
         manifest.FlatId.Should().Be(id);
-        manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
+        manifest.PublicId.Should().Be($"https://localhost:7230/1/sm_{id}",
+            "iiif-manifest is slug and under root + different slug due to using settings based path generator");
         manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
         {
             Total = 2,

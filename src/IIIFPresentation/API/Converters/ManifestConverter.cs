@@ -25,12 +25,13 @@ public static class ManifestConverter
     /// <param name="iiifManifest">Presentation Manifest to update</param>
     /// <param name="dbManifest">Database Manifest</param>
     /// <param name="pathGenerator">used to generate paths</param>
+    /// <param name="settingsBasedPathGenerator">used to generate paths that should point to the same location as a generated manifest would have</param>
     /// <param name="assets"></param>
     /// <param name="hierarchyFactory">
     ///     Optional factory to specify <see cref="Hierarchy"/> to use to get Parent and Slug. Defaults to using .Single()
     /// </param>
     public static PresentationManifest SetGeneratedFields(this PresentationManifest iiifManifest,
-        Manifest dbManifest, IPathGenerator pathGenerator, Dictionary<string, JObject>? assets = null,
+        Manifest dbManifest, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, Dictionary<string, JObject>? assets = null,
         Func<Manifest, Hierarchy>? hierarchyFactory = null)
     {
         hierarchyFactory ??= manifest => manifest.Hierarchy.ThrowIfNull(nameof(manifest.Hierarchy)).Single();
@@ -39,7 +40,7 @@ public static class ManifestConverter
         
         iiifManifest.Id = pathGenerator.GenerateFlatManifestId(dbManifest);
         iiifManifest.FlatId = dbManifest.Id;
-        iiifManifest.PublicId = pathGenerator.GenerateHierarchicalId(hierarchy);
+        iiifManifest.PublicId = settingsBasedPathGenerator.GenerateHierarchicalId(hierarchy);
         iiifManifest.Created = dbManifest.Created.Floor(DateTimeX.Precision.Second);
         iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
         iiifManifest.CreatedBy = dbManifest.CreatedBy;

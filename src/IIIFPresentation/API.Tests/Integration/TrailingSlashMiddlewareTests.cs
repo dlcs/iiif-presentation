@@ -109,10 +109,33 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location?.Should().Be(expectedPath);
     }
     
+    [Theory]
+    [InlineData("404/collections/root/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/collections/root")]
+    [InlineData("404/manifests/root/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/manifests/root")]
+    [InlineData("404/canvases/root/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/canvases/root")]
+    [InlineData("404/hierarchical/path/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/hierarchical/path")]
+    [InlineData("some/random/path/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/some/random/path")] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
+    [InlineData("404/test/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/test")]
+    [InlineData("/", HttpStatusCode.NotFound, null)]
+    [InlineData("404/", HttpStatusCode.NotFound, null)] // route domain redirect detected for a forwarded subdirectory, so allowed through. i.e.: found "http://no-customer-multiple-path-element.com/has/multiple/additional/elements"
+    public async Task TrailingSlash_RewrittenPathMatches_NoCustomerWithMultiplePathElementRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, path);
+        HttpRequestMessageBuilder.AddHostNoCustomerMultiplePathElementHeader(requestMessage);
+        
+        // Act
+        var response = await httpClient.AsCustomer(402).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(expectedStatusCode);
+        response.Headers.Location?.Should().Be(expectedPath);
+    }
+    
     [Fact]
     public async Task TrailingSlash_NoRedirect_WhenNotGet()
     {
-        // Arrange
+        // Arrange+
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, "some/path/");
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
         

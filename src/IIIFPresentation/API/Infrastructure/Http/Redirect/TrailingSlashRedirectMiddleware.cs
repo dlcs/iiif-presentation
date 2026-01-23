@@ -88,20 +88,29 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
     {
         var template =
             settings.GetPathTemplateForHostAndType(context.Request.Host.Value, presentationServiceType);
-        var templateToCheck = template.Split('/')[1];
-        
-        // if it's {, it's an interpreted template value, so assume it's on the route domain
-        if (templateToCheck.First().Equals('{'))
+
+        var templateToCheck = template.Split('/');
+        var finalPathTemplate = string.Empty;
+
+        foreach (var templateSection in templateToCheck)
         {
-            templateToCheck = "/";
-        }
-        else
-        {
-            // case where there's an additional path element i.e.: /test/{hierarchyPath}
-            templateToCheck = "/" + templateToCheck;
+            // if the first character is '{', it's an interpreted template value, so we can stop checking
+            if (templateSection.Length != 0 && templateSection.First().Equals('{'))
+            {
+                // length of 1 means that this path is matching against the route domain, without additional path elements
+                // so '/' is acceptable, but "/test/test/" has to become "/test/test"
+                if (finalPathTemplate.Length != 1)
+                {
+                    finalPathTemplate = finalPathTemplate.TrimEnd('/');
+                }
+                
+                break;
+            }
+
+            finalPathTemplate += $"{templateSection}/";
         }
 
-        return templateToCheck;
+        return finalPathTemplate;
     }
 
     private string WorkOutRedirectTemplate(string? pathType) =>

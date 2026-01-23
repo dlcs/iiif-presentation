@@ -35,9 +35,15 @@ public static class HttpRequestMessageBuilder
     {
         requestMessage.Headers.Add("Host", "no-customer.com");
     }
+    
     public static void AddHostNoCustomerAdditionalPathElementHeader(HttpRequestMessage requestMessage)
     {
         requestMessage.Headers.Add("Host", "no-customer-additional-path-element.com");
+    }
+    
+    public static void AddHostNoCustomerMultiplePathElementHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Host", "no-customer-multiple-path-element.com");
     }
     
     public static void AddLinkHeader(HttpRequestMessage requestMessage)
