@@ -40,6 +40,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location!.Should().Be(expectedPath);
     }
     
+    // 401 is a customer that doesn't exist in the test system - will cause NotFound to be returned if no redirect
     [Theory]
     [InlineData("401/collections/root/", HttpStatusCode.Found, "http://example.com/foo/401/collections/root")]
     [InlineData("401/manifests/root/", HttpStatusCode.Found, "http://example.com/example/401/manifests/root")]
@@ -63,6 +64,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location?.Should().Be(expectedPath);
     }
     
+    // 402 is a customer that doesn't exist in the test system - will cause NotFound to be returned if no redirect
     [Theory]
     [InlineData("402/collections/root/", HttpStatusCode.Found, "http://no-customer.com/collections/root")]
     [InlineData("402/manifests/root/", HttpStatusCode.Found, "http://no-customer.com/manifests/root")]
@@ -86,6 +88,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location?.Should().Be(expectedPath);
     }
     
+    // 403 is a customer that doesn't exist in the test system - will cause NotFound to be returned if no redirect
     [Theory]
     [InlineData("403/collections/root/", HttpStatusCode.Found, "http://no-customer-additional-path-element.com/test/collections/root")]
     [InlineData("403/manifests/root/", HttpStatusCode.Found, "http://no-customer-additional-path-element.com/test/manifests/root")]
@@ -109,6 +112,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location?.Should().Be(expectedPath);
     }
     
+    // 404 is a customer that doesn't exist in the test system - will cause NotFound to be returned if no redirect
     [Theory]
     [InlineData("404/collections/root/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/collections/root")]
     [InlineData("404/manifests/root/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/manifests/root")]
