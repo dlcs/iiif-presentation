@@ -80,20 +80,24 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
     /// <summary>
     /// Gets a path template to check against in the correct format
     /// </summary>
-    /// <remarks>This method essentially handles cases with additional path elements, as well as the route domain</remarks>
+    /// <remarks>
+    /// This method essentially handles cases with additional path elements which act like the route domain,
+    /// as well as the route domain directly
+    /// </remarks>
     private string GetPathTemplateToCheck(HttpContext context, string presentationServiceType)
     {
         var template =
             settings.GetPathTemplateForHostAndType(context.Request.Host.Value, presentationServiceType);
         var templateToCheck = template.Split('/')[1];
         
-        // if it's {, it's an interpreted template value, so assume it's on the route
+        // if it's {, it's an interpreted template value, so assume it's on the route domain
         if (templateToCheck.First().Equals('{'))
         {
             templateToCheck = "/";
         }
         else
         {
+            // case where there's an additional path element i.e.: /test/{hierarchyPath}
             templateToCheck = "/" + templateToCheck;
         }
 
