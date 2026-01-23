@@ -144,7 +144,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.Should().Be("http://localhost/1/manifests/FirstChildManifest");
+        response.Headers.Location!.Should().Be("http://localhost/1/manifests/FirstChildManifest",
+            "using the host based path generator");
     }
     
     [Fact]
@@ -167,8 +168,23 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.AbsolutePath.Should().Be("/1/iiif-manifest");
+        response.Headers.Location.Should().Be("https://localhost:7230/1/iiif-manifest",
+            "using the settings based path generator");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsSettingsBasedRedirect_WhenUsingRedirectHeader()
+    {
+        // Arrange and Act
+        var requestMessage =
+            new HttpRequestMessage(HttpMethod.Get, "1/manifests/FirstChildManifest");
+        HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().Be("https://localhost:7230/1/iiif-manifest",
+            "using the settings based path generator");
     }
     
     [Fact]
@@ -183,7 +199,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.AbsolutePath.Should().Be("/10/iiif-manifest");
+        response.Headers.Location.Should().Be("https://localhost:7230/10/iiif-manifest",
+            "using the settings based path generator");
     }
 
     [Fact]

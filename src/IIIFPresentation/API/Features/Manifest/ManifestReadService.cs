@@ -50,7 +50,7 @@ public class ManifestReadService(
         {
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
-                FullPath = pathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
+                FullPath = settingsBasedPathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
             }, dbManifest.Etag);
         }
 

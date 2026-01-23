@@ -13,6 +13,7 @@ using Repository;
 using Repository.Collections;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 
 namespace API.Features.Storage.Requests;
 
@@ -40,7 +41,8 @@ public class GetCollection(
     };
 }
 
-public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator) 
+public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator, 
+    SettingsBasedPathGenerator settingsBasedPathGenerator) 
     : IRequestHandler<GetCollection, FetchEntityResult<PresentationCollection>>
 {
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
@@ -85,7 +87,8 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
                 item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy));
 
             var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
-                request.RequestModifiers.Page, total, items, parentCollection, pathGenerator, orderByParameter);
+                request.RequestModifiers.Page, total, items, parentCollection, pathGenerator,
+                settingsBasedPathGenerator, orderByParameter);
 
             return FetchEntityResult<PresentationCollection>.Success(presentationCollection, collection.Etag);
         }
@@ -96,7 +99,9 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
 
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
-        var s3PresentationCollection = s3Collection.SetIIIFGeneratedFields(collection, parentCollection, pathGenerator);
+        var s3PresentationCollection =
+            s3Collection.SetIIIFGeneratedFields(collection, parentCollection, pathGenerator,
+                settingsBasedPathGenerator);
 
         return FetchEntityResult<PresentationCollection>.Success(s3PresentationCollection, collection.Etag);
     }

@@ -17,6 +17,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using Collection = Models.Database.Collections.Collection;
 
 namespace API.Features.Storage.Requests;
@@ -40,6 +41,7 @@ public class CreateCollectionHandler(
     IIIIFS3Service iiifS3,
     IdentityManager identityManager,
     IPathGenerator pathGenerator,
+    SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
     : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
@@ -121,7 +123,7 @@ public class CreateCollectionHandler(
             await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
-            settings.PageSize, CurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator); // there can be no items attached to this, as it's just been created
+            settings.PageSize, CurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator, settingsBasedPathGenerator); // there can be no items attached to this, as it's just been created
         
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
             enrichedPresentationCollection,

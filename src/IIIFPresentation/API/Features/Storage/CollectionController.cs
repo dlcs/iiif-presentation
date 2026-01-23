@@ -59,7 +59,7 @@ public class CollectionController(
                 ? this.PresentationNotFound()
                 : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
         }
-
+        
         return entityResult.Entity?.Behavior.IsPublic() ?? false
             ? SeeOther(entityResult.Entity.PublicId!)
             : this.PresentationNotFound();

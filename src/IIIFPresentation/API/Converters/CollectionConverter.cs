@@ -8,6 +8,7 @@ using Models.API.Collection;
 using Models.Database.General;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 using Collection = IIIF.Presentation.V3.Collection;
 using Manifest = IIIF.Presentation.V3.Manifest;
 using DbCollection = Models.Database.Collections.Collection;
@@ -35,9 +36,9 @@ public static class CollectionConverter
 
     public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
         int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items, DbCollection? parentCollection,
-        IPathGenerator pathGenerator, string? orderQueryParam = null) =>
+        IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, string? orderQueryParam = null) =>
         EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
-            parentCollection, pathGenerator, orderQueryParam);
+            parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
 
     /// <summary>
     /// Sets generated fields on a IIIF collection
@@ -46,17 +47,18 @@ public static class CollectionConverter
     /// <param name="dbCollection">The database record used to set fields</param>
     /// <param name="parentCollection">The parent collection</param>
     /// <param name="pathGenerator">A collection path generator</param>
+    /// <param name="settingsBasedPathGenerator">A path generator that uses settings</param>
     /// <returns>A IIIF collection with fields set specific to presentation collection</returns>
     public static PresentationCollection SetIIIFGeneratedFields(this PresentationCollection collection, 
-        DbCollection dbCollection, DbCollection? parentCollection, IPathGenerator pathGenerator) =>
-        EnrichIIIFCollection(collection, dbCollection, parentCollection, pathGenerator);
+        DbCollection dbCollection, DbCollection? parentCollection, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator) =>
+        EnrichIIIFCollection(collection, dbCollection, parentCollection, pathGenerator, settingsBasedPathGenerator);
 
     private static PresentationCollection EnrichIIIFCollection(PresentationCollection collection, 
-        DbCollection dbCollection, DbCollection? parentCollection,  IPathGenerator pathGenerator)
+        DbCollection dbCollection, DbCollection? parentCollection,  IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator)
     {
         var hierarchy = RetrieveHierarchy(dbCollection);
         
-        GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator);
+        GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator, settingsBasedPathGenerator);
 
         collection.Behavior ??= [];
         collection.Behavior.AddRange(GenerateBehavior(dbCollection) ?? []);
@@ -77,11 +79,12 @@ public static class CollectionConverter
     /// <param name="items">The list of items that use this collection as a </param>
     /// <param name="parentCollection">The parent collection current collection is part of</param>
     /// <param name="pathGenerator">A collection path generator</param>
+    /// <param name="settingsBasedPathGenerator">A path generator that uses settings to generate paths</param>
     /// <param name="orderQueryParam">Used to describe the type of ordering done</param>
     /// <returns>An enriched presentation collection</returns>
     public static PresentationCollection EnrichPresentationCollection(this PresentationCollection collection,
         DbCollection dbCollection, int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items,
-        DbCollection? parentCollection, IPathGenerator pathGenerator, string? orderQueryParam = null)
+        DbCollection? parentCollection, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, string? orderQueryParam = null)
     {
         items ??= [];
         
@@ -90,7 +93,7 @@ public static class CollectionConverter
         var orderQueryParamConverted = GenerateOrderQueryParamConverted(orderQueryParam);
         var hierarchy = RetrieveHierarchy(dbCollection);
         
-        GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator);
+        GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator, settingsBasedPathGenerator);
         
         collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
         collection.Behavior = GenerateBehavior(dbCollection);
@@ -109,10 +112,10 @@ public static class CollectionConverter
     }
     
     private static void GenerateCommonFields(PresentationCollection collection, DbCollection dbCollection, 
-        Hierarchy hierarchy, DbCollection? parentCollection, IPathGenerator pathGenerator)
+        Hierarchy hierarchy, DbCollection? parentCollection, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator)
     {
         collection.FlatId = dbCollection.Id;
-        collection.PublicId = pathGenerator.GenerateHierarchicalId(hierarchy);
+        collection.PublicId = settingsBasedPathGenerator.GenerateHierarchicalId(hierarchy);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;

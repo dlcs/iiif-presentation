@@ -125,7 +125,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}",
+            "using the host based path generator");
     }
     
     [Fact]
@@ -139,7 +140,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=2&pageSize=2");
+        response.Headers.Location!.Should().Be($"http://localhost/1/collections/{RootCollection.Id}?page=2&pageSize=2",
+            "using the host based path generator");
     }
     
     [Fact]
@@ -150,7 +152,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1");
+        response.Headers.Location!.Should().Be("https://localhost:7230/1",
+            "using the settings based path generator");
     }
     
     [Fact]
@@ -164,7 +167,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1");
+        response.Headers.Location!.Should().Be("https://localhost:7230/1",
+            "using the settings based path generator");
     }
     
     [Fact]
@@ -179,7 +183,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1");
+        response.Headers.Location!.Should().Be("https://localhost:7230/1",
+            "different host due to using the settings based path generator");
     }
     
     [Fact]
@@ -193,7 +198,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/1");
+        response.Headers.Location!.Should().Be("https://localhost:7230/1",
+            "using the settings based path generator");
     }
     
     [Fact]
@@ -204,7 +210,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://localhost/10");
+        response.Headers.Location!.Should().Be("https://localhost:7230/10",
+            "using the settings based path generator");
     }
 
     [Fact]
@@ -263,7 +270,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         collection.FlatId.Should().Be(RootCollection.Id);
-        collection.PublicId.Should().Be("http://localhost/1");
+        collection.PublicId.Should().Be("https://localhost:7230/1",
+            "different host due to using the settings based path generator");
         collection.Items!.Count.Should().Be(TotalDatabaseChildItems);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
@@ -304,7 +312,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
         collection.FlatId.Should().Be("FirstChildCollection");
-        collection.PublicId.Should().Be("http://localhost/1/first-child");
+        collection.PublicId.Should().Be("https://localhost:7230/1/first-child",
+            "different host due to using the settings based path generator");
         collection.Items!.Count.Should().Be(1);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
         collection.TotalItems.Should().Be(1);
@@ -329,7 +338,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         flatResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         flatCollection!.Id.Should().Be("http://localhost/1/collections/NonPublic");
         flatCollection.FlatId.Should().Be("NonPublic");
-        flatCollection.PublicId.Should().Be("http://localhost/1/non-public");
+        flatCollection.PublicId.Should().Be("https://localhost:7230/1/non-public",
+            "different host due to using the settings based path generator");
         flatCollection.Items.Should().BeNull("There are no children");
         flatCollection.CreatedBy.Should().Be("admin");
         flatCollection.Behavior.Should().Contain("storage-collection");
@@ -402,7 +412,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.PublicId.Should().Be("http://localhost/1");
+        collection.PublicId.Should().Be("https://localhost:7230/1",
+            "different host due to using the settings based path generator");
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/FirstChildCollection");
     }
     
@@ -419,7 +430,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
         
         // Assert
-        collection.PublicId.Should().Be("http://localhost/1/first-child");
+        collection.PublicId.Should().Be("https://localhost:7230/1/first-child",
+            "different host due to using the settings based path generator");
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://localhost/1/collections/SecondChildCollection");
     }
     
@@ -617,7 +629,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.View.Should().BeNull();
         collection.TotalItems.Should().BeNull();
         collection.Totals.Should().BeNull();
-        collection.PublicId.Should().Be("http://localhost/1/iiif-collection");
+        collection.PublicId.Should().Be("https://localhost:7230/1/iiif-collection",
+            "different host due to using the settings based path generator");
         collection.Id.Should().Be("http://localhost/1/collections/IiifCollection");
         collection.Items.Should().BeNull();
     }
@@ -642,7 +655,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         collection.Items.Should().HaveCount(2);
         collection.View.Should().BeNull();
         collection.TotalItems.Should().BeNull();
-        collection.PublicId.Should().Be("http://localhost/1/iiif-collection-with-items");
+        collection.PublicId.Should().Be("https://localhost:7230/1/iiif-collection-with-items",
+            "different host due to using the settings based path generator");
         collection.Id.Should().Be($"http://localhost/{url}");
     }
     
@@ -690,7 +704,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("http://example.com/example/1");
+        response.Headers.Location!.Should().Be("https://localhost:7230/1", "using the settings based path generator");
     }
     
     [Fact]
@@ -731,7 +745,8 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         collection!.Id.Should().Be($"http://example.com/foo/1/collections/{RootCollection.Id}");
         collection.FlatId.Should().Be(RootCollection.Id);
-        collection.PublicId.Should().Be("http://example.com/example/1");
+        collection.PublicId.Should().Be("https://localhost:7230/1",
+            "different host due to using the settings based path generator");
         collection.Items.Should().HaveCount(TotalDatabaseChildItems);
         collection.Items.OfType<Collection>().First().Id.Should().Be("http://example.com/foo/1/collections/FirstChildCollection");
         collection.TotalItems.Should().Be(TotalDatabaseChildItems);
