@@ -46,6 +46,16 @@ public static class HttpRequestMessageBuilder
         requestMessage.Headers.Add("Host", "no-customer-multiple-path-element.com");
     }
     
+    public static void AddHostFullyQualifiedCustomerHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Host", "fully-qualified.com");
+    }
+    
+    public static void AddHostFullyQualifiedNoCustomerHeader(HttpRequestMessage requestMessage)
+    {
+        requestMessage.Headers.Add("Host", "fully-qualified-no-customer.com");
+    }
+    
     public static void AddLinkHeader(HttpRequestMessage requestMessage)
     {
         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");

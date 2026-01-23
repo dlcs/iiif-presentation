@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Infrastructure.Requests;
+using Core.Paths;
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Models.API.General;
@@ -76,41 +77,20 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
             await next(context);
         }
     }
-
-    /// <summary>
-    /// Gets a path template to check against in the correct format
-    /// </summary>
-    /// <remarks>
-    /// This method essentially handles cases with additional path elements which act like the route domain,
-    /// as well as the route domain directly
-    /// </remarks>
+    
     private string GetPathTemplateToCheck(HttpContext context, string presentationServiceType)
     {
         var template =
             settings.GetPathTemplateForHostAndType(context.Request.Host.Value, presentationServiceType);
 
-        var templateToCheck = template.Split('/');
-        var finalPathTemplate = string.Empty;
+        var pathFromTemplate = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template);
 
-        foreach (var templateSection in templateToCheck)
+        if (Uri.TryCreate(pathFromTemplate, UriKind.Absolute, out var url))
         {
-            // if the first character is '{', it's an interpreted template value, so we can stop checking
-            if (templateSection.Length != 0 && templateSection.First().Equals('{'))
-            {
-                // length of 1 means that this path is matching against the route domain, without additional path elements
-                // so '/' is acceptable, but "/test/test/" has to become "/test/test"
-                if (finalPathTemplate.Length != 1)
-                {
-                    finalPathTemplate = finalPathTemplate.TrimEnd('/');
-                }
-                
-                break;
-            }
-
-            finalPathTemplate += $"{templateSection}/";
+            pathFromTemplate = url.AbsolutePath;
         }
-
-        return finalPathTemplate;
+        
+        return pathFromTemplate == string.Empty ? "/" : pathFromTemplate;
     }
 
     private string WorkOutRedirectTemplate(string? pathType) =>

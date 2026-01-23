@@ -136,6 +136,53 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
         response.Headers.Location?.Should().Be(expectedPath);
     }
     
+    // 405 is a customer that doesn't exist in the test system - will cause NotFound to be returned if no redirect
+    [Theory]
+    [InlineData("405/collections/root/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405/collections/root")]
+    [InlineData("405/manifests/root/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405/manifests/root")]
+    [InlineData("405/canvases/root/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405/canvases/root")]
+    [InlineData("405/hierarchical/path/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405/hierarchical/path")]
+    [InlineData("some/random/path/", HttpStatusCode.Found, "http://fully-qualified.com/some/random/path")] // cannot pick up a customer, so just return with calling path
+    [InlineData("405/test/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405/test")]
+    [InlineData("/", HttpStatusCode.NotFound, null)] 
+    [InlineData("405/", HttpStatusCode.Found, "https://fully_qualified.co.uk/405")]
+    public async Task TrailingSlash_RewrittenPathMatches_FullyQualifiedCustomerRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, path);
+        HttpRequestMessageBuilder.AddHostFullyQualifiedCustomerHeader(requestMessage);
+        
+        // Act
+        var response = await httpClient.AsCustomer(402).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(expectedStatusCode);
+        response.Headers.Location?.Should().Be(expectedPath);
+    }
+    
+    [Theory]
+    [InlineData("406/collections/root/", HttpStatusCode.Found, "https://fully_qualified_no_customer.co.uk/collections/root")]
+    [InlineData("406/manifests/root/", HttpStatusCode.Found, "https://fully_qualified_no_customer.co.uk/manifests/root")]
+    [InlineData("406/canvases/root/", HttpStatusCode.Found, "https://fully_qualified_no_customer.co.uk/canvases/root")]
+    [InlineData("406/hierarchical/path/", HttpStatusCode.Found, "https://fully_qualified_no_customer.co.uk/hierarchical/path")]
+    [InlineData("some/random/path/", HttpStatusCode.Found, "http://fully-qualified-no-customer.com/some/random/path")] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
+    [InlineData("406/test/", HttpStatusCode.Found, "https://fully_qualified_no_customer.co.uk/test")]
+    [InlineData("/", HttpStatusCode.NotFound, null)] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
+    [InlineData("406/", HttpStatusCode.NotFound, null)] // route domain redirect detected for a forwarded subdirectory, so allowed through. i.e.: found "https://fully_qualified_no_customer.co.uk"
+    public async Task TrailingSlash_RewrittenPathMatches_FullyQualifiedNoCustomerRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, path);
+        HttpRequestMessageBuilder.AddHostFullyQualifiedNoCustomerHeader(requestMessage);
+        
+        // Act
+        var response = await httpClient.AsCustomer(402).SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(expectedStatusCode);
+        response.Headers.Location?.Should().Be(expectedPath);
+    }
+    
     [Fact]
     public async Task TrailingSlash_NoRedirect_WhenNotGet()
     {
