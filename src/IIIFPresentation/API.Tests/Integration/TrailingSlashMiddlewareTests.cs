@@ -72,7 +72,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
     [InlineData("402/hierarchical/path/", HttpStatusCode.Found, "http://no-customer.com/hierarchical/path")]
     [InlineData("some/random/path/", HttpStatusCode.Found, "http://no-customer.com/some/random/path")] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("402/test/", HttpStatusCode.Found, "http://no-customer.com/test")]
-    [InlineData("/", HttpStatusCode.NotFound, null)]
+    [InlineData("/", HttpStatusCode.NotFound, null)] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("402/", HttpStatusCode.NotFound, null)] // route domain redirect detected, so allowed through. i.e.: found "http://no-customer.com"
     public async Task TrailingSlash_RewrittenPathMatches_NoCustomerRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
     {
@@ -96,7 +96,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
     [InlineData("403/hierarchical/path/", HttpStatusCode.Found, "http://no-customer-additional-path-element.com/test/hierarchical/path")]
     [InlineData("some/random/path/", HttpStatusCode.Found, "http://no-customer-additional-path-element.com/some/random/path")] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("403/test/", HttpStatusCode.Found, "http://no-customer-additional-path-element.com/test/test")]
-    [InlineData("/", HttpStatusCode.NotFound, null)]
+    [InlineData("/", HttpStatusCode.NotFound, null)] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("403/", HttpStatusCode.NotFound, null)] // route domain redirect detected for a forwarded subdirectory, so allowed through. i.e.: found "http://no-customer-additional-path-element.com/test"
     public async Task TrailingSlash_RewrittenPathMatches_NoCustomerWithAdditionalPathElementRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
     {
@@ -120,7 +120,7 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
     [InlineData("404/hierarchical/path/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/hierarchical/path")]
     [InlineData("some/random/path/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/some/random/path")] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("404/test/", HttpStatusCode.Found, "http://no-customer-multiple-path-element.com/has/multiple/additional/elements/test")]
-    [InlineData("/", HttpStatusCode.NotFound, null)]
+    [InlineData("/", HttpStatusCode.NotFound, null)] // this can't happen in the wild (as it means they passed through without an origin adding a customer), but useful to test
     [InlineData("404/", HttpStatusCode.NotFound, null)] // route domain redirect detected for a forwarded subdirectory, so allowed through. i.e.: found "http://no-customer-multiple-path-element.com/has/multiple/additional/elements"
     public async Task TrailingSlash_RewrittenPathMatches_NoCustomerWithMultiplePathElementRedirects(string path, HttpStatusCode expectedStatusCode, string? expectedPath)
     {
