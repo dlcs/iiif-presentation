@@ -20,11 +20,11 @@ using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Repository.Helpers;
 using Repository.Paths;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using EntityTagHeaderValue = System.Net.Http.Headers.EntityTagHeaderValue;
 
 namespace API.Tests.Integration;
 
@@ -42,6 +42,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly JObject sampleAsset;
     private const string PaintedResource = "foo-paintedResource";
     private const string IngestingPaintedResource = "ingestingPaintedResource";
+    private const int NoCustomerRedirectCustomer = 602;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -185,6 +186,27 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location.Should().Be("https://localhost:7230/1/iiif-manifest",
             "using the settings based path generator");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsSettingsBasedRedirect_WhenUsingNoCustomerRedirect()
+    {
+        // Arrange
+        var manifest = await dbContext.Manifests.AddTestManifest(customer: NoCustomerRedirectCustomer);
+        await dbContext.SaveChangesAsync();
+        
+        var manifestEntity = manifest.Entity;
+        
+        var requestMessage =
+            new HttpRequestMessage(HttpMethod.Get, $"{NoCustomerRedirectCustomer}/manifests/{manifestEntity.Id}");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().Be($"https://no-customer.com/{manifestEntity.Hierarchy.GetCanonical().Slug}",
+            "using the settings based path generator for a customer set with the 'no customer' redirect in settings");
     }
     
     [Fact]

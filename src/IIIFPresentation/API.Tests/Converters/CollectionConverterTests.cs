@@ -93,7 +93,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null,pathGenerator, settingsBasedPathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.SeeAlso.Should().BeNull();
@@ -148,7 +148,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null,pathGenerator, settingsBasedPathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
@@ -179,7 +179,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null,pathGenerator, settingsBasedPathGenerator);
+            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");

@@ -708,6 +708,21 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
     }
     
     [Fact]
+    public async Task Get_Flat_ReturnsSettingsBasedRedirect_WhenUsingNoCustomerRedirect()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "602/collections/root");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().Be($"https://no-customer.com",
+            "using the settings based path generator for a customer set with the 'no customer' redirect in settings");
+    }
+    
+    [Fact]
     public async Task Get_Hierarchical_ReturnsWithRewrittenPaths_WhenAuthAndShowExtrasHeadersWithPathRewrites()
     {
         // Arrange

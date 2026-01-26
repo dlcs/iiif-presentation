@@ -44,10 +44,10 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
                     Uri.TryCreate(completedPath, UriKind.RelativeOrAbsolute, out var url);
                     var pathTemplateToCheck = GetPathTemplateToCheck(context, presentationServiceType);
 
-                    // Route domain has an implicit trailing slash, so in this case, no redirect should be performed
+                    // Host has an implicit trailing slash, so in this case, no redirect should be performed
                     if (url?.AbsolutePath == pathTemplateToCheck)
                     {
-                        logger.LogDebug("Detected that this path is a route domain, so no redirect required - {Path}", completedPath);
+                        logger.LogDebug("Detected that this path does not have any required subdirectories, so no redirect required - {Path}", completedPath);
                         completedPath = null;
                         await next(context);
                     }
