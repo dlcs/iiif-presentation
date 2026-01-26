@@ -1303,7 +1303,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should().BeNullOrEmpty();
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"https://localhost:7230/1/{slug}", "different host due to using the settings based path generator");
         responseManifest.FlatId.Should().Be(id);
     }
     

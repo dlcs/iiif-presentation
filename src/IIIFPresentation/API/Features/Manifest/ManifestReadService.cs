@@ -10,6 +10,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 
 namespace API.Features.Manifest;
 
@@ -26,9 +27,9 @@ public interface IManifestRead
 public class ManifestReadService(
     PresentationContext dbContext,
     IIIIFS3Service iiifS3,
-    IDlcsApiClient dlcsApiClient,
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IPathGenerator pathGenerator,
+    SettingsBasedPathGenerator settingsBasedPathGenerator,
     ILogger<ManifestReadService> logger) : IManifestRead
 {
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
@@ -49,7 +50,7 @@ public class ManifestReadService(
         {
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
-                FullPath = pathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
+                FullPath = settingsBasedPathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
             }, dbManifest.Etag);
         }
 
@@ -74,8 +75,8 @@ public class ManifestReadService(
                 "Unable to read and deserialize manifest from storage");
 
         var assets = await getAssets;
-        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, assets,
-            m => Enumerable.Single<Hierarchy>(m.Hierarchy!, h => h.Canonical));
+        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
+            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
 
         Guid? etag = dbManifest.Etag;
         if (dbManifest.IsIngesting())

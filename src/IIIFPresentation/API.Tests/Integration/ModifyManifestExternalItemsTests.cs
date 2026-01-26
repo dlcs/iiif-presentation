@@ -764,7 +764,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should()
             .ContainSingle(pr => pr.CanvasPainting.CanvasOriginalId == $"https://iiif.example/{slug}.json");
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"https://localhost:7230/1/{slug}", "different host due to using the settings based path generator");
         responseManifest.FlatId.Should().Be(id);
     }
     
@@ -901,7 +901,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should()
             .ContainSingle(pr => pr.CanvasPainting.CanvasOriginalId == dbCanvasPainting.CanvasOriginalId.ToString());
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"https://localhost:7230/1/{slug}", "different host due to using the settings based path generator");
         responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     

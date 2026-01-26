@@ -257,7 +257,7 @@ public class ManifestWriteService(
         WriteResult writeResult, CancellationToken cancellationToken)
     {
         return PresUpdateResult.Success(
-            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator,
+            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
                 await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
             hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
                 ? WriteResult.Accepted

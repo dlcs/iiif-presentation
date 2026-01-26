@@ -21,6 +21,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services.Manifests.Helpers;
 
 namespace API.Features.Storage.Requests;
 
@@ -44,6 +45,7 @@ public class UpsertCollectionHandler(
     ILogger<UpsertCollectionHandler> logger,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator,
+    SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
     : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
@@ -183,7 +185,7 @@ public class UpsertCollectionHandler(
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
-            parentCollection, pathGenerator);
+            parentCollection, pathGenerator, settingsBasedPathGenerator);
 
         return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }

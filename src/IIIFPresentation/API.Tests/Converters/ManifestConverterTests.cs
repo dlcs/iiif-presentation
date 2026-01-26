@@ -1,18 +1,17 @@
 ﻿using API.Converters;
 using Core.Infrastructure;
-using Core.Web;
+using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Models.API.Collection;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
-using Newtonsoft.Json.Linq;
-using NuGet.Configuration;
 using Repository.Paths;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DBManifest = Models.Database.Collections.Manifest;
@@ -26,7 +25,16 @@ public class ManifestConverterTests
 
     private readonly IPathRewriteParser pathRewriteParser =
         new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
-    
+
+    private readonly SettingsBasedPathGenerator settingsBasedPathGenerator = new(Options.Create(new DlcsSettings
+    {
+        ApiUri = new Uri("https://dlcs.api")
+    }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+    {
+        PresentationApiUrl = new Uri("https://settings-based:5000"),
+        PathRules = PathRewriteOptions.Default
+    })));
+
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()
     {
@@ -48,7 +56,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         result.Context.As<List<string>>().Should().BeEquivalentTo(expectedContexts);
@@ -65,14 +73,20 @@ public class ManifestConverterTests
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             Id = "id",
-            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            Hierarchy = [new Hierarchy
+            {
+                Slug = "slug", 
+                FullPath = "slug",
+                CustomerId = 123
+            }],
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         result.Id.Should().Be("http://base/123/manifests/id");
+        result.PublicId.Should().Be("https://settings-based:5000/123/slug", "different host due to using the settings based path generator");
     }
     
     [Fact]
@@ -92,7 +106,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         result.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
@@ -123,7 +137,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         result.Slug.Should().Be("hierarchy-slug");
@@ -154,7 +168,7 @@ public class ManifestConverterTests
         
         // Act
         var result =
-            iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, null, manifest => manifest.Hierarchy.Last());
+            iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, null, manifest => manifest.Hierarchy.Last());
 
         // Assert
         result.Slug.Should().Be("other-slug");
@@ -190,7 +204,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         var paintedResource = result.PaintedResources.Single();
@@ -230,7 +244,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         var paintedResource = result.PaintedResources.Single();
@@ -255,7 +269,7 @@ public class ManifestConverterTests
         };
         
         // Act
-        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator);
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         result.Space.Should().Be("https://dlcs.test/customers/123/spaces/321");

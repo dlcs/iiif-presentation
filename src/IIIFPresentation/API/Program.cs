@@ -110,8 +110,8 @@ var app = builder.Build();
 
 app
     .UseForwardedHeaders()
-    .UseMiddleware<TrailingSlashRedirectMiddleware>()
-    .UseMiddleware<CorrelationIdMiddleware>();
+    .UseMiddleware<CorrelationIdMiddleware>()
+    .UseMiddleware<TrailingSlashRedirectMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 
