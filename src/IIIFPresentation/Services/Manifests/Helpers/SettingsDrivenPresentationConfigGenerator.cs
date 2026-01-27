@@ -14,6 +14,11 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> se
 {
     private readonly PathSettings settings = settings.Value;
 
+    public bool HasPathForCustomer(int customerId)
+    {
+        return settings.CustomerPresentationApiUrl.ContainsKey(customerId);
+    }
+
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);

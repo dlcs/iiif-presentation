@@ -26,12 +26,18 @@ public class ManifestConverterTests
     private readonly IPathRewriteParser pathRewriteParser =
         new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
 
+    private const int SettingsBasedRedirectCustomer = 10;
+
     private readonly SettingsBasedPathGenerator settingsBasedPathGenerator = new(Options.Create(new DlcsSettings
     {
         ApiUri = new Uri("https://dlcs.api")
     }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
     {
         PresentationApiUrl = new Uri("https://settings-based:5000"),
+        CustomerPresentationApiUrl = new Dictionary<int, Uri>()
+        {
+            {SettingsBasedRedirectCustomer, new Uri("https://settings-based:7230")}
+        },
         PathRules = PathRewriteOptions.Default
     })));
 
@@ -86,7 +92,36 @@ public class ManifestConverterTests
 
         // Assert
         result.Id.Should().Be("http://base/123/manifests/id");
-        result.PublicId.Should().Be("https://settings-based:5000/123/slug", "different host due to using the settings based path generator");
+        result.PublicId.Should().Be("http://base/123/slug",
+            "falls back to using the host based path generator for customer 123");
+    }
+    
+    [Fact]
+    public void SetGeneratedFields_SetsRedirectedPublicId_WhenUsingSettingsBasedRedirect()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = SettingsBasedRedirectCustomer,
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            Id = "id",
+            Hierarchy = [new Hierarchy
+            {
+                Slug = "slug", 
+                FullPath = "slug",
+                CustomerId = SettingsBasedRedirectCustomer
+            }],
+        };
+        
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Id.Should().Be($"http://base/{SettingsBasedRedirectCustomer}/manifests/id");
+        result.PublicId.Should().Be($"https://settings-based:7230/{SettingsBasedRedirectCustomer}/slug",
+            "different host due to using the settings based path generator");
     }
     
     [Fact]

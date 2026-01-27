@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using API.Helpers;
+using Core.Helpers;
 using Core.IIIF;
 using Core.Infrastructure;
 using IIIF;
@@ -40,7 +41,7 @@ public static class ManifestConverter
         
         iiifManifest.Id = pathGenerator.GenerateFlatManifestId(dbManifest);
         iiifManifest.FlatId = dbManifest.Id;
-        iiifManifest.PublicId = settingsBasedPathGenerator.GenerateHierarchicalId(hierarchy);
+        iiifManifest.PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
         iiifManifest.Created = dbManifest.Created.Floor(DateTimeX.Precision.Second);
         iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
@@ -66,7 +67,7 @@ public static class ManifestConverter
         
         return iiifManifest;
     }
-    
+
     /// <summary>
     /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
     /// provisional canvases that have the structure of the final canvases without the full content-resource details, or completed canvases

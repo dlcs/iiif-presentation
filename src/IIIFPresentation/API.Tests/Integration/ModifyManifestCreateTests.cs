@@ -37,6 +37,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly IAmazonS3 amazonS3;
     private readonly IDlcsApiClient dlcsApiClient;
     private const int Customer = 1;
+    private const int ExampleCustomer = 601;
     private const int InvalidSpaceCustomer = 34512;
     private const int NewlyCreatedSpace = 999;
 
@@ -466,6 +467,46 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+        responseManifest.PaintedResources.Should().BeNullOrEmpty();
+        responseManifest.Space.Should().BeNull("No space was requested");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_ReturnsManifestWithPublicIdRedirect_WhenUsingASettingsBasedRedirectCustomer()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        var manifest =
+            $$"""
+
+              {
+                  "@context": "http://iiif.io/api/presentation/3/context.json",
+                  "id": "https://iiif.example/manifest.json",
+                  "type": "Manifest",
+                  "parent": "http://localhost/{{ExampleCustomer}}/collections/{{RootCollection.Id}}",
+                  "slug": "{{slug}}"
+              }
+              """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{ExampleCustomer}/manifests", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest.Id.Should().NotBeNull();
+        responseManifest.Created.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        responseManifest.CreatedBy.Should().Be("Admin");
+        responseManifest.Slug.Should().Be(slug);
+        responseManifest.Parent.Should().Be($"http://localhost/{ExampleCustomer}/collections/{RootCollection.Id}");
+        responseManifest.PublicId.Should().Be($"https://example.com/example/{ExampleCustomer}/{slug}",
+            "using the settings based redirect");
         responseManifest.PaintedResources.Should().BeNullOrEmpty();
         responseManifest.Space.Should().BeNull("No space was requested");
     }
@@ -1303,7 +1344,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should().BeNullOrEmpty();
-        responseManifest.PublicId.Should().Be($"https://localhost:7230/1/{slug}", "different host due to using the settings based path generator");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}",
+            "falls back to using the host based path generator for customer 1");
         responseManifest.FlatId.Should().Be(id);
     }
     

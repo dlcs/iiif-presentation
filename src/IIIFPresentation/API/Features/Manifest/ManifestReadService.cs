@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
 using DLCS.API;
@@ -50,7 +51,7 @@ public class ManifestReadService(
         {
             return FetchEntityResult<PresentationManifest>.Success(new()
             {
-                FullPath = settingsBasedPathGenerator.GenerateHierarchicalFromFullPath(customerId, await fetchFullPath)
+                FullPath = PublicIdGenerator.GetPublicIdFromFullPath(settingsBasedPathGenerator, pathGenerator, customerId, await fetchFullPath)
             }, dbManifest.Etag);
         }
 
