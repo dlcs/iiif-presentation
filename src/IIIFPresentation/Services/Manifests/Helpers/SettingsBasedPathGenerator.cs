@@ -12,4 +12,9 @@ public class SettingsBasedPathGenerator(
     : PathGeneratorBase(presentationPathGenerator)
 {
     protected override Uri DlcsApiUrl { get; } = dlcsOptions.Value.ApiUri;
+
+    public bool HasPathForCustomer(int customerId)
+    {
+        return presentationPathGenerator.HasPathForCustomer(customerId);
+    }
 }

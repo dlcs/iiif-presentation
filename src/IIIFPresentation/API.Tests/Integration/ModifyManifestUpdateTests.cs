@@ -287,7 +287,8 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
-        responseManifest.PublicId.Should().Be($"https://localhost:7230/1/{slug}", "different host due to using the settings based path generator");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}",
+            "falls back to using host based path generator for customer 1");
         responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     

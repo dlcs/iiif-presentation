@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using API.Helpers;
+using Core.Helpers;
 using Core.IIIF;
 using Core.Infrastructure;
 using IIIF.Presentation;
@@ -115,7 +116,7 @@ public static class CollectionConverter
         Hierarchy hierarchy, DbCollection? parentCollection, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator)
     {
         collection.FlatId = dbCollection.Id;
-        collection.PublicId = settingsBasedPathGenerator.GenerateHierarchicalId(hierarchy);
+        collection.PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
         collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
         collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
         collection.CreatedBy = dbCollection.CreatedBy;
