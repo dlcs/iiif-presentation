@@ -437,23 +437,7 @@ public class CollectionConverterTests
     public void ToPresentationCollection_ConvertsCollectionWithRedirectedPublicId_WhenUsingSettingsBasedCustomer()
     {
         // Arrange
-        var collection = new Collection
-        {
-            Id = "some-id",
-            CustomerId = SettingsBasedRedirectCustomer,
-            Created = DateTime.MinValue,
-            Modified = DateTime.MinValue,
-            Hierarchy = [
-                new Hierarchy
-                {
-                    CollectionId = "some-id",
-                    Slug = "root",
-                    CustomerId = SettingsBasedRedirectCustomer,
-                    Type = ResourceType.StorageCollection,
-                    Canonical = true
-                }
-            ]
-        };
+        var collection = CreateTestHierarchicalCollection(customerId: SettingsBasedRedirectCustomer);
 
         // Act
         var presentationCollection =
@@ -462,8 +446,26 @@ public class CollectionConverterTests
         // Assert
         presentationCollection.Id.Should().Be($"http://base/{SettingsBasedRedirectCustomer}/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
-        presentationCollection.PublicId.Should().Be($"https://settings-based:7230/{SettingsBasedRedirectCustomer}",
+        presentationCollection.PublicId.Should().Be($"https://settings-based:7230/{SettingsBasedRedirectCustomer}/top/some-id",
             "using the settings based path generator");
+    }
+    
+    [Fact]
+    public void ToPresentationCollection_PublicAndApiSeeAlsoWithSettingsBasedRedirects_IfUsingSettingsBasedRedirectsCustomer()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true, SettingsBasedRedirectCustomer);
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("https://settings-based:7230/10/top/some-id", "using the settings based path generator");
+        presentationCollection.SeeAlso[0].Profile.Should().Be("public-iiif");
+        presentationCollection.SeeAlso[1].Id.Should().Be("https://settings-based:7230/10/top/some-id", "using the settings based path generator");
+        presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
@@ -530,12 +532,12 @@ public class CollectionConverterTests
         return items;
     }
 
-    private static Collection CreateTestHierarchicalCollection(bool isStorageCollection = true, bool isPublic = false)
+    private static Collection CreateTestHierarchicalCollection(bool isStorageCollection = true, bool isPublic = false, int? customerId = null)
     {
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = CustomerId,
+            CustomerId = customerId ?? CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
@@ -551,7 +553,7 @@ public class CollectionConverterTests
                     CollectionId = "some-id",
                     Slug = "root",
                     Parent = "top",
-                    CustomerId = CustomerId,
+                    CustomerId = customerId ?? CustomerId,
                     Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
                     Canonical = true,
                     FullPath = "top/some-id"

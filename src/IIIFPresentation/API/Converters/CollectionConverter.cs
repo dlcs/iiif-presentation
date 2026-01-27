@@ -96,7 +96,7 @@ public static class CollectionConverter
         
         GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator, settingsBasedPathGenerator);
         
-        collection.SeeAlso = GenerateSeeAlso(dbCollection, pathGenerator);
+        collection.SeeAlso = GenerateSeeAlso(dbCollection, settingsBasedPathGenerator, pathGenerator);
         collection.Behavior = GenerateBehavior(dbCollection);
         collection.Totals = GetDescendantCounts(dbCollection, items);
         collection.Label = dbCollection.Label;
@@ -235,10 +235,11 @@ public static class CollectionConverter
     /// Generates the SeeAlso part of a collection
     /// </summary>
     /// <param name="collection">The collection to use in generation</param>
+    /// <param name="settingsBasedPathGenerator">Generates paths for collections from settings</param>
     /// <param name="pathGenerator">Generates paths for collections</param>
     /// <returns>A list of external resources</returns>
     private static List<ExternalResource>? GenerateSeeAlso(DbCollection collection, 
-        IPathGenerator pathGenerator)
+        SettingsBasedPathGenerator settingsBasedPathGenerator, IPathGenerator pathGenerator)
     {
         if (!collection.IsStorageCollection) return null;
         
@@ -259,7 +260,7 @@ public static class CollectionConverter
         void AddSeeAlso(string profile) =>
             seeAlso.Add(new ExternalResource(nameof(PresentationType.Collection))
             {
-                Id = pathGenerator.GenerateHierarchicalId(collection.Hierarchy.GetCanonical()),
+                Id = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, collection.Hierarchy.GetCanonical()),
                 Label = collection.Label,
                 Profile = profile,
             });
