@@ -1,12 +1,17 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Tests.Helpers;
+using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Models.Database.General;
 using Repository.Paths;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
+using Test.Helpers.Helpers;
 using Collection = Models.Database.Collections.Collection;
+using TestPathGenerator = API.Tests.Helpers.TestPathGenerator;
 
 #nullable disable
 
@@ -16,8 +21,22 @@ public class CollectionConverterTests
 {
     private const int PageSize = 100;
     private const int CustomerId = 1;
+    private const int SettingsBasedRedirectCustomer = 10;
     
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
+    
+    private readonly SettingsBasedPathGenerator settingsBasedPathGenerator = new(Options.Create(new DlcsSettings
+    {
+        ApiUri = new Uri("https://dlcs.api")
+    }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings
+    {
+        PresentationApiUrl = new Uri("http://base"),
+        CustomerPresentationApiUrl = new Dictionary<int, Uri>()
+        {
+            {SettingsBasedRedirectCustomer, new Uri("https://settings-based:7230")}
+        },
+        PathRules = PathRewriteOptions.Default
+    })));
 
     [Fact]
     public void ToHierarchicalCollection_ConvertsStorageCollection()
@@ -79,7 +98,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.SeeAlso.Should().BeNull();
@@ -93,7 +112,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.SeeAlso.Should().HaveCount(2);
@@ -134,12 +153,13 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
-        presentationCollection.PublicId.Should().Be("http://base/1");
+        presentationCollection.PublicId.Should().Be("http://base/1",
+            "falls back to using the host based path generator for customer 1");
         presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
@@ -165,12 +185,13 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null, pathGenerator);
+            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
-        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
@@ -198,12 +219,13 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            storageRoot.ToPresentationCollection(1, 2, 3, CreateTestItems(), null, pathGenerator, "orderBy=created");
+            storageRoot.ToPresentationCollection(1, 2, 3, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator, "orderBy=created");
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
-        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
@@ -234,12 +256,13 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), parentCollection, pathGenerator);
+            storageRoot.ToPresentationCollection(PageSize, 1, 0, CreateTestItems(), parentCollection,pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Id.Should().Be("http://base/1/collections/some-id");
         presentationCollection.FlatId.Should().Be("some-id");
-        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollection.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollection.Label!.Should().HaveCount(1);
         presentationCollection.Label["en"].Should().Contain("repository root");
         presentationCollection.Slug.Should().Be("root");
@@ -287,7 +310,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, items, null,pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Totals.Should().BeEquivalentTo(expectedCounts);
@@ -319,7 +342,7 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollection =
-            collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator);
+            collection.ToPresentationCollection(PageSize, 1, 1, items, null,pathGenerator, settingsBasedPathGenerator);
 
         // Assert
         presentationCollection.Totals.Should().BeNull();
@@ -343,10 +366,11 @@ public class CollectionConverterTests
         // Act
         var presentationCollectionWithFields =
             presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false),
-                parentCollection, pathGenerator);
+                parentCollection,pathGenerator, settingsBasedPathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
-        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
         presentationCollectionWithFields.Label!.Should().HaveCount(1);
         presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
@@ -366,10 +390,11 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), parentCollection, pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true), parentCollection,pathGenerator, settingsBasedPathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
-        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
         presentationCollectionWithFields.Label!.Should().HaveCount(1);
         presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
@@ -390,10 +415,11 @@ public class CollectionConverterTests
 
         // Act
         var presentationCollectionWithFields =
-            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),  parentCollection, pathGenerator);
+            presentationCollection.SetIIIFGeneratedFields(CreateTestHierarchicalCollection(false, true),  parentCollection,pathGenerator, settingsBasedPathGenerator);
 
         presentationCollectionWithFields.Id.Should().Be("http://base/1/collections/some-id");
-        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id");
+        presentationCollectionWithFields.PublicId.Should().Be("http://base/1/top/some-id",
+            "falls back to using the host based path generator for customer 1");
         presentationCollectionWithFields.Parent.Should().Be("http://base/1/collections/top");
         presentationCollectionWithFields.Label!.Should().HaveCount(1);
         presentationCollectionWithFields.Created.Should().Be(DateTime.MinValue);
@@ -405,6 +431,41 @@ public class CollectionConverterTests
         presentationCollectionWithFields.SeeAlso.Should().BeNull();
         presentationCollectionWithFields.PartOf![0].Id.Should().Be("http://base/0/collections/theparent");
         presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
+    }
+    
+    [Fact]
+    public void ToPresentationCollection_ConvertsCollectionWithRedirectedPublicId_WhenUsingSettingsBasedCustomer()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(customerId: SettingsBasedRedirectCustomer);
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.Id.Should().Be($"http://base/{SettingsBasedRedirectCustomer}/collections/some-id");
+        presentationCollection.FlatId.Should().Be("some-id");
+        presentationCollection.PublicId.Should().Be($"https://settings-based:7230/{SettingsBasedRedirectCustomer}/top/some-id",
+            "using the settings based path generator");
+    }
+    
+    [Fact]
+    public void ToPresentationCollection_PublicAndApiSeeAlsoWithSettingsBasedRedirects_IfUsingSettingsBasedRedirectsCustomer()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true, SettingsBasedRedirectCustomer);
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.SeeAlso.Should().HaveCount(2);
+        presentationCollection.SeeAlso![0].Id.Should().Be("https://settings-based:7230/10/top/some-id", "using the settings based path generator");
+        presentationCollection.SeeAlso[0].Profile.Should().Be("public-iiif");
+        presentationCollection.SeeAlso[1].Id.Should().Be("https://settings-based:7230/10/top/some-id", "using the settings based path generator");
+        presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
 
     public static IEnumerable<object[]> ItemsForTotals => new List<object[]>
@@ -471,12 +532,12 @@ public class CollectionConverterTests
         return items;
     }
 
-    private static Collection CreateTestHierarchicalCollection(bool isStorageCollection = true, bool isPublic = false)
+    private static Collection CreateTestHierarchicalCollection(bool isStorageCollection = true, bool isPublic = false, int? customerId = null)
     {
         var collection = new Collection
         {
             Id = "some-id",
-            CustomerId = CustomerId,
+            CustomerId = customerId ?? CustomerId,
             Label = new LanguageMap
             {
                 { "en", new List<string> { "repository root" } }
@@ -492,7 +553,7 @@ public class CollectionConverterTests
                     CollectionId = "some-id",
                     Slug = "root",
                     Parent = "top",
-                    CustomerId = CustomerId,
+                    CustomerId = customerId ?? CustomerId,
                     Type = isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection,
                     Canonical = true,
                     FullPath = "top/some-id"

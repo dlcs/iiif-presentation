@@ -303,6 +303,7 @@ public class PresentationContextFixture : IAsyncLifetime
             await postgresContainer.StartAsync();
             SetPropertiesFromContainer();
             await DbContext.Database.MigrateAsync();
+            await SeedRewriteCustomers();
             await SeedCustomer();
         }
         catch (Exception ex)
@@ -310,6 +311,14 @@ public class PresentationContextFixture : IAsyncLifetime
             _ = ex;
             throw;
         }
+    }
+
+    private async Task SeedRewriteCustomers()
+    {
+        // customer values come from  appsettings.testing json
+        await DbContext.Collections.AddTestRootCollection(601);
+        await DbContext.Collections.AddTestRootCollection(602);
+        await DbContext.SaveChangesAsync();
     }
 
     public async Task DisposeAsync() => await postgresContainer.StopAsync();

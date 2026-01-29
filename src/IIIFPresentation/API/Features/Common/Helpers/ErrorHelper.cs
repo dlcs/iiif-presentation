@@ -53,10 +53,10 @@ public static class ErrorHelper
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
     }
     
-    public static ModifyEntityResult<T, ModifyCollectionType> ErrorCreatingSpace<T>()
+    public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)
         where T : JsonLdBase
         => ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "Error creating DLCS space", ModifyCollectionType.ErrorCreatingSpace, WriteResult.Error);
+            message, ModifyCollectionType.DlcsError, WriteResult.Error);
 
     public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
         where T : JsonLdBase
@@ -85,36 +85,31 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId) 
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId, string reason) 
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} is invalid",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+            ModifyCollectionType.ErrorMergingPaintedResourcesWithItems, WriteResult.BadRequest);
 
     public static ModifyEntityResult<TCollection, ModifyCollectionType> DuplicateCanvasId<TCollection>(string? canvasId)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
             ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
-
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CanvasOrderDifferentCanvasId<TCollection>(string? canvasId)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} must be the same within a choice construct",
-            ModifyCollectionType.CanvasOrderHasDifferentCanvasId, WriteResult.BadRequest);
     
     public static ModifyEntityResult<TCollection, ModifyCollectionType> IncorrectPublicId<TCollection>()
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithItemsCannotBeUpdatedWithAssets<TCollection>()
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> PaintableAssetError<TCollection>(string error)
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using items cannot be updated with assets",
-            ModifyCollectionType.ManifestCreatedWithItemsCannotBeUpdatedWithAssets, WriteResult.BadRequest);
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+            ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ManifestCreatedWithAssetsCannotBeUpdatedWithItems<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("A manifest created using assets cannot be updated with items",
-            ModifyCollectionType.ManifestCreatedWithAssetsCannotBeUpdatedWithItems, WriteResult.BadRequest);
-
     private static string CollectionType(bool isStorageCollection)
     {
         return isStorageCollection ? "Storage" : "IIIF";

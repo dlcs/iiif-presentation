@@ -140,7 +140,19 @@ public static class CanvasPaintingX
         canvasPainting.Modified = DateTime.UtcNow;
         canvasPainting.AssetId = updated.AssetId;
         canvasPainting.Ingesting = updated.Ingesting;
+        canvasPainting.CanvasOriginalId = updated.CanvasOriginalId;
         if (!string.IsNullOrEmpty(updated.Id)) canvasPainting.Id = updated.Id;
         return canvasPainting;
     } 
+
+    public static void SetAssetsToIngesting(this List<CanvasPainting> canvasPaintings, List<AssetId>? ingestingAssets)
+    {
+        if (ingestingAssets == null) return;
+        
+        foreach (var canvasPainting in ingestingAssets.SelectMany(cp => canvasPaintings.Where(a => a.AssetId == cp)))
+        {
+            canvasPainting.Ingesting = true;
+        }
+    }
 }
+

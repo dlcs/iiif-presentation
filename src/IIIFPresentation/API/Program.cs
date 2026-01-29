@@ -3,7 +3,6 @@ using API.Auth;
 using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
@@ -17,8 +16,11 @@ using Newtonsoft.Json;
 using Repository;
 using Repository.Paths;
 using Serilog;
+using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -47,12 +49,11 @@ builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
-var typedPathTemplateOptions = builder.Configuration.GetSection(TypedPathTemplateOptions.SettingsName);
-builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+builder.RegisterSharedServiceSettings();
 builder.Services
     .AddDlcsApiClient(dlcs)
     .AddDlcsOrchestratorClient(dlcs)
@@ -68,11 +69,15 @@ builder.Services
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
+    .AddSingleton<PaintableAssetIdentifier>()
     .AddSingleton<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
-    .AddSingleton<IPresentationPathGenerator, ConfigDrivenPresentationPathGenerator>()
+    .AddSingleton<IPresentationPathGenerator, HostnameDrivenPresentationPathGenerator>()
+    .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
+    .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()
@@ -105,8 +110,8 @@ var app = builder.Build();
 
 app
     .UseForwardedHeaders()
-    .UseMiddleware<TrailingSlashRedirectMiddleware>()
-    .UseMiddleware<CorrelationIdMiddleware>();
+    .UseMiddleware<CorrelationIdMiddleware>()
+    .UseMiddleware<TrailingSlashRedirectMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
 

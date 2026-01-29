@@ -9,6 +9,8 @@ namespace Repository.Paths;
 public interface IPathRewriteParser
 {
     public PathParts ParsePathWithRewrites(string host, string path, int customer);
+    
+    public PathParts ParsePathWithRewrites(string? uri, int customer);
 }
 
 public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogger<PathRewriteParser> logger)
@@ -68,6 +70,16 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             {
                 logger.LogError(e, "Error while parsing path {Path}, with template {Template}", path, template);
             }
+        }
+
+        return new PathParts(null, null, true);
+    }
+
+    public PathParts ParsePathWithRewrites(string? uri, int customer)
+    {
+        if (Uri.TryCreate(uri, UriKind.Absolute, out var uriResult))
+        {
+            return ParsePathWithRewrites(uriResult.Host, uriResult.AbsolutePath, customer);
         }
 
         return new PathParts(null, null, true);

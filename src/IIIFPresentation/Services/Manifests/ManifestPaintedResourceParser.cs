@@ -1,10 +1,11 @@
-﻿using Core.Exceptions;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -14,14 +15,15 @@ namespace Services.Manifests;
 /// </summary>
 public class ManifestPaintedResourceParser(
     IPathRewriteParser pathRewriteParser, 
-    ILogger<ManifestItemsParser> logger) : ICanvasPaintingParser
+    IPresentationPathGenerator presentationPathGenerator,
+    ILogger<ManifestPaintedResourceParser> logger)
 {
-    public IEnumerable<CanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
+    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
         
         var paintedResources = presentationManifest.PaintedResources;
-        var canvasPaintings = new List<CanvasPainting>();
+        var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
 
@@ -36,7 +38,9 @@ public class ManifestPaintedResourceParser(
             }
             
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
-            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder);
+            var implicitOrdering = paintedResource.CanvasPainting?.CanvasOrder == null;
+            
+            var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder, implicitOrdering);
 
             count++;
             canvasPaintings.Add(cp);
@@ -44,31 +48,39 @@ public class ManifestPaintedResourceParser(
         
         return canvasPaintings;
     }
-
-    private CanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
-        int canvasOrder)
+    
+    private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
+        int canvasOrder, bool implicitOrdering)
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var assetId = GetAssetIdForAsset(paintedResource.Asset!, customerId);
+        var (space, assetId) =
+            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
-        var cp = new CanvasPainting
+        var cp = new InterimCanvasPainting
         {
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
-            AssetId = assetId,
+            SuspectedAssetId = assetId,
+            SuspectedSpace = space,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
             StaticHeight = payloadCanvasPainting?.StaticHeight,
             Duration = payloadCanvasPainting?.Duration,
             Target = payloadCanvasPainting?.Target,
+            CustomerId = customerId,
+            CanvasPaintingType = CanvasPaintingType.PaintedResource,
+            CanvasOriginalId = payloadCanvasPainting?.CanvasOriginalId != null ? 
+                CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, payloadCanvasPainting.CanvasOriginalId) 
+                : null,
             Thumbnail = payloadCanvasPainting?.Thumbnail == null
                 ? null
                 : Uri.TryCreate(payloadCanvasPainting.Thumbnail, UriKind.Absolute, out var thumbnail)
                     ? thumbnail
-                    : null
+                    : null,
+            ImplicitOrder = implicitOrdering
         };
 
         if (specifiedCanvasId != null)
@@ -89,44 +101,21 @@ public class ManifestPaintedResourceParser(
 
         if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
         {
-            CheckForProhibitedCharacters(canvasPainting.CanvasId);
+            CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId, logger);
             return canvasPainting.CanvasId;
         }
         
         var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-        CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath);
+        CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
 
         return parsedCanvasId.Resource;
     }
-
-    private static void CheckParsedCanvasIdForErrors(PathParts parsedCanvasId, string fullPath)
-    {
-        if (string.IsNullOrEmpty(parsedCanvasId.Resource))
-        {
-            throw new InvalidCanvasIdException(fullPath);
-        }
-
-        CheckForProhibitedCharacters(parsedCanvasId.Resource);
-    }
-
-    private static void CheckForProhibitedCharacters(string canvasId)
-    {
-        if (ProhibitedCharacters.Any(canvasId.Contains))
-        {
-            throw new InvalidCanvasIdException(canvasId,
-                $"Canvas Id {canvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
-        }
-    }
     
-    private static AssetId GetAssetIdForAsset(JObject asset, int customerId)
+    private static (int? space, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
     {
-        // Read props from Asset - these must be there. If not, throw an exception
-        var space = asset.GetRequiredValue(AssetProperties.Space);
-        var id = asset.GetRequiredValue(AssetProperties.Id);
-        return AssetId.FromString($"{customerId}/{space}/{id}");
+        // Read props from Asset - id must be there. If not, throw an exception
+        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var id = asset.GetRequiredValue<string>(AssetProperties.Id);
+        return (space, id);
     }
-    
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', '=', ',',];
-    private static readonly string ProhibitedCharacterDisplay =
-        string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
 }

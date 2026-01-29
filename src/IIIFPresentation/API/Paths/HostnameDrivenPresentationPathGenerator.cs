@@ -7,7 +7,10 @@ using Repository.Paths;
 
 namespace API.Paths;
 
-public class ConfigDrivenPresentationPathGenerator(
+/// <summary>
+/// Implementation of <see cref="IPresentationPathGenerator"/> that uses incoming hostname to determine path templates 
+/// </summary>
+public class HostnameDrivenPresentationPathGenerator(
     IOptions<TypedPathTemplateOptions> settings,
     IHttpContextAccessor httpContextAccessor)
     : IPresentationPathGenerator

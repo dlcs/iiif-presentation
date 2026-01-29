@@ -1,6 +1,7 @@
 ﻿using AWS.Settings;
 using Core.Web;
 using DLCS;
+using Services.Manifests.Settings;
 
 namespace API.Settings;
 
@@ -19,11 +20,6 @@ public class ApiSettings
     public string? PathBase { get; set; }
     
     /// <summary>
-    /// Whether painted resources should be ignored when there are also items
-    /// </summary>
-    public bool IgnorePaintedResourcesWithItems { get; set; }
-    
-    /// <summary>
     /// Forces reingestion to always occur
     /// </summary>
     public bool AlwaysReingest { get; set; }
@@ -32,5 +28,5 @@ public class ApiSettings
 
     public required DlcsSettings DLCS { get; set; }
     
-    public TypedPathTemplateOptions PathRules { get; set; } = new ();
+    public PathSettings? PathSettings { get; set; }
 }

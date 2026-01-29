@@ -28,6 +28,8 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     private const int Customer = 1;
     private readonly IDlcsApiClient dlcsApiClient;
     private const int NewlyCreatedSpace = 900;
+    private const int ExampleCustomer = 601;
+    private const int NoCustomerCustomer = 602;
     
     public ModifyRewrittenPathTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -65,23 +67,25 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             Parent = requestParent,
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{NoCustomerCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostNoCustomerHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(NoCustomerCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be(requestParent);
-        responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
+        responseCollection.Id.Should().Be($"http://no-customer.com/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://no-customer.com/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -90,7 +94,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateCollection_CreatesCollection_WhenRewrittenPathsWithAdditionalPathElement()
     {
         var slug = TestIdentifiers.Id();
-        var requestParent = $"http://example.com/foo/{Customer}/collections/{RootCollection.Id}";
+        var requestParent = $"http://example.com/foo/{ExampleCustomer}/collections/{RootCollection.Id}";
         // Arrange
         var collection = new PresentationCollection
         {
@@ -104,23 +108,25 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             Parent = requestParent
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{ExampleCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(ExampleCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be(requestParent);
-        responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
+        responseCollection.Id.Should().Be($"http://example.com/foo/{ExampleCustomer}/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://example.com/example/{ExampleCustomer}/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -142,22 +148,24 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             Parent = $"http://no-customer.com",
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{NoCustomerCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostNoCustomerHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(NoCustomerCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
-        responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
+        responseCollection.Id.Should().Be($"http://no-customer.com/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://no-customer.com/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -176,27 +184,29 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             ],
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
-            Parent = "http://example.com/example/1"
+            Parent = $"http://example.com/example/{ExampleCustomer}"
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{ExampleCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(ExampleCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
-        responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
+        responseCollection.Parent.Should().Be($"http://example.com/foo/{ExampleCustomer}/collections/{RootCollection.Id}");
+        responseCollection.Id.Should().Be($"http://example.com/foo/{ExampleCustomer}/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://example.com/example/{ExampleCustomer}/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -217,23 +227,25 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
             PublicId = $"http://no-customer.com/{slug}"
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{NoCustomerCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostNoCustomerHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(NoCustomerCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
         
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection.Parent.Should().Be($"http://no-customer.com/collections/{RootCollection.Id}");
-        responseCollection.PublicId.Should().Be($"http://no-customer.com/{slug}");
+        responseCollection.Id.Should().Be($"http://no-customer.com/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://no-customer.com/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -251,27 +263,29 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 Behavior.IsStorageCollection
             ],
             Label = new LanguageMap("en", ["test collection"]),
-            PublicId = $"http://example.com/example/1/{slug}"
+            PublicId = $"http://example.com/example/{ExampleCustomer}/{slug}"
         };
 
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{ExampleCustomer}/collections",
             collection.AsJson());
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
 
         // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var response = await httpClient.AsCustomer(ExampleCustomer).SendAsync(requestMessage);
         
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        responseCollection.Parent.Should().Be($"http://example.com/foo/{Customer}/collections/{RootCollection.Id}");
-        responseCollection.PublicId.Should().Be($"http://example.com/example/{Customer}/{slug}");
+        responseCollection.Parent.Should().Be($"http://example.com/foo/{ExampleCustomer}/collections/{RootCollection.Id}");
+        responseCollection.Id.Should().Be($"http://example.com/foo/{ExampleCustomer}/collections/{hierarchyFromDatabase.CollectionId}");
+        responseCollection.PublicId.Should().Be($"https://example.com/example/{ExampleCustomer}/{slug}",
+            "https shows it's coming from the settings based path generator");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be(slug);
     }
@@ -357,6 +371,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://example.com/foo/1/collections/{RootCollection.Id}");
         responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://example.com/example/1/canvases/someId");
+        responseManifest.Items[0].Id.Should().Be("https://localhost:7230/1/canvases/someId", "uses the settings based path parser");
     }
     
     [Fact]
@@ -400,6 +415,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
         responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/someId");
+        responseManifest.Items[0].Id.Should().Be("https://localhost:7230/1/canvases/someId", "uses the settings based path parser");
     }
 
     [Fact]

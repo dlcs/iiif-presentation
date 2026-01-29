@@ -28,7 +28,7 @@ public static class TestPathGenerator
         };
 
         var http = new HttpRequestBasedPathGenerator(dlcsSettings,
-            new ConfigDrivenPresentationPathGenerator(typedPathTemplateOptions, contextAccessor));
+            new HostnameDrivenPresentationPathGenerator(typedPathTemplateOptions, contextAccessor));
         
         return http;
     }

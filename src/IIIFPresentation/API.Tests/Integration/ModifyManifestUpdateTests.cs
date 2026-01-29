@@ -287,7 +287,8 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.CreatedBy.Should().Be("Admin");
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/{Customer}/collections/{RootCollection.Id}");
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}",
+            "falls back to using host based path generator for customer 1");
         responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     
@@ -522,7 +523,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     }
     
     [Fact]
-    public async Task UpdateManifest_BadRequest_WhenManifestWithBatchWithoutAssets()
+    public async Task UpdateManifest_UpdatesManifest_WhenManifestWithBatchWithoutAssets()
     {
         // Arrange
         var dbManifest =
@@ -546,11 +547,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCreatedWithAssetsCannotBeUpdatedWithItems");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
     
     [Fact]

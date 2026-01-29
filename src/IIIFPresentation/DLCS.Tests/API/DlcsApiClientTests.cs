@@ -1,4 +1,6 @@
 ﻿using System.Net;
+using System.Text.Json;
+using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
@@ -302,6 +304,79 @@ public class DlcsApiClientTests
     }
     
     [Fact]
+    public async Task GetCustomerImagesManifest_ReturnsListOfAssets_WhenNoAssets()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => """
+                          {
+                           "@id": "customers/5/queue/batches/2137/assets",
+                            "fnord": "I have no member prop even"
+                           }
+                          """)
+            .StatusCode(201);
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+
+        assets.Should().NotBeNull().And.BeEmpty();
+    }
+    
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task GetCustomerImagesManifest__ReturnsCorrectNumberOfAssets_WhenCalledRepeatedly(int manifestCalls)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var manifestId = "someManifest";
+        
+        stub.Get($"/customers/{customerId}/allImages", (_, args) =>
+            {
+                var page = Convert.ToInt32(args.Query.page);
+                
+                return $@"
+                          {{
+                               ""$@id"": ""customers/5/queue/batches/2137/assets"",
+                               ""member"": [
+                                {{ ""someAssetProp"": ""someAssetValue-this can be arbitrary"" }}
+                               ],
+                                ""view"": {{
+                                    {(page < manifestCalls ? $"\"next\" : \"https://localhost/customers/{customerId}/allImages?page={++page}\"" : "")}
+                                }}
+                           }}
+                          ";
+            })
+            .StatusCode(201);
+        
+        var sut = GetClient(stub);
+
+        var assets = await sut.GetCustomerImages(customerId, manifestId, CancellationToken.None);
+
+        assets.Should().HaveCount(manifestCalls);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task GetCustomerImagesManifest_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Get($"/customers/{customerId}/allImages",
+                (_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int) httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+    }
+    
+    [Fact]
     public async Task UpdateAssetWithManifest_ReturnsAssets_WhenSuccess()
     {
         using var stub = new ApiStub();
@@ -332,28 +407,29 @@ public class DlcsApiClientTests
         using var stub = new ApiStub();
         const int customerId = 4;
         stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
-            .Response((_, _) => """
-                                {
-                                 "@type": "Collection",
-                                 "totalItems": 1,
-                                 "pageSize": 1,
-                                 "member": [
-                                  { "id": "someAssetId" }
-                                 ]
-                                 }
-                                """).StatusCode(200);
+            .Response((request, _) =>
+            {
+                var body = request.Body.ReadAsStringAsync().Result;
+                var parsed = JsonSerializer.Deserialize<BulkPatchAssets>(body);
+
+                var members = parsed!.Members.Select(m => new Asset
+                        { Id = m.Id.GetLastPathElement(), Space = Int32.Parse(m.Id.Split('/').SkipLast(1).Last()) })
+                    .ToArray();
+                
+                return JsonSerializer.Serialize(new HydraCollection<Asset>(members));
+            }).StatusCode(200);
         var sut = GetClient(stub);
 
         var assets = await sut.UpdateAssetManifest(customerId, 
             [
                 $"{customerId}/1/someString",
-                $"{customerId}/1/someString"
+                $"{customerId}/1/someString2"
             ],
             OperationType.Add, ["first"], CancellationToken.None);
 
         assets.Should().HaveCount(2);
-        assets.First().Id.Should().Be("someAssetId");
-        assets.Last().Id.Should().Be("someAssetId");
+        assets.Should().Contain(x => x.Id == "someString");
+        assets.Should().Contain(x => x.Id == "someString2");
     }
     
     [Fact]
@@ -405,12 +481,58 @@ public class DlcsApiClientTests
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
+    
+    [Fact]
+    public async Task UpdateAssetWithManifest_ReturnsDistinctAssets_WhenMultipleOfSameAsset()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .IfBody(body =>
+            {
+                var convertedBody = JsonSerializer.Deserialize<BulkPatchAssets>(body);
+
+                if (convertedBody!.Members.GroupBy(m => m.Id).Any(g => g.Count() > 1))
+                {
+                    return true;
+                }
+                
+                return false;
+            })
+            .Response((_, _) => JsonSerializer.Serialize(new DlcsError
+            {
+                Description = "duplicate assets found"
+            })).StatusCode(400);
+        
+        stub.Request(HttpMethod.Patch).IfRoute($"/customers/{customerId}/allImages")
+            .Response((_, _) => """
+                                {
+                                 "@type": "Collection",
+                                 "totalItems": 1,
+                                 "pageSize": 1,
+                                 "member": [
+                                  { "id": "someString", "space": 1 }
+                                 ]
+                                 }
+                                """).StatusCode(200);
+        var sut = GetClient(stub, 2);
+
+        var assets = await sut.UpdateAssetManifest(customerId, 
+            [
+                $"{customerId}/1/someString",
+                $"{customerId}/1/someString"
+            ],
+            OperationType.Add, ["first"], CancellationToken.None);
+
+        assets.Should().HaveCount(1);
+        assets.First().Id.Should().Be("someString");
+    }
 
 
-    private static DlcsApiClient GetClient(ApiStub stub)
+    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1)
     {
         stub.EnsureStarted();
-        
+
         var httpClient = new HttpClient
         {
             BaseAddress = new Uri(stub.Address)
@@ -419,9 +541,9 @@ public class DlcsApiClientTests
         var options = Options.Create(new DlcsSettings()
         {
             ApiUri = new Uri("https://localhost"),
-            MaxBatchSize = 1
+            MaxBatchSize = maxBatchSize
         });
-        
+
         return new DlcsApiClient(httpClient, options, new NullLogger<DlcsApiClient>());
     }
 }

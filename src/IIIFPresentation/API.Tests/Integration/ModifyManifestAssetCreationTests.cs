@@ -14,6 +14,7 @@ using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
+using Models.API.Collection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -211,7 +212,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
 
     [Fact]
@@ -220,8 +221,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         // Arrange
         var (slug, assetId) = TestIdentifiers.SlugResource();
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                A<IList<string>>.That.Matches(l => l.Any(x =>
-                    $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
+                A<string>._,
                 A<CancellationToken>._))
             .Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
         
@@ -336,16 +336,14 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         // Arrange
         var (slug,  assetId) = TestIdentifiers.SlugResource();
-
           A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                  A<IList<string>>.That.Matches(l =>
-                      l.Any(x => $"{Customer}/{NewlyCreatedSpace}/{assetId}".Equals(x))),
-                  A<CancellationToken>._)).ReturnsLazily(() => new List<JObject>()).Once().Then
+                  A<string>._,
+                  A<CancellationToken>._))
               .ReturnsLazily(() =>
               [
                   JObject.Parse($$"""
                                   {
-                                      "@id": "https://localhost:7230/customers/1/spaces/999/images/{{assetId}}",
+                                      "@id": "https://localhost:6000/customers/1/spaces/999/images/{{assetId}}",
                                       "id": "{{assetId}}",
                                       "space": 999,
                                       "batch": "https://localhost/customers/1/queue/batches/2137"
@@ -471,7 +469,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -534,7 +532,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 $"staging/{Customer}/manifests/{dbManifest.Id}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().BeNull();
+        s3Manifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -855,17 +853,15 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);
          
-         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(2);
-         dbManifest.CanvasPaintings[0].CanvasLabel.Should().NotBeNull();
-         dbManifest.CanvasPaintings[0].Label.Should().NotBeNull();
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
              .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
-         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(2);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
      }
      
      [Fact]
@@ -940,21 +936,21 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().Status.Should().Be(BatchStatus.Ingesting);
          dbManifest.Batches!.First().Id.Should().Be(batchId);
          
-         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[0].CanvasOrder.Should().Be(0);
          dbManifest.CanvasPaintings[0].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
-         dbManifest.CanvasPaintings[0].ChoiceOrder.Should().Be(1);
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+         
          dbManifest.CanvasPaintings[1].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[1].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
-         dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(2);
-
-         dbManifest.CanvasPaintings[0].Id.Should().Be(dbManifest.CanvasPaintings[1].Id,
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-0");
+         dbManifest.CanvasPaintings[1].ChoiceOrder.Should().Be(1);
+         dbManifest.CanvasPaintings[1].Id.Should().Be(dbManifest.CanvasPaintings[2].Id,
              "CanvasPaintings that share canvasOrder have same canvasId");
          
-         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(0);
+         dbManifest.CanvasPaintings[2].CanvasOrder.Should().Be(1);
          dbManifest.CanvasPaintings[2].AssetId.ToString().Should()
-             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-2");
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}-1");
+         dbManifest.CanvasPaintings[2].ChoiceOrder.Should().Be(2);
      }
 
      [Fact]
@@ -1547,5 +1543,69 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         secondAssetId!.Type.Should().Be(JTokenType.String);
         secondAssetId.Value<string>().Should()
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}-2");
+    }
+     
+     [Fact]
+     public async Task CreateManifest_CreatesManifest_WhenMatchedManifestWithLabelFromItems()
+     {
+         // Arrange
+         var (slug, _, postedAssetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+         var batchId = TestIdentifiers.BatchId();
+         
+         var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/1/collections/{RootCollection.Id}",
+            Slug = slug,
+            PaintedResources = new List<PaintedResource>()
+            {
+                new ()
+                {
+                    CanvasPainting = new CanvasPainting()
+                    {
+                        CanvasId = canvasId,
+                        Label = new LanguageMap("a label", "sets canvasLabel")
+                    },
+                    Asset = new(new JProperty("id", postedAssetId), new JProperty("batch", batchId))
+                }
+            },
+            Items =
+            [
+                new Canvas
+                {
+                    Id = canvasId,
+                    Label = new LanguageMap("label", "sets canvasLabel")
+                }
+            ]
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Should().NotContainKey(HeaderNames.ETag);
+        
+        requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, response.Headers.Location!.ToString());
+        response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Should().NotBeNull();
+        responseManifest!.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources!.Count.Should().Be(1);
+
+        var paintedResource = responseManifest.PaintedResources.First();
+
+        paintedResource.CanvasPainting.CanvasId.Should().Be($"http://localhost/1/canvases/{canvasId}");
+        paintedResource.CanvasPainting.CanvasLabel.First().Key.Should().Be("label");
+        paintedResource.Asset!.TryGetValue("@id", out var assetId).Should().BeTrue();
+        assetId!.Type.Should().Be(JTokenType.String);
+        assetId.Value<string>().Should()
+            .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
 }

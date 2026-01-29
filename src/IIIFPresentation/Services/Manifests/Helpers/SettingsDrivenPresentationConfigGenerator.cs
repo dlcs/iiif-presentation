@@ -1,14 +1,23 @@
-﻿using BackgroundHandler.Settings;
-using Core.Paths;
+﻿using Core.Paths;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
+using Services.Manifests.Settings;
 
-namespace BackgroundHandler.Helpers;
+namespace Services.Manifests.Helpers;
 
-public class SettingsDrivenPresentationConfigGenerator(IOptions<BackgroundHandlerSettings> settings)
+/// <summary>
+/// Implementation of <see cref="IPresentationPathGenerator"/> that uses customer configured PresentationApiUrl to
+/// determine path templates, regardless of hostname. 
+/// </summary>
+public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> settings)
     : IPresentationPathGenerator
 {
-    private readonly BackgroundHandlerSettings settings = settings.Value;
+    private readonly PathSettings settings = settings.Value;
+
+    public bool HasPathForCustomer(int customerId)
+    {
+        return settings.CustomerPresentationApiUrl.ContainsKey(customerId);
+    }
 
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
     {

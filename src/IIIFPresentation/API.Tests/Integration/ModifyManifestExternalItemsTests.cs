@@ -6,6 +6,7 @@ using Core.Response;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -763,7 +764,8 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should()
             .ContainSingle(pr => pr.CanvasPainting.CanvasOriginalId == $"https://iiif.example/{slug}.json");
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}",
+            "falls back to using host based path generator for customer 1");
         responseManifest.FlatId.Should().Be(id);
     }
     
@@ -900,7 +902,8 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         responseManifest.Parent.Should().Be("http://localhost/1/collections/root");
         responseManifest.PaintedResources.Should()
             .ContainSingle(pr => pr.CanvasPainting.CanvasOriginalId == dbCanvasPainting.CanvasOriginalId.ToString());
-        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}");
+        responseManifest.PublicId.Should().Be($"http://localhost/1/{slug}",
+            "falls back to using host based path generator for customer 1");
         responseManifest.FlatId.Should().Be(dbManifest.Id);
     }
     
@@ -1720,5 +1723,42 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting2.CanvasOriginalId.Should().Be(canvasOriginalId);
         canvasPainting2.CanvasOrder.Should().Be(1, "Same canvasId but differing order");
         canvasPainting1.ChoiceOrder.Should().BeNull();
+    }
+    
+    [Fact]
+    public async Task PutFlatId_ReturnsCanvasPaintingWithRandomId_WhenCanvasIdNotRecognised()
+    {
+        // Arrange
+        var (slug, id) = TestIdentifiers.SlugResource();
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://localhost:7230/{Customer}/canvases/additionalSlug/{slug}"",
+            ""type"": ""Canvas""
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        var canvasPainting = responseManifest.PaintedResources.First().CanvasPainting;
+        canvasPainting.CanvasId.Split('/').Last().Should().NotBe(slug, "recognised host with unrecognised path");
+        canvasPainting.CanvasOriginalId.Should()
+            .Be($"https://localhost:7230/{Customer}/canvases/additionalSlug/{slug}");
     }
 }

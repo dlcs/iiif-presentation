@@ -94,6 +94,9 @@ public class ModifyManifestAssetReingestion: IClassFixture<PresentationAppFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().NotContain("\"reingest\"");
+
         var canvasPaintings = await dbContext.CanvasPaintings.Where(cp => cp.ManifestId == id).ToListAsync();
         canvasPaintings.Should().HaveCount(1);
         canvasPaintings.First().Ingesting.Should().BeTrue();

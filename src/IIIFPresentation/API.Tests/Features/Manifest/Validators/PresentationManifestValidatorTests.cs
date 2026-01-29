@@ -43,7 +43,7 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenDefaultSettings()
+    public void CanvasPaintingAndItems_Manifest_NoErrorWhenMixedContent()
     {
         var manifest = new PresentationManifest
         {
@@ -67,45 +67,6 @@ public class PresentationManifestValidatorTests
         };
         
         var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Items)
-            .WithErrorMessage("The properties \"items\" and \"paintedResource\" cannot be used at the same time");
-    }
-    
-    [Fact]
-    public void CanvasPaintingAndItems_Manifest_NoErrorWhenSettings()
-    {
-        var sutAllowedItemsAndPaintedResource = new  PresentationManifestValidator(Options.Create(new ApiSettings()
-        {
-            AWS = new AWSSettings(),
-            IgnorePaintedResourcesWithItems = true,
-            DLCS = new DlcsSettings
-            {
-                ApiUri = new Uri("https://localhost")
-            }
-        }));
-        
-        var manifest = new PresentationManifest
-        {
-            Items =
-            [
-                new()
-                {
-                    Id = "someId",
-                }
-            ],
-            PaintedResources =
-            [
-                new()
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId"
-                    }
-                }
-            ],
-        };
-        
-        var result = sutAllowedItemsAndPaintedResource.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.Items);
     }
     
@@ -142,6 +103,31 @@ public class PresentationManifestValidatorTests
             .WithErrorMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
     }
     
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void PaintedResource_Manifest_ErrorWhenChoiceOrderNotValid(int choiceOrder)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = choiceOrder
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Canvases cannot have a 'choiceOrder' of 0 or less");
+    }
+    
     [Fact]
     public void PaintedResource_Manifest_NoErrorWhenNoDuplicateChoiceWithCanvasOrder()
     {
@@ -154,8 +140,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
                 new PaintedResource
@@ -163,8 +148,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting
                     {
                         CanvasId = "someCanvasId-2",
-                        CanvasOrder = 2,
-                        ChoiceOrder = 1
+                        CanvasOrder = 2
                     }
                 }
             ],
@@ -217,8 +201,7 @@ public class PresentationManifestValidatorTests
                     CanvasPainting = new CanvasPainting()
                     {
                         CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
+                        CanvasOrder = 1
                     }
                 },
                 new PaintedResource
@@ -311,38 +294,6 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
-    public void PaintedResource_Manifest_NoErrorWhenChoiceOfOne()
-    {
-        var manifest = new PresentationManifest
-        {
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1,
-                        ChoiceOrder = 1
-                    }
-                },
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-2",
-                        CanvasOrder = 2,
-                        ChoiceOrder = 1
-                    }
-                }
-            ],
-        };
-        
-        var result = sut.TestValidate(manifest);
-        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
-    }
-    
-    [Fact]
     public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasOrder()
     {
         var manifest = new PresentationManifest
@@ -395,5 +346,147 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_NoErrorWhenChoiceOfOne()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 2
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_NoError_ForNullChoiceOrderInFilledOutChoiceConstruct()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 0
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-2",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().NotContain(e =>
+            e.ErrorMessage ==
+            "'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1,
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenPositiveChoiceWithSingleCanvasOrder_NoCanvasOrderSet()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        ChoiceOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("'choiceOrder' must be null when there is a single painted resource with that 'canvasOrder'");
+    }
+    
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenNullChoiceOrder_InChoice()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = "someCanvasId-1",
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
     }
 }

@@ -2,22 +2,29 @@
 
 using System.Net;
 using Amazon.S3;
+using API.Converters;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Repository.Helpers;
+using Repository.Paths;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using EntityTagHeaderValue = System.Net.Http.Headers.EntityTagHeaderValue;
 
 namespace API.Tests.Integration;
 
@@ -35,6 +42,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly JObject sampleAsset;
     private const string PaintedResource = "foo-paintedResource";
     private const string IngestingPaintedResource = "ingestingPaintedResource";
+    private const int NoCustomerRedirectCustomer = 602;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
@@ -53,7 +61,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "foo-paintedResource",
                    "ingesting": false,
@@ -66,7 +74,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/errorPaintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/errorPaintedResource",
                    "@type": "vocab:Image",
                    "id": "errorPaintedResource",
                    "error": "random error",
@@ -79,7 +87,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
             {
                    "@context": "https://localhost/contexts/Image.jsonld",
-                   "@id": "https://localhost:7230/customers/1/spaces/2/images/foo-paintedResource",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/foo-paintedResource",
                    "@type": "vocab:Image",
                    "id": "ingestingPaintedResource",
                    "ingesting": true,
@@ -89,14 +97,12 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         );
         
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"1/2/{PaintedResource}".Equals(x))),
+                A<string>.That.Matches(l => l.EndsWith("_returnsPainted")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [sampleAsset]);
         
         A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
-                A<IList<string>>.That.Matches(l =>
-                    l.Any(x => $"1/2/{IngestingPaintedResource}".Equals(x))),
+                A<string>.That.Matches(l => l.EndsWith("_ingestingAssets")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
     }
@@ -139,7 +145,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.Should().Be("http://localhost/1/manifests/FirstChildManifest");
+        response.Headers.Location!.Should().Be("http://localhost/1/manifests/FirstChildManifest",
+            "using the host based path generator");
     }
     
     [Fact]
@@ -162,8 +169,44 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.AbsolutePath.Should().Be("/1/iiif-manifest");
+        response.Headers.Location.Should().Be("http://localhost/1/iiif-manifest",
+            "falls back to using the host based path generator for customer 1");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsHostBasedRedirect_WhenUsingRedirectHeader()
+    {
+        // Arrange and Act
+        var requestMessage =
+            new HttpRequestMessage(HttpMethod.Get, "1/manifests/FirstChildManifest");
+        HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().Be("http://example.com/example/1/iiif-manifest",
+            "falls back to using the host based path generator for customer 1");
+    }
+    
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsSettingsBasedRedirect_WhenUsingNoCustomerRedirect()
+    {
+        // Arrange
+        var manifest = await dbContext.Manifests.AddTestManifest(customer: NoCustomerRedirectCustomer);
+        await dbContext.SaveChangesAsync();
+        
+        var manifestEntity = manifest.Entity;
+        
+        var requestMessage =
+            new HttpRequestMessage(HttpMethod.Get, $"{NoCustomerRedirectCustomer}/manifests/{manifestEntity.Id}");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location.Should().Be($"https://no-customer.com/{manifestEntity.Hierarchy.GetCanonical().Slug}",
+            "using the settings based path generator for a customer set with the 'no customer' redirect in settings");
     }
     
     [Fact]
@@ -178,7 +221,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.AbsolutePath.Should().Be("/10/iiif-manifest");
+        response.Headers.Location.Should().Be("http://localhost/10/iiif-manifest",
+            "falls back to using the host based path generator for customer 1");
     }
 
     [Fact]
@@ -200,7 +244,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest", "requested by flat URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
         manifest.FlatId.Should().Be("FirstChildManifest");
-        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest", "iiif-manifest is slug and under root");
+        manifest.PublicId.Should().Be("http://localhost/1/iiif-manifest",
+            "iiif-manifest is slug and under root + falls back to using host based path generator for customer 1");
     }
 
     [Fact]
@@ -255,7 +300,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
             manifest.FlatId.Should().Be("AStillIngestingManifest");
             manifest.PublicId.Should().Be("http://localhost/1/an-iiif-manifest-ingesting",
-                "an-iiif-manifest-ingesting is slug and under root");
+                "an-iiif-manifest-ingesting is slug and under root + falls back to using host based path generator for customer 1");
        
     }
 
@@ -263,7 +308,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     public async Task Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources()
     {
         // Arrange - add manifest with 1 canvasPainting with an asset and corresponding manifest in S3
-        var id = nameof(Get_IiifManifest_Flat_ReturnsManifestFromS3_DecoratedWithPaintedResources);
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_returnsPainted");
         var dbManifest = await dbContext.Manifests.AddTestManifest(id);
         var assetId = new AssetId(1, 2, PaintedResource);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
@@ -341,26 +386,33 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     [Fact]
     public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting()
     {
-        var id = nameof(Get_IiifManifest_Flat_ReturnsAccepted_WhenIngesting);
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_ingestingAssets");
 
         // Arrange and Act
         var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: 1);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, PaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, IngestingPaintedResource),
-            height: 1800, width: 1200,
-            canvasOriginalId: new Uri("https://iiif.io/api/eclipse"));
+            height: 1800, width: 1200);
+        
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+
+        var manifestToSave = dbManifest.Entity.ToPresentationManifest();
+        manifestToSave.Items = dbManifest.Entity.CanvasPaintings.GenerateProvisionalCanvases(
+            new TestPathGenerator(
+                new TestPresentationConfigGenerator("http://localhost", new TypedPathTemplateOptions())), [],
+            pathRewriteParser);
 
         await amazonS3.PutObjectAsync(new()
         {
             BucketName = LocalStackFixture.StorageBucketName,
-            Key = $"1/manifests/{id}",
-            ContentBody = TestContent.ManifestJson
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = manifestToSave.AsJson()
         });
 
         await dbContext.SaveChangesAsync();
@@ -378,9 +430,10 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest.Should().NotBeNull();
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be($"http://localhost/1/manifests/{id}", "requested by flat URI");
-        manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+        manifest.Items.Should().HaveCount(2, "there are 2 canvas painting records");
         manifest.FlatId.Should().Be(id);
-        manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}", "iiif-manifest is slug and under root");
+        manifest.PublicId.Should().Be($"http://localhost/1/sm_{id}",
+            "iiif-manifest is slug and under root + falls back to using host based path generator for customer 1");
         manifest.Ingesting.Should().BeEquivalentTo(new IngestingAssets
         {
             Total = 2,

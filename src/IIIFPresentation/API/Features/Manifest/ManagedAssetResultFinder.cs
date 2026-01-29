@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using API.Infrastructure.Helpers;
+using Core.Exceptions;
+using Core.Helpers;
 using API.Settings;
 using DLCS.API;
 using Microsoft.Extensions.Options;
@@ -7,6 +9,8 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
+using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Features.Manifest;
@@ -23,8 +27,7 @@ public class ManagedAssetResultFinder(
     /// Checks a presentation manifest to find what assets require further processing by the DLCS
     /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
-        CancellationToken cancellationToken)
+         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
     {
         logger.LogTrace("Checking for known assets");
         var stopwatch = new Stopwatch();
@@ -46,12 +49,12 @@ public class ManagedAssetResultFinder(
             }
 
             // check if the asset is managed in this manifest
-            if (dbManifest != null)
+            if (existingAssetIds != null)
             {
-                if (dbManifest.CanvasPaintings?.Any(cp => cp.AssetId == assetId) ?? false)
+                if (existingAssetIds.Any(cp => cp == assetId))
                 {
                     // set the asset to reingest, otherwise ignore the asset
-                    if (settings.AlwaysReingest || paintedResource.Reingest)
+                    if (settings.AlwaysReingest || (paintedResource.Reingest ?? false))
                     {
                         // ingest without the manifest id, then don't patch the manifest id
                         logger.LogTrace("Asset {AssetId} found within existing manifest - reingest", assetId);
@@ -75,12 +78,12 @@ public class ManagedAssetResultFinder(
         // run through every other asset
         foreach (var assetNotFoundInSameManifest in assetsNotFoundInSameManifest)
         {
-            // is this this asset is found in another manifest?
+            // is this asset found in another manifest?
             if (inAnotherManifest.Any(cp => cp.AssetId == assetNotFoundInSameManifest.assetId))
             {
                 IngestType ingestType;
                 
-                if (settings.AlwaysReingest || assetNotFoundInSameManifest.paintedResource.Reingest)
+                if (settings.AlwaysReingest || (assetNotFoundInSameManifest.paintedResource.Reingest ?? false))
                 {
                     // reingest - ingest with no manifest id, then patch afterwards
                     logger.LogTrace("Asset {AssetId} found within another manifest - reingest", assetNotFoundInSameManifest.assetId);
@@ -99,7 +102,7 @@ public class ManagedAssetResultFinder(
             }
 
             // check in the DLCS (unless reingest where we treat it as an unmanaged asset)
-            if (settings.AlwaysReingest || assetNotFoundInSameManifest.paintedResource.Reingest)
+            if (settings.AlwaysReingest || (assetNotFoundInSameManifest.paintedResource.Reingest ?? false))
             {
                 // ingest with the manifest id, then don't patch the manifest id
                 logger.LogTrace("Asset {AssetId} not found within another manifest, but set to reingest", assetNotFoundInSameManifest.assetId);
@@ -118,6 +121,72 @@ public class ManagedAssetResultFinder(
         logger.LogTrace("Checking for known assets took {Elapsed} milliseconds", stopwatch.Elapsed.Milliseconds);
 
         return dlcsInteractionRequests;
+    }
+    
+    /// <summary>
+    /// Method looks in the provided manifest to find any assets, provided in the Items property
+    /// that are managed by the configured DLCS instance
+    /// </summary>
+    public async Task<List<AssetId>> CheckAssetsFromItemsExist(
+        List<InterimCanvasPainting>? interimCanvasPaintings, int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken)
+    {
+        if (interimCanvasPaintings.IsNullOrEmpty()) return [];
+
+        List<AssetId> assetsToAddToManifest = [];
+        List<AssetId> trackedAssets = [];
+        
+        var assetIdsFromItems = interimCanvasPaintings.GetAssetIds();
+
+        foreach (var assetId in assetIdsFromItems)
+        {
+            if (existingAssetIds != null && existingAssetIds.Any(cp => cp == assetId))
+            {
+                trackedAssets.Add(assetId);
+            }
+            else
+            {
+                assetsToAddToManifest.Add(assetId);
+            }
+        }
+
+        var assetsToCheckInDlcs =
+            assetsToAddToManifest.Where(asset =>
+            {
+                if (dbContext.CanvasPaintings.Any(cp => cp.CustomerId == customerId && cp.AssetId == asset))
+                {
+                    trackedAssets.Add(asset);
+                    return false;
+                };
+                
+                return true;
+            });
+
+        IList<JObject> dlcsAssets;
+        try
+        {
+            dlcsAssets = await dlcsApiClient.GetCustomerImages(customerId,
+                assetsToCheckInDlcs.Select(a => a.ToString()).ToList(), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to retrieve DLCS assets");
+            throw;
+        }
+
+        var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId));
+        trackedAssets.AddRange(dlcsAssetIds);
+
+        var missingAssets = interimCanvasPaintings.Where(icp => !trackedAssets.Any(a =>
+            icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space)).ToList();
+        
+        if (missingAssets.Count != 0)
+        {
+            throw new PresentationException(
+                $"Suspected DLCS assets from items not found: {string.Join(", ", 
+                    missingAssets.Select(a => $"(id: {a.CanvasOriginalId}, assetId: {new AssetId(customerId, a.SuspectedSpace!.Value, a.SuspectedAssetId!)})"))}");
+        }
+
+        return assetsToAddToManifest;
     }
 
     private List<CanvasPainting> FindAssetsInAnotherManifest(int customerId, 
@@ -149,7 +218,7 @@ public class ManagedAssetResultFinder(
     private async Task<List<DlcsInteractionRequest>> CheckDlcsForAssets(
         List<(AssetId assetId, PaintedResource paintedResource)> assetsToCheck, int customerId, CancellationToken cancellationToken)
     {
-        IList<JObject> dlcsAssets = [];
+        IList<JObject> dlcsAssets;
         
         try
         {
@@ -202,6 +271,10 @@ public interface IManagedAssetResultFinder
 {
     public Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(
         PresentationManifest presentationManifest,
-        Models.Database.Collections.Manifest? dbManifest, int? spaceId, bool spaceCreated, int customerId,
+        List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId,
         CancellationToken cancellationToken);
+    
+    public Task<List<AssetId>> CheckAssetsFromItemsExist(
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
+        int customerId, List<AssetId>? existingAssetIds, CancellationToken cancellationToken);
 }

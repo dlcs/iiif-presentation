@@ -9,3 +9,5 @@
   * Outline of how `paintedResources` are rendered on Manifest
 * [Reingest Property](reingest-property.md)
   * Details of how the reingest property works
+* [Canvas Id Parsing](canvas-id-parsing.md)
+  * Shows how the canvas id can be parsed from a payload

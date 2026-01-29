@@ -32,7 +32,9 @@ public interface IDlcsApiClient
 
     Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default);
-    
+
+    Task<IList<JObject>> GetCustomerImages(int customerId, string manifestId,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Updates an asset with a new manifest
@@ -122,11 +124,11 @@ internal class DlcsApiClient(
     public async Task<IList<JObject>> GetCustomerImages(int customerId, ICollection<string> assetIds,
         CancellationToken cancellationToken = default)
     {
-        logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
-            string.Join(",", assetIds));
-
         if (assetIds.Count == 0)
             return [];
+        
+        logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
+            string.Join(",", assetIds));
 
         var endpoint = $"/customers/{customerId}/allImages";
         var results = new List<JObject>();
@@ -146,13 +148,38 @@ internal class DlcsApiClient(
         return results;
     }
     
+    public async Task<IList<JObject>> GetCustomerImages(int customerId, string manifestId,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Requesting images for customer {CustomerId} for the manifest {ManifestId}", customerId,
+            manifestId);
+        
+        var results = new List<JObject>();
+        var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page=1";
+
+        while (endpoint != null)
+        {
+            var result =
+                await CallDlcsApiFor<HydraCollection<JObject>>(HttpMethod.Get, endpoint, null, cancellationToken);
+            
+            if (result?.Members is {Length: > 0} pageResults)
+                results.AddRange(pageResults);
+            
+            endpoint = result?.View?.Next != null ? new Uri(result.View.Next).PathAndQuery : null;
+        }
+        
+        return results;
+    }
+    
     public async Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType, List<string> manifests,
         CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Updating assets for customer {CustomerId} to {OperationType} manifests",
             customerId, operationType.ToString());
+
+        var distinctAssets = assets.Distinct().ToList();
         
-        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = distinctAssets.Chunk(settings.MaxBatchSize);
         var assetsResponse = new ConcurrentBag<Asset>();
         var endpoint = $"/customers/{customerId}/allImages";
 
@@ -182,7 +209,7 @@ internal class DlcsApiClient(
         await Task.WhenAll(tasks);
         
         // this is extremely unlikely to happen, as the DLCS should have already been checked at this point
-        if (assetsResponse.Count != assets.Count)
+        if (assetsResponse.Count != distinctAssets.Count)
         {
             var missingAssets = assets.Where(a => assetsResponse.All(ar => a != $"{customerId}/{ar.Space}/{ar.Id}")).ToList();
 

@@ -1,12 +1,16 @@
 ﻿using Core.Web;
+using DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Canvas = IIIF.Presentation.V3.Canvas;
@@ -20,11 +24,19 @@ public class ManifestMergerTests
 
     public ManifestMergerTests()
     {
-        var presentationGenerator =
-            new TestPresentationConfigGenerator("https://localhost:5000", new TypedPathTemplateOptions());
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
+        {
+            PresentationApiUrl = new Uri("https://localhost:5000"),
+            PathRules = PathRewriteOptions.Default
+        })));
         
-        sut = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        sut = new ManifestMerger(settingsBasedPathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
     }
     
     [Fact]
@@ -41,26 +53,6 @@ public class ManifestMergerTests
         action.Should()
             .ThrowExactly<ArgumentNullException>()
             .WithMessage("Value cannot be null. (Parameter 'namedQueryManifest.Items')");
-    }
-    
-    [Fact]
-    public void ProcessCanvasPaintings_Throws_IfBaseManifest_HasItems()
-    {
-        // Arrange
-        var blankManifest = new Manifest
-        {
-            Id = "https://foo",
-            Items = [new Canvas()]
-        };
-        var namedQueryManifest = new Manifest { Items = [new Canvas()] };
-
-        // Act
-        Action action = () => sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, null);
-
-        // Assert
-        action.Should()
-            .ThrowExactly<InvalidOperationException>()
-            .WithMessage("https://foo contains items. Generating manifest from paintedResources with items is not currently supported");
     }
     
     [Fact]
@@ -733,5 +725,221 @@ public class ManifestMergerTests
         // Assert
         mergedManifest.Context.As<string>().Should()
             .Be(nonStandardContext, "non standard context from NQ maintained");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesManifest_IfBaseManifest_HasMatchedItems()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        var initialManifest = new Manifest
+        {
+            Id = "https://foo",
+            Items = [new Canvas()
+            {
+                Id = $"https://localhost:5000/0/canvases/{canvasPaintings[0].Id}"
+            }]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(initialManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
+        mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        
+        var canvas = mergedManifest.Items[0];
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
+        canvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
+        canvas.Metadata.Should().BeNull("No canvas metadata from NQ persisted");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesCanvas_WhenMatchingCanvasOriginalId()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var currentCanvasPainting = canvasPaintings[0];
+        currentCanvasPainting.CanvasOriginalId =
+            new Uri($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}");
+        var manifest =  ManifestTestCreator.New()
+            .WithCanvas($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", c => c.WithImage())
+            .Build();
+        manifest.Items[0].Homepage =
+        [
+            new Image()
+            {
+                Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}",
+                Width = 200,
+                Height = 200
+            }
+        ];
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, new Manifest(){ Items = [] }, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
+        mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}");
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
+        canvas.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
+        canvas.Homepage.Should().NotBeNull("Homepage filled out from items");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_ReturnEmptyCanvas_WhenNoMatchingCanvasId()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var currentCanvasPainting = canvasPaintings[0];
+        var manifest =  ManifestTestCreator.New()
+            .WithCanvas($"https://localhost:5000/0/canvases/different", c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, new Manifest(){ Items = [] }, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
+        mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", "expected id of the canvas");
+        canvas.Width.Should().BeNull("No width due to no matching canvas");
+        canvas.Height.Should().BeNull( "No height due to no matching canvas");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesMixedCanvas_WhenMatchingCanvasIdAndAssetId()
+    {
+        // Arrange
+        var id = TestIdentifiers.Id();
+        var assetId = TestIdentifiers.AssetId();
+        var matchingCanvasIdFromOriginal = new Uri($"https://dlcs.test/iiif-img/{id}/canvas/c/");
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(matchingCanvasIdFromOriginal);
+        canvasPaintings.AddRange(ManifestTestCreator.GenerateCanvasPaintings(assetId));
+        var currentCanvasPainting = canvasPaintings.Last();
+        
+        var manifest =  ManifestTestCreator.New()
+            .WithCanvas($"https://dlcs.test/iiif-img/{id}/canvas/c/", c => c.WithImage())
+            .Build();
+        manifest.Items.Add(new Canvas(){Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}"});
+        
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
+        mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
+        mergedManifest.Items.Should().HaveCount(2, "Single canvasPainting");
+        var canvasFromOriginal = mergedManifest.Items.First();
+        canvasFromOriginal.Id.Should().Be($"https://dlcs.test/iiif-img/{id}/canvas/c/");
+        canvasFromOriginal.Width.Should().Be(110, "Width from items");
+        canvasFromOriginal.Height.Should().Be(110, "Height from items");
+        canvasFromOriginal.Metadata.Should().NotBeNull("Manifest metadata from items");
+        
+        var canvasFromAssetId = mergedManifest.Items.Last();
+        canvasFromAssetId.Id.Should().StartWith($"https://localhost:5000/0/canvases/{assetId}_");
+        canvasFromAssetId.Width.Should().Be(110, "Width from NQ");
+        canvasFromAssetId.Height.Should().Be(110, "Height from NQ");
+        canvasFromAssetId.Metadata.Should().BeNull("metadata not persisted from NQ");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_MergesCanvas_WhenMatchingCanvasIdForAsset()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var currentCanvasPainting = canvasPaintings[0];
+        
+        var manifest = new Manifest
+        {
+            Id = "https://foo/",
+            Items =
+            [
+                new Canvas
+                {
+                    Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}",
+                    Homepage =
+                    [
+                        new Image
+                        {
+                            Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}",
+                            Width = 200,
+                            Height = 200
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}");
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
+        canvas.Homepage.Should().NotBeNull("Homepage filled out from items");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_RewritesCanvasId_WhenMatchingCanvasIdForAssetWithRewrittenPath()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var currentCanvasPainting = canvasPaintings[0];
+        
+        var manifest = new Manifest
+        {
+            Id = "https://foo/",
+            Items =
+            [
+                new Canvas
+                {
+                    Id = $"https://foo.com/foo/0/canvases/{currentCanvasPainting.Id}"
+                }
+            ]
+        };
+        
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items[0];
+        canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", "id rewritten");
+        canvas.Width.Should().Be(110, "Width from NQ");
+        canvas.Height.Should().Be(110, "Height from NQ");
     }
 }

@@ -6,6 +6,7 @@ using BackgroundHandler.Helpers;
 using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using DLCS;
 using DLCS.API;
 using FakeItEasy;
 using FluentAssertions;
@@ -18,8 +19,11 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository;
+using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -36,7 +40,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
-    private readonly BackgroundHandlerSettings backgroundHandlerSettings;
+    private readonly PathSettings pathSettings;
     private const int CustomerId = 1;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -50,17 +54,20 @@ public class BatchCompletionMessageHandlerTests
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
-        backgroundHandlerSettings = new BackgroundHandlerSettings
+        pathSettings = new PathSettings()
         {
-            PresentationApiUrl = new Uri("https://localhost:5000"),
-            AWS = new AWSSettings(),
+            PresentationApiUrl = new Uri("https://localhost:5000")
         };
 
-        var presentationGenerator =
-            new SettingsDrivenPresentationConfigGenerator(Options.Create(backgroundHandlerSettings));
-        var pathGenerator = new TestPathGenerator(presentationGenerator);
+        var pathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.api")
+        }), new SettingsDrivenPresentationConfigGenerator(Options.Create(pathSettings)));
         
-        var manifestMerger = new ManifestMerger(pathGenerator, new NullLogger<ManifestMerger>());
+        var pathRewriteParser =
+            new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
+        
+        var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());
 
@@ -142,7 +149,7 @@ public class BatchCompletionMessageHandlerTests
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
         ResourceBase? resourceBase = null;
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
                 flatId, false, A<CancellationToken>._))
@@ -190,7 +197,7 @@ public class BatchCompletionMessageHandlerTests
         var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
 
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
@@ -222,7 +229,7 @@ public class BatchCompletionMessageHandlerTests
         var message = QueueHelper.CreateOldQueueMessage(batchId, CustomerId, finished);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, backgroundHandlerSettings.PresentationApiUrl));
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
 
         // Act
         var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
@@ -236,7 +243,7 @@ public class BatchCompletionMessageHandlerTests
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
         batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-        batch.Manifest!.LastProcessed.Should().NotBeNull();
+        batch.Manifest!.LastProcessed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
 
         var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == assetId);
         canvasPainting.Ingesting.Should().BeFalse();

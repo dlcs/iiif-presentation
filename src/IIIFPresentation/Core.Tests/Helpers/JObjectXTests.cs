@@ -38,4 +38,29 @@ public class JObjectXTests
         Action action = () => jobject.GetRequiredValue<int>("name");
         action.Should().ThrowExactly<FormatException>().WithMessage("The input string 'John Doe' was not in a correct format.");
     }
+    
+    [Fact]
+    public void TryGetValue_ReturnsValue_IfFound()
+    {
+        var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
+
+        jobject.TryGetValue<string>("name").Should().BeEquivalentTo("John Doe");
+    }
+    
+    [Fact]
+    public void TryGetValue_TReturnsNull_IfNotFound()
+    {
+        var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
+        
+        jobject.TryGetValue<string>("other").Should().BeNull();
+    }
+    
+    [Fact]
+    public void TryGetValue_ThrowsError_IfNotCorrectType()
+    {
+        var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
+        
+        Action action = () => jobject.TryGetValue<int>("name");
+        action.Should().ThrowExactly<FormatException>().WithMessage("The input string 'John Doe' was not in a correct format.");
+    }
 }
