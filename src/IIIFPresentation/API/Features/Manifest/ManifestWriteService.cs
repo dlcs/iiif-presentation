@@ -1,6 +1,7 @@
 using System.Data;
 using System.Diagnostics;
 using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
@@ -109,7 +110,7 @@ public class ManifestWriteService(
 
             if (existingManifest == null)
             {
-                if (!string.IsNullOrEmpty(request.Etag)) return ErrorHelper.EtagNotRequired<PresentationManifest>();
+                if (!string.IsNullOrEmpty(request.Etag)) return UpsertErrorHelper.EtagNotRequired<PresentationManifest>();
 
                 logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
                     request.ManifestId, request.CustomerId);
@@ -120,7 +121,7 @@ public class ManifestWriteService(
         }
         catch (DlcsException ex)
         {
-            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
+            return UpsertErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {
@@ -142,7 +143,7 @@ public class ManifestWriteService(
         }
         catch (DlcsException ex)
         {
-            return ErrorHelper.DlcsError<PresentationManifest>(ex.Message);
+            return UpsertErrorHelper.DlcsError<PresentationManifest>(ex.Message);
         }
         catch (Exception ex)
         {
@@ -172,7 +173,7 @@ public class ManifestWriteService(
 
             // Ensure we have a manifestId
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
-            if (manifestId == null) return ErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+            if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
             // Carry out any DLCS interactions (for paintedResources with _assets_) 
             var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
@@ -205,7 +206,7 @@ public class ManifestWriteService(
     {
         if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
-            return ErrorHelper.EtagNonMatching<PresentationManifest>();
+            return UpsertErrorHelper.EtagNonMatching<PresentationManifest>();
         }
 
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",

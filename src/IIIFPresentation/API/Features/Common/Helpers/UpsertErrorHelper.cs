@@ -3,9 +3,9 @@ using Core;
 using IIIF;
 using Models.API.General;
 
-namespace API.Features.Storage.Helpers;
+namespace API.Features.Common.Helpers;
 
-public static class ErrorHelper
+public static class UpsertErrorHelper
 {
     public static ModifyEntityResult<TCollection, ModifyCollectionType> NullParentResponse<TCollection>() 
         where TCollection : JsonLdBase

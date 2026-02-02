@@ -1,4 +1,5 @@
 using System.Net;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
@@ -111,7 +112,7 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(presentationException, "Error checking for the existence of assets");
 
-            return DlcsInteractionResult.Fail(ErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
+            return DlcsInteractionResult.Fail(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
         }
 
         return null;
@@ -150,7 +151,7 @@ public class DlcsManifestCoordinator(
                 if (!spaceId.HasValue)
                 {
                     return DlcsInteractionResult.Fail(
-                        ErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
+                        UpsertErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
                 }
 
                 // you wanted a space, and there are no assets, so no further work required
