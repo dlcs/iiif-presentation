@@ -42,9 +42,8 @@ public class ManagedAssetResultFinder(
 
             if (IsAssetNew(spaceId, spaceCreated, assetId))
             {
-                // ingest with a manifest id, then don't patch the manifest id
                 logger.LogTrace("Asset {AssetId} added to newly created space, so treated as unmanaged", assetId);
-                dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.ManifestId, false, assetId));
+                dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.NoManifestId, false, assetId));
                 continue;
             }
 
