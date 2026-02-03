@@ -33,5 +33,5 @@ public enum DeleteResult
     /// <summary>
     /// Request failed a precondition
     /// </summary>
-    PreConditionFailed
+    PreconditionFailed
 }

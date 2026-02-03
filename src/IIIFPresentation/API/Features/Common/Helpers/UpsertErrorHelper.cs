@@ -43,14 +43,14 @@ public static class UpsertErrorHelper
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
-            WriteResult.PreConditionFailed);
+            WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> EtagNonMatching<T>()
         where T : JsonLdBase
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
+            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)

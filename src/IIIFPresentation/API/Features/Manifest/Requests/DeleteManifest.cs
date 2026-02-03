@@ -10,8 +10,8 @@ using Repository;
 
 namespace API.Features.Manifest.Requests;
 
-public class DeleteManifest(int customerId, string manifestId, string etag)
-    : IRequest<ResultMessage<DeleteResult, DeleteResourceType>>
+public class DeleteManifest(int customerId, string manifestId, string? etag)
+    : IRequest<ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
@@ -22,9 +22,9 @@ public class DeleteManifestHandler(
     PresentationContext dbContext,
     IIIIFS3Service iiifS3,
     ILogger<DeleteManifestHandler> logger)
-    : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceType>>
+    : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
-    public async Task<ResultMessage<DeleteResult, DeleteResourceType>> Handle(DeleteManifest request,
+    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteManifest request,
         CancellationToken cancellationToken)
     {
         logger.LogDebug("Deleting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
@@ -51,7 +51,7 @@ public class DeleteManifestHandler(
             logger.LogError(ex, "Error attempting to delete manifest {ManifestId} for customer {CustomerId}",
                 request.ManifestId, request.CustomerId);
             return new(DeleteResult.Error,
-                DeleteResourceType.Unknown, "Error deleting manifest");
+                DeleteResourceErrorType.Unknown, "Error deleting manifest");
         }
         
         return new(DeleteResult.Deleted);
