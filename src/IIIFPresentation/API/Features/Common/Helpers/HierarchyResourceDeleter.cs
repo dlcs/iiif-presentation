@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Helpers;
+﻿using API.Features.Storage.Helpers;
+using API.Infrastructure.Helpers;
 using AWS.Helpers;
 using Core;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +15,11 @@ public class HierarchyResourceDeleter(
     IIIIFS3Service iiifS3,
     ILogger<HierarchyResourceDeleter> logger)
 {
-    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource(string? etagFromRequest, 
-        IHierarchyResource? resource, CancellationToken cancellationToken)
+    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource<T>(string? etagFromRequest, int customerId, 
+        string resourceId, CancellationToken cancellationToken) where T : class, IHierarchyResource
     {
+        var resource = await dbContext.Set<T>().Retrieve(customerId,  resourceId, cancellationToken: cancellationToken);
+        
         if (resource is null) return DeleteErrorHelper.NotFound();
 
         if (!EtagComparer.IsMatch(resource.Etag, etagFromRequest)) return DeleteErrorHelper.EtagNotMatching();
@@ -44,7 +47,7 @@ public class HierarchyResourceDeleter(
             var resourceType = hierarchy.CollectionId != null ? "collection" : "manifest";
             
             logger.LogError(ex, "Error attempting to delete {ResourceType} {ResourceId} for customer {CustomerId}",
-                resourceType, hierarchy.CollectionId ?? hierarchy.ManifestId, hierarchy.CustomerId);
+                resourceType, hierarchy.CollectionId ?? hierarchy.ManifestId, customerId);
             return DeleteErrorHelper.UnknownError(resourceType);
         }
 
@@ -64,7 +67,7 @@ public class HierarchyResourceDeleter(
                 DeleteResourceErrorType.CollectionNotEmpty, "Cannot delete a collection with child items");
         }
         
-        dbContext.Collections.Remove(collection);
+        dbContext.Remove(collection);
 
         if (!collection.IsStorageCollection)
         {
@@ -76,7 +79,7 @@ public class HierarchyResourceDeleter(
     
     private async Task DeleteManifest(IHierarchyResource resource, Models.Database.Collections.Manifest manifest)
     {
-        dbContext.Manifests.Remove(manifest);
+        dbContext.Remove(manifest);
         await iiifS3.DeleteIIIFFromS3(resource);
     }
 

@@ -16,7 +16,6 @@ public class DeleteManifest(int customerId, string manifestId, string? etag)
 }
 
 public class DeleteManifestHandler(
-    PresentationContext dbContext,
     HierarchyResourceDeleter hierarchyResourceDeleter,
     ILogger<DeleteManifestHandler> logger)
     : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceErrorType>>
@@ -27,10 +26,7 @@ public class DeleteManifestHandler(
         logger.LogDebug("Deleting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
             request.CustomerId);
 
-        var manifest =
-            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
-                withCanvasPaintings: false, cancellationToken: cancellationToken);
-        
-        return await hierarchyResourceDeleter.DeleteResource(request.Etag, manifest, cancellationToken);
+        return await hierarchyResourceDeleter.DeleteResource<Models.Database.Collections.Manifest>(request.Etag,
+            request.CustomerId, request.ManifestId, cancellationToken);
     }
 }

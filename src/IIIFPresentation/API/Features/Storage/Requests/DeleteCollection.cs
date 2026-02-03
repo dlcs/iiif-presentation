@@ -4,6 +4,7 @@ using Core;
 using MediatR;
 using Models;
 using Models.API.General;
+using Models.Database.Collections;
 using Repository;
 
 namespace API.Features.Storage.Requests;
@@ -18,7 +19,6 @@ public class DeleteCollection (int customerId, string collectionId, string? etag
 }
 
 public class DeleteCollectionHandler(
-    PresentationContext dbContext,
     HierarchyResourceDeleter hierarchyResourceDeleter,
     ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteResourceErrorType>>
@@ -32,10 +32,8 @@ public class DeleteCollectionHandler(
         {
             return DeleteErrorHelper.CannotDeleteRootCollection();
         }
-
-        var collection =
-            await dbContext.RetrieveCollectionAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
         
-        return await hierarchyResourceDeleter.DeleteResource(request.Etag, collection, cancellationToken);
+        return await hierarchyResourceDeleter.DeleteResource<Collection>(request.Etag,
+            request.CustomerId, request.CollectionId, cancellationToken);
     }
 }
