@@ -148,7 +148,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         errorResponse!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/DeleteResourceType/CannotDeleteRootCollection");
+            .Be("http://localhost/errors/DeleteResourceErrorType/CannotDeleteRootCollection");
         errorResponse.Detail.Should().Be("Cannot delete a root collection");
     }
 
@@ -168,7 +168,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceType/CollectionNotEmpty");
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/CollectionNotEmpty");
         errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
     }
     
@@ -188,7 +188,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceType/EtagNotMatching");
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/EtagNotMatching");
         errorResponse.Detail.Should().Be("Etag does not match");
     }
     

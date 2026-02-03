@@ -103,7 +103,7 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
         
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceType/EtagNotMatching");
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/EtagNotMatching");
         errorResponse.Detail.Should().Be("Etag does not match");
     }
 
