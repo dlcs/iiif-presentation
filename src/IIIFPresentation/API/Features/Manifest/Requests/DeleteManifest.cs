@@ -1,10 +1,7 @@
 ﻿using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
-using API.Infrastructure.Helpers;
-using AWS.Helpers;
 using Core;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Repository;
 
@@ -20,7 +17,7 @@ public class DeleteManifest(int customerId, string manifestId, string? etag)
 
 public class DeleteManifestHandler(
     PresentationContext dbContext,
-    IIIIFS3Service iiifS3,
+    HierarchyResourceDeleter hierarchyResourceDeleter,
     ILogger<DeleteManifestHandler> logger)
     : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
@@ -34,26 +31,6 @@ public class DeleteManifestHandler(
             await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
                 withCanvasPaintings: false, cancellationToken: cancellationToken);
         
-        if (manifest is null) return new(DeleteResult.NotFound);
-        
-        if (!EtagComparer.IsMatch(manifest.Etag, request.Etag)) return DeleteErrorHelper.EtagNotMatching();
-
-        dbContext.Manifests.Remove(manifest);
-
-        await iiifS3.DeleteIIIFFromS3(manifest);
-
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            logger.LogError(ex, "Error attempting to delete manifest {ManifestId} for customer {CustomerId}",
-                request.ManifestId, request.CustomerId);
-            return new(DeleteResult.Error,
-                DeleteResourceErrorType.Unknown, "Error deleting manifest");
-        }
-        
-        return new(DeleteResult.Deleted);
+        return await hierarchyResourceDeleter.DeleteResource(request.Etag, manifest, cancellationToken);
     }
 }
