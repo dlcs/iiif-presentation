@@ -110,6 +110,11 @@ public static class UpsertErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
             ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetError<TCollection>(string error)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+            ModifyCollectionType.AssetError, WriteResult.BadRequest);
+    
     private static string CollectionType(bool isStorageCollection)
     {
         return isStorageCollection ? "Storage" : "IIIF";

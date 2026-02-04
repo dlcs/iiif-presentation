@@ -4,6 +4,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
+using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -56,6 +57,13 @@ public class ManifestPaintedResourceParser(
         var payloadCanvasPainting = paintedResource.CanvasPainting;
         var (space, assetId) =
             GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
+
+        if (space < 0)
+        {
+            throw new AssetException(
+                $"The space for asset '{assetId}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{space}' and cannot be negative");
+        }
+        
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
         var cp = new InterimCanvasPainting
         {

@@ -17,7 +17,6 @@ using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
 using Models.Database.General;
-using Models.DLCS;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -87,7 +86,6 @@ public interface IManifestWrite
 public class ManifestWriteService(
     PresentationContext dbContext,
     IdentityManager identityManager,
-    IIIIFS3Service iiifS3,
     CanvasPaintingResolver canvasPaintingResolver,
     IPathGenerator pathGenerator,
     SettingsBasedPathGenerator savedManifestPathGenerator,
@@ -231,16 +229,10 @@ public class ManifestWriteService(
                 updatedCanvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
-            // update existing manifest with canvas paintings following DLCS interactions
-            var canvasPaintings =
-                updatedCanvasPaintingRecords.CanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult
-                    .SpaceId) ?? [];
-            existingManifest.CanvasPaintings ??= [];
-            existingManifest.CanvasPaintings.AddRange(canvasPaintings);
-            existingManifest.CanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
+            UpdateCanvasPaintingsAfterDlcsInteractions(existingManifest, updatedCanvasPaintingRecords, dlcsInteractionResult);
 
-            var (error, dbManifest) =
-                await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest, cancellationToken);
+            var (error, dbManifest) = await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest,
+                dlcsInteractionResult.SpaceId, cancellationToken);
             if (error != null) return error;
             Debug.Assert(dbManifest != null);
 
@@ -251,6 +243,20 @@ public class ManifestWriteService(
             return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
                 hasAssets, dlcsInteractionResult, WriteResult.Updated, cancellationToken);
         }
+    }
+
+    private void UpdateCanvasPaintingsAfterDlcsInteractions(DbManifest existingManifest, 
+        CanvasPaintingRecords updatedCanvasPaintingRecords, DlcsInteractionResult dlcsInteractionResult)
+    {
+        existingManifest.CanvasPaintings ??= [];
+        
+        SpaceHelper.UpdateCanvasPaintings(existingManifest.CanvasPaintings, dlcsInteractionResult.SpaceId);
+        
+        var canvasPaintings =
+            updatedCanvasPaintingRecords.CanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult
+                .SpaceId) ?? [];
+        existingManifest.CanvasPaintings.AddRange(canvasPaintings);
+        existingManifest.CanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
@@ -300,7 +306,7 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, int? dlcsInteractionResultSpace, CancellationToken cancellationToken)
     {
         existingManifest.Label = request.PresentationManifest.Label;
 
@@ -310,6 +316,9 @@ public class ManifestWriteService(
         var canonicalHierarchy = existingManifest.Hierarchy!.Single(c => c.Canonical);
         canonicalHierarchy.Slug = parsedParentSlug.Slug;
         canonicalHierarchy.Parent = parsedParentSlug.Parent.Id;
+
+        // set the space id if it's not been set previously - this will be null still if there's been no space created
+        existingManifest.SpaceId ??= dlcsInteractionResultSpace;
 
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);

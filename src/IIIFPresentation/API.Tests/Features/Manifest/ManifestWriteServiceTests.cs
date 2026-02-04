@@ -102,7 +102,7 @@ public class ManifestWriteServiceTests
             PathRules = PathRewriteOptions.Default
         })));
 
-        sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
+        sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
 

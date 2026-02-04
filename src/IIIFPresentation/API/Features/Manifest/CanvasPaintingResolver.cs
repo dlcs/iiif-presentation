@@ -72,8 +72,9 @@ public class CanvasPaintingResolver(
         
         existingManifest.CanvasPaintings ??= [];
         Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
-        
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings, manifestParseResult.CanvasPaintings);
+
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings,
+            manifestParseResult.CanvasPaintings, existingManifest.SpaceId);
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
@@ -81,14 +82,14 @@ public class CanvasPaintingResolver(
     }
     
     private List<InterimCanvasPainting> UpdateCanvasPaintingRecords(List<CanvasPainting> existingCanvasPaintings, 
-        List<InterimCanvasPainting> incomingCanvasPaintings)
+        List<InterimCanvasPainting> incomingCanvasPaintings, int? existingSpace)
     {
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<InterimCanvasPainting>();
         
         foreach (var incoming in incomingCanvasPaintings)
         {
-            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert);
+            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert, existingSpace);
         }
         
         // Delete canvasPaintings from DB that are not in payload
@@ -103,7 +104,7 @@ public class CanvasPaintingResolver(
     }
     
     private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, InterimCanvasPainting incoming,
-        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert)
+        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert, int? existingSpace)
     {
         var candidates = GetCandidates(existingCanvasPaintings, incoming);
         var matching = TryFindMatching(incoming, processedCanvasPaintingIds, candidates);
@@ -129,7 +130,7 @@ public class CanvasPaintingResolver(
         {
             // Found matching DB record, update...
             logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-            matching.UpdateFrom(incoming.ToCanvasPainting(matching.AssetId?.Space));
+            matching.UpdateFrom(incoming.ToCanvasPainting(existingSpace));
             processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
         }
     }
@@ -265,14 +266,16 @@ public class CanvasPaintingResolver(
         catch (InvalidCanvasIdException cpId)
         {
             logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
-            return new ManifestParseResult(UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null, null);
+            return new ManifestParseResult(
+                UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null, null);
         }
         catch (CanvasPaintingMergerException cpMergeError)
         {
             logger.LogDebug(cpMergeError,
                 "Canvas painting merge exception encountered in {ManifestId} for id {Id} - expected: {Expected}, actual: {Actual}",
                 presentationManifest.Id, cpMergeError.Id, cpMergeError.Expected, cpMergeError.Actual);
-            return new ManifestParseResult(UpsertErrorHelper.ErrorMergingPaintedResourcesWithItems<PresentationManifest>(cpMergeError.Message),
+            return new ManifestParseResult(
+                UpsertErrorHelper.ErrorMergingPaintedResourcesWithItems<PresentationManifest>(cpMergeError.Message),
                 null, null);
         }
         catch (InvalidOperationException formatException)
@@ -280,7 +283,15 @@ public class CanvasPaintingResolver(
             logger.LogDebug(formatException,
                 "Canvas painting exception encountered in {ManifestId}, could not retrieve an asset id",
                 presentationManifest.Id);
-            return new ManifestParseResult(UpsertErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null, null);
+            return new ManifestParseResult(UpsertErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>(), null,
+                null);
+        }
+        catch (AssetException assetException)
+        {
+            logger.LogDebug(assetException,
+                "Error when parsing asset ");
+            return new ManifestParseResult(UpsertErrorHelper.AssetError<PresentationManifest>(assetException.Message), null,
+                null);
         }
         catch (PaintableAssetException paintableAssetException)
         {
