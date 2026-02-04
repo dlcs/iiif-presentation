@@ -43,7 +43,7 @@ public class ManagedAssetResultFinder(
             if (IsAssetNew(spaceId, spaceCreated, assetId))
             {
                 logger.LogTrace("Asset {AssetId} added to newly created space, so treated as unmanaged", assetId);
-                dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.NoManifestId, false, assetId));
+                dlcsInteractionRequests.Add(new DlcsInteractionRequest(asset, IngestType.ManifestId, false, assetId));
                 continue;
             }
 

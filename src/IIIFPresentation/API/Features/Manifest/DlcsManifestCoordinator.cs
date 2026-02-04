@@ -162,10 +162,8 @@ public class DlcsManifestCoordinator(
                 
                 createdSpace = true;
             }
-
-            foreach (var asset in assetsWithoutSpaces)
-                asset.Add(AssetProperties.Space, spaceId.Value);
             
+            SpaceHelper.UpdateAssets(assetsWithoutSpaces, spaceId.Value);
         }
 
         return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, assetsFromItems, spaceId,

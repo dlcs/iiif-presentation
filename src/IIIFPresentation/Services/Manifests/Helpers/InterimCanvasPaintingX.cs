@@ -35,12 +35,13 @@ public static class InterimCanvasPaintingX
     public static bool ContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
         canvasPainting?.Any(cp => cp.Id?.Equals(id, StringComparison.OrdinalIgnoreCase) ?? false) ?? false;
 
-    public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? space)
+    public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? existingSpace)
     {
-        interimCanvasPainting.SuspectedSpace ??= space;
+        interimCanvasPainting.SuspectedSpace ??= existingSpace;
 
-        var assetId = interimCanvasPainting is { SuspectedAssetId: not null, SuspectedSpace: not null }
-            ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.SuspectedSpace.Value,
+        var assetId = interimCanvasPainting is { SuspectedAssetId: not null}
+            // -1 means that we can't yet give this item a space.  This happens when an asset does not have a space, and the manifest does not have a default space yet
+            ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.SuspectedSpace ?? -1,
                 interimCanvasPainting.SuspectedAssetId)
             : null;
 
