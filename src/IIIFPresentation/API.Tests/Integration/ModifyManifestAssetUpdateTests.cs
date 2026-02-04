@@ -2769,24 +2769,16 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     }
     
     [Fact]
-    public async Task UpdateManifest_CorrectlyUpdatesAssetRequests_WhenSpaceChangesButAssetIdStaysTheSame()
+    public async Task UpdateManifest_CorrectlyUpdatesAssetRequests_WhenSpaceRemovedButAssetIdStaysTheSame()
     {
         // Arrange
         var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
         var initialSpace = 25;
 
-        var initialCanvasPaintings = new List<CanvasPainting>
-        {
-            new()
-            {
-                Id = "first",
-                CanvasOrder = 1,
-                AssetId = new AssetId(Customer, initialSpace, assetId)
-            }
-        };
-
-        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true);
+        var testManifest =
+            await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
+                ingested: true);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(testManifest.Entity, assetId: new AssetId(Customer, initialSpace, assetId));
         await dbContext.SaveChangesAsync();
 
         var batchId = TestIdentifiers.BatchId();
@@ -2833,5 +2825,65 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // space added using the DLCS space
         canvasPainting.AssetId!.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}", "asset id updated to point at new space");
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_CorrectlyUpdatesAssetRequests_WhenSpaceChangesButAssetIdStaysTheSame()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var initialSpace = 25;
+        var finalSpace = 10;
+        
+        var testManifest =
+            await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(),
+                ingested: true);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(testManifest.Entity, assetId: new AssetId(Customer, initialSpace, assetId));
+        await dbContext.SaveChangesAsync();
+
+        var batchId = TestIdentifiers.BatchId();
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "space": {{finalSpace}},
+                                         "mediaType": "image/jpg"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == id);
+        
+        dbManifest.CanvasPaintings.Should().HaveCount(1);
+        var canvasPainting = dbManifest.CanvasPaintings.First();
+        
+        canvasPainting.Id.Should().Be("first");
+        // space added using the new space
+        canvasPainting.AssetId!.ToString().Should()
+            .Be($"{Customer}/{finalSpace}/{assetId}", "asset id updated to point at new space");
     }
 }
