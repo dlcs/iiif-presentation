@@ -2,6 +2,7 @@
 using API.Infrastructure.Helpers;
 using AWS.Helpers;
 using Core;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
@@ -18,7 +19,7 @@ public class HierarchyResourceDeleter(
     public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource<T>(string? etagFromRequest, int customerId, 
         string resourceId, CancellationToken cancellationToken) where T : class, IHierarchyResource
     {
-        var resource = await dbContext.Set<T>().Retrieve(customerId,  resourceId, cancellationToken: cancellationToken);
+        var resource = await dbContext.Set<T>().Retrieve(customerId,  resourceId, true, cancellationToken);
         
         if (resource is null) return DeleteErrorHelper.NotFound();
 
@@ -43,11 +44,11 @@ public class HierarchyResourceDeleter(
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            var hierarchy = resource.Hierarchy.GetCanonical();
-            var resourceType = hierarchy.CollectionId != null ? "collection" : "manifest";
+            var hierarchyType = typeof(T);
+            var resourceType = hierarchyType == typeof(Collection) ? "collection" : "manifest";
             
             logger.LogError(ex, "Error attempting to delete {ResourceType} {ResourceId} for customer {CustomerId}",
-                resourceType, hierarchy.CollectionId ?? hierarchy.ManifestId, customerId);
+                resourceType, resourceId, customerId);
             return DeleteErrorHelper.UnknownError(resourceType);
         }
 
