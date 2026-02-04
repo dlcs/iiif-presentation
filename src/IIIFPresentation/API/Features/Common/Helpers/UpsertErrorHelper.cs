@@ -3,9 +3,9 @@ using Core;
 using IIIF;
 using Models.API.General;
 
-namespace API.Features.Storage.Helpers;
+namespace API.Features.Common.Helpers;
 
-public static class ErrorHelper
+public static class UpsertErrorHelper
 {
     public static ModifyEntityResult<TCollection, ModifyCollectionType> NullParentResponse<TCollection>() 
         where TCollection : JsonLdBase
@@ -43,14 +43,14 @@ public static class ErrorHelper
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
-            WriteResult.PreConditionFailed);
+            WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> EtagNonMatching<T>()
         where T : JsonLdBase
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
+            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)

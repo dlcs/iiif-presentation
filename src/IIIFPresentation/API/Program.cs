@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using API.Auth;
+using API.Features.Common.Helpers;
 using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
@@ -8,7 +9,6 @@ using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
 using API.Paths;
 using API.Settings;
-using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -20,7 +20,6 @@ using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
-using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -81,6 +80,7 @@ builder.Services
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()
+    .AddScoped<HierarchyResourceDeleter>()
     .AddHttpContextAccessor()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();

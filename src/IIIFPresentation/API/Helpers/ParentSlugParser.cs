@@ -73,7 +73,7 @@ public class ParentSlugParser(PresentationContext dbContext,
         where T : JsonLdBase
         => string.IsNullOrEmpty(presentation.PublicId) || presentation.PublicIdIsRoot(GetBaseUrl(), customer)
             ? null
-            : ErrorHelper.IncorrectPublicId<T>();
+            : UpsertErrorHelper.IncorrectPublicId<T>();
 
     private (ModifyEntityResult<T, ModifyCollectionType>? errors, string? slug)
         TryGetSlug<T>(IPresentation presentation) where T : JsonLdBase
@@ -88,7 +88,7 @@ public class ParentSlugParser(PresentationContext dbContext,
         {
             logger.LogDebug("PublicId slug '{PublicIdSlug}' and explicit slug {Slug} do not match",
                 presentation.PublicId, presentation.Slug);
-            return (ErrorHelper.SlugMustMatchPublicId<T>(), null);
+            return (UpsertErrorHelper.SlugMustMatchPublicId<T>(), null);
         }
 
         return (null, slug);
@@ -129,7 +129,7 @@ public class ParentSlugParser(PresentationContext dbContext,
         {
             logger.LogDebug("PublicId parent '{PublicIdParent}' and explicit parent {Parent} do not match",
                 presentation.PublicId, presentation.Parent);
-            return (ErrorHelper.ParentMustMatchPublicId<T>(), null);
+            return (UpsertErrorHelper.ParentMustMatchPublicId<T>(), null);
         }
 
         return (null, parent);

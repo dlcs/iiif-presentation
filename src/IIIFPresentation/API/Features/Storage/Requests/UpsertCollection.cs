@@ -62,7 +62,7 @@ public class UpsertCollectionHandler(
         if (!isStorageCollection)
         {
             iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF<IIIF.Presentation.V3.Collection>(logger);
-            if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
+            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         var databaseCollection =
             await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
@@ -77,7 +77,7 @@ public class UpsertCollectionHandler(
         if (databaseCollection == null)
         {
             // No existing collection = create
-            if (!string.IsNullOrEmpty(request.ETag)) return ErrorHelper.EtagNotRequired<PresentationCollection>();
+            if (!string.IsNullOrEmpty(request.ETag)) return UpsertErrorHelper.EtagNotRequired<PresentationCollection>();
 
             var createdDate = DateTime.UtcNow;
 
@@ -109,14 +109,14 @@ public class UpsertCollectionHandler(
         else
         {
             if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
-                return ErrorHelper.EtagNonMatching<PresentationCollection>();
+                return UpsertErrorHelper.EtagNonMatching<PresentationCollection>();
             
             if (isStorageCollection != databaseCollection.IsStorageCollection)
             {
                 logger.LogError(
                     "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
                     request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
-                return ErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
+                return UpsertErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
             }
 
             var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);

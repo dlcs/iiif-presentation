@@ -87,7 +87,7 @@ public static class ControllerBaseX
             WriteResult.StorageLimitExceeded => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.InsufficientStorage,
                 $"{errorTitle}: Storage limit exceeded"),
-            WriteResult.PreConditionFailed => controller.PresentationProblem(entityResult.Error, instance,
+            WriteResult.PreconditionFailed => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.PreconditionFailed,
                 $"{errorTitle}: Pre-condition failed", controller.GetErrorType(entityResult.ErrorType)),
             _ => controller.PresentationProblem(entityResult.Error, instance, (int)HttpStatusCode.InternalServerError,

@@ -5,9 +5,12 @@ using Core.Helpers;
 using Core.Infrastructure;
 using Core.Response;
 using IIIF.Serialisation;
+using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
 using Models.API.General;
+using Models.Database.General;
 using Repository;
+using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -78,7 +81,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
        await dbContext.SaveChangesAsync();
 
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{dbCollection.Id}");
+            $"{Customer}/collections/{dbCollection.Id}", dbContext.GetETag(dbCollection));
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(deleteRequestMessage);
@@ -102,7 +105,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
         await dbContext.SaveChangesAsync();
 
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/{dbCollection.Id}/");
+            $"{Customer}/collections/{dbCollection.Id}/", dbContext.GetETag(dbCollection));
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(deleteRequestMessage);
@@ -145,7 +148,7 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         errorResponse!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/DeleteCollectionType/CannotDeleteRootCollection");
+            .Be("http://localhost/errors/DeleteResourceErrorType/CannotDeleteRootCollection");
         errorResponse.Detail.Should().Be("Cannot delete a root collection");
     }
 
@@ -153,8 +156,10 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
     public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteCollectionWithItems()
     {
         // Arrange
+        var id = "FirstChildCollection";
+        
         var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
-            $"{Customer}/collections/FirstChildCollection");
+            $"{Customer}/collections/{id}", dbContext.GetETag(id, Customer, ResourceType.IIIFCollection));
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(deleteRequestMessage);
@@ -163,8 +168,28 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteCollectionType/CollectionNotEmpty");
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/CollectionNotEmpty");
         errorResponse.Detail.Should().Be("Cannot delete a collection with child items");
+    }
+    
+    [Fact]
+    public async Task DeleteCollection_FailsToDeleteCollection_WhenAttemptingToDeleteCollectionWithNonMatchingEtag()
+    {
+        // Arrange
+        var id = "IiifCollection";
+        
+        var deleteRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/collections/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(deleteRequestMessage);
+
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/EtagNotMatching");
+        errorResponse.Detail.Should().Be("Etag does not match");
     }
     
     [Fact]
@@ -190,13 +215,13 @@ public class DeleteCollectionTests : IClassFixture<PresentationAppFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
         var id = responseCollection!.Id.GetLastPathElement();
-        
+
         var objectInS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
             $"{Customer}/collections/{id}");
         objectInS3.Should().NotBeNull();
 
-        requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{id}");
+        requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/collections/{id}",
+            dbContext.GetETag(id, Customer, ResourceType.IIIFCollection));
 
 
         // Act
