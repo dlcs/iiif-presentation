@@ -72,7 +72,7 @@ public class CanvasPaintingResolver(
         existingManifest.CanvasPaintings ??= [];
         Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
         
-        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings, manifestParseResult.CanvasPaintings);
+        var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings, manifestParseResult.CanvasPaintings, presentationManifest.Space);
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
@@ -80,14 +80,14 @@ public class CanvasPaintingResolver(
     }
     
     private List<InterimCanvasPainting> UpdateCanvasPaintingRecords(List<CanvasPainting> existingCanvasPaintings, 
-        List<InterimCanvasPainting> incomingCanvasPaintings)
+        List<InterimCanvasPainting> incomingCanvasPaintings, string? existingSpace)
     {
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<InterimCanvasPainting>();
         
         foreach (var incoming in incomingCanvasPaintings)
         {
-            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert);
+            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert, existingSpace);
         }
         
         // Delete canvasPaintings from DB that are not in payload
@@ -102,7 +102,7 @@ public class CanvasPaintingResolver(
     }
     
     private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, InterimCanvasPainting incoming,
-        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert)
+        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert, string? existingSpace)
     {
         var candidates = GetCandidates(existingCanvasPaintings, incoming);
         var matching = TryFindMatching(incoming, processedCanvasPaintingIds, candidates);
@@ -126,9 +126,15 @@ public class CanvasPaintingResolver(
         }
         else
         {
+            int? space = null;
+            if (existingSpace != null)
+            {
+                space = int.TryParse(existingSpace, out var convertedSpace) ? convertedSpace : null;
+            }
+            
             // Found matching DB record, update...
             logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-            matching.UpdateFrom(incoming.ToCanvasPainting(matching.AssetId?.Space));
+            matching.UpdateFrom(incoming.ToCanvasPainting(space));
             processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
         }
     }

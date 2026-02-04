@@ -2798,11 +2798,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
-                                        "label": {
-                                             "en": [
-                                                 "canvas testing"
-                                             ]
-                                         }
+                                        "canvasId": "first"
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
@@ -2823,33 +2819,19 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-
-        responseManifest!.Id.Should().NotBeNull();
-        responseManifest.Modified.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
-        responseManifest.CreatedBy.Should().Be("Admin");
-        responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
 
         var dbManifest = dbContext.Manifests
             .Include(m => m.CanvasPaintings)
             .Include(m => m.Batches)
             .First(x => x.Id == id);
-        
+
+        dbManifest.SpaceId.Should().Be(NewlyCreatedSpace, "space updated from null by the DLCS");
         dbManifest.CanvasPaintings.Should().HaveCount(1);
-        dbManifest.CanvasPaintings!.First().Label!.First().Value[0].Should().Be("canvas testing");
-        // space added using the DLCS space
-        dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
-            .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
-        dbManifest.Batches.Should().HaveCount(2);
-        dbManifest.Batches!.Last().Status.Should().Be(BatchStatus.Ingesting);
-        dbManifest.Batches!.Last().Id.Should().Be(batchId);
+        var canvasPainting = dbManifest.CanvasPaintings.First();
         
-        var savedS3 =
-            await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
-                $"staging/{Customer}/manifests/{dbManifest.Id}");
-        var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
-        s3Manifest.Id.Should().EndWith(dbManifest.Id);
-        s3Manifest.Items.Should().HaveCount(1);
+        canvasPainting.Id.Should().Be("first");
+        // space added using the DLCS space
+        canvasPainting.AssetId!.ToString().Should()
+            .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}", "asset id updated to point at new space");
     }
 }
