@@ -2,6 +2,7 @@
 using Core;
 using IIIF;
 using Models.API.General;
+using Services.Manifests.Exceptions;
 
 namespace API.Features.Common.Helpers;
 
@@ -109,6 +110,11 @@ public static class UpsertErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
             ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetError<TCollection>(AssetException exception)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(exception.Message,
+            ModifyCollectionType.AssetError, WriteResult.BadRequest);
     
     private static string CollectionType(bool isStorageCollection)
     {

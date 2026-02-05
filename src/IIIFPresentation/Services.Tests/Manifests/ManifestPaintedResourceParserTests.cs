@@ -7,6 +7,7 @@ using Models.API.Manifest;
 using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Exceptions;
 using Services.Manifests.Model;
 using Test.Helpers.Helpers;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
@@ -645,6 +646,31 @@ public class ManifestPaintedResourceParserTests
         var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData(null, "The space for asset 'frodo' is '-1' and cannot be negative")]
+    [InlineData("first", "The space for asset 'frodo' with canvas id 'first' is '-1' and cannot be negative")]
+    public void Parse_SingleItem_AssetOnly_WithNegativeSpace_ThrowsError(string? canvasId, string errorMessage)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId },
+                    Asset = GetAsset(space: -1)
+                }
+            ]
+        };
+        
+        // Act
+        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
+        
+        // Assert
+        action.Should().Throw<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
     private JObject GetAsset(int? space = null, string? id = null)
