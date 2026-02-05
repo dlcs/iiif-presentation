@@ -3,6 +3,7 @@ using System.Diagnostics;
 using API.Features.Common.Helpers;
 using API.Features.Manifest.Exceptions;
 using API.Features.Storage.Helpers;
+using API.Features.Storage.Validators;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
@@ -260,6 +261,7 @@ public class CanvasPaintingResolver(
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
+            
 
             return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets());
         }
