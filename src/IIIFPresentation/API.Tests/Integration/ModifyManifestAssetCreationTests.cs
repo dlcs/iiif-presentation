@@ -1647,4 +1647,56 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         assetId.Value<string>().Should()
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
+     
+     [Fact]
+    public async Task CreateManifest_FailsToCreateManifest_WhenCollisionOfImplicitExplicitOrdering()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var batchId = TestIdentifiers.BatchId();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "id": "first",
+                                        "canvasOrder": 1
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 },
+                                 {
+                                    "canvasPainting":{
+                                        "id": "second"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse.Detail.Should().Be("Canvases that share 'canvasOrder' must have same 'canvasId'");
+    }
 }

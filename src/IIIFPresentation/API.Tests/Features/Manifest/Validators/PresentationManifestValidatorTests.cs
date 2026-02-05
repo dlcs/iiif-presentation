@@ -11,14 +11,7 @@ namespace API.Tests.Features.Manifest.Validators;
 
 public class PresentationManifestValidatorTests
 {
-    private readonly PresentationManifestValidator sut = new(Options.Create(new ApiSettings()
-    {
-        AWS = new AWSSettings(),
-        DLCS = new DlcsSettings
-        {
-            ApiUri = new Uri("https://localhost")
-        }
-    }));
+    private readonly PresentationManifestValidator sut = new();
 
     [Theory]
     [InlineData(null)]
@@ -185,7 +178,7 @@ public class PresentationManifestValidatorTests
         };
         
         var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources.Select(pr => pr.CanvasPainting).ToList())
             .WithErrorMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
     }
     
@@ -291,61 +284,6 @@ public class PresentationManifestValidatorTests
         
         var result = sut.TestValidate(manifest);
         result.ShouldNotHaveValidationErrorFor(m => m.PaintedResources);
-    }
-    
-    [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasOrder()
-    {
-        var manifest = new PresentationManifest
-        {
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1
-                    }
-                },
-
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-2",
-                    }
-                }
-            ],
-        };
-        
-        var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
-            .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
-    }
-    
-    [Fact]
-    public void CanvasPaintingAndItems_Manifest_ErrorWhenNotEveryItemHasCanvasOrder_DueToMissingCanvasPainting()
-    {
-        var manifest = new PresentationManifest
-        {
-            PaintedResources =
-            [
-                new PaintedResource
-                {
-                    CanvasPainting = new CanvasPainting
-                    {
-                        CanvasId = "someCanvasId-1",
-                        CanvasOrder = 1
-                    }
-                },
-                new PaintedResource()
-            ],
-        };
-        
-        var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
-            .WithErrorMessage("'canvasOrder' is required on all resources when used in at least one");
     }
     
     [Fact]
