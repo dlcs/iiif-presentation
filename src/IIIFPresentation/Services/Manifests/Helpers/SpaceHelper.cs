@@ -16,7 +16,7 @@ public static class SpaceHelper
     public static int DefaultSpaceForLaterPopulation => -1;
 
     /// <summary>
-    /// Updates asset JObjects that don't have a space with a spoecified space
+    /// Updates asset JObjects that don't have a space with a specified space
     /// </summary>
     /// <param name="assetsWithoutSpaces">The assets that don't have a space id attached</param>
     /// <param name="spaceId">The space id to set</param> 

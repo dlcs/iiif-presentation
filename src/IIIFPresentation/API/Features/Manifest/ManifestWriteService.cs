@@ -22,6 +22,8 @@ using Repository.Helpers;
 using Repository.Paths;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
+using Services.Manifests.Model;
+using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
@@ -180,9 +182,8 @@ public class ManifestWriteService(
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
             // convert and update the canvas paintings from the interim object, to the database format
-            var canvasPaintings =
-                createdCanvasPaintingRecords.CanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
-            canvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
+            var canvasPaintings = UpdateCanvasPaintingsAfterDlcsInteractions([],
+                createdCanvasPaintingRecords.CanvasPaintingsToAdd, dlcsInteractionResult);
 
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, 
@@ -229,7 +230,7 @@ public class ManifestWriteService(
                 updatedCanvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, cancellationToken);
             if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
 
-            UpdateCanvasPaintingsAfterDlcsInteractions(existingManifest, updatedCanvasPaintingRecords, dlcsInteractionResult);
+            UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(existingManifest, updatedCanvasPaintingRecords, dlcsInteractionResult);
 
             var (error, dbManifest) = await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest,
                 dlcsInteractionResult.SpaceId, cancellationToken);
@@ -245,18 +246,26 @@ public class ManifestWriteService(
         }
     }
 
-    private void UpdateCanvasPaintingsAfterDlcsInteractions(DbManifest existingManifest, 
+    private void UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(DbManifest existingManifest, 
         CanvasPaintingRecords updatedCanvasPaintingRecords, DlcsInteractionResult dlcsInteractionResult)
     {
         existingManifest.CanvasPaintings ??= [];
         
         SpaceHelper.UpdateCanvasPaintings(existingManifest.CanvasPaintings, dlcsInteractionResult.SpaceId);
+
+        UpdateCanvasPaintingsAfterDlcsInteractions(existingManifest.CanvasPaintings,
+            updatedCanvasPaintingRecords.CanvasPaintingsToAdd, dlcsInteractionResult);
+    }
+
+    private List<CanvasPainting> UpdateCanvasPaintingsAfterDlcsInteractions(List<CanvasPainting> initialCanvasPaintings,
+        List<InterimCanvasPainting>? interimCanvasPaintings, DlcsInteractionResult dlcsInteractionResult)
+    {
+        var convertedCanvasPaintings =
+            interimCanvasPaintings?.ConvertInterimCanvasPaintings(dlcsInteractionResult.SpaceId) ?? [];
+        initialCanvasPaintings.AddRange(convertedCanvasPaintings);
+        initialCanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
         
-        var canvasPaintings =
-            updatedCanvasPaintingRecords.CanvasPaintingsToAdd?.ConvertInterimCanvasPaintings(dlcsInteractionResult
-                .SpaceId) ?? [];
-        existingManifest.CanvasPaintings.AddRange(canvasPaintings);
-        existingManifest.CanvasPaintings.SetAssetsToIngesting(dlcsInteractionResult.IngestedAssets);
+        return initialCanvasPaintings;
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
@@ -306,7 +315,7 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, int? dlcsInteractionResultSpace, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, DbManifest existingManifest, int? manifestSpace, CancellationToken cancellationToken)
     {
         existingManifest.Label = request.PresentationManifest.Label;
 
@@ -318,7 +327,7 @@ public class ManifestWriteService(
         canonicalHierarchy.Parent = parsedParentSlug.Parent.Id;
 
         // set the space id if it's not been set previously - this will be null still if there's been no space created
-        existingManifest.SpaceId ??= dlcsInteractionResultSpace;
+        existingManifest.SpaceId ??= manifestSpace;
 
         var saveErrors = await SaveAndPopulateEntity(request, existingManifest, cancellationToken);
         return (saveErrors, existingManifest);

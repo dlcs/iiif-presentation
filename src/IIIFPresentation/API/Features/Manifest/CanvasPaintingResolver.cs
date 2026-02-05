@@ -82,14 +82,14 @@ public class CanvasPaintingResolver(
     }
     
     private List<InterimCanvasPainting> UpdateCanvasPaintingRecords(List<CanvasPainting> existingCanvasPaintings, 
-        List<InterimCanvasPainting> incomingCanvasPaintings, int? existingSpace)
+        List<InterimCanvasPainting> incomingCanvasPaintings, int? manifestSpace)
     {
         var processedCanvasPaintingIds = new List<int>(incomingCanvasPaintings.Count);
         var toInsert = new List<InterimCanvasPainting>();
         
         foreach (var incoming in incomingCanvasPaintings)
         {
-            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert, existingSpace);
+            UpdateCanvasPainting(existingCanvasPaintings, incoming, processedCanvasPaintingIds, toInsert, manifestSpace);
         }
         
         // Delete canvasPaintings from DB that are not in payload
@@ -104,7 +104,7 @@ public class CanvasPaintingResolver(
     }
     
     private void UpdateCanvasPainting(List<CanvasPainting> existingCanvasPaintings, InterimCanvasPainting incoming,
-        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert, int? existingSpace)
+        List<int> processedCanvasPaintingIds, List<InterimCanvasPainting> toInsert, int? manifestSpace)
     {
         var candidates = GetCandidates(existingCanvasPaintings, incoming);
         var matching = TryFindMatching(incoming, processedCanvasPaintingIds, candidates);
@@ -130,7 +130,7 @@ public class CanvasPaintingResolver(
         {
             // Found matching DB record, update...
             logger.LogTrace("Updating canvasPaintingId {CanvasId}", matching.CanvasPaintingId);
-            matching.UpdateFrom(incoming.ToCanvasPainting(existingSpace));
+            matching.UpdateFrom(incoming.ToCanvasPainting(manifestSpace));
             processedCanvasPaintingIds.Add(matching.CanvasPaintingId);
         }
     }
@@ -289,8 +289,8 @@ public class CanvasPaintingResolver(
         catch (AssetException assetException)
         {
             logger.LogDebug(assetException,
-                "Error when parsing asset ");
-            return new ManifestParseResult(UpsertErrorHelper.AssetError<PresentationManifest>(assetException.Message), null,
+                "Error when parsing asset - {AssetException}", assetException.Asset);
+            return new ManifestParseResult(UpsertErrorHelper.AssetError<PresentationManifest>(assetException), null,
                 null);
         }
         catch (PaintableAssetException paintableAssetException)

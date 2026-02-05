@@ -35,9 +35,9 @@ public static class InterimCanvasPaintingX
     public static bool ContainsId(this List<InterimCanvasPainting>? canvasPainting, string? id) =>
         canvasPainting?.Any(cp => cp.Id?.Equals(id, StringComparison.OrdinalIgnoreCase) ?? false) ?? false;
 
-    public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? existingSpace)
+    public static CanvasPainting ToCanvasPainting(this InterimCanvasPainting interimCanvasPainting, int? manifestSpace)
     {
-        interimCanvasPainting.SuspectedSpace ??= existingSpace;
+        interimCanvasPainting.SuspectedSpace ??= manifestSpace;
 
         var assetId = interimCanvasPainting is { SuspectedAssetId: not null}
             ? new AssetId(interimCanvasPainting.CustomerId, interimCanvasPainting.SuspectedSpace ?? SpaceHelper.DefaultSpaceForLaterPopulation,

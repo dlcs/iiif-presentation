@@ -61,7 +61,8 @@ public class ManifestPaintedResourceParser(
         if (space < 0)
         {
             throw new AssetException(
-                $"The space for asset '{assetId}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{space}' and cannot be negative");
+                $"The space for asset '{assetId}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{space}' and cannot be negative",
+                assetId);
         }
         
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);

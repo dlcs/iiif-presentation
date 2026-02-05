@@ -4,4 +4,7 @@
 /// General exception for asset errors
 /// </summary>
 /// <param name="message"></param>
-public class AssetException(string? message) : Exception(message);
+public class AssetException(string? message, string asset) : Exception(message)
+{
+    public string Asset { get; } = asset;
+}
