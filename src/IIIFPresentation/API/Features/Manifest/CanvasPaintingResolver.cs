@@ -2,8 +2,7 @@
 using System.Diagnostics;
 using API.Features.Common.Helpers;
 using API.Features.Manifest.Exceptions;
-using API.Features.Storage.Helpers;
-using API.Features.Storage.Validators;
+using API.Features.Manifest.Validators;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
@@ -79,6 +78,7 @@ public class CanvasPaintingResolver(
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
+
         return CanvasPaintingRecords.Success(toInsert, manifestParseResult.AssetsIdentifiedInItems);
     }
     
@@ -202,6 +202,10 @@ public class CanvasPaintingResolver(
         var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, customerId, cancellationToken);
         if (canvasPaintingIds == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
+        var stuff = canvasPaintings
+            .Where(cp => !string.IsNullOrEmpty(cp.Id))
+            .GroupBy(cp => cp.GetGroupingForIdAssignment());
+        
         // Build a dictionary of canvas_grouping:canvas_id, this is populated as we iterate over canvas paintings.
         // We will also seed it with any 'new' items that are on the same canvas as these will have been prepopulated
         // with a canvas_id
@@ -261,8 +265,23 @@ public class CanvasPaintingResolver(
 
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
-            
 
+
+            if (res != null)
+            {
+                var validator = new PresentationManifestDatabaseValidator();
+                var validationResult = validator.Validate(res);
+
+                if (!validationResult.IsValid)
+                {
+                    var message = "Errors after processing canvas paintings. ";
+                    message += string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
+
+                    return new ManifestParseResult(
+                        UpsertErrorHelper.CanvasPaintingsProcessingError<PresentationManifest>(message), null, null);
+                }
+            }
+                
             return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets());
         }
         catch (InvalidCanvasIdException cpId)

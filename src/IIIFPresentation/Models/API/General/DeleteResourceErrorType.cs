@@ -1,5 +1,9 @@
 ﻿namespace Models.API.General;
 
+/// <summary>
+/// Various errors that occur from deletes
+/// </summary>
+/// <remarks>This is output in publicly available paths</remarks>
 public enum DeleteResourceErrorType
 {
     CannotDeleteRootCollection = 1,

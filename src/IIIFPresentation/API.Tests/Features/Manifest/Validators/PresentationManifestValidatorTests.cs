@@ -178,7 +178,7 @@ public class PresentationManifestValidatorTests
         };
         
         var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.PaintedResources.Select(pr => pr.CanvasPainting).ToList())
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
     }
     

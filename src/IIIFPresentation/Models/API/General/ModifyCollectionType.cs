@@ -27,5 +27,6 @@ public enum ModifyCollectionType
     PaintableAssetError = 23,
     AssetError = 24,
     AssetsDoNotMatch = 25,
+    CanvasPaintingsProcessingError = 26,
     Unknown = 1000
 }

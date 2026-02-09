@@ -1648,7 +1648,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
      
-     [Fact]
+    [Fact]
     public async Task CreateManifest_FailsToCreateManifest_WhenCollisionOfImplicitExplicitOrdering()
     {
         // Arrange
@@ -1662,7 +1662,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
-                                        "id": "first",
+                                        "canvasId": "first",
                                         "canvasOrder": 1
                                     },
                                      "asset": {
@@ -1674,10 +1674,10 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                  },
                                  {
                                     "canvasPainting":{
-                                        "id": "second"
+                                        "canvasId": "second"
                                     },
                                      "asset": {
-                                         "id": "{{assetId}}",
+                                         "id": "{{assetId}}_2",
                                          "mediaType": "image/jpg",
                                          "origin": "some/origin"
                                      }
@@ -1697,6 +1697,54 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
-        errorResponse.Detail.Should().Be("Canvases that share 'canvasOrder' must have same 'canvasId'");
+        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Painted resources cannot have a null 'choiceOrder' within a detected choice construct. This can happen when implicit and explicit 'canvasOrder' values conflict");
+    }
+    
+    [Fact]
+    public async Task CreateManifest_FailsToCreateManifest_WhenCollisionOfImplicitExplicitOrderingWithNoCanvasId()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var batchId = TestIdentifiers.BatchId();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "canvasOrder": 1
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 },
+                                 {
+                                     "asset": {
+                                         "id": "{{assetId}}_2",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Painted resources cannot have a null 'choiceOrder' within a detected choice construct. This can happen when implicit and explicit 'canvasOrder' values conflict");
     }
 }
