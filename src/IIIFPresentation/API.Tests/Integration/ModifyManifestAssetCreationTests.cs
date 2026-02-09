@@ -1747,4 +1747,65 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
         errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Painted resources cannot have a null 'choiceOrder' within a detected choice construct. This can happen when implicit and explicit 'canvasOrder' values conflict");
     }
+    
+    [Fact]
+    public async Task CreateManifest_CreatesManifest_WhenMixOfImplicitExplicitOrdering()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var batchId = TestIdentifiers.BatchId();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting":{
+                                        "canvasId": "first",
+                                        "canvasOrder": 2
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "batch": "{{batchId}}",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 },
+                                 {
+                                     "canvasPainting":{
+                                         "canvasId": "second"
+                                     },
+                                     "asset": {
+                                         "id": "{{assetId}}_2",
+                                         "mediaType": "image/jpg",
+                                         "origin": "some/origin"
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest.Should().NotBeNull();
+        responseManifest!.PaintedResources.Should().NotBeNull();
+        responseManifest.PaintedResources!.Count.Should().Be(2);
+        
+        var implicitPaintedResource = responseManifest.PaintedResources.First();
+        implicitPaintedResource.CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/second");
+        implicitPaintedResource.CanvasPainting.CanvasOrder.Should().Be(1);
+
+        var explicitPaintedResource = responseManifest.PaintedResources.Last();
+        explicitPaintedResource.CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/first");
+        explicitPaintedResource.CanvasPainting.CanvasOrder.Should().Be(2);
+    }
 }
