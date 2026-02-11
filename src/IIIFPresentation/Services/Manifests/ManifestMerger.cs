@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Core.IIIF;
 using IIIF;
 using IIIF.Presentation;
@@ -268,7 +269,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             HandleCanvasPainting(canvasPaintingChoice, canvas, namedQueryCanvas, body);
 
             // We might have 1 or more IPaintable elements (e.g. if NQ resource is already a choice, flatten it)
-            var paintables = GetPaintablesForChoice(body);
+
+            var paintables = new List<IPaintable>(GetPaintablesForChoice(body));
             if (canvasPaintingChoice.Label != null)
             {
                 logger.LogTrace("CanvasPainting {CanvasPaintingId} has label, setting on choice paintables",
@@ -426,15 +428,49 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private static IPaintable GetSafeFirstPaintingAnnotationBody(Canvas canvas)
     {
         var paintable = GetSafeFirstPaintingAnnotation(canvas).Body.ThrowIfNull("PaintingAnnotation.Body");
-        return paintable is Image image
-            ? new Image
+
+        return GetSafePaintable(paintable, 0);
+    }
+
+    /// <summary>
+    /// Clones a painting annotation body to avoid issues with references to the same asset
+    /// </summary>
+    /// <param name="paintable">The paintable to clone</param>
+    /// <param name="depth">The current depth of the function - used to track painting choice</param>
+    /// <returns>A safe paintable</returns>
+    /// <exception cref="PresentationException">Thrown when recursive depth exceeds the maximum allowed</exception>
+    private static IPaintable GetSafePaintable(IPaintable paintable, int depth)
+    {
+        if (depth == 3)
+        {
+            // Recursive function emergency exit - this shouldn't be hit
+            throw new PresentationException($"Recursive depth '{depth}' of painting choice deeper than can be handled");
+        }
+        
+        return paintable switch
+        {
+            Image image => new Image
             {
                 Id = image.Id,
                 Format = image.Format,
                 Width = image.Width,
                 Height = image.Height,
                 Service = image.Service,
-            }
-            : paintable;
+            },
+            Sound sound => new Sound { Id = sound.Id, Format = sound.Format, Duration = sound.Duration, },
+            Video video => new Video
+            {
+                Id = video.Id,
+                Format = video.Format,
+                Duration = video.Duration,
+                Width = video.Width,
+                Height = video.Height
+            },
+            PaintingChoice paintingChoice => new PaintingChoice
+            {
+                Items = paintingChoice.Items!.Select(i => GetSafePaintable(i, ++depth)).ToList()
+            },
+            _ => paintable
+        };
     }
 }

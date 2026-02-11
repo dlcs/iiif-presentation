@@ -1,4 +1,5 @@
-﻿using Core.Web;
+﻿using Core.Exceptions;
+using Core.Web;
 using DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
@@ -13,6 +14,7 @@ using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
+using Annotation = IIIF.Presentation.V2.Annotation.Annotation;
 using Canvas = IIIF.Presentation.V3.Canvas;
 using Manifest = IIIF.Presentation.V3.Manifest;
 
@@ -941,5 +943,222 @@ public class ManifestMergerTests
         canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", "id rewritten");
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_AllowsLabelsToBeSetInChoice_ForSingleSoundAsset()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+
+        var assetId = TestIdentifiers.AssetId(postfix: "_1");
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithSound())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
+            assetId,
+            assetId
+        );
+
+        // First canvas, first choice
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+        canvasPaintings[0].Label =
+            new LanguageMap("canvas0Choice1CanvasLabel", "generated canvas painting label 1");
+
+        // First canvas, second choice
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+        canvasPaintings[1].Label =
+            new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
+        mergedManifest.Thumbnail.Should().BeNull();
+
+        // Assert first canvas (2 choices)
+        var firstCanvas = mergedManifest.Items[0];
+        firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
+        firstCanvas.Label.Keys.Should()
+            .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
+        firstCanvas.Thumbnail.Single().Id.Should()
+            .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
+
+        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
+        choice.Items[0].As<Sound>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel");
+        choice.Items[0].As<Sound>().Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Sound>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel");
+        choice.Items[1].As<Sound>().Id.Should().Contain(assetId.ToString(), "asset used");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_AllowsLabelsToBeSetInChoice_ForSingleVideoAsset()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+
+        var assetId = TestIdentifiers.AssetId(postfix: "_1");
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithVideo())
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
+            assetId,
+            assetId
+        );
+
+        // First canvas, first choice
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+        canvasPaintings[0].Label =
+            new LanguageMap("canvas0Choice1CanvasLabel", "generated canvas painting label 1");
+
+        // First canvas, second choice
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+        canvasPaintings[1].Label =
+            new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
+        mergedManifest.Thumbnail.Should().BeNull();
+
+        // Assert first canvas (2 choices)
+        var firstCanvas = mergedManifest.Items[0];
+        firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
+        firstCanvas.Label.Keys.Should()
+            .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
+        firstCanvas.Thumbnail.Single().Id.Should()
+            .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
+
+        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
+        choice.Items[0].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel");
+        choice.Items[0].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel");
+        choice.Items[1].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_AllowsLabelsToBeSetInChoice_ForSinglePaintingChoiceVideoAsset()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+
+        var assetId = TestIdentifiers.AssetId(postfix: "_1");
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithVideos(2))
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
+            assetId,
+            assetId
+        );
+
+        // First canvas, first choice
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+        canvasPaintings[0].Label =
+            new LanguageMap("canvas0Choice1CanvasLabel", "generated canvas painting label 1");
+
+        // First canvas, second choice
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+        canvasPaintings[1].Label =
+            new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
+
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
+        mergedManifest.Thumbnail.Should().BeNull();
+
+        // Assert first canvas (2 choices)
+        var firstCanvas = mergedManifest.Items[0];
+        firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
+        firstCanvas.Label.Keys.Should()
+            .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
+        firstCanvas.Thumbnail.Single().Id.Should()
+            .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
+
+        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
+        choice.Items[0].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
+        choice.Items[0].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
+        choice.Items[1].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[2].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
+        choice.Items[2].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[3].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
+        choice.Items[3].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_Error_WhenTooManyRecursionsInPaintingChoice()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+
+        var assetId = TestIdentifiers.AssetId(postfix: "_1");
+        
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithVideo())
+            .Build();
+
+        namedQueryManifest.Items[0].Items[0].Items[0] = new PaintingAnnotation
+        {
+            Body = new PaintingChoice
+            {
+                Items =
+                [
+                    new PaintingChoice
+                    {
+                        Items =
+                        [
+                            new PaintingChoice
+                            {
+                                Items = [new PaintingChoice()]
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+        
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
+            assetId,
+            assetId
+        );
+
+        // First canvas, first choice
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+
+        // First canvas, second choice
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+
+        // Act
+        Action action = () => sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        action.Should().Throw<PresentationException>().WithMessage("Recursive depth '3' of painting choice deeper than can be handled");
     }
 }
