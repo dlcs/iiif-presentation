@@ -1688,7 +1688,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1697,7 +1696,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
-        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Painted resources cannot have a null 'choiceOrder' within a detected choice construct. This can happen when implicit and explicit 'canvasOrder' values conflict");
+        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Detected conflicting implicit and explicit 'canvasOrder' values");
     }
     
     [Fact]
@@ -1736,7 +1735,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -1745,7 +1743,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
-        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Painted resources cannot have a null 'choiceOrder' within a detected choice construct. This can happen when implicit and explicit 'canvasOrder' values conflict");
+        errorResponse.Detail.Should().Be("Errors after processing canvas paintings. Detected conflicting implicit and explicit 'canvasOrder' values");
     }
     
     [Fact]
@@ -1788,7 +1786,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
-        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);

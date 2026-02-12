@@ -202,10 +202,6 @@ public class CanvasPaintingResolver(
         var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, customerId, cancellationToken);
         if (canvasPaintingIds == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
-        var stuff = canvasPaintings
-            .Where(cp => !string.IsNullOrEmpty(cp.Id))
-            .GroupBy(cp => cp.GetGroupingForIdAssignment());
-        
         // Build a dictionary of canvas_grouping:canvas_id, this is populated as we iterate over canvas paintings.
         // We will also seed it with any 'new' items that are on the same canvas as these will have been prepopulated
         // with a canvas_id
@@ -269,7 +265,7 @@ public class CanvasPaintingResolver(
 
             if (res != null)
             {
-                var validator = new PresentationManifestDatabaseValidator();
+                var validator = new CanvasPaintingsValidator();
                 var validationResult = validator.Validate(res);
 
                 if (!validationResult.IsValid)
