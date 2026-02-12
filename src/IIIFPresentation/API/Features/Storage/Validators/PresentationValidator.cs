@@ -1,5 +1,4 @@
-﻿using API.Infrastructure.Validation;
-using FluentValidation;
+﻿using FluentValidation;
 using Models.API;
 using Models.API.General;
 

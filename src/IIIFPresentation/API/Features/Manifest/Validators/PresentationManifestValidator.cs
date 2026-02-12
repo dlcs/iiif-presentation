@@ -1,16 +1,13 @@
 using API.Features.Storage.Validators;
-using API.Infrastructure.Validation;
-using API.Settings;
 using Core.Helpers;
 using FluentValidation;
-using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest.Validators;
 
 public class PresentationManifestValidator : AbstractValidator<PresentationManifest>
 {
-    public PresentationManifestValidator(IOptions<ApiSettings> options)
+    public PresentationManifestValidator()
     {
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
@@ -19,11 +16,6 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
     {
-        RuleForEach(m => m.PaintedResources)
-            .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
-            .When(m => m.PaintedResources != null && m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
-            .WithMessage("'canvasOrder' is required on all resources when used in at least one");
-        
         RuleForEach(a => a.PaintedResources)
             .Where(pr => pr.CanvasPainting?.ChoiceOrder != null)
             .Must(pr => pr.CanvasPainting?.ChoiceOrder > 0)

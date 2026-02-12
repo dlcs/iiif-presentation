@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using API.Features.Common.Helpers;
 using API.Features.Manifest.Exceptions;
-using API.Features.Storage.Helpers;
+using API.Features.Manifest.Validators;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
@@ -78,6 +78,7 @@ public class CanvasPaintingResolver(
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
+
         return CanvasPaintingRecords.Success(toInsert, manifestParseResult.AssetsIdentifiedInItems);
     }
     
@@ -261,6 +262,22 @@ public class CanvasPaintingResolver(
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
 
+
+            if (res != null)
+            {
+                var validator = new CanvasPaintingsValidator();
+                var validationResult = validator.Validate(res);
+
+                if (!validationResult.IsValid)
+                {
+                    var message = "Errors after processing canvas paintings. ";
+                    message += string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
+
+                    return new ManifestParseResult(
+                        UpsertErrorHelper.CanvasPaintingsProcessingError<PresentationManifest>(message), null, null);
+                }
+            }
+                
             return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets());
         }
         catch (InvalidCanvasIdException cpId)
