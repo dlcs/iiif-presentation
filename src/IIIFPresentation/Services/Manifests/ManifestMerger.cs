@@ -270,7 +270,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
             // We might have 1 or more IPaintable elements (e.g. if NQ resource is already a choice, flatten it)
 
-            var paintables = new List<IPaintable>(GetPaintablesForChoice(body));
+            var paintables = GetPaintablesForChoice(body);
             if (canvasPaintingChoice.Label != null)
             {
                 logger.LogTrace("CanvasPainting {CanvasPaintingId} has label, setting on choice paintables",
