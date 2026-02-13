@@ -45,11 +45,11 @@ public class ManagedAssetResultFinder(
             {
                 assetId = asset.GetAssetId(customerId);
             }
-            catch (ArgumentException argumentException)
+            catch (AssetIdException assetIdException)
             {
                 if (!string.IsNullOrEmpty(paintedResource.CanvasPainting?.CanvasId))
                 {
-                    argumentException.Data.Add(ExceptionDataType.CanvasPaintingId, paintedResource.CanvasPainting?.CanvasId);
+                    assetIdException.Data.Add(ExceptionDataType.CanvasPaintingId, paintedResource.CanvasPainting?.CanvasId);
                 }
                 throw;
             }

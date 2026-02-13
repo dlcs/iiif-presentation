@@ -183,15 +183,15 @@ public class DlcsManifestCoordinator(
                 request.PresentationManifest, previousManifestAssetIds, spaceId, spaceCreated, request.CustomerId,
                 cancellationToken);
         }
-        catch (ArgumentException argumentException)
+        catch (AssetIdException assetIdException)
         {
-            logger.LogError(argumentException, "Error parsing  DLCS asset that requires more work for manifest {ManifestId}", manifestId);
+            logger.LogError(assetIdException, "Error parsing  DLCS asset that requires more work for manifest {ManifestId}", manifestId);
 
-            var error = $"Error parsing the asset id from an attached asset - {argumentException.Message}";
+            var error = $"Error parsing the asset id from an attached asset - {assetIdException.Message}";
 
-            if (argumentException.Data.Contains(ExceptionDataType.CanvasPaintingId))
+            if (assetIdException.Data.Contains(ExceptionDataType.CanvasPaintingId))
             {
-                error += $" for canvas painting id '{argumentException.Data[ExceptionDataType.CanvasPaintingId]}'";
+                error += $" for canvas painting id '{assetIdException.Data[ExceptionDataType.CanvasPaintingId]}'";
             }
             
             return new DlcsInteractionResult(EntityResult.Failure(error, ModifyCollectionType.AssetError,
