@@ -1,6 +1,6 @@
 using System.Net;
 using API.Features.Common.Helpers;
-using API.Features.Storage.Helpers;
+using API.Features.Manifest.Exceptions;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using Core;
@@ -175,9 +175,29 @@ public class DlcsManifestCoordinator(
         List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
         CancellationToken cancellationToken)
     {
-        var dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
-            request.PresentationManifest, previousManifestAssetIds, spaceId, spaceCreated, request.CustomerId, cancellationToken);
+        List<DlcsInteractionRequest> dlcsInteractionRequests;
         
+        try
+        {
+            dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
+                request.PresentationManifest, previousManifestAssetIds, spaceId, spaceCreated, request.CustomerId,
+                cancellationToken);
+        }
+        catch (AssetIdException assetIdException)
+        {
+            logger.LogError(assetIdException, "Error parsing  DLCS asset that requires more work for manifest {ManifestId}", manifestId);
+
+            var error = $"Error parsing the asset id from an attached asset - {assetIdException.Message}";
+
+            if (assetIdException.Data.Contains(ExceptionDataType.CanvasPaintingId))
+            {
+                error += $" for canvas painting id '{assetIdException.Data[ExceptionDataType.CanvasPaintingId]}'";
+            }
+            
+            return new DlcsInteractionResult(EntityResult.Failure(error, ModifyCollectionType.AssetError,
+                WriteResult.BadRequest), spaceId);
+        }
+
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
         // create batches for assets
         var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);

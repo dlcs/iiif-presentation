@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using API.Features.Manifest.Exceptions;
 using API.Infrastructure.Helpers;
 using Core.Exceptions;
 using Core.Helpers;
@@ -38,7 +39,20 @@ public class ManagedAssetResultFinder(
         foreach (var paintedResource in presentationManifest.PaintedResources?.Where(pr => pr.Asset != null) ?? [])
         {
             var asset = paintedResource.Asset!;
-            var assetId = asset.GetAssetId(customerId);
+            AssetId assetId;
+
+            try
+            {
+                assetId = asset.GetAssetId(customerId);
+            }
+            catch (AssetIdException assetIdException)
+            {
+                if (!string.IsNullOrEmpty(paintedResource.CanvasPainting?.CanvasId))
+                {
+                    assetIdException.Data.Add(ExceptionDataType.CanvasPaintingId, paintedResource.CanvasPainting?.CanvasId);
+                }
+                throw;
+            }
 
             if (IsAssetNew(spaceId, spaceCreated, assetId))
             {
