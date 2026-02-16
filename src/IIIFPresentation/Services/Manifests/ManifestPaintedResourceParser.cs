@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using Core.Exceptions;
+using Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -115,7 +116,14 @@ public class ManifestPaintedResourceParser(
         }
         
         var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
+        
         CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
+        
+        if (customerId != parsedCanvasId.Customer)
+        {
+            throw new InvalidCanvasIdException(canvasPainting.CanvasId,
+                $"The customer parsed from the canvas id ({parsedCanvasId.Customer}) does not match the calling customer ({customerId})");
+        }
 
         return parsedCanvasId.Resource;
     }

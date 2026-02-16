@@ -39,14 +39,15 @@ public class ManifestPaintedResourceParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
 
     [Theory]
-    [InlineData("https://foo.com/example/1/canvases/canvas")]
-    [InlineData("https://default.com/additionalElement/1/canvases/canvas")]
-    [InlineData("https://dlcs.example/1/random/foo/bar/baz")]
-    [InlineData("https://invalid/format")]
-    [InlineData("https://dlcs.example/1/canvases/")]
-    [InlineData("https://dlcs.example/1/canvases")]
-    [InlineData("https://dlcs.example/1/canvases/canvas/")]
-    public void Parse_Throws_InvalidCanvasId(string canvasId)
+    [InlineData("https://foo.com/example/1234/canvases/canvas", "Canvas Id /example/1234/canvases/canvas is not valid")]
+    [InlineData("https://default.com/additionalElement/1234/canvases/canvas", "Canvas Id /additionalElement/1234/canvases/canvas is not valid")]
+    [InlineData("https://dlcs.example/1234/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
+    [InlineData("https://invalid/format", "Canvas Id /format is not valid")]
+    [InlineData("https://dlcs.example/1234/canvases/", "Canvas Id /1234/canvases/ is not valid")]
+    [InlineData("https://dlcs.example/1234/canvases", "Canvas Id /1234/canvases is not valid")]
+    [InlineData("https://dlcs.example/1234/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
+    [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id (1) does not match the calling customer (1234)")]
+    public void Parse_Throws_InvalidCanvasId(string canvasId, string message)
     {
         var manifest = new PresentationManifest
         {
@@ -61,15 +62,15 @@ public class ManifestPaintedResourceParserTests
         };
 
         Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
-        action.Should().Throw<InvalidCanvasIdException>();
+        action.Should().Throw<InvalidCanvasIdException>().WithMessage(message);
     }
     
     [Theory]
-    [InlineData("https://default.com/1/canvases/canvas")]
-    [InlineData("https://foo.com/foo/1/canvases/canvas")]
+    [InlineData("https://default.com/1234/canvases/canvas")]
+    [InlineData("https://foo.com/foo/1234/canvases/canvas")]
     [InlineData("https://no-customer.com/canvases/canvas")]
     [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
-    [InlineData("https://dlcs.example/1/canvases/canvas?foo=bar")]
+    [InlineData("https://dlcs.example/1234/canvases/canvas?foo=bar")]
     [InlineData("canvas")]
     public void Parse_Parses_WhenRewrittenCanvasId(string canvasId)
     {
