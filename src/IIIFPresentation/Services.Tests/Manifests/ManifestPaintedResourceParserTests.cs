@@ -9,6 +9,7 @@ using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Model;
+using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
@@ -26,7 +27,19 @@ public class ManifestPaintedResourceParserTests
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
 
-        sut = new ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+        sut = new  ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(), Options.Create(new PathSettings
+            {
+                PresentationApiUrl = new  Uri("http://localhost"),
+                CustomerPresentationApiUrl = new Dictionary<int, Uri>()
+                {
+                    {1, new Uri("https://foo.com")},
+                    {2, new Uri("https://default.com")},
+                    {3, new Uri("https://dlcs.example")},
+                    {4, new Uri("https://invalid")},
+                    {5, new Uri("https://no-customer.com")},
+                    {6, new Uri("https://additional-path-no-customer.com")},
+                }
+            }),
             new NullLogger<ManifestPaintedResourceParser>());
     }
 
@@ -39,13 +52,13 @@ public class ManifestPaintedResourceParserTests
         => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
 
     [Theory]
-    [InlineData("https://foo.com/example/1234/canvases/canvas", "Canvas Id /example/1234/canvases/canvas is not valid")]
-    [InlineData("https://default.com/additionalElement/1234/canvases/canvas", "Canvas Id /additionalElement/1234/canvases/canvas is not valid")]
-    [InlineData("https://dlcs.example/1234/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
+    [InlineData("https://foo.com/example/1/canvases/canvas", "Canvas Id /example/1/canvases/canvas is not valid")]
+    [InlineData("https://default.com/additionalElement/2/canvases/canvas", "Canvas Id /additionalElement/2/canvases/canvas is not valid")]
+    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
     [InlineData("https://invalid/format", "Canvas Id /format is not valid")]
-    [InlineData("https://dlcs.example/1234/canvases/", "Canvas Id /1234/canvases/ is not valid")]
-    [InlineData("https://dlcs.example/1234/canvases", "Canvas Id /1234/canvases is not valid")]
-    [InlineData("https://dlcs.example/1234/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
+    [InlineData("https://dlcs.example/3/canvases/", "Canvas Id /1234/canvases/ is not valid")]
+    [InlineData("https://dlcs.example/3/canvases", "Canvas Id /1234/canvases is not valid")]
+    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
     [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id does not match the customer found from the calling URL")]
     public void Parse_Throws_InvalidCanvasId(string canvasId, string message)
     {
@@ -66,13 +79,13 @@ public class ManifestPaintedResourceParserTests
     }
     
     [Theory]
-    [InlineData("https://default.com/1234/canvases/canvas")]
-    [InlineData("https://foo.com/foo/1234/canvases/canvas")]
-    [InlineData("https://no-customer.com/canvases/canvas")]
-    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
-    [InlineData("https://dlcs.example/1234/canvases/canvas?foo=bar")]
-    [InlineData("canvas")]
-    public void Parse_Parses_WhenRewrittenCanvasId(string canvasId)
+    [InlineData("https://default.com/2/canvases/canvas", 2)]
+    [InlineData("https://foo.com/foo/1/canvases/canvas", 1)]
+    [InlineData("https://no-customer.com/canvases/canvas", 5)]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas", 6)]
+    [InlineData("https://dlcs.example/3/canvases/canvas?foo=bar", 3)]
+    [InlineData("canvas", 1)]
+    public void Parse_Parses_WhenRewrittenCanvasId(string canvasId, int customerId)
     {
         var manifest = new PresentationManifest
         {
@@ -86,9 +99,35 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var parsed = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var parsed = sut.ParseToCanvasPainting(manifest, customerId);
         
         parsed.First().Id.Should().Be("canvas");
+    }
+    
+    [Theory]
+    [InlineData("https://default.com/2/canvases/canvas")]
+    [InlineData("https://dlcs.example/3/canvases/canvas?foo=bar")]
+    [InlineData("https://no-customer.com/canvases/canvas")]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
+    [InlineData("https://entirely-random-host.com/1/canvases/canvas")]
+    public void Parse_ThrowsError_WhenRewrittenCanvasIdForWrongCustomer(string canvasId)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId }
+                }
+            ]
+        };
+
+        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        action.Should().ThrowExactly<InvalidCanvasIdException>()
+            .WithMessage($"The host for canvas id '{canvasId}' could not be recognised");
     }
     
     [Fact]

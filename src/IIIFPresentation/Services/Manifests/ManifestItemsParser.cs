@@ -216,7 +216,7 @@ public class ManifestItemsParser(
             return currentCanvas.Id;
         }
 
-        if (IsRecognisedHost(customerId, canvasId.Host))
+        if (settings.IsRecognisedHost(customerId, canvasId.Host))
         {
             var parsedCanvasId =
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
@@ -232,12 +232,6 @@ public class ManifestItemsParser(
 
         return null;
     }
-    
-    /// <summary>
-    /// Whether the host is either a customer specific host, or the standard presentation host URL
-    /// </summary>
-    private bool IsRecognisedHost(int customerId, string host) =>
-        settings.GetCustomerSpecificPresentationUrl(customerId).Host == host || settings.PresentationApiUrl.Host == host;
 
     private static Uri? TryGetThumbnail(Canvas canvas)
     {

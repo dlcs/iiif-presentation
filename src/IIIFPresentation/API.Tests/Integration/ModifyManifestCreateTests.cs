@@ -1609,7 +1609,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = $"https://iiif.io/{Customer}/canvases/manifestFromPainted"
+                        CanvasId = $"https://localhost:7230/{Customer}/canvases/manifestFromPainted"
                     },
                     Asset = new JObject
                     {

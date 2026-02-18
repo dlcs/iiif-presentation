@@ -18,5 +18,11 @@ public class PathSettings
     public Uri GetCustomerSpecificPresentationUrl(int customerId)
         => CustomerPresentationApiUrl.GetValueOrDefault(customerId, PresentationApiUrl);
     
+    /// <summary>
+    /// Whether the host is either a customer specific host, or the standard presentation host URL
+    /// </summary>
+    public bool IsRecognisedHost(int customerId, string host) =>
+       GetCustomerSpecificPresentationUrl(customerId).Host == host || PresentationApiUrl.Host == host;
+    
     public TypedPathTemplateOptions PathRules { get; set; } = new ();
 }
