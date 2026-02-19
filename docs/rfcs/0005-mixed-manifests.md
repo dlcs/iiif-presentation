@@ -154,6 +154,42 @@ The canonical paths: `/file/{customer}/{space}/{asset}`
 >
 > Referenced `/file/` types will be handled by adjuncts.
 
+## Canvas Id Parsing
+
+In order to match a manifest between `items` and `paintedResources`, the id of both **MUST** match.  The rules for this are as follows:
+
+```mermaid
+---
+title: Stuff
+---
+
+flowchart
+    exist{Does the id exist?}
+    url{Is the id a URL?}
+    parseUrl[Parse the URL]
+    recognisedHost{Is the host recognised?}
+    parsePath[Parse the path, with rewrites if required]
+    checkErrors{Is there an error in the id?}
+
+    exist -- no --> no
+    exist -- yes --> url
+    url -- no --> checkErrors
+    url --> parseUrl
+    parseUrl --> recognisedHost
+    recognisedHost -- no --> no
+    recognisedHost -- yes --> parsePath
+    parsePath --> checkErrors
+    checkErrors -- no --> no
+    checkErrors -- yes --> yes
+
+    no[No id]
+    yes[Id returned to user]
+```
+
+While there is no difference in the *logic* between parsing the id for `items` and `paintedResources`, where there **is** a difference is in the outcome of failures to  parse (i.e.: the `No id` outcome).  Namely, that in `items`, a failure will result in a generated id, whereas in `paintedResources` an error will be returned to the user.  This difference is because `items` can be copied and pasted from another user of the system, whereas `paintedResources` is purposeful as these can only be retrieved directly using an authenticated user.
+
+Additionally, in the checking for an error in the id, there is a check in `items` to make sure an id exists that matches an id from `paintedResources` as setting the canvas id like this nly matters with a matched canvas.
+
 ## Examples
 
 Below are some example use-cases and sample payloads.
