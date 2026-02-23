@@ -87,7 +87,8 @@ This turned out to be the actual issue. Which is that the `Etag` column was a co
 - Drop and recreate the column after update
 - Use a wrapper function to trick the validator
   - Create a wrapper function in `pg_catalog` to call `digest` which should be available everywhere
-- Replace the `digest` function with an inbuilt functio
+- Move to public schema
+- Replace the `digest` function with an inbuilt function
 
 ## Decision Outcome
 
@@ -134,11 +135,14 @@ $$;
 - Would need to be redone every time a database upgrade is performed
 - Additional downtime while the column is dropped and recreated
 
-#### Use a wrapper function to trick the validator
+### Use a wrapper function to trick the validator
 - RDS limits your ability to write into `pg_catalog`, so this might not work
 - It's essentially adding additional complexity to the function
 - Unknown effect on downtime - but likely not much
 - No need to do further fixes once applied
+
+### Move to public schema
+- This was attempted, but it didn't work
 
 ### Replace the `digest` function with an inbuilt function
 
