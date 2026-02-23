@@ -53,14 +53,14 @@ public class ParentSlugParser(PresentationContext dbContext,
             return ParsedParentSlugResult<T>.Fail(slugErrors);
         }
 
-        var (parentErrors, parent) = await TryGetParent<T>(presentation, customerId, cancellationToken);
-        if (parentErrors != null)
+        var parent = await TryGetParent<T>(presentation, customerId, cancellationToken);
+        if (parent.Errors != null)
         {
-            return ParsedParentSlugResult<T>.Fail(parentErrors);
+            return ParsedParentSlugResult<T>.Fail(parent.Errors);
         }
 
         return ParsedParentSlugResult<T>.Success(
-            new ParsedParentSlug(parent.ThrowIfNull(nameof(parent)), slug.ThrowIfNull(nameof(slug)))
+            new ParsedParentSlug(parent.Parent.ThrowIfNull(nameof(parent)), slug.ThrowIfNull(nameof(slug)))
         );
     }
 
@@ -92,22 +92,22 @@ public class ParentSlugParser(PresentationContext dbContext,
         return (null, slug);
     }
 
-    private async Task<(ModifyEntityResult<T, ModifyCollectionType>? errors, Collection? parent)>
+    private async Task<ParsedParent<T>>
         TryGetParent<T>(IPresentation presentation, int customerId, CancellationToken cancellationToken)
         where T : JsonLdBase
     {
-        var (parentErrors, parent) =
+        var parent =
             await TryGetParentFromPresentation<T>(presentation, customerId, cancellationToken);
-        if (parentErrors != null) return (parentErrors, parent);
+        if (parent.Errors != null) return parent;
 
         // Passed values match, validate parent can be used
-        var parentValidationError = ParentValidator.ValidateParentCollection<T>(parent);
-        if (parentValidationError != null) return (parentValidationError, null);
+        var parentValidationError = ParentValidator.ValidateParentCollection<T>(parent.Parent);
+        if (parentValidationError != null) return ParsedParent<T>.Fail(parentValidationError);
 
-        return (null, parent);
+        return parent;
     }
 
-    private async Task<(ModifyEntityResult<T, ModifyCollectionType>? errors, Collection? parent)>
+    private async Task<ParsedParent<T>>
         TryGetParentFromPresentation<T>(
             IPresentation presentation,
             int customerId,
@@ -119,7 +119,7 @@ public class ParentSlugParser(PresentationContext dbContext,
         if (publicIdParent.Errors != null) return publicIdParent;
 
         // If we don't have parent, return what we could parse from publicId 
-        if (presentation.Parent == null) return (null, publicIdParent.Parent);
+        if (presentation.Parent == null) return publicIdParent;
 
         // We have Parent property - find Collection for that 
         var parent = await RetrieveParentFromPresentation<T>(presentation, customerId, cancellationToken);
@@ -131,19 +131,19 @@ public class ParentSlugParser(PresentationContext dbContext,
         {
             logger.LogDebug("PublicId parent '{PublicIdParent}' and explicit parent {Parent} do not match",
                 presentation.PublicId, presentation.Parent);
-            return (UpsertErrorHelper.ParentMustMatchPublicId<T>(), null);
+            return ParsedParent<T>.Fail(UpsertErrorHelper.ParentMustMatchPublicId<T>());
         }
 
-        return (null, parent.Parent);
+        return parent;
     }
 
-    private async Task<(ModifyEntityResult<T, ModifyCollectionType>? Errors, Collection? Parent)> 
+    private async Task<ParsedParent<T>> 
         GetParentFromPublicId<T>(
             IPresentation presentation,
             int customerId, 
             CancellationToken cancellationToken)  where T : JsonLdBase
     {
-        if (presentation.PublicId == null) return (null, null);
+        if (presentation.PublicId == null) return new ParsedParent<T>();
 
         // Lookup the parent Collection, handling Api and Public paths
         var publicIdParentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
@@ -154,44 +154,44 @@ public class ParentSlugParser(PresentationContext dbContext,
                 pathRewriteParser.ParsePathWithRewrites(publicIdParentUri.Host, publicIdParentUri.AbsolutePath,
                     customerId);
             
-            if (parentPath.Resource == null) return (null, null);
+            if (parentPath.Resource == null) return new ParsedParent<T>();
 
             if (parentPath.Customer != customerId)
             {
-                return (UpsertErrorHelper.CustomerIdDoesNotMatchCaller<T>("publicId", parentPath.Customer!.Value, customerId), null);
+                return ParsedParent<T>.Fail(UpsertErrorHelper.CustomerIdDoesNotMatchCaller<T>("publicId", parentPath.Customer!.Value, customerId));
             }
             
             var publicIdParentHierarchy =
                 await dbContext.RetrieveHierarchy(customerId, parentPath.Resource, cancellationToken);
             var publicIdParent = publicIdParentHierarchy?.Collection;
-            return (null, publicIdParent);
+            return ParsedParent<T>.Success(publicIdParent);
         }
         catch (FormatException fe)
         {
             logger.LogDebug(fe, "Cannot parse parent from public id");
-            return (null, null);
+            return new ParsedParent<T>();
         }
     }
     
-    private async Task<(ModifyEntityResult<T, ModifyCollectionType>? Errors, Collection? Parent)> 
+    private async Task<ParsedParent<T>> 
         RetrieveParentFromPresentation<T>(
             IPresentation presentation, 
             int customerId,
             CancellationToken cancellationToken) where T : JsonLdBase
     {
-        if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true) return (null, null);
+        if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out var parentUri) is not true) return new ParsedParent<T>();
         var parentPath = pathRewriteParser.ParsePathWithRewrites(parentUri.Host, parentUri.AbsolutePath, customerId);
 
-        if (parentPath.Resource == null) return (null, null);
+        if (parentPath.Resource == null) return new ParsedParent<T>();
         
         if (parentPath.Customer != customerId)
         {
-            return (UpsertErrorHelper.CustomerIdDoesNotMatchCaller<T>("parent", parentPath.Customer!.Value, customerId), null);
+            return ParsedParent<T>.Fail(UpsertErrorHelper.CustomerIdDoesNotMatchCaller<T>("parent", parentPath.Customer!.Value, customerId));
         }
 
         if (!parentPath.Hierarchical)
         {
-            return (null, await dbContext.RetrieveCollectionAsync(customerId, parentPath.Resource,
+            return ParsedParent<T>.Success(await dbContext.RetrieveCollectionAsync(customerId, parentPath.Resource,
                 cancellationToken: cancellationToken));
         }
         
@@ -201,7 +201,19 @@ public class ParentSlugParser(PresentationContext dbContext,
         
         if (parent != null) parent.Hierarchy.GetCanonical().FullPath = parentPath.Resource;
         
-        return (null, parent);
+        return ParsedParent<T>.Success(parent);
+    }
+
+    private class ParsedParent<T> where T : JsonLdBase
+    {
+        public Collection? Parent { get; private init; }
+        
+        public ModifyEntityResult<T, ModifyCollectionType>? Errors { get; private init; }
+        
+        public static ParsedParent<T> Fail(ModifyEntityResult<T, ModifyCollectionType> errors) =>
+            new() { Errors = errors};
+        
+        public static ParsedParent<T> Success(Collection? parent) => new() { Parent = parent };
     }
 
     private string GetBaseUrl() => contextAccessor.HttpContext!.Request.GetBaseUrl();

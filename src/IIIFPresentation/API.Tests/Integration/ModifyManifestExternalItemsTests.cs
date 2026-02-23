@@ -1776,7 +1776,7 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
     ""slug"": ""{slug}"",
     ""items"": [
         {{
-            ""id"": ""https://localhost:7230/2/canvases/{slug}"",
+            ""id"": ""https://localhost:7230/{Customer + 1}/canvases/{slug}"",
             ""type"": ""Canvas""
         }}
     ]
@@ -1796,6 +1796,6 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         var canvasPainting = responseManifest.PaintedResources.First().CanvasPainting;
         canvasPainting.CanvasId.Split('/').Last().Should().NotBe(slug, "recognised host with unrecognised path");
         canvasPainting.CanvasOriginalId.Should()
-            .Be($"https://localhost:7230/2/canvases/{slug}");
+            .Be($"https://localhost:7230/{Customer + 1}/canvases/{slug}");
     }
 }
