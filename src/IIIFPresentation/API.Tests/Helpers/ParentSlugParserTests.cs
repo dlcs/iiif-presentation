@@ -280,7 +280,7 @@ public class ParentSlugParserTests
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
-        parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id ({Customer}) that does not match the calling customer id (2)");
+        parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id that does not match the customer id found on the calling URL");
     }
     
     [Fact]
@@ -370,6 +370,6 @@ public class ParentSlugParserTests
 
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
-        parentSlugParserResult.Errors.Error.Should().Be($"The parent has a customer id ({Customer}) that does not match the calling customer id (2)");
+        parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id that does not match the customer id found on the calling URL");
     }
 }

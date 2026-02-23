@@ -46,7 +46,7 @@ public class ManifestPaintedResourceParserTests
     [InlineData("https://dlcs.example/1234/canvases/", "Canvas Id /1234/canvases/ is not valid")]
     [InlineData("https://dlcs.example/1234/canvases", "Canvas Id /1234/canvases is not valid")]
     [InlineData("https://dlcs.example/1234/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','")]
-    [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id (1) does not match the calling customer (1234)")]
+    [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id does not match the customer found from the calling URL")]
     public void Parse_Throws_InvalidCanvasId(string canvasId, string message)
     {
         var manifest = new PresentationManifest

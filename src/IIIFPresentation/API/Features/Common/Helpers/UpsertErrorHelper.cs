@@ -116,9 +116,9 @@ public static class UpsertErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(exception.Message,
             ModifyCollectionType.AssetError, WriteResult.BadRequest);
     
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CustomerIdDoesNotMatchCaller<TCollection>(string field, int customerIdFromField, int callerCustomerId)
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> CustomerIdDoesNotMatchCaller<TCollection>(string field)
         where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The {field} has a customer id ({customerIdFromField}) that does not match the calling customer id ({callerCustomerId})",
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The {field} has a customer id that does not match the customer id found on the calling URL",
             ModifyCollectionType.CustomerIdDoesNotMatchCaller, WriteResult.BadRequest);
     
     private static string CollectionType(bool isStorageCollection)

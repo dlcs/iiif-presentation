@@ -122,7 +122,7 @@ public class ManifestPaintedResourceParser(
         if (customerId != parsedCanvasId.Customer)
         {
             throw new InvalidCanvasIdException(canvasPainting.CanvasId,
-                $"The customer parsed from the canvas id ({parsedCanvasId.Customer}) does not match the calling customer ({customerId})");
+                $"The customer parsed from the canvas id does not match the customer found from the calling URL");
         }
 
         return parsedCanvasId.Resource;
