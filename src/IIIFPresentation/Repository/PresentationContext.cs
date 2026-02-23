@@ -40,7 +40,6 @@ public class PresentationContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
-        modelBuilder.HasPostgresExtension("pgcrypto");
 
         modelBuilder.Entity<Collection>(entity =>
         {
