@@ -99,7 +99,7 @@ SELECT sha256('2026-11-03 00:00:00-07'::timestamptz::text::bytea);
 Select digest('2026-11-03 00:00:00-07'::timestamptz::text::bytea, 'sha256');
 ```
 
-So this is a viable alternative to using the 
+So this is a viable alternative to using the `digest` function.
 
 The double cast is annoying as `digest` can accept `text`, whereas `sha256` only accepts a byte array, but this feels like a small issue in the face of no longer relying on the `digest` function and it's entirely possible that the library is calling byte array internally anyway, so this will be the chosen fix.  Additionally, as the `pgcrytpto` library is only used in this single place, the `pgcrypto` library can also be removed as it's no longer needed.
 
