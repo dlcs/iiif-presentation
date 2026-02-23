@@ -38,6 +38,22 @@ namespace Repository.Migrations
                 .Annotation("Npgsql:PostgresExtension:citext", ",,")
                 .Annotation("Npgsql:PostgresExtension:pgcrypto", ",,")
                 .OldAnnotation("Npgsql:PostgresExtension:citext", ",,");
+            
+            migrationBuilder.Sql(
+                """
+                CREATE OR REPLACE FUNCTION deterministic_uuid_sha256(ts timestamptz, txt text)
+                RETURNS uuid
+                LANGUAGE sql
+                IMMUTABLE
+                AS $$
+                  SELECT
+                    CASE
+                      WHEN ts IS NULL THEN '00000000-0000-0000-0000-000000000000'::uuid
+                      ELSE encode(substr(digest(ts::text || txt, 'sha256'), 1, 16), 'hex')::uuid
+                    END
+                $$;
+                """
+            );
         }
     }
 }
