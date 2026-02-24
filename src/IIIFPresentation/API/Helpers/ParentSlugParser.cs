@@ -116,10 +116,8 @@ public class ParentSlugParser(PresentationContext dbContext,
         // Try and get a parent from publicId 
         var publicIdParent = await RetrieveParent<T>(presentation, customerId, true, cancellationToken);
         
-        if (publicIdParent.Errors != null) return publicIdParent;
-
-        // If we don't have parent, return what we could parse from publicId 
-        if (presentation.Parent == null) return publicIdParent;
+        // If we don't have parent or there are errors, return what we could parse from publicId 
+        if (publicIdParent.Errors != null || presentation.Parent == null) return publicIdParent;
 
         // We have Parent property - find Collection for that 
         var parent = await RetrieveParent<T>(presentation, customerId, false, cancellationToken);
@@ -146,12 +144,12 @@ public class ParentSlugParser(PresentationContext dbContext,
         Uri? parentUri;
         if (fromPublicId)
         {
-            if (presentation.PublicId == null) return new ParsedParent<T>();
+            if (presentation.PublicId == null) return ParsedParent<T>.Empty();
             parentUri = PathParser.GetParentUriFromPublicId(presentation.PublicId);
         }
         else
         {
-            if (Uri.TryCreate(presentation.Parent, UriKind.Absolute, out parentUri) is not true) return new ParsedParent<T>();
+            if (!Uri.TryCreate(presentation.Parent, UriKind.Absolute, out parentUri)) return ParsedParent<T>.Empty();
         }
 
         try
@@ -160,7 +158,7 @@ public class ParentSlugParser(PresentationContext dbContext,
                 pathRewriteParser.ParsePathWithRewrites(parentUri.Host, parentUri.AbsolutePath,
                     customerId);
             
-            if (parentPath.Resource == null) return new ParsedParent<T>();
+            if (parentPath.Resource == null) return ParsedParent<T>.Empty();
 
             if (parentPath.Customer != customerId)
             {
@@ -181,7 +179,7 @@ public class ParentSlugParser(PresentationContext dbContext,
         catch (FormatException fe)
         {
             logger.LogDebug(fe, "Cannot parse parent from public id");
-            return new ParsedParent<T>();
+            return ParsedParent<T>.Empty();
         }
     }
 
@@ -195,6 +193,8 @@ public class ParentSlugParser(PresentationContext dbContext,
             new() { Errors = errors};
         
         public static ParsedParent<T> Success(Collection? parent) => new() { Parent = parent };
+        
+        public static ParsedParent<T> Empty() => new();
     }
 
     private string GetBaseUrl() => contextAccessor.HttpContext!.Request.GetBaseUrl();
