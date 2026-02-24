@@ -94,7 +94,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
+                        CanvasId = $"https://localhost:7230/{Customer}/canvases/canvasId"
                     },
                     Asset = new(new JProperty("id", assetId), new JProperty("batch", TestIdentifiers.BatchId()))
                 }

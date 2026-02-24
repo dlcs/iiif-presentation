@@ -9,6 +9,7 @@ using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
+using Models.API.General;
 using Models.API.Manifest;
 using Newtonsoft.Json.Linq;
 using Repository;
@@ -334,9 +335,11 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     {
         // Arrange
         var slug = TestIdentifiers.Id();
+        var customer = 601;
+        
         var manifest = new PresentationManifest
         {
-            Parent = $"http://example.com/foo/1/collections/{RootCollection.Id}",
+            Parent = $"http://example.com/foo/{customer}/collections/{RootCollection.Id}",
             Slug = slug,
             PaintedResources =
             [
@@ -344,19 +347,20 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "http://example.com/example/1/canvases/someId"
+                        CanvasId = $"http://example.com/example/{customer}/canvases/someId"
                     },
                     Asset = new JObject
                     {
                         ["id"] = "someId",
-                        ["mediaType"] = "image/jpeg"
+                        ["mediaType"] = "image/jpeg",
+                        ["space"] = 1
                     }
                 }
             ]
         };
         
         var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{customer}/manifests", manifest.AsJson());
         HttpRequestMessageBuilder.AddHostExampleHeader(requestMessage);
         
         // Act
@@ -369,16 +373,17 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         responseManifest.Id.Should().NotBeNull();
         responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://example.com/foo/1/collections/{RootCollection.Id}");
-        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://example.com/example/1/canvases/someId");
-        responseManifest.Items[0].Id.Should().Be("https://localhost:7230/1/canvases/someId", "uses the settings based path parser");
+        responseManifest.Parent.Should().Be($"http://example.com/foo/{customer}/collections/{RootCollection.Id}", "uses the host based path parser");
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be($"http://example.com/example/{customer}/canvases/someId", "uses the host based path parser");
+        responseManifest.Items[0].Id.Should().Be($"https://example.com/example/{customer}/canvases/someId", "uses the settings based path parser");
     }
     
     [Fact]
-    public async Task CreateManifest_CreatesManifest_WhenRewrittenPathsNotMatchingCallingApi()
+    public async Task CreateManifest_ThrowsError_WhenRewrittenPathsNotMatchingCallingApi()
     {
         // Arrange
         var slug = TestIdentifiers.Id();
+        var canvasId = "http://example.com/example/1/canvases/someId";
         var manifest = new PresentationManifest
         {
             Parent = $"http://example.com/foo/1/collections/{RootCollection.Id}",
@@ -389,7 +394,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "http://example.com/example/1/canvases/someId"
+                        CanvasId = canvasId
                     },
                     Asset = new JObject
                     {
@@ -407,15 +412,10 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         
-        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-
-        responseManifest.Id.Should().NotBeNull();
-        responseManifest.Slug.Should().Be(slug);
-        responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
-        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be("http://localhost/1/canvases/someId");
-        responseManifest.Items[0].Id.Should().Be("https://localhost:7230/1/canvases/someId", "uses the settings based path parser");
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error.Detail.Should().Be($"The canvas id {canvasId} is invalid - The host for canvas id '{canvasId}' could not be recognised");
     }
 
     [Fact]

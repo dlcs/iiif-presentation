@@ -1,6 +1,7 @@
 ﻿using Core.Exceptions;
 using Core.Helpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
@@ -8,6 +9,7 @@ using Repository.Paths;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using Services.Manifests.Settings;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests;
@@ -18,8 +20,11 @@ namespace Services.Manifests;
 public class ManifestPaintedResourceParser(
     IPathRewriteParser pathRewriteParser, 
     IPresentationPathGenerator presentationPathGenerator,
+    IOptions<PathSettings> options,
     ILogger<ManifestPaintedResourceParser> logger)
 {
+    private readonly PathSettings settings = options.Value;
+    
     public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
@@ -114,9 +119,15 @@ public class ManifestPaintedResourceParser(
             CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId, logger);
             return canvasPainting.CanvasId;
         }
+
+        if (!settings.IsCustomerRecognisedHost(customerId, canvasId.Host)) 
+        {
+            throw new InvalidCanvasIdException(canvasPainting.CanvasId,
+                $"The host for canvas id '{canvasPainting.CanvasId}' could not be recognised");
+        }
         
-        var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-        
+        var parsedCanvasId =
+            pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
         CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
         
         if (customerId != parsedCanvasId.Customer)

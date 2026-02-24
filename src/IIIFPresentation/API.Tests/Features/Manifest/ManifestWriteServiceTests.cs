@@ -65,14 +65,15 @@ public class ManifestWriteServiceTests
         
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
 
+        var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://base") };
+
         var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
             new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
-                new NullLogger<PaintableAssetIdentifier>()),
-            Options.Create(new PathSettings { PresentationApiUrl = new Uri("https://base") }),
+                new NullLogger<PaintableAssetIdentifier>()), Options.Create(pathSettings), 
             new NullLogger<ManifestItemsParser>());
         
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
