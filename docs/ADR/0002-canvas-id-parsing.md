@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-When a canvas id comes into the system there are several formats this id can be in (such as a flat id, a URL or a rewritten path).  On top of that, due to mixed manifests, we need  a way to match up canvases between `items` and `paintedResources` and this is done through the canvas id.  As such a set of rules needs to be enforced around how the canvas id is parsed and where
+When a canvas id comes into the system there are several formats this id can be in (such as a flat id, a URL or a rewritten path).  On top of that, due to mixed manifests, we need  a way to match up canvases between `items` and `paintedResources` and this is done through the canvas id.  As such a set of rules needs to be enforced around how the canvas id is parsed.
 
 ## Decision Drivers
 
@@ -28,7 +28,7 @@ flowchart
     exist -- no --> no
     exist -- yes --> url
     url -- no --> checkErrors
-    url --> parseUrl
+    url -- yes --> parseUrl
     parseUrl --> recognisedHost
     recognisedHost -- no --> no
     recognisedHost -- yes --> parsePath
@@ -46,7 +46,7 @@ There are a few separate errors that are checked for, these are as follows:
 
 While there is no difference in the *logic* between parsing the id for `items` and `paintedResources`, where there **is** a difference is in the outcome of failures to  parse (i.e.: the `No id` outcome).  Namely, that in `items`, a failure will result in a generated id, whereas in `paintedResources` an error will be returned to the user.  This difference is because `items` can be copied and pasted from another user of the system, whereas `paintedResources` is purposeful as these can only be retrieved directly using an authenticated user.
 
-Additionally, in the checking for an error in the id, there is an additional check in `items` parsing to make sure an id matches an id from `paintedResources`, as setting the canvas id like this only matters with a matched canvas.  If there is no matching id, then the canvas id will be generated for items.  
+Additionally, in the checking for an error in the id, there is an additional check in `items` parsing to make sure an id matches an id from `paintedResources`, as setting the canvas id like this only matters with a matched canvas.  If there is no matching id, then the canvas id will be generated for items. 
 
 For example:
 
@@ -62,7 +62,7 @@ For example:
     ],
     "paintedResources": [
         {
-            "canvaSPainting": {
+            "canvasPainting": {
                 "canvasId": "https://presentation.example/99/canvases/alpha",
             }
         }
@@ -85,4 +85,7 @@ would result in the canvas id of `alpha`, whereas this:
 }
 ```
 
-would result in a generated id
+which would result in a generated id.
+
+> [!Note]
+> While the `item` canvas id needs to match the `paintedResource` canvas id, the system will match between the various allowed values.  For example, there can be "alpha" in one and "https://presentation.example/99/canvases/alpha" in the other and, as they both return "alpha" as parsed id, they're deemed a matched. Similarly you could use https://customer.specific/canv/alpha too if it was set as a `CustomerPresentationApiUrl` in settings.
