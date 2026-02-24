@@ -120,7 +120,7 @@ public class ManifestPaintedResourceParser(
             return canvasPainting.CanvasId;
         }
 
-        if (!settings.IsRecognisedHost(customerId, canvasId.Host)) 
+        if (!settings.IsCustomerRecognisedHost(customerId, canvasId.Host)) 
         {
             throw new InvalidCanvasIdException(canvasPainting.CanvasId,
                 $"The host for canvas id '{canvasPainting.CanvasId}' could not be recognised");

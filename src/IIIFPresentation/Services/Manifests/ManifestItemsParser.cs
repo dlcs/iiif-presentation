@@ -216,7 +216,7 @@ public class ManifestItemsParser(
             return currentCanvas.Id;
         }
 
-        if (settings.IsRecognisedHost(customerId, canvasId.Host))
+        if (settings.IsCustomerRecognisedHost(customerId, canvasId.Host))
         {
             var parsedCanvasId =
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);

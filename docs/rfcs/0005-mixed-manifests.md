@@ -159,10 +159,6 @@ The canonical paths: `/file/{customer}/{space}/{asset}`
 In order to match a manifest between `items` and `paintedResources`, the id of both **MUST** match.  The rules for this are as follows:
 
 ```mermaid
----
-title: Stuff
----
-
 flowchart
     exist{Does the id exist?}
     url{Is the id a URL?}
@@ -186,9 +182,62 @@ flowchart
     yes[Id returned to user]
 ```
 
+There are a few separate errors that are checked for, these are as follows:
+- Prohibited characters - `'/', '=', ','`
+- If an id cannot be parsed from the URL
+
 While there is no difference in the *logic* between parsing the id for `items` and `paintedResources`, where there **is** a difference is in the outcome of failures to  parse (i.e.: the `No id` outcome).  Namely, that in `items`, a failure will result in a generated id, whereas in `paintedResources` an error will be returned to the user.  This difference is because `items` can be copied and pasted from another user of the system, whereas `paintedResources` is purposeful as these can only be retrieved directly using an authenticated user.
 
-Additionally, in the checking for an error in the id, there is a check in `items` to make sure an id exists that matches an id from `paintedResources` as setting the canvas id like this nly matters with a matched canvas.
+Additionally, in the checking for an error in the id, there is a check in `items` to make sure an id exists that matches an id from `paintedResources` as setting the canvas id like this only matters with a matched canvas.  If there is no matching id, then the canvas id will be generated for items.  
+
+For example:
+
+```json
+{
+    "type": "Manifest",
+    "slug": "first-example",
+    "parent": "-container-",
+    "label": {
+        "en": [
+            "Example One"
+        ]
+    },
+    "items": [
+        {
+            "id": "https://presentation.example/99/canvases/alpha",
+        }
+    ],
+    "paintedResources": [
+        {
+            "canvaSPainting": {
+                "canvasId": "https://presentation.example/99/canvases/alpha",
+            }
+        }
+    ]
+}
+```
+
+would result in the canvas id of `alpha`, whereas this:
+
+```json
+{
+    "type": "Manifest",
+    "slug": "first-example",
+    "parent": "-container-",
+    "label": {
+        "en": [
+            "Example One"
+        ]
+    },
+    "items": [
+        {
+            "id": "https://presentation.example/99/canvases/alpha",
+        }
+    ]
+}
+```
+
+would result in a generated id
 
 ## Examples
 
