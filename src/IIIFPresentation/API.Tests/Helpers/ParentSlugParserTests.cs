@@ -11,6 +11,7 @@ using Models.API.Collection;
 using Models.API.Manifest;
 using Repository;
 using Repository.Paths;
+using Test.Helpers;
 using Test.Helpers.Integration;
 
 namespace API.Tests.Helpers;
@@ -112,7 +113,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesFlatRootParentSlug_IfRootIdButNotCollection()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
+        var slug = TestIdentifiers.Slug();
         const string rootId = "root"; 
         
         // Act
@@ -133,7 +134,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesFlatRootParentSlug()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -153,7 +154,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesFlatChildParentSlug()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesFlatRootParentSlug);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -173,7 +174,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesHierarchicalRootParentSlug()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesHierarchicalRootParentSlug);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -193,7 +194,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesHierarchicalChildParentSlug()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesHierarchicalChildParentSlug);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -213,7 +214,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesPublicId()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesPublicId);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -232,7 +233,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_ParsesPublicIdChild()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_ParsesPublicIdChild);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -251,7 +252,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_Fails_PublicIdNotMatchingSlug()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_Fails_PublicIdNotMatchingSlug);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -266,10 +267,27 @@ public class ParentSlugParserTests
     }
     
     [Fact]
+    public async Task ParentSlugParser_FailsToParsePublicId_MismatchBetweenPublicIdCustomerAndCallingCustomer()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            PublicId = $"http://localhost/{Customer}/{slug}",
+        }, 2, null);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id that does not match the customer id found on the calling URL");
+    }
+    
+    [Fact]
     public async Task ParentSlugParser_Fails_PublicIdNotMatchingParent()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_Fails_PublicIdNotMatchingParent);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -287,7 +305,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_Fails_InvalidParent()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_Fails_InvalidParent);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -304,7 +322,7 @@ public class ParentSlugParserTests
     [Fact]
     public async Task ParentSlugParser_Fails_InvalidHost()
     {
-        var slug = nameof(ParentSlugParser_Fails_InvalidHost);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -323,7 +341,7 @@ public class ParentSlugParserTests
     public async Task ParentSlugParser_Fails_ParentIsIIIF()
     {
         // Arrange
-        var slug = nameof(ParentSlugParser_Fails_ParentIsIIIF);
+        var slug = TestIdentifiers.Slug();
         
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
@@ -335,5 +353,23 @@ public class ParentSlugParserTests
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
         parentSlugParserResult.Errors.Error.Should().Be("The parent must be a storage collection");
+    }
+    
+    [Fact]
+    public async Task ParentSlugParser_Fails_ParentCustomerDoesNotMatchCustomer()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            Parent = $"http://localhost/{Customer}/collections/root",
+            Slug = slug
+        }, 2, null);
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id that does not match the customer id found on the calling URL");
     }
 }
