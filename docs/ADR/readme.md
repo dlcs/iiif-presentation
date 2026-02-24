@@ -2,3 +2,5 @@
 
 * [Database update failure](0001-database-update-failure.md)
   * Details on how a failure that occurred when updating pg13 to pg14
+* [Canvas id parsing](0002-canvas-id-parsing.md)
+  * How canvas id's are parsed
