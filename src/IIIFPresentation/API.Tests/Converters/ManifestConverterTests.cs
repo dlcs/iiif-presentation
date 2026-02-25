@@ -687,4 +687,86 @@ public class ManifestConverterTests
         firstCanvas.Homepage.First().Id.Should().Be("https://foo.com/0/homepage/foo");
         result.First().Homepage.Should().NotBeNull();
     }
+    
+    [Theory]
+    [InlineData("https://foo.com/123/canvases/foo")] // able to be parsed for id
+    [InlineData("https://foo.com/foo")] // not able to be parsed for id
+    public void GenerateProvisionalCanvases_SetsCanvasPaintings_WhenMixingItemsAndCanvaPaintingsWithNoMatching(string canvasId)
+    {
+        // Arrange
+        var customer = 123;
+        
+        var canvases = new List<Canvas>
+        {
+            new()
+            {
+                Id = canvasId,
+                Items = 
+                [
+                    new AnnotationPage
+                    {
+                        Items = new List<IAnnotation>
+                        {
+                            new PaintingAnnotation
+                            {
+                                Body = new PaintingChoice
+                                {
+                                    Items = new List<IPaintable>
+                                    {
+                                        new Image
+                                        {
+                                            Id = $"{canvasId}/image/1"
+                                        },
+                                        new Image
+                                        {
+                                            Id = $"{canvasId}/image/2"
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        };
+
+        var canvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                ChoiceOrder = 1,
+                CanvasOrder = 1,
+                CanvasOriginalId = new Uri(canvasId),
+                CustomerId = customer,
+                Id = "random1"
+            },
+            new()
+            {
+                ChoiceOrder = 2,
+                CanvasOrder = 1,
+                CanvasOriginalId = new Uri(canvasId),
+                CustomerId = customer,
+                Id = "random1"
+            },
+            new()
+            {
+                CanvasOrder = 2,
+                AssetId = new AssetId(1, 2, "assetId3"),
+                CustomerId = customer,
+                Id = "assetId3"
+            }
+        };
+        
+        // Act
+        var result = canvasPaintings.GenerateProvisionalCanvases(pathGenerator, canvases, pathRewriteParser);
+
+        // Assert
+        var first = result.First();
+        var last = result.Last();
+        
+        first.Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeOfType<PaintingChoice>();
+        first.Id.Should().Be(canvasId);
+        last.Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
+        last.Id.Should().Be("http://base/123/canvases/assetId3");
+    }
 }
