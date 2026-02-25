@@ -2772,7 +2772,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
     public async Task UpdateManifest_CorrectlyUpdatesAssetRequests_WhenSpaceRemovedButAssetIdStaysTheSame()
     {
         // Arrange
-        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var (slug, id, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
         var initialSpace = 25;
 
         var testManifest =
@@ -2790,7 +2790,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                              "paintedResources": [
                                  {
                                     "canvasPainting":{
-                                        "canvasId": "first"
+                                        "canvasId": "{{canvasId}}"
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
@@ -2821,7 +2821,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         dbManifest.CanvasPaintings.Should().HaveCount(1);
         var canvasPainting = dbManifest.CanvasPaintings.First();
         
-        canvasPainting.Id.Should().Be("first");
+        canvasPainting.Id.Should().Be(canvasId);
         // space added using the DLCS space
         canvasPainting.AssetId!.ToString().Should()
             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}", "asset id updated to point at new space");

@@ -60,7 +60,7 @@ public class ManifestPaintedResourceParserTests
                     {6, new Uri("https://additional-path-no-customer.com")},
                 }
             }),
-            presentationContext,
+            dbContextMock,
             new NullLogger<ManifestPaintedResourceParser>());
     }
 
@@ -96,7 +96,7 @@ public class ManifestPaintedResourceParserTests
         };
 
         Func<Task> action = () => sut.ParseToCanvasPainting(manifest, customerId);
-        await action.Should().ThrowAsync<InvalidCanvasIdException>()ithMessage(message);;
+        await action.Should().ThrowAsync<InvalidCanvasIdException>().WithMessage(message);;
     }
     
     [Theory]
@@ -370,9 +370,9 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        Action action = () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
 
-        action.Should().ThrowExactly<InvalidCanvasIdException>()
+        await action.Should().ThrowExactlyAsync<InvalidCanvasIdException>()
             .WithMessage($"The host for canvas id '{canvasId}' could not be recognised");
     }
     
@@ -953,10 +953,10 @@ public class ManifestPaintedResourceParserTests
         };
         
         // Act
-        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
         
         // Assert
-        action.Should().Throw<AssetException>() .Where(e => e.Message == errorMessage);
+        action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
     private JObject GetAsset(int? space = null, string? id = null)

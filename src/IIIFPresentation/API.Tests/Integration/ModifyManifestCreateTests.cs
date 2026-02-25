@@ -1612,7 +1612,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = $"https://localhost:7230/{Customer}/canvases/{{canvasPaintingId}}"
+                        CanvasId = $"https://localhost:7230/{Customer}/canvases/{canvasPaintingId}"
                     },
                     Asset = new JObject
                     {

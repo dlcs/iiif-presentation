@@ -98,6 +98,7 @@ public class ManifestPaintedResourceParser(
     private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
         int canvasOrder, bool implicitOrdering)
     {
+        var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
         var (space, assetId) =
             GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
@@ -112,7 +113,7 @@ public class ManifestPaintedResourceParser(
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
         var cp = new InterimCanvasPainting
         {
-            Id = TryGetValidCanvasId(customerId, paintedResource)!, // might be null, but is `null!` in prop initializer
+            Id = specifiedCanvasId!, // might be null, but is `null!` in prop initializer
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
