@@ -696,39 +696,41 @@ public class ManifestConverterTests
         // Arrange
         var customer = 123;
         
-        var canvases = new List<Canvas>
-        {
+        List<Canvas> canvases =
+        [
             new()
             {
                 Id = canvasId,
-                Items = 
+                Items =
                 [
                     new AnnotationPage
                     {
-                        Items = new List<IAnnotation>
-                        {
+                        Items =
+                        [
                             new PaintingAnnotation
                             {
                                 Body = new PaintingChoice
                                 {
-                                    Items = new List<IPaintable>
-                                    {
+                                    Items = (List<IPaintable>)
+                                    [
                                         new Image
                                         {
                                             Id = $"{canvasId}/image/1"
                                         },
+
                                         new Image
                                         {
                                             Id = $"{canvasId}/image/2"
-                                        },
-                                    }
+                                        }
+
+                                    ]
                                 }
                             }
-                        }
+                        ]
                     }
                 ]
             }
-        };
+        ];
 
         var canvasPaintings = new List<CanvasPainting>
         {
