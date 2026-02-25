@@ -1,7 +1,4 @@
 using Core.Exceptions;
-using System.Collections.Immutable;
-using System.Text;
-using Core.Exceptions;
 using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

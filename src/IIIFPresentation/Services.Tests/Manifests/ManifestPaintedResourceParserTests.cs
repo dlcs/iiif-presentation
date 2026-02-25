@@ -11,7 +11,6 @@ using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Model;
-using Services.Tests.Manifests.Helpers;
 using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;

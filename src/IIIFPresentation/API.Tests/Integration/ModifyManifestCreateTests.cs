@@ -22,7 +22,6 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
-using Xunit.Abstractions;
 using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
 
