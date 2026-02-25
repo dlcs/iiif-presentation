@@ -4,6 +4,7 @@ using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Traversal;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
@@ -717,12 +718,10 @@ public class ManifestConverterTests
                                         {
                                             Id = $"{canvasId}/image/1"
                                         },
-
                                         new Image
                                         {
                                             Id = $"{canvasId}/image/2"
                                         }
-
                                     ]
                                 }
                             }
@@ -766,9 +765,9 @@ public class ManifestConverterTests
         var first = result.First();
         var last = result.Last();
         
-        first.Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeOfType<PaintingChoice>();
+        first.AllAnnotations().First().As<PaintingAnnotation>().Body.Should().BeOfType<PaintingChoice>();
         first.Id.Should().Be(canvasId);
-        last.Items.First().Items.First().As<PaintingAnnotation>().Body.Should().BeNull();
+        last.AllAnnotations().First().As<PaintingAnnotation>().Body.Should().BeNull();
         last.Id.Should().Be("http://base/123/canvases/assetId3");
     }
 }
