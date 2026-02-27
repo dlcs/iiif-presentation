@@ -489,4 +489,27 @@ public class PresentationManifestValidatorTests
         result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
             .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
     }
+    
+    [Fact]
+    public void PaintedResource_Manifest_Error_WhenDuplicateCanvasId()
+    {
+        var manifest = new PresentationManifest
+        {
+            Items = 
+            [
+                new Canvas
+                {
+                    Id = "someCanvasId-1"
+                },
+                new Canvas
+                {
+                    Id = "someCanvasId-1"
+                }
+            ]
+        };
+        
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.Items)
+            .WithErrorMessage("The id in 'items' contains duplicates, which is not allowed");
+    }
 }

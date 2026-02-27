@@ -14,6 +14,11 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     {
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
+        
+        RuleFor(m => m.Items)
+            .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
+            .When(m => !m.Items.IsNullOrEmpty())
+            .WithMessage("The id in 'items' contains duplicates, which is not allowed");
     }
 
     // Validation rules specific to PaintedResources only
@@ -36,7 +41,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 .Any(grp => grp.Select(pr => pr.CanvasPainting.CanvasId).Distinct().Count() > 1))
             .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))
             .WithMessage("Canvases that share 'canvasOrder' must have same 'canvasId'");
-        
+            
         RuleFor(m => m.PaintedResources)
             .Must(lpr => !lpr
                 .GroupBy(pr => pr.CanvasPainting.CanvasOrder)
@@ -68,5 +73,5 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .Must(pr => pr.CanvasPainting!.StaticHeight.HasValue == pr.CanvasPainting.StaticWidth.HasValue)
             .WithMessage(
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
-    }
+     }
 }
