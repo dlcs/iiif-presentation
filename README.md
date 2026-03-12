@@ -14,6 +14,14 @@ cp .env.dist .env
 docker compose -f docker-compose.local.yml up
 ```
 
+An optional Typesense overlay is available for local search indexing:
+
+```bash
+docker compose -f docker-compose.local.yml -f docker-compose.typesense.yml up
+```
+
+When using the Typesense overlay, set the `Typesense` section in the API and BackgroundHandler configuration to point at `http://localhost:8108` and use the same API key. The compose file defaults the key to `xyz`, or you can override it with `TYPESENSE_API_KEY` in your shell or `.env`.
+
 ### Database
 
 migrations can be applied by setting the app setting `"RunMigrations": true` in the API and then inital data can be seeded from the [create_root script](/scripts/create_root.sql) in the scripts folder.

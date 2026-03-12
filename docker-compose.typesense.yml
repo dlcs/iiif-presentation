@@ -1,0 +1,15 @@
+volumes:
+  pres_typesense_data: {}
+
+services:
+  typesense:
+    image: typesense/typesense:29.0
+    hostname: typesense
+    ports:
+      - "8108:8108"
+    volumes:
+      - pres_typesense_data:/data
+    command: >
+      --data-dir /data
+      --api-key=${TYPESENSE_API_KEY:-xyz}
+      --enable-cors
