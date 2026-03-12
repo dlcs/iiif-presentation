@@ -8,12 +8,14 @@ using Models.API.General;
 using Models.Database.Collections;
 using Repository;
 using Repository.Helpers;
+using Services.Search;
 
 namespace API.Features.Common.Helpers;
 
 public class HierarchyResourceDeleter(
     PresentationContext dbContext,
     IIIIFS3Service iiifS3,
+    ISearchSyncService searchSyncService,
     ILogger<HierarchyResourceDeleter> logger)
 {
     public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource<T>(string? etagFromRequest, int customerId, 
@@ -50,6 +52,15 @@ public class HierarchyResourceDeleter(
             logger.LogError(ex, "Error attempting to delete {ResourceType} {ResourceId} for customer {CustomerId}",
                 resourceType, resourceId, customerId);
             return DeleteErrorHelper.UnknownError(resourceType);
+        }
+
+        try
+        {
+            await searchSyncService.TryDeleteResourceDocumentAsync(resource, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Search index delete failed for {ResourceId}", resourceId);
         }
 
         return new ResultMessage<DeleteResult, DeleteResourceErrorType>(DeleteResult.Deleted);

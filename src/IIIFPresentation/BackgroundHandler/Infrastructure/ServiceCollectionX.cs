@@ -6,6 +6,7 @@ using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.CustomerCreation;
 using BackgroundHandler.Listener;
+using BackgroundHandler.Search;
 using Repository;
 
 namespace BackgroundHandler.Infrastructure;
@@ -48,6 +49,8 @@ public static class ServiceCollectionX
                     ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<BatchCompletionMessageHandler>>(sp, aws.SQS.BatchCompletionQueueName))
                 .AddScoped<BatchCompletionMessageHandler>();
         }
+
+        services.AddHostedService<SearchSyncHostedService>();
 
         return services;
     }
