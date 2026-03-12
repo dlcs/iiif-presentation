@@ -22,6 +22,14 @@ public class TypesenseClient(HttpClient httpClient) : ITypesenseClient
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task DeleteAliasAsync(string aliasName, bool ignoreIfMissing = false, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.DeleteAsync($"/aliases/{aliasName}", cancellationToken);
+        if (ignoreIfMissing && response.StatusCode == HttpStatusCode.NotFound) return;
+
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task CreateCollectionAsync(object schema, bool ignoreIfExists = false, CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsync("/collections", ToJsonContent(schema), cancellationToken);
@@ -87,16 +95,30 @@ public class TypesenseClient(HttpClient httpClient) : ITypesenseClient
         return true;
     }
 
-    public async Task<IReadOnlyCollection<string>> ExportDocumentIdsAsync(string collectionName, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<JObject>> ExportDocumentsAsync(string collectionName, string? includeFields = null,
+        CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync($"/collections/{collectionName}/documents/export?include_fields=id",
-            cancellationToken);
+        var path = $"/collections/{collectionName}/documents/export";
+        if (!string.IsNullOrWhiteSpace(includeFields))
+        {
+            path += $"?include_fields={Uri.EscapeDataString(includeFields)}";
+        }
+
+        var response = await httpClient.GetAsync(path, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         return responseBody
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => JObject.Parse(line)["id"]?.Value<string>())
+            .Select(JObject.Parse)
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyCollection<string>> ExportDocumentIdsAsync(string collectionName, CancellationToken cancellationToken = default)
+    {
+        var documents = await ExportDocumentsAsync(collectionName, "id", cancellationToken);
+        return documents
+            .Select(document => document["id"]?.Value<string>())
             .OfType<string>()
             .ToArray();
     }

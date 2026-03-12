@@ -46,6 +46,9 @@ public static class SearchServiceCollectionX
         public Task UpsertAliasAsync(string aliasName, string collectionName, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public Task DeleteAliasAsync(string aliasName, bool ignoreIfMissing = false, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
         public Task CreateCollectionAsync(object schema, bool ignoreIfExists = false, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
@@ -60,6 +63,10 @@ public static class SearchServiceCollectionX
 
         public Task<bool> DeleteDocumentAsync(string collectionName, string documentId, CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
+
+        public Task<IReadOnlyCollection<JObject>> ExportDocumentsAsync(string collectionName, string? includeFields = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<JObject>>([]);
 
         public Task<IReadOnlyCollection<string>> ExportDocumentIdsAsync(string collectionName, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<string>>([]);
