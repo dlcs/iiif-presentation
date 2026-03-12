@@ -49,6 +49,42 @@ public class TypesenseClientTests
         handler.Requests[0].PathAndQuery.Should().Be("/collections/search_collection/documents/missing-id?ignore_not_found=true");
     }
 
+    [Fact]
+    public async Task DeleteAliasAsync_UsesAliasEndpoint()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var sut = new TypesenseClient(new HttpClient(handler) { BaseAddress = new Uri("https://typesense.example") });
+
+        await sut.DeleteAliasAsync("search_customer_1");
+
+        handler.Requests.Should().ContainSingle();
+        handler.Requests[0].Method.Should().Be(HttpMethod.Delete);
+        handler.Requests[0].PathAndQuery.Should().Be("/aliases/search_customer_1");
+    }
+
+    [Fact]
+    public async Task ExportDocumentsAsync_UsesIncludeFieldsQuery_AndParsesJsonl()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {"id":"customer:1","customer_id":1}
+                {"id":"customer:2","customer_id":2}
+                """,
+                Encoding.UTF8,
+                "text/plain")
+        });
+        var sut = new TypesenseClient(new HttpClient(handler) { BaseAddress = new Uri("https://typesense.example") });
+
+        var documents = await sut.ExportDocumentsAsync("state_collection", "id,customer_id");
+
+        documents.Should().HaveCount(2);
+        documents.Select(document => document["id"]!.Value<string>()).Should().BeEquivalentTo("customer:1", "customer:2");
+        handler.Requests.Should().ContainSingle();
+        handler.Requests[0].PathAndQuery.Should().Be("/collections/state_collection/documents/export?include_fields=id%2Ccustomer_id");
+    }
+
     private sealed class StubHttpMessageHandler(Func<CapturedRequest, HttpResponseMessage> responder) : HttpMessageHandler
     {
         public List<CapturedRequest> Requests { get; } = [];
