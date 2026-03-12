@@ -8,7 +8,11 @@ public class TypesenseSettings
 
     public string? ApiKey { get; set; }
 
-    public string CollectionAlias { get; set; } = "iiif_presentation";
+    public string CollectionPrefix { get; set; } = "iiif_presentation";
+
+    public List<int> WhitelistCustomerIds { get; set; } = [];
+
+    public List<int> BlacklistCustomerIds { get; set; } = [];
 
     public int BatchWindowMinutes { get; set; } = 5;
 
@@ -18,9 +22,21 @@ public class TypesenseSettings
 
     public int OrphanSweepIntervalHours { get; set; } = 24;
 
-    public bool IsConfigured =>
+    public bool HasConnectionSettings =>
         Uri.TryCreate(BaseUrl, UriKind.Absolute, out _) &&
         !string.IsNullOrWhiteSpace(ApiKey);
 
+    public bool IsConfigured => HasConnectionSettings && !string.IsNullOrWhiteSpace(CollectionPrefix);
+
     public Uri? GetBaseUri() => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var uri) ? uri : null;
+
+    public bool IsCustomerIncluded(int customerId)
+    {
+        if (WhitelistCustomerIds.Count > 0)
+        {
+            return WhitelistCustomerIds.Contains(customerId);
+        }
+
+        return !BlacklistCustomerIds.Contains(customerId);
+    }
 }

@@ -62,6 +62,8 @@ public class SearchDocument
 public class SearchSyncState
 {
     [JsonProperty("id")] public required string Id { get; set; }
+    [JsonProperty("customer_id")] public int CustomerId { get; set; }
+    [JsonProperty("alias_name")] public required string AliasName { get; set; }
     [JsonProperty("schema_version")] public int SchemaVersion { get; set; }
     [JsonProperty("active_collection", NullValueHandling = NullValueHandling.Ignore)] public string? ActiveCollection { get; set; }
     [JsonProperty("last_synced_at", NullValueHandling = NullValueHandling.Ignore)] public long? LastSyncedAt { get; set; }

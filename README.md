@@ -20,7 +20,7 @@ An optional Typesense overlay is available for local search indexing:
 docker compose -f docker-compose.local.yml -f docker-compose.typesense.yml up
 ```
 
-When using the Typesense overlay, set the `Typesense` section in the API and BackgroundHandler configuration to point at `http://localhost:8108` and use the same API key. The compose file defaults the key to `xyz`, or you can override it with `TYPESENSE_API_KEY` in your shell or `.env`.
+When using the Typesense overlay, set the `Typesense` section in the API and BackgroundHandler configuration to point at `http://localhost:8108`, use the same API key, and choose a `CollectionPrefix`. Customer scoping can then be controlled with `WhitelistCustomerIds` or `BlacklistCustomerIds`. The compose file defaults the key to `xyz`, or you can override it with `TYPESENSE_API_KEY` in your shell or `.env`.
 
 ### Database
 

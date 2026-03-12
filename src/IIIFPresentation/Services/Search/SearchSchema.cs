@@ -2,12 +2,17 @@ namespace Services.Search;
 
 public static class SearchSchema
 {
-    public const int Version = 1;
+    public const int Version = 2;
 
-    public static string GetStateCollectionName(TypesenseSettings settings) => $"{settings.CollectionAlias}__state";
+    public static string GetStateCollectionName(TypesenseSettings settings) => $"{settings.CollectionPrefix}__state";
 
-    public static string GenerateCollectionName(TypesenseSettings settings) =>
-        $"{settings.CollectionAlias}_v{Version}_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+    public static string GetAliasName(TypesenseSettings settings, int customerId) =>
+        $"{settings.CollectionPrefix}_customer_{customerId}";
+
+    public static string GenerateCollectionName(TypesenseSettings settings, int customerId) =>
+        $"{GetAliasName(settings, customerId)}_v{Version}_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+
+    public static string GetStateId(int customerId) => $"customer:{customerId}";
 
     public static object GetSearchCollectionSchema(string collectionName) => new
     {
@@ -51,6 +56,8 @@ public static class SearchSchema
         fields = new object[]
         {
             new { name = "id", type = "string" },
+            new { name = "customer_id", type = "int32", facet = true },
+            new { name = "alias_name", type = "string" },
             new { name = "schema_version", type = "int32" },
             new { name = "active_collection", type = "string", optional = true },
             new { name = "last_synced_at", type = "int64", optional = true },
