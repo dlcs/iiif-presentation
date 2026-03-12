@@ -17,6 +17,7 @@ using Repository;
 using Repository.Paths;
 using Serilog;
 using Services;
+using Services.Search;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
@@ -60,6 +61,7 @@ builder.Services
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
+builder.Services.AddSearchServices(builder.Configuration);
 builder.Services
     .ConfigureSwagger()
     .AddScoped<IManifestWrite, ManifestWriteService>()

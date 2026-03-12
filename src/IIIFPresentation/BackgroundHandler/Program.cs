@@ -5,6 +5,7 @@ using DLCS;
 using Repository.Paths;
 using Serilog;
 using Services;
+using Services.Search;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
@@ -35,6 +36,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddDlcsOrchestratorClient(dlcs)
     .AddBackgroundServices(aws)
+    .AddSearchServices(builder.Configuration)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
