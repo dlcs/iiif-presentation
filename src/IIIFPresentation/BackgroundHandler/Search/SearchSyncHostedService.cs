@@ -10,10 +10,16 @@ public class SearchSyncHostedService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await RunCycle(stoppingToken);
-
         var settings = configuration.GetSection(TypesenseSettings.SettingsName).Get<TypesenseSettings>()
                        ?? new TypesenseSettings();
+
+        if (settings.HasConnectionSettings && !settings.IsConfigured)
+        {
+            logger.LogWarning("Typesense settings are present but invalid. Search sync will remain disabled until CollectionPrefix is configured.");
+        }
+
+        await RunCycle(stoppingToken);
+
         var interval = TimeSpan.FromMinutes(Math.Max(settings.BatchWindowMinutes, 1));
         using var timer = new PeriodicTimer(interval);
 

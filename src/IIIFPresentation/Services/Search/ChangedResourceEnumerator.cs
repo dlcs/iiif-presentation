@@ -7,13 +7,31 @@ namespace Services.Search;
 
 public class ChangedResourceEnumerator(PresentationContext dbContext) : IChangedResourceEnumerator
 {
-    public async IAsyncEnumerable<IReadOnlyList<SearchResourceTarget>> GetAllResources(int batchSize,
+    public async Task<IReadOnlyList<int>> GetCustomerIdsAsync(CancellationToken cancellationToken = default)
+    {
+        var collectionCustomerIds = await dbContext.Collections.AsNoTracking()
+            .Select(c => c.CustomerId)
+            .ToListAsync(cancellationToken);
+
+        var manifestCustomerIds = await dbContext.Manifests.AsNoTracking()
+            .Select(m => m.CustomerId)
+            .ToListAsync(cancellationToken);
+
+        return collectionCustomerIds
+            .Concat(manifestCustomerIds)
+            .Distinct()
+            .OrderBy(customerId => customerId)
+            .ToList();
+    }
+
+    public async IAsyncEnumerable<IReadOnlyList<SearchResourceTarget>> GetAllResources(int customerId, int batchSize,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var offset = 0;
         while (true)
         {
             var collections = await dbContext.Collections.AsNoTracking()
+                .Where(c => c.CustomerId == customerId)
                 .OrderBy(c => c.CustomerId).ThenBy(c => c.Id)
                 .Skip(offset)
                 .Take(batchSize)
@@ -31,6 +49,7 @@ public class ChangedResourceEnumerator(PresentationContext dbContext) : IChanged
         while (true)
         {
             var manifests = await dbContext.Manifests.AsNoTracking()
+                .Where(m => m.CustomerId == customerId)
                 .OrderBy(m => m.CustomerId).ThenBy(m => m.Id)
                 .Skip(offset)
                 .Take(batchSize)
@@ -44,17 +63,18 @@ public class ChangedResourceEnumerator(PresentationContext dbContext) : IChanged
         }
     }
 
-    public async Task<IReadOnlyList<SearchResourceTarget>> GetChangedResources(DateTime changedSince,
+    public async Task<IReadOnlyList<SearchResourceTarget>> GetChangedResources(int customerId, DateTime changedSince,
         CancellationToken cancellationToken = default)
     {
         var collections = await dbContext.Collections.AsNoTracking()
-            .Where(c => c.Modified >= changedSince)
+            .Where(c => c.CustomerId == customerId && c.Modified >= changedSince)
             .Select(c => new SearchResourceTarget(c.CustomerId, c.Id,
                 c.IsStorageCollection ? SearchResourceType.StorageCollection : SearchResourceType.IiifCollection))
             .ToListAsync(cancellationToken);
 
         var manifests = await dbContext.Manifests.AsNoTracking()
-            .Where(m => m.Modified >= changedSince || (m.LastProcessed.HasValue && m.LastProcessed >= changedSince))
+            .Where(m => m.CustomerId == customerId &&
+                        (m.Modified >= changedSince || (m.LastProcessed.HasValue && m.LastProcessed >= changedSince)))
             .Select(m => new SearchResourceTarget(m.CustomerId, m.Id, SearchResourceType.Manifest))
             .ToListAsync(cancellationToken);
 
@@ -131,14 +151,16 @@ public class ChangedResourceEnumerator(PresentationContext dbContext) : IChanged
             .ToList();
     }
 
-    public async Task<IReadOnlyCollection<string>> GetAllDocumentIds(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<string>> GetAllDocumentIds(int customerId, CancellationToken cancellationToken = default)
     {
         var collectionIds = await dbContext.Collections.AsNoTracking()
+            .Where(c => c.CustomerId == customerId)
             .Select(c => SearchDocumentId.Generate(c.CustomerId,
                 c.IsStorageCollection ? SearchResourceType.StorageCollection : SearchResourceType.IiifCollection, c.Id))
             .ToListAsync(cancellationToken);
 
         var manifestIds = await dbContext.Manifests.AsNoTracking()
+            .Where(m => m.CustomerId == customerId)
             .Select(m => SearchDocumentId.Generate(m.CustomerId, SearchResourceType.Manifest, m.Id))
             .ToListAsync(cancellationToken);
 
