@@ -5,6 +5,9 @@ Protagonist has support for adding adjuncts to Assets, generated Manifests will 
 > [!NOTE]
 > The initial implementation in IIIF Presentation will support adding Canvas (via assets) and Manifest/Collection level adjuncts _only_.
 
+> [!NOTE]
+> The following references the `scopes` property in Protagonist, rather than `manifests` property, as suggested in Protagonist RFC-013
+
 The high level approach will be:
 1. When sending a payload to IIIF Presentation, an `adjuncts` property can be added to any supporting resource.
 2. If added to `asset` property, adjuncts will be ingested to that asset as normal. Else..
@@ -58,7 +61,7 @@ Protagonist already supports asset level adjuncts. By supporting an `adjuncts` p
 }
 ```
 
-The above payload is an instruction to ingest asset `one`, containing 2 adjuncts: `mets.xml` and `annotation-page`. These are Canvas level adjuncts.
+The above payload is an instruction to ingest asset `one`, containing 2 adjuncts: `mets.xml` and `annotation-page`. These are Canvas level adjuncts because this is how they are surfaced in NQ Manifest.
 
 It is not possible to do this in a single operation - the Asset needs to be ingested first and then subsequent API call(s) made to ingest adjuncts.
 
@@ -146,7 +149,7 @@ The above applies for `"adjuncts"` specified at any level.
 
 ## Storage and Tracking
 
-When an asset is removed from a Manifest the asset is _not_ deleted from Protagonist; instead the `manifests` property is updated, effectively removing the link - the asset still exists in Protagonist and would need manual intervention to delete it. If, for some reason, the `manifests` link is maintained it's not necessarily an issue. IIIF-Presentation maintains a list of which assets are in which Manifests via the `CanvasPaintings` table, so when constructing the final manifest only the "known" assets from the returned NamedQuery are used - any extraneous assets are ignored. See [Protagonist RFC-019](https://github.com/dlcs/protagonist/blob/develop/docs/rfcs/019-presentation-dlcs.md#updating-resources) for more information on this mechanism. 
+When an asset is removed from a Manifest the asset is _not_ deleted from Protagonist; instead the `scopes` property is updated, effectively removing the link - the asset still exists in Protagonist and would need manual intervention to delete it. If, for some reason, the `scopes` link is maintained it's not necessarily an issue. IIIF-Presentation maintains a list of which assets are in which Manifests via the `CanvasPaintings` table, so when constructing the final manifest only the "known" assets from the returned NamedQuery are used - any extraneous assets are ignored. See [Protagonist RFC-019](https://github.com/dlcs/protagonist/blob/develop/docs/rfcs/019-presentation-dlcs.md#updating-resources) for more information on this mechanism. 
 
 Adjuncts will act differently to assets in 2 respects:
 1. The final IIIF resource will render _all_ adjuncts for an asset, not only those that have been added via the IIIF-Presentation API. Adjuncts that are added directly to Protagonist would also be reflected in the final Manifest/Collection _but the Manifest/Collection won't automatically update when an adjunct is added directly to Protagonist, there'll need to be an action in IIIF-Presentation to refresh it_.
@@ -173,7 +176,7 @@ To summarise, we will have an AssetId that is `{customer}/{space}/{asset}`, wher
 * Space is _always_ 0.
 * Asset is the identifier of the IIIF resource the adjuncts are being attached to. 
 
-Regardless of what IIIF resource we're creating a stub asset for, we will always need to set the `manifest` column for retrieval later.
+Regardless of what IIIF resource we're creating a stub asset for, we will always need to set the `scopes` column for retrieval later.
 
 ### Examples
 
@@ -199,7 +202,7 @@ Outside of these we will need to normalise the incoming `id`, applying scope wit
 We shouldn't need to reverse engineer the stored asset id to find what the original id was, having a repeatable deterministic method for taking an `id` and generating the normalised form will be enough. When building a final Manifest we will have the incoming/staged Manifest and NamedQuery results; we need a predictable method of taking ids from the former and finding any representation in the latter.
 
 > [!CAUTION]
-> We will need to be aware of asset id length restrictions. Do we need to do something different to normalise? Possibly encode or hash the url?
+> We need to take asset id length restrictions into account and ensure the algorithm handles long values accordingly. E.g. `{first x characters, normalised}_{8-char-hash}` - if the `id` is less than `x` then the full normalised value is used, else it's truncated with hash. Details TBD.
 
 It could be useful to use one of the metadata fields to store the originating `id` value - it's unlikely that we'd need it but it could prove useful in the future. Alternatively we could use this value as a 'fake' `"origin"` if that field will be required.
 
@@ -212,8 +215,8 @@ A Manifest or Collection can have any of: Assets, Asset-level adjuncts and IIIF-
 We have rules for handling Assets and how these are added to the final Manifest.
 
 For adjuncts we need a set of rules to determine how we generate final Manifests from NQs:
-* Where do we place asset adjuncts if those assets make up a choice or composite?
-* How do we handle the existence of adjunct target properties (e.g. if we have 2 `"seeAlso"` adjuncts but there are already 3 `"seeAlso"` resources)? Append? Is that safe? Could we end up with duplicates?
+* Where do we place asset adjuncts if those assets make up a choice or composite? For initial implementation we will hoist _all_ accumulated adjuncts to the Canvas level. This can be refined later, see [#568 discussion](https://github.com/dlcs/iiif-presentation/pull/568#discussion_r2930661055) for comments on this.
+* How do we handle the existence of adjunct target properties (e.g. if we have 2 `"seeAlso"` adjuncts but there are already 3 `"seeAlso"` resources)? Append and de-duplicate - duplicates could arise from round-tripping content.
 
 ## Returned Payloads
 
@@ -229,7 +232,8 @@ They will be output to the same location as they were supplied (ie they can't al
   * Asynchronous processing due to adjuncts. This would follow the same rules as Manifests, ie return 202 or 200 on update. Returning ETag or not. Background handler completion.
   * Collections can now include Protagonist interactions - can this easily be refactored from Manifests?
   * Addressed above in [Storage and Tracking](#storage-and-tracking), will we need some form of persistence for Collections?
-  * `manifest` value for an asset is currently an Id only. Internal ids could be shared between Manifests and Collections, do we need a prefix to differentiate?
+  * `scopes` value for an asset is currently an Id only. Internal ids could be shared between Manifests and Collections, do we need a prefix to differentiate?
+* Order of implementation - due to above, the suggestion is that we implement Manifests first and then Collections once we are comfortable with how Manifests work.
 * How much asset logic can we use for processing adjuncts? It broadly follows the same steps but may involve fairly deep refactoring.
 * If we want to support 'optimised-update' type scenarios then we'll need to handle adjunct batches, as outlined in Protagonist RFC-013. Without those it'll be difficult to identify what manifests require further work.
 
