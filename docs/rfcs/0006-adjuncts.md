@@ -6,7 +6,7 @@ Protagonist has support for adding adjuncts to Assets, generated Manifests will 
 > The initial implementation in IIIF Presentation will support adding Canvas (via assets) and Manifest/Collection level adjuncts _only_.
 
 > [!NOTE]
-> The following references the `scopes` property in Protagonist, rather than `manifests` property, as suggested in Protagonist RFC-013
+> The following references the `scopes` property in Protagonist, rather than `manifests` property, as suggested in Protagonist RFC-022
 
 The high level approach will be:
 1. When sending a payload to IIIF Presentation, an `adjuncts` property can be added to any supporting resource.
@@ -66,7 +66,7 @@ The above payload is an instruction to ingest asset `one`, containing 2 adjuncts
 It is not possible to do this in a single operation - the Asset needs to be ingested first and then subsequent API call(s) made to ingest adjuncts.
 
 > [!NOTE]
-> See Protagonist RFC-013 for suggested updates on how Protagonist can better support this.
+> See Protagonist RFC-022 for suggested updates on how Protagonist can better support this.
 
 > [!CAUTION]
 > Without those suggested changes this could result in a lot of API calls.
@@ -169,7 +169,7 @@ Protagonist already has support for efficiently ingesting, hosting and deliverin
 
 The main problem is that we need an asset to add adjuncts to. Using the above [manifest-level](#manifestcollection-level) example payload, we don't have any assets to add these adjuncts to. All we have is a manifest (and, later, other resources). The solution for this is to add a 'stub' asset - it won't ever contain binary content itself, it's only there to serve as a placeholder to add adjuncts to.
 
-The exact requirements for how this is achieved will be documented in Protagonist RFC-013.
+The exact requirements for how this is achieved will be documented in Protagonist RFC-022.
 
 To summarise, we will have an AssetId that is `{customer}/{space}/{asset}`, where:
 * Customer is the current customer
@@ -235,7 +235,7 @@ They will be output to the same location as they were supplied (ie they can't al
   * `scopes` value for an asset is currently an Id only. Internal ids could be shared between Manifests and Collections, do we need a prefix to differentiate?
 * Order of implementation - due to above, the suggestion is that we implement Manifests first and then Collections once we are comfortable with how Manifests work.
 * How much asset logic can we use for processing adjuncts? It broadly follows the same steps but may involve fairly deep refactoring.
-* If we want to support 'optimised-update' type scenarios then we'll need to handle adjunct batches, as outlined in Protagonist RFC-013. Without those it'll be difficult to identify what manifests require further work.
+* If we want to support 'optimised-update' type scenarios then we'll need to handle adjunct batches, as outlined in Protagonist RFC-022. Without those it'll be difficult to identify what manifests require further work.
 
 ## Potential Issues
 
