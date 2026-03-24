@@ -2,6 +2,7 @@
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
 using DLCS;
+using Repository.Helpers;
 using Repository.Paths;
 using Serilog;
 using Services;
@@ -42,6 +43,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
+    .AddScoped<ICustomerIdProvider, MessageBasedCustomerIdProvider>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();

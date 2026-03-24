@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
+using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Testcontainers.PostgreSql;
 
@@ -15,6 +16,9 @@ public class PresentationContextFixture : IAsyncLifetime
     private readonly PostgreSqlContainer postgresContainer;
     
     public PresentationContext DbContext { get; private set; }
+    
+    public ICustomerIdProvider  CustomerIdProvider { get; private set; }
+    
     public string ConnectionString { get; private set; }
     
     /// <summary>
@@ -300,11 +304,13 @@ public class PresentationContextFixture : IAsyncLifetime
         // Start DB + apply migrations
         try
         {
+            var customerIdProvider = new TestCustomerIdProvider();
             await postgresContainer.StartAsync();
-            SetPropertiesFromContainer();
+            SetPropertiesFromContainer(customerIdProvider);
             await DbContext.Database.MigrateAsync();
             await SeedRewriteCustomers();
             await SeedCustomer();
+            CustomerIdProvider =  customerIdProvider;
         }
         catch (Exception ex)
         {
@@ -335,17 +341,34 @@ public class PresentationContextFixture : IAsyncLifetime
             new DbContextOptionsBuilder<PresentationContext>()
                 .UseNpgsql(ConnectionString, builder => builder.SetPostgresVersion(14, 0))
                 .UseSnakeCaseNamingConvention()
-                .Options);
+                .Options, new MigrationCustomerIdProvider());
+        context.ChangeTracker.QueryTrackingBehavior = queryTrackingBehavior;
+        return context;
+    }
+    
+    /// <summary>
+    /// Get a new <see cref="PresentationContext"/> using connection string of this Postgres docker image.
+    /// Unlike the DbContext property this has full query tracking enabled to mimic 'real' context. This should be
+    /// used in instances where integration tests aren't using WebApplicationFactory to bootstrap environment
+    /// </summary>
+    public PresentationContext GetNewPresentationContext(ICustomerIdProvider customerIdProvider, 
+        QueryTrackingBehavior queryTrackingBehavior = QueryTrackingBehavior.TrackAll)
+    {
+        var context = new PresentationContext(
+            new DbContextOptionsBuilder<PresentationContext>()
+                .UseNpgsql(ConnectionString, builder => builder.SetPostgresVersion(14, 0))
+                .UseSnakeCaseNamingConvention()
+                .Options, customerIdProvider);
         context.ChangeTracker.QueryTrackingBehavior = queryTrackingBehavior;
         return context;
     }
 
-    private void SetPropertiesFromContainer()
+    private void SetPropertiesFromContainer(ICustomerIdProvider customerIdProvider)
     {
         ConnectionString = $"{postgresContainer.GetConnectionString()};Include Error Detail=true";
 
         // Create new PresentationContext using connection string for Postgres container
-        DbContext = GetNewPresentationContext(QueryTrackingBehavior.NoTracking);
+        DbContext = GetNewPresentationContext(customerIdProvider, QueryTrackingBehavior.NoTracking);
     }
 
     public void CleanUp()
@@ -355,4 +378,13 @@ public class PresentationContextFixture : IAsyncLifetime
         DbContext.Database.ExecuteSqlRaw(
             "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest', 'FirstChildManifestProcessing')");
     }
+}
+
+public class TestCustomerIdProvider : ICustomerIdProvider
+{
+    private int customerId = 1;
+    
+    public int GetCustomerId() => customerId;
+
+    public void SetCustomerId(int customerId) => this.customerId = customerId;
 }

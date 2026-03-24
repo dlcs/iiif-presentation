@@ -7,6 +7,7 @@ using DLCS.Models;
 using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
 using Models.API.General;
@@ -79,7 +80,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -120,7 +121,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -159,7 +160,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -199,8 +200,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -239,7 +239,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
         
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == NoCustomerCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -277,9 +277,8 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
 
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
-
-        var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
+        
+        var hierarchyFromDatabase = dbContext.Hierarchy.IgnoreQueryFilters().First(h => h.CustomerId == ExampleCustomer && h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);

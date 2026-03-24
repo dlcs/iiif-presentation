@@ -1,9 +1,7 @@
 ﻿using AWS.Helpers;
-using AWS.Settings;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
-using BackgroundHandler.Helpers;
-using BackgroundHandler.Settings;
+using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
 using DLCS;
@@ -42,14 +40,16 @@ public class BatchCompletionMessageHandlerTests
     private readonly IIIIFS3Service iiifS3;
     private readonly PathSettings pathSettings;
     private const int CustomerId = 1;
+    private const int AlternativeCustomer = 10;
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
     {
         // The context from dbFixture doesn't track changes so setup/assert
         dbContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(CustomerId);
         
         // The context used by SUT should track to mimic context config in actual use
-        var sutContext = dbFixture.GetNewPresentationContext();
+        var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
         
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
@@ -70,8 +70,9 @@ public class BatchCompletionMessageHandlerTests
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());
+        var customerIdProvider = new MessageBasedCustomerIdProvider();
 
-        sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
+        sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 
@@ -250,5 +251,64 @@ public class BatchCompletionMessageHandlerTests
         canvasPainting.StaticWidth.Should().Be(75, "width taken from NQ manifest image->imageService");
         canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
         canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
+    }
+    
+    [Fact]
+    public async Task HandleMessage_SavesResultingManifest_WhenAnotherCustomerIngestingSameManifestId()
+    {
+        // Arrange
+        var initialBatchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        const int space = 2;
+        var assetId = new AssetId(CustomerId, space, identifier);
+        
+        
+        var otherCustomerManifest = await dbContext.Manifests.AddTestManifest(batchId: initialBatchId, customer: AlternativeCustomer, ingested: false);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(otherCustomerManifest.Entity, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+
+        var batchId = TestIdentifiers.BatchId();
+        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
+            {
+                Id = identifier
+            });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
+        ResourceBase? resourceBase = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+                flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
+
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue("Message successfully handled");
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+                flatId, false, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        var savedManifest = (IIIFManifest)resourceBase!;
+        var expectedCanvasId = $"https://localhost:5000/1/canvases/{canvasPaintingId}";
+        savedManifest.Items[0].Id.Should().Be(expectedCanvasId, "Canvas Id overwritten");
+        savedManifest.Items[0].Items[0].Id.Should().Be(
+            $"https://localhost:5000/1/canvases/{canvasPaintingId}/annopages/1",
+            "AnnotationPage Id overwritten");
+        var paintingAnnotation = savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>();
+        paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
+            "PaintingAnnotation Id overwritten");
+        paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
 }

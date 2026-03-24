@@ -95,7 +95,7 @@ public static class PresentationContextX
         var collections = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
         return collections
             .Include(e => e.Hierarchy)!.ThenInclude(h => h.ParentCollection)
-            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == collectionId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == collectionId, cancellationToken);
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public static class PresentationContextX
 
         return await resources
             .Include(e => e.Hierarchy)
-            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == resourceId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == resourceId, cancellationToken);
     }
     
     /// <summary>
@@ -145,7 +145,7 @@ public static class PresentationContextX
         var hierarchy = dbContext.Hierarchy.AsNoTracking()
             .Include(h => h.Collection)
             .Include(h => h.Manifest)
-            .Where(c => c.CustomerId == customerId && c.Canonical && c.Parent == resourceId);
+            .Where(c => c.Canonical && c.Parent == resourceId);
 
         if (publicOnly)
         {
@@ -169,7 +169,7 @@ public static class PresentationContextX
         {
             // if we get PageSize back then there may be more in db
             total = await dbContext.Hierarchy.CountAsync(
-                c => c.CustomerId == collection.CustomerId && c.Parent == collection.Id,
+                c => c.Parent == collection.Id,
                 cancellationToken: cancellationToken);
         }
 

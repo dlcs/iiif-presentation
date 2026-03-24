@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using System.Linq.Expressions;
+using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database;
@@ -6,19 +7,27 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository.Converters;
+using Repository.Helpers;
 
 namespace Repository;
 
 public class PresentationContext : DbContext
 {
-    public PresentationContext()
+    ICustomerIdProvider customerProvider;
+    
+    public PresentationContext(ICustomerIdProvider customerIdProvider)
     {
+        this.customerProvider = customerIdProvider;
     }
 
-    public PresentationContext(DbContextOptions<PresentationContext> options)
+    public PresentationContext(DbContextOptions<PresentationContext> options, ICustomerIdProvider customerIdProvider)
         : base(options)
     {
+        customerProvider = customerIdProvider;
     }
+
+    // Critical: This method is called for EACH query execution
+    public int GetCurrentCustomerId() => customerProvider.GetCustomerId();
 
     public virtual DbSet<Collection> Collections { get; set; }
     
@@ -40,6 +49,8 @@ public class PresentationContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
+        
+        ApplyGlobalFilters(modelBuilder);
 
         modelBuilder.Entity<Collection>(entity =>
         {
@@ -138,5 +149,26 @@ public class PresentationContext : DbContext
                     b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
         });
+    }
+    
+    private void ApplyGlobalFilters(ModelBuilder builder)
+    {
+        // Automatically apply tenant filter to all ITenantEntity implementations
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            if (typeof(ICustomerEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var customerIdProperty = Expression.Property(parameter, "CustomerId");
+                var methodCall = Expression.Call(
+                    Expression.Constant(this),
+                    typeof(PresentationContext).GetMethod(nameof(GetCurrentCustomerId))!);
+                var filter = Expression.Lambda(
+                    Expression.Equal(customerIdProperty, methodCall), 
+                    parameter);
+
+                builder.Entity(entityType.ClrType).HasQueryFilter(filter);
+            }
+        }
     }
 }

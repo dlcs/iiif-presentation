@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Repository.Helpers;
 
 namespace Repository;
 
@@ -20,11 +21,11 @@ public static class IIIFPresentationContextConfiguration
     /// <summary>
     ///     Run EF migrations if "RunMigrations" = true
     /// </summary>
-    public static void TryRunMigrations(IConfiguration configuration, ILogger logger)
+    public static void TryRunMigrations(IConfiguration configuration, ICustomerIdProvider customerProvider, ILogger logger)
     {
         if (configuration.GetValue(RunMigrationsKey, false))
         {
-            using var context = new PresentationContext(GetOptionsBuilder(configuration).Options);
+            using var context = new PresentationContext(GetOptionsBuilder(configuration).Options, customerProvider);
 
             var pendingMigrations = context.Database.GetPendingMigrations().ToList();
             if (pendingMigrations.Count == 0)
@@ -41,9 +42,9 @@ public static class IIIFPresentationContextConfiguration
     /// <summary>
     ///     Get a new instantiated <see cref="PresentationContext" /> object
     /// </summary>
-    public static PresentationContext GetNewDbContext(IConfiguration configuration)
+    public static PresentationContext GetNewDbContext(IConfiguration configuration, ICustomerIdProvider customerProvider)
     {
-        return new PresentationContext(GetOptionsBuilder(configuration).Options);
+        return new PresentationContext(GetOptionsBuilder(configuration).Options, customerProvider);
     }
 
     private static DbContextOptionsBuilder<PresentationContext> GetOptionsBuilder(IConfiguration configuration)

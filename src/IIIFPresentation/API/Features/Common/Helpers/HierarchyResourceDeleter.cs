@@ -58,8 +58,7 @@ public class HierarchyResourceDeleter(
     private async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>?> DeleteCollection(IHierarchyResource resource, 
         Collection collection, CancellationToken cancellationToken)
     {
-        var hasItems = await dbContext.Hierarchy.AnyAsync(
-            c => c.CustomerId == collection.CustomerId && c.Parent == collection.Id,
+        var hasItems = await dbContext.Hierarchy.AnyAsync( c => c.Parent == collection.Id,
             cancellationToken: cancellationToken);
 
         if (hasItems)
