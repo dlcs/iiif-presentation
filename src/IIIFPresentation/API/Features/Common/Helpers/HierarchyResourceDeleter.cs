@@ -19,7 +19,7 @@ public class HierarchyResourceDeleter(
     public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource<T>(string? etagFromRequest, int customerId, 
         string resourceId, CancellationToken cancellationToken) where T : class, IHierarchyResource
     {
-        var resource = await dbContext.Set<T>().Retrieve(customerId,  resourceId, true, cancellationToken);
+        var resource = await dbContext.Set<T>().Retrieve(resourceId, true, cancellationToken);
         
         if (resource is null) return DeleteErrorHelper.NotFound();
 

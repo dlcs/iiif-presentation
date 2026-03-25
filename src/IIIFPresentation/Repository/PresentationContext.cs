@@ -153,20 +153,24 @@ public class PresentationContext : DbContext
     
     private void ApplyGlobalFilters(ModelBuilder builder)
     {
-        // Automatically apply tenant filter to all ITenantEntity implementations
+        // Automatically apply customer filter to all ICustomerEntity implementations
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(ICustomerEntity).IsAssignableFrom(entityType.ClrType))
             {
-                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                // grab the class from the entity
+                var parameter = Expression.Parameter(entityType.ClrType, "entity");
+                // grab the CustomerId property from the class
                 var customerIdProperty = Expression.Property(parameter, "CustomerId");
+                // get the method GetCustomerId from this class
                 var methodCall = Expression.Call(
                     Expression.Constant(this),
                     typeof(PresentationContext).GetMethod(nameof(GetCurrentCustomerId))!);
+                // create a lambda expression using the customer id property and the method call i.e.: entity.CustomerId == GetCustomerId()
                 var filter = Expression.Lambda(
                     Expression.Equal(customerIdProperty, methodCall), 
                     parameter);
-
+                // add the query filter to the entity
                 builder.Entity(entityType.ClrType).HasQueryFilter(filter);
             }
         }

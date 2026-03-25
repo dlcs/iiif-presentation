@@ -65,7 +65,7 @@ public class UpsertCollectionHandler(
             if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         var databaseCollection =
-            await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.CollectionId, true, cancellationToken);
+            await dbContext.RetrieveCollectionWithParentAsync(request.CollectionId, true, cancellationToken);
 
         var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId,
             request.CollectionId, cancellationToken);
@@ -168,7 +168,7 @@ public class UpsertCollectionHandler(
         await transaction.CommitAsync(cancellationToken);
         
         var items = dbContext
-            .RetrieveCollectionItems(request.CustomerId, databaseCollection.Id)
+            .RetrieveCollectionItems(databaseCollection.Id)
             .Take(settings.PageSize);
 
         var total = await dbContext.GetTotalItemCountForCollection(databaseCollection, items.Count(),

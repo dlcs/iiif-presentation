@@ -22,7 +22,7 @@ public class PresentationContextXTests
     [Fact]
     public void RetrieveCollectionItems_ReturnsCanonicalOnlyManifestAndCollection()
     {
-        var result = dbContext.RetrieveCollectionItems(PresentationContextFixture.CustomerId, "root");
+        var result = dbContext.RetrieveCollectionItems("root");
         var expectedSlugs = new[]
         {
             "first-child",
@@ -40,7 +40,7 @@ public class PresentationContextXTests
     [Fact]
     public void RetrieveCollectionItems_CanExcludeNonPublicCollectionsAndProcessingManifests()
     {
-        var result = dbContext.RetrieveCollectionItems(PresentationContextFixture.CustomerId, "root", true);
+        var result = dbContext.RetrieveCollectionItems("root", true);
         var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-collection-with-items", "iiif-manifest" };
 
         result.Count().Should().Be(4);
@@ -50,7 +50,7 @@ public class PresentationContextXTests
     [Fact]
     public void RetrieveCollectionItems_IncludesRelations()
     {
-        var result = dbContext.RetrieveCollectionItems(PresentationContextFixture.CustomerId, "root").ToList();
+        var result = dbContext.RetrieveCollectionItems("root").ToList();
 
         result.Where(r => r.Collection != null).Should().HaveCount(4);
         result.Where(r => r.Manifest != null).Should().HaveCount(2);
