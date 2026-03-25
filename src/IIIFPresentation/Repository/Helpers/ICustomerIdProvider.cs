@@ -1,5 +1,8 @@
 ﻿namespace Repository.Helpers;
 
+/// <summary>
+/// retrieves and sets a customer id used by a global query filter
+/// </summary>
 public interface ICustomerIdProvider
 {
     /// <summary>

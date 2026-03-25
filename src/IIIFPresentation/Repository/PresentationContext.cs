@@ -13,21 +13,20 @@ namespace Repository;
 
 public class PresentationContext : DbContext
 {
-    ICustomerIdProvider customerProvider;
+    private readonly ICustomerIdProvider customerIdProvider;
     
     public PresentationContext(ICustomerIdProvider customerIdProvider)
     {
-        this.customerProvider = customerIdProvider;
+        this.customerIdProvider = customerIdProvider;
     }
 
     public PresentationContext(DbContextOptions<PresentationContext> options, ICustomerIdProvider customerIdProvider)
         : base(options)
     {
-        customerProvider = customerIdProvider;
+        this.customerIdProvider = customerIdProvider;
     }
-
-    // Critical: This method is called for EACH query execution
-    public int GetCurrentCustomerId() => customerProvider.GetCustomerId();
+    
+    public int GetCurrentCustomerId() => customerIdProvider.GetCustomerId();
 
     public virtual DbSet<Collection> Collections { get; set; }
     
