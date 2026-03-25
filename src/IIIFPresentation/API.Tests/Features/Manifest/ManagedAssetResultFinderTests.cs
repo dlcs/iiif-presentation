@@ -31,7 +31,7 @@ public class ManagedAssetResultFinderTests
     public ManagedAssetResultFinderTests(PresentationContextFixture dbFixture)
     {
         dbContext = dbFixture.DbContext;
-        dbFixture.CustomerIdProvider.SetCustomerId(DefaultCustomer);
+        dbFixture.CustomerIdProvider.SetCustomerId(PresentationContextFixture.CustomerId);
         
         dlcsApiClient = A.Fake<IDlcsApiClient>();
         

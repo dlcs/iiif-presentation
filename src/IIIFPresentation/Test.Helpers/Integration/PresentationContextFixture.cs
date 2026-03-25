@@ -382,7 +382,7 @@ public class PresentationContextFixture : IAsyncLifetime
 
 public class TestCustomerIdProvider : ICustomerIdProvider
 {
-    private int customerId = 1;
+    private int customerId = PresentationContextFixture.CustomerId;
     
     public int GetCustomerId() => customerId;
 
