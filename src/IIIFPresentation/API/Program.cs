@@ -14,6 +14,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
+using Repository.Helpers;
 using Repository.Paths;
 using Serilog;
 using Services;
@@ -82,6 +83,7 @@ builder.Services
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
     .AddHttpContextAccessor()
+    .AddScoped<ICustomerIdProvider, HttpContextCustomerIdProvider>()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
@@ -113,7 +115,7 @@ app
     .UseMiddleware<CorrelationIdMiddleware>()
     .UseMiddleware<TrailingSlashRedirectMiddleware>();
 
-IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
+IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, new MigrationCustomerIdProvider(), app.Logger);
 
 app
     .UseSwagger()

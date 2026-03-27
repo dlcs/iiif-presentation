@@ -24,7 +24,7 @@ public class IdentityManager(
             var id = GenerateIdentity(customerId, random);
 
             var isUnique = !await dbContext.Set<T>()
-                .AnyAsync(e => e.Id == id && e.CustomerId == customerId, cancellationToken);
+                .AnyAsync(e => e.Id == id, cancellationToken);
 
             if (isUnique) return id;
             
@@ -53,7 +53,7 @@ public class IdentityManager(
                 .Select(_ => GenerateIdentity(customerId, random))
                 .ToList();
             var existingIds = await dbContext.Set<T>()
-                .Where(i => candidates.Contains(i.Id) && i.CustomerId == customerId)
+                .Where(i => candidates.Contains(i.Id))
                 .Select(i => i.Id)
                 .ToListAsync(cancellationToken);
 

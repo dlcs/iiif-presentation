@@ -18,6 +18,7 @@ public class IdentityManagerTests
     public IdentityManagerTests(PresentationContextFixture dbFixture)
     {
         idGenerator = A.Fake<IIdGenerator>();
+        dbFixture.CustomerIdProvider.SetCustomerId(PresentationContextFixture.CustomerId);
         sut = new IdentityManager(idGenerator, dbFixture.DbContext, new NullLogger<IdentityManager>());
     }
 

@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Models;
 using Models.API.Collection;
 using Repository;
+using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -25,10 +26,12 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 s3Client = A.Fake<IAmazonS3>();
+    private readonly ICustomerIdProvider customerIdProvider;
 
     public ModifyRootCollectionTests(PresentationContextFixture dbFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = dbFixture.DbContext;
+        customerIdProvider = dbFixture.CustomerIdProvider;
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(dbFixture,
             additionalTestServices: collection => collection.AddSingleton(s3Client));
@@ -134,6 +137,8 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanChangeLabel()
     {
         const int customer = 1234892;
+        customerIdProvider.SetCustomerId(customer);
+        
         var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
         
@@ -164,6 +169,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanMakePrivate()
     {
         const int customer = 1234891;
+        customerIdProvider.SetCustomerId(customer);
         var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
         
@@ -192,6 +198,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
     public async Task Put_CanChangeThumbnail()
     {
         const int customer = 1234890;
+        customerIdProvider.SetCustomerId(customer);
         var dbCollection = await dbContext.Collections.AddTestCollection(KnownCollections.RootCollection, customer, slug: "root", parent: null);
         await dbContext.SaveChangesAsync();
 

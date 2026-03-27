@@ -50,6 +50,8 @@ public class ManifestWriteServiceTests
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(Customer);
+        
         dlcsSettings = DefaultSettings.DlcsSettings();
 
         var typedPathTemplateOptions = Options.Create(PathRewriteOptions.Default);
@@ -108,7 +110,7 @@ public class ManifestWriteServiceTests
             manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
-            presentationContext.Collections.First(x => x.CustomerId == Customer && x.Id == RootCollection.Id);
+            presentationContext.Collections.First(x => x.Id == RootCollection.Id);
 
         A.CallTo(() =>
             parentSlugParser.Parse(A<PresentationManifest>._, A<int>._, A<string>._,

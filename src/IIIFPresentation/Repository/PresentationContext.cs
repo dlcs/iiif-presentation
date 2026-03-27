@@ -1,4 +1,5 @@
-﻿using Core.Helpers;
+﻿using System.Linq.Expressions;
+using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database;
@@ -6,19 +7,26 @@ using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
 using Repository.Converters;
+using Repository.Helpers;
 
 namespace Repository;
 
 public class PresentationContext : DbContext
 {
-    public PresentationContext()
+    private readonly ICustomerIdProvider customerIdProvider;
+    
+    public PresentationContext(ICustomerIdProvider customerIdProvider)
     {
+        this.customerIdProvider = customerIdProvider;
     }
 
-    public PresentationContext(DbContextOptions<PresentationContext> options)
+    public PresentationContext(DbContextOptions<PresentationContext> options, ICustomerIdProvider customerIdProvider)
         : base(options)
     {
+        this.customerIdProvider = customerIdProvider;
     }
+    
+    public int GetCurrentCustomerId() => customerIdProvider.GetCustomerId();
 
     public virtual DbSet<Collection> Collections { get; set; }
     
@@ -40,6 +48,8 @@ public class PresentationContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
+        
+        ApplyGlobalFilters(modelBuilder);
 
         modelBuilder.Entity<Collection>(entity =>
         {
@@ -138,5 +148,30 @@ public class PresentationContext : DbContext
                     b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
         });
+    }
+    
+    private void ApplyGlobalFilters(ModelBuilder builder)
+    {
+        // get the method GetCustomerId from this class
+        var currentCustomerIdMethod = typeof(PresentationContext).GetMethod(nameof(GetCurrentCustomerId))!;
+        var methodCall = Expression.Call( Expression.Constant(this), currentCustomerIdMethod);
+        
+        // Automatically apply customer filter to all ICustomerEntity implementations
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            if (typeof(ICustomerEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                // grab the class from the entity
+                var parameter = Expression.Parameter(entityType.ClrType, "entity");
+                // grab the CustomerId property from the class
+                var customerIdProperty = Expression.Property(parameter, nameof(ICustomerEntity.CustomerId));
+                // create a lambda expression using the customer id property and the method call i.e.: entity.CustomerId == GetCustomerId()
+                var filter = Expression.Lambda(
+                    Expression.Equal(customerIdProperty, methodCall), 
+                    parameter);
+                // add the query filter to the entity
+                builder.Entity(entityType.ClrType).HasQueryFilter(filter);
+            }
+        }
     }
 }

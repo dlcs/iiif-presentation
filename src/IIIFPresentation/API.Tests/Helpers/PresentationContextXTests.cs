@@ -1,5 +1,6 @@
 ﻿using API.Features.Storage.Helpers;
 using API.Tests.Integration.Infrastructure;
+using DLCS.API;
 using Repository;
 using Test.Helpers.Integration;
 
@@ -14,13 +15,14 @@ public class PresentationContextXTests
     public PresentationContextXTests(PresentationContextFixture dbFixture)
     {
         dbContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(PresentationContextFixture.CustomerId);
         dbFixture.CleanUp();
     }
 
     [Fact]
     public void RetrieveCollectionItems_ReturnsCanonicalOnlyManifestAndCollection()
     {
-        var result = dbContext.RetrieveCollectionItems(1, "root");
+        var result = dbContext.RetrieveCollectionItems("root");
         var expectedSlugs = new[]
         {
             "first-child",
@@ -38,7 +40,7 @@ public class PresentationContextXTests
     [Fact]
     public void RetrieveCollectionItems_CanExcludeNonPublicCollectionsAndProcessingManifests()
     {
-        var result = dbContext.RetrieveCollectionItems(1, "root", true);
+        var result = dbContext.RetrieveCollectionItems("root", true);
         var expectedSlugs = new[] { "first-child", "iiif-collection", "iiif-collection-with-items", "iiif-manifest" };
 
         result.Count().Should().Be(4);
@@ -48,7 +50,7 @@ public class PresentationContextXTests
     [Fact]
     public void RetrieveCollectionItems_IncludesRelations()
     {
-        var result = dbContext.RetrieveCollectionItems(1, "root").ToList();
+        var result = dbContext.RetrieveCollectionItems("root").ToList();
 
         result.Where(r => r.Collection != null).Should().HaveCount(4);
         result.Where(r => r.Manifest != null).Should().HaveCount(2);

@@ -36,7 +36,7 @@ public class ManifestReadService(
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
         IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
-        var dbManifest = await dbContext.RetrieveManifestAsync(customerId, manifestId, withBatches: true,
+        var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withBatches: true,
             cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();

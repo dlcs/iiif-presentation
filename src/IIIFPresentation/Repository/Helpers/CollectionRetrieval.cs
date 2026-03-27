@@ -83,7 +83,7 @@ public static class CollectionRetrieval
                 .Include(h => h.Collection)
                 .Include(h => h.Manifest)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.CustomerId == customerId && s.Parent == null, cancellationToken);
+                .FirstOrDefaultAsync(s => s.Parent == null, cancellationToken);
         }
 
         return await dbContext.Hierarchy

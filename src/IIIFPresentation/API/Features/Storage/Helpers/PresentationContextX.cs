@@ -62,7 +62,7 @@ public static class PresentationContextX
     /// <param name="withBatches">Whether the Batches records should be included</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext, int customerId,
+    public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext,
         string manifestId, bool tracked = false, bool withCanvasPaintings = true, bool withBatches = false, CancellationToken cancellationToken = default)
     {
         IQueryable<DbManifest> dbContextManifests = dbContext.Manifests;
@@ -77,25 +77,24 @@ public static class PresentationContextX
             dbContextManifests = dbContextManifests.Include(m => m.Batches);
         }
         
-        return dbContextManifests.Retrieve(customerId, manifestId, tracked, cancellationToken);
+        return dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
     }
     
     /// <summary>
     /// Retrieves a 'full' collection from the database, with the Hierarchy records (including Parent)
     /// </summary>
     /// <param name="dbContext">The context to pull records from</param>
-    /// <param name="customerId">Customer the record is attached to</param>
     /// <param name="collectionId">The collection to retrieve</param>
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<Collection?> RetrieveCollectionWithParentAsync(this PresentationContext dbContext, int customerId,
+    public static Task<Collection?> RetrieveCollectionWithParentAsync(this PresentationContext dbContext,
         string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
     {
         var collections = tracked ? dbContext.Collections : dbContext.Collections.AsNoTracking();
         return collections
             .Include(e => e.Hierarchy)!.ThenInclude(h => h.ParentCollection)
-            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == collectionId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == collectionId, cancellationToken);
     }
 
     /// <summary>
@@ -109,43 +108,41 @@ public static class PresentationContextX
     /// <returns>The retrieved collection</returns>
     public static Task<Collection?> RetrieveCollectionAsync(this PresentationContext dbContext, int customerId,
         string collectionId, bool tracked = false, CancellationToken cancellationToken = default)
-        => dbContext.Collections.Retrieve(customerId, collectionId, tracked, cancellationToken);
+        => dbContext.Collections.Retrieve(collectionId, tracked, cancellationToken);
 
     /// <summary>
     /// Retrieves a <see cref="IHierarchyResource"/> from database, with Hierarchy records included
     /// </summary>
     /// <param name="entities">The context to pull records from</param>
-    /// <param name="customerId">Customer the record is attached to</param>
     /// <param name="resourceId">The collection/manifest Id to retrieve</param>
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <returns>The retrieved <see cref="IHierarchyResource"/></returns>
     public static async Task<T?> Retrieve<T>(this IQueryable<T> entities,
-        int customerId, string resourceId, bool tracked = false, CancellationToken cancellationToken = default)
+        string resourceId, bool tracked = false, CancellationToken cancellationToken = default)
         where T : class, IHierarchyResource
     {
         var resources = tracked ? entities : entities.AsNoTracking();
 
         return await resources
             .Include(e => e.Hierarchy)
-            .FirstOrDefaultAsync(e => e.CustomerId == customerId && e.Id == resourceId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == resourceId, cancellationToken);
     }
     
     /// <summary>
     /// Retrieves child hierarchy items for the parent record - entities are not tracked
     /// </summary>
     /// <param name="dbContext">The context to pull records from</param>
-    /// <param name="customerId">Customer the record is attached to</param>
     /// <param name="resourceId">The collection to retrieve child items for</param>
     /// <param name="publicOnly">Whether to return public only resources</param>
     /// <returns>A query containing child collections</returns>
-    public static IQueryable<Hierarchy> RetrieveCollectionItems(this PresentationContext dbContext, int customerId, 
+    public static IQueryable<Hierarchy> RetrieveCollectionItems(this PresentationContext dbContext, 
         string resourceId, bool publicOnly = false)
     {
         var hierarchy = dbContext.Hierarchy.AsNoTracking()
             .Include(h => h.Collection)
             .Include(h => h.Manifest)
-            .Where(c => c.CustomerId == customerId && c.Canonical && c.Parent == resourceId);
+            .Where(c => c.Canonical && c.Parent == resourceId);
 
         if (publicOnly)
         {
@@ -169,7 +166,7 @@ public static class PresentationContextX
         {
             // if we get PageSize back then there may be more in db
             total = await dbContext.Hierarchy.CountAsync(
-                c => c.CustomerId == collection.CustomerId && c.Parent == collection.Id,
+                c => c.Parent == collection.Id,
                 cancellationToken: cancellationToken);
         }
 

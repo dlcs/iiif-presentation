@@ -21,4 +21,31 @@ public static class HttpRequestX
     /// </summary>
     public static bool HasCreateSpaceHeader(this HttpRequest request)
         => request.Headers.Link.Contains(CreateSpaceHeader);
+
+    /// <summary>
+    /// Retrieve the customer id
+    ///
+    /// NOTE: retrieved from route values
+    /// </summary>
+    /// <param name="request">The request to get the customer id from</param>
+    /// <returns>A parsed customer id</returns>
+    public static int? GetCustomerId(this HttpRequest request, ILogger logger)
+    {
+        var customerIdRouteValue = "customerId";
+        
+        if (!request.RouteValues.TryGetValue(customerIdRouteValue, out var customerIdRouteVal)
+            || customerIdRouteVal is null)
+        {
+            logger.LogDebug("Unable to identify customerId in auth request to {Path}", request.Path);
+            return null;
+        }
+        
+        if (!int.TryParse(customerIdRouteVal.ToString(), out int customerId))
+        {
+            logger.LogDebug("Specified customerId is not numeric {Path}", request.Path);
+            return null;
+        }
+        
+        return customerId;
+    }
 }

@@ -27,6 +27,7 @@ public class ParentSlugParserTests
     public ParentSlugParserTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(Customer);
         
         var httpContextAccessor = A.Fake<IHttpContextAccessor>();
         httpContextAccessor.HttpContext = A.Fake<HttpContext>();

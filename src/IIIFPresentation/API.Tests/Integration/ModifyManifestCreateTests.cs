@@ -57,7 +57,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             );
 
         storageFixture.DbFixture.CleanUp();
-        if (!dbContext.Collections.Any(i => i.CustomerId == InvalidSpaceCustomer))
+        if (!dbContext.Collections.IgnoreQueryFilters().Any(i => i.CustomerId == InvalidSpaceCustomer))
         {
             dbContext.Collections.AddTestCollection(RootCollection.Id, customer: InvalidSpaceCustomer).GetAwaiter().GetResult();
             dbContext.SaveChanges();    

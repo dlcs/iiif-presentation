@@ -17,6 +17,7 @@ public class CollectionRetrievalTests
     public CollectionRetrievalTests(PresentationContextFixture dbFixture)
     {
         dbContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(CustomerId);
 
         if (initialised) return;
 

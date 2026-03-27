@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Repository;
+using Repository.Helpers;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
@@ -38,17 +39,8 @@ finally
     Log.CloseAndFlush();
 }
 
-class Migrator
+class Migrator(ILogger<Migrator> logger, IConfiguration configuration)
 {
-    private readonly ILogger<Migrator> logger;
-    private readonly IConfiguration configuration;
-
-    public Migrator(ILogger<Migrator> logger, IConfiguration configuration)
-    {
-        this.logger = logger;
-        this.configuration = configuration;
-    }
-
     public void Execute()
     {
         var connStr = configuration.GetConnectionString("PostgreSQLConnection");
@@ -64,6 +56,6 @@ class Migrator
             }
         }
 
-        IIIFPresentationContextConfiguration.TryRunMigrations(configuration, logger);
+        IIIFPresentationContextConfiguration.TryRunMigrations(configuration, new MigrationCustomerIdProvider(), logger);
     }
 }

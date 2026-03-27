@@ -13,7 +13,7 @@ public class PresentationContextTests
     
     public PresentationContextTests(PresentationContextFixture dbFixture)
     {
-        dbContext = dbFixture.GetNewPresentationContext();;
+        dbContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
         
         dbContext.SaveChanges();
     }

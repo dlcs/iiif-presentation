@@ -166,7 +166,7 @@ public class ManagedAssetResultFinder(
         var assetsToCheckInDlcs =
             assetsToAddToManifest.Where(asset =>
             {
-                if (dbContext.CanvasPaintings.Any(cp => cp.CustomerId == customerId && cp.AssetId == asset))
+                if (dbContext.CanvasPaintings.Any(cp => cp.AssetId == asset))
                 {
                     trackedAssets.Add(asset);
                     return false;
@@ -212,8 +212,7 @@ public class ManagedAssetResultFinder(
         {
             var assetIds = chunkedAssetsToCheck.Select(a => a.assetId);
             
-            inAnotherManifest.AddRange(dbContext.CanvasPaintings.Where(cp =>
-                assetIds.Contains(cp.AssetId) && cp.CustomerId == customerId));
+            inAnotherManifest.AddRange(dbContext.CanvasPaintings.Where(cp => assetIds.Contains(cp.AssetId)));
         }
 
         return inAnotherManifest;

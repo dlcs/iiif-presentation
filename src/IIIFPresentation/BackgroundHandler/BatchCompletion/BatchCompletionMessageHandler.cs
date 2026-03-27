@@ -2,16 +2,19 @@
 using System.Text.Json;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
+using BackgroundHandler.Infrastructure;
 using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
+using Repository.Helpers;
 using Services.Manifests.AWS;
 
 namespace BackgroundHandler.BatchCompletion;
 
 public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
+    ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestS3Manager,
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
@@ -25,7 +28,9 @@ public class BatchCompletionMessageHandler(
             try
             {
                 var batchCompletionMessage = DeserializeMessage(message, logger);
-
+                
+                customerIdProvider.SetCustomerId(batchCompletionMessage.Customer);
+                
                 await TryUpdateManifest(batchCompletionMessage, cancellationToken);
                 return true;
             }

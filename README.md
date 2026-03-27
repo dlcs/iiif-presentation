@@ -84,3 +84,11 @@ The general hierarchy of dependencies from lowest to highest are as follows:
 | AWS, Repository, DLCS |
 | Services |
 | API, BackgroundHandler |
+
+#### Global query filters
+
+This project takes advantage of a global query filter to filter all queries on the database by customer id automatically, so that it does not need to be specified on queries.  This is because the vast majority (if not all) require filtering by customer id and it's better to avoid issues with missing this filter out. 
+
+Some tests do require checking other customers than the one set for retrieval, and this can be done by using `.IgnoreQueryFilters` on the query to allow querying without the global query filter.
+
+Adding this query filter to entities in the context is controlled using the `ICustomerEntity` interface.  By implementing this interface, everything will automatically be pulled through that is required to get the global query filter working.

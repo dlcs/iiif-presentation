@@ -2,7 +2,7 @@
 
 namespace Models.Database.General;
 
-public class Batch
+public class Batch : ICustomerEntity
 {
     /// <summary>
     /// Id of the batch, coming from the DLCS
