@@ -262,7 +262,6 @@ public class BatchCompletionMessageHandlerTests
         const int space = 2;
         var assetId = new AssetId(CustomerId, space, identifier);
         
-        
         var otherCustomerManifest = await dbContext.Manifests.AddTestManifest(batchId: initialBatchId, customer: AlternativeCustomer, ingested: false);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(otherCustomerManifest.Entity, id: canvasPaintingId, assetId: assetId,
             canvasOrder: 1, ingesting: true);

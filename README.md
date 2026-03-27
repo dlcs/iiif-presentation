@@ -91,4 +91,4 @@ This project takes advantage of a global query filter to filter all queries on t
 
 Some tests do require checking other customers than the one set for retrieval, and this can be done by using `.IgnoreQueryFilters` on the query to allow querying without the global query filter.
 
-Adding this query filter to tables in the database is controlled using the `ICustomerEntity` interface.  By implementing this interface, everything will automatically be pulled through that is required to get the global query filter working.
+Adding this query filter to entities in the context is controlled using the `ICustomerEntity` interface.  By implementing this interface, everything will automatically be pulled through that is required to get the global query filter working.

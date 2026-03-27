@@ -328,23 +328,6 @@ public class PresentationContextFixture : IAsyncLifetime
     }
 
     public async Task DisposeAsync() => await postgresContainer.StopAsync();
-
-    /// <summary>
-    /// Get a new <see cref="PresentationContext"/> using connection string of this Postgres docker image.
-    /// Unlike the DbContext property this has full query tracking enabled to mimic 'real' context. This should be
-    /// used in instances where integration tests aren't using WebApplicationFactory to bootstrap environment
-    /// </summary>
-    public PresentationContext GetNewPresentationContext(
-        QueryTrackingBehavior queryTrackingBehavior = QueryTrackingBehavior.TrackAll)
-    {
-        var context = new PresentationContext(
-            new DbContextOptionsBuilder<PresentationContext>()
-                .UseNpgsql(ConnectionString, builder => builder.SetPostgresVersion(14, 0))
-                .UseSnakeCaseNamingConvention()
-                .Options, new MigrationCustomerIdProvider());
-        context.ChangeTracker.QueryTrackingBehavior = queryTrackingBehavior;
-        return context;
-    }
     
     /// <summary>
     /// Get a new <see cref="PresentationContext"/> using connection string of this Postgres docker image.
