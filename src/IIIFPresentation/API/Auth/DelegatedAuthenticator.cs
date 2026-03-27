@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.Http.Headers;
+using API.Infrastructure.Helpers;
 using API.Settings;
 using DLCS;
 using DLCS.API;
@@ -19,8 +20,6 @@ public class DelegatedAuthenticator(
     IAppCache appCache,
     ILogger<DelegatedAuthenticator> logger) : IAuthenticator
 {
-    private const string CustomerIdRouteValue = "customerId";
-
     public async Task<AuthResult> ValidateRequest(HttpRequest request, CancellationToken cancellationToken = default)
     {
         var headerValue = request.TryGetValidAuthHeader();
@@ -31,20 +30,10 @@ public class DelegatedAuthenticator(
             return AuthResult.NoCredentials;
         }
 
-        if (!request.RouteValues.TryGetValue(CustomerIdRouteValue, out var customerIdRouteVal)
-            || customerIdRouteVal is null)
-        {
-            logger.LogDebug("Unable to identify customerId in auth request to {Path}", request.Path);
-            return AuthResult.NoCredentials;
-        }
-        
-        if (!int.TryParse(customerIdRouteVal.ToString(), out int customerId))
-        {
-            logger.LogDebug("Specified customerId is not numeric {Path}", request.Path);
-            return AuthResult.NoCredentials;
-        }
+        var customerId = request.GetCustomerId(logger);
+        if (!customerId.HasValue) return AuthResult.NoCredentials;
 
-        return await IsValidUser(headerValue, customerId, cancellationToken)
+        return await IsValidUser(headerValue, customerId.Value, cancellationToken)
             ? AuthResult.Success
             : AuthResult.Failed;
     }

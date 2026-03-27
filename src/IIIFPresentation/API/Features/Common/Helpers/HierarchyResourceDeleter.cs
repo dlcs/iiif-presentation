@@ -2,12 +2,10 @@
 using API.Infrastructure.Helpers;
 using AWS.Helpers;
 using Core;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
 using Repository;
-using Repository.Helpers;
 
 namespace API.Features.Common.Helpers;
 
@@ -58,7 +56,7 @@ public class HierarchyResourceDeleter(
     private async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>?> DeleteCollection(IHierarchyResource resource, 
         Collection collection, CancellationToken cancellationToken)
     {
-        var hasItems = await dbContext.Hierarchy.AnyAsync( c => c.Parent == collection.Id,
+        var hasItems = await dbContext.Hierarchy.AnyAsync(c => c.Parent == collection.Id,
             cancellationToken: cancellationToken);
 
         if (hasItems)

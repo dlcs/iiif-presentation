@@ -152,6 +152,10 @@ public class PresentationContext : DbContext
     
     private void ApplyGlobalFilters(ModelBuilder builder)
     {
+        // get the method GetCustomerId from this class
+        var currentCustomerIdMethod = typeof(PresentationContext).GetMethod(nameof(GetCurrentCustomerId))!;
+        var methodCall = Expression.Call( Expression.Constant(this), currentCustomerIdMethod);
+        
         // Automatically apply customer filter to all ICustomerEntity implementations
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -160,11 +164,7 @@ public class PresentationContext : DbContext
                 // grab the class from the entity
                 var parameter = Expression.Parameter(entityType.ClrType, "entity");
                 // grab the CustomerId property from the class
-                var customerIdProperty = Expression.Property(parameter, "CustomerId");
-                // get the method GetCustomerId from this class
-                var methodCall = Expression.Call(
-                    Expression.Constant(this),
-                    typeof(PresentationContext).GetMethod(nameof(GetCurrentCustomerId))!);
+                var customerIdProperty = Expression.Property(parameter, nameof(ICustomerEntity.CustomerId));
                 // create a lambda expression using the customer id property and the method call i.e.: entity.CustomerId == GetCustomerId()
                 var filter = Expression.Lambda(
                     Expression.Equal(customerIdProperty, methodCall), 

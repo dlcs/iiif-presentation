@@ -191,7 +191,7 @@ public class ManagedAssetResultFinder(
         trackedAssets.AddRange(dlcsAssetIds);
 
         var missingAssets = interimCanvasPaintings.Where(icp => !trackedAssets.Any(a =>
-            icp.SuspectedAssetId == a.Asset && icp.SuspectedSpace == a.Space)).ToList();
+            icp.SuspectedAssetId == a.Asset && icp.CustomerId == a.Customer && icp.SuspectedSpace == a.Space)).ToList();
         
         if (missingAssets.Count != 0)
         {

@@ -43,7 +43,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IManifestMerger, ManifestMerger>()
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
-    .AddScoped<ICustomerIdProvider, MessageBasedCustomerIdProvider>()
+    .AddScoped<ICustomerIdProvider, SetCustomerIdProvider>()
     .Configure<DlcsSettings>(dlcsSettings);
 
 var app = builder.Build();

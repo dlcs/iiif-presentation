@@ -1,41 +1,31 @@
-﻿using Repository.Helpers;
+﻿using API.Infrastructure.Helpers;
+using Core.Exceptions;
+using Repository.Helpers;
 
 namespace API.Infrastructure;
 
-public class HttpContextCustomerIdProvider(IHttpContextAccessor httpContextAccessor) : ICustomerIdProvider
+/// <summary>
+/// Retrieves a customer id from HTTPContext to use in 
+/// </summary>
+/// <param name="httpContextAccessor"></param>
+public class HttpContextCustomerIdProvider(IHttpContextAccessor httpContextAccessor, ILogger<HttpContextCustomerIdProvider> logger) : ICustomerIdProvider
 {
-    private static readonly AsyncLocal<int?> CurrentCustomerId = new();
-    private const string CustomerIdRouteValue = "customerId";
-    private const int DefaultCustomer = 0; // Customer id with no values
-
     public int GetCustomerId()
     {
-        // Check for preset value (testing/background jobs)
-        if (CurrentCustomerId.Value.HasValue)
-        {
-            return CurrentCustomerId.Value.Value;
-        }
-
         // Return default if no HTTP context (startup, migrations)
         if (httpContextAccessor.HttpContext == null)
         {
-            return DefaultCustomer;
-        }
-        
-        // Extract from route claims
-        httpContextAccessor.HttpContext.Request.RouteValues.TryGetValue(CustomerIdRouteValue, out var customerIdRouteVal);
-             
-        if (!string.IsNullOrEmpty(customerIdRouteVal?.ToString()) && 
-            int.TryParse(customerIdRouteVal.ToString(), out var customerId))
-        {
-            return customerId;
+            throw new PresentationException("HTTP context is null");
         }
 
-        return DefaultCustomer;
+        var customerId = httpContextAccessor.HttpContext.Request.GetCustomerId(logger);
+        if (customerId.HasValue) return  customerId.Value;
+
+        throw new PresentationException("Could not resolve customerId from the URL");
     }
 
     public void SetCustomerId(int customerId)
     {
-        CurrentCustomerId.Value = customerId;
+        throw new PresentationException("Cannot set a customer id to the current customer");
     }
 }

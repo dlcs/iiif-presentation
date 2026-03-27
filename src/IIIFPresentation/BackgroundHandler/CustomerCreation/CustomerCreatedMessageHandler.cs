@@ -53,7 +53,7 @@ public class CustomerCreatedMessageHandler(
         
         logger.LogInformation("Ensuring new customer {CustomerId} has root collection", customerId);
 
-        if (await dbContext.Collections.AnyAsync( c => c.Id == KnownCollections.RootCollection, cancellationToken))
+        if (await dbContext.Collections.AnyAsync(c => c.Id == KnownCollections.RootCollection, cancellationToken))
         {
             logger.LogInformation("Customer {CustomerId} already has root collection, no-op", customerId);
             return;

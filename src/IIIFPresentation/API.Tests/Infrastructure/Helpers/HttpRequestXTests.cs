@@ -1,10 +1,15 @@
 ﻿using API.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace API.Tests.Infrastructure.Helpers;
 
 public class HttpRequestXTests
 {
+    private readonly ILogger<HttpRequestXTests> logger = new NullLogger<HttpRequestXTests>();    
+    
     [Fact]
     public void HasShowExtraHeader_False_IfNotFound()
     {
@@ -66,5 +71,48 @@ public class HttpRequestXTests
         httpRequest.Headers.Link = "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"".ToLower();
 
         httpRequest.HasCreateSpaceHeader().Should().BeFalse();
+    }
+    
+    [Fact]
+    public void GetCustomerId_Null_WhenNoCustomerRouteValue()
+    {
+        // Arrange
+        var httpRequest = new DefaultHttpContext().Request;
+
+        // Act
+        var customerId = httpRequest.GetCustomerId(logger);
+
+        // Assert
+        customerId.Should().BeNull();
+    }
+    
+    [Fact]
+    public void GetCustomerId_Null_WhenCustomerRouteValueNotInteger()
+    {
+        // Arrange
+        var httpRequest = new DefaultHttpContext().Request;
+        httpRequest.RouteValues = new RouteValueDictionary { { "customerId", "something" } };
+
+        // Act
+        var customerId = httpRequest.GetCustomerId(logger);
+
+        // Assert
+        customerId.Should().BeNull();
+    }
+    
+    
+    [Fact]
+    public void GetCustomerId_ReturnsCustomerId_WhenCustomerRouteValueNotInteger()
+    {
+        // Arrange
+        var httpRequest = new DefaultHttpContext().Request;
+        var customerIdToCheck = 1;
+        httpRequest.RouteValues = new RouteValueDictionary { { "customerId", customerIdToCheck } };
+
+        // Act
+        var customerId = httpRequest.GetCustomerId(logger);
+
+        // Assert
+        customerId.Should().Be(customerIdToCheck);
     }
 }

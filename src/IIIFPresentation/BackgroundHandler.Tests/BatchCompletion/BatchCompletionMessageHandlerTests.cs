@@ -70,7 +70,7 @@ public class BatchCompletionMessageHandlerTests
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());
-        var customerIdProvider = new MessageBasedCustomerIdProvider();
+        var customerIdProvider = new SetCustomerIdProvider();
 
         sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());

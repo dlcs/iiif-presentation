@@ -1,8 +1,12 @@
+using Core.Exceptions;
 using Repository.Helpers;
 
 namespace BackgroundHandler.Infrastructure;
 
-public class MessageBasedCustomerIdProvider : ICustomerIdProvider
+/// <summary>
+/// Provider that requires the customer id to be set prior to retrieval
+/// </summary>
+public class SetCustomerIdProvider : ICustomerIdProvider
 {
     private static readonly AsyncLocal<int?> CurrentCustomerId = new();
     
@@ -12,8 +16,8 @@ public class MessageBasedCustomerIdProvider : ICustomerIdProvider
         {
             return CurrentCustomerId.Value.Value;
         }
-        
-        return 0;
+
+        throw new PresentationException("Customer id not set for retrieval");
     }
 
     public void SetCustomerId(int customerId)
