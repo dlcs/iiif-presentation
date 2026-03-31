@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using API.Features.Common.Helpers;
 using API.Features.Manifest.Exceptions;
-using API.Features.Storage.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
@@ -34,7 +33,7 @@ public class CanvasPaintingResolver(
     {
         try
         {
-            var manifestParseResult = ParseManifest(customerId, presentationManifest);
+            var manifestParseResult =  await ParseManifest(customerId, presentationManifest, null);
             if (manifestParseResult.Error != null) return CanvasPaintingRecords.Failure(manifestParseResult.Error);
 
             Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
@@ -67,7 +66,7 @@ public class CanvasPaintingResolver(
     public async Task<CanvasPaintingRecords> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
-        var manifestParseResult = ParseManifest(customerId, presentationManifest);
+        var manifestParseResult = await ParseManifest(customerId, presentationManifest, existingManifest.Id);
         if (manifestParseResult.Error != null) return CanvasPaintingRecords.Failure(manifestParseResult.Error);
         
         existingManifest.CanvasPaintings ??= [];
@@ -246,13 +245,13 @@ public class CanvasPaintingResolver(
         }
     }
     
-    private ManifestParseResult ParseManifest(int customerId, 
-        PresentationManifest presentationManifest)
+    private async Task<ManifestParseResult> ParseManifest(int customerId, 
+        PresentationManifest presentationManifest, string? existingManifestId)
     {
         try
         {
-            var paintedResourceCanvasPaintings = manifestPaintedResourceParser
-                .ParseToCanvasPainting(presentationManifest, customerId).ToList();
+            var paintedResourceCanvasPaintings = (await manifestPaintedResourceParser
+                .ParseToCanvasPainting(presentationManifest, customerId, existingManifestId)).ToList();
 
             var itemsCanvasPaintings =
                 manifestItemsParser
@@ -268,6 +267,12 @@ public class CanvasPaintingResolver(
             logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
             return new ManifestParseResult(
                 UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message), null, null);
+        }
+        catch (CanvasPaintingValidationException cpve)
+        {
+            logger.LogDebug(cpve, "Validation errors encountered in {ManifestId}", presentationManifest.Id);
+            return new ManifestParseResult(
+                UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpve.Errors), null, null);
         }
         catch (CanvasPaintingMergerException cpMergeError)
         {

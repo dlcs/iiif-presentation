@@ -336,6 +336,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         var slug = TestIdentifiers.Id();
         var customer = 601;
         
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         var manifest = new PresentationManifest
         {
             Parent = $"http://example.com/foo/{customer}/collections/{RootCollection.Id}",
@@ -346,7 +347,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                 {
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = $"http://example.com/example/{customer}/canvases/someId"
+                        CanvasId = $"http://example.com/example/{customer}/canvases/{canvasPaintingId}"
                     },
                     Asset = new JObject
                     {
@@ -373,8 +374,8 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         responseManifest.Id.Should().NotBeNull();
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://example.com/foo/{customer}/collections/{RootCollection.Id}", "uses the host based path parser");
-        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be($"http://example.com/example/{customer}/canvases/someId", "uses the host based path parser");
-        responseManifest.Items[0].Id.Should().Be($"https://example.com/example/{customer}/canvases/someId", "uses the settings based path parser");
+        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be($"http://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the host based path parser");
+        responseManifest.Items[0].Id.Should().Be($"https://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the settings based path parser");
     }
     
     [Fact]

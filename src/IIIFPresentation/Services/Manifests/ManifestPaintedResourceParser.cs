@@ -1,10 +1,12 @@
-﻿using Core.Exceptions;
+using Core.Exceptions;
 using Core.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Repository;
 using Repository.Paths;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -18,22 +20,24 @@ namespace Services.Manifests;
 /// Contains logic for parsing a Manifests "paintedResources" property into <see cref="CanvasPainting"/> entities
 /// </summary>
 public class ManifestPaintedResourceParser(
-    IPathRewriteParser pathRewriteParser, 
+    IPathRewriteParser pathRewriteParser,
     IPresentationPathGenerator presentationPathGenerator,
     IOptions<PathSettings> options,
+    PresentationContext dbContext,
     ILogger<ManifestPaintedResourceParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
-    public IEnumerable<InterimCanvasPainting> ParseToCanvasPainting(PresentationManifest presentationManifest, int customerId)
+    public async Task<IEnumerable<InterimCanvasPainting>> ParseToCanvasPainting(PresentationManifest presentationManifest,
+        int customerId, string? existingManifestId = null)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
-        
+
         var paintedResources = presentationManifest.PaintedResources;
         var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
-
+        
         var count = 0;
         foreach (var paintedResource in paintedResources)
         {
@@ -43,19 +47,51 @@ public class ManifestPaintedResourceParser(
                     presentationManifest.Id, customerId, count);
                 continue;
             }
-            
+
             var canvasOrder = paintedResource.CanvasPainting?.CanvasOrder ?? count;
             var implicitOrdering = paintedResource.CanvasPainting?.CanvasOrder == null;
-            
+
             var cp = CreatePartialCanvasPainting(customerId, paintedResource, canvasOrder, implicitOrdering);
 
             count++;
             canvasPaintings.Add(cp);
         }
-        
+
+        await CheckInterimCanvasIds(canvasPaintings, customerId, existingManifestId);
+
         return canvasPaintings;
     }
-    
+
+    private async Task CheckInterimCanvasIds(ICollection<InterimCanvasPainting> canvasPaintings, int customerId,
+        string? exceptInManifest)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - contract lies
+        var canvasPaintingIds = canvasPaintings
+            .Select(cp => cp.Id)
+            .Where(id => id != null)
+            .Distinct()
+            .ToList();
+
+        var customerPaintingsQuery =
+            dbContext.CanvasPaintings.AsNoTracking()
+                .Where(painting => painting.CustomerId == customerId)
+                .Where(painting => canvasPaintingIds.Contains(painting.Id));
+
+        if (exceptInManifest is { Length: > 0 })
+        {
+            customerPaintingsQuery =
+                customerPaintingsQuery.Where(painting => painting.ManifestId != exceptInManifest);
+        }
+
+        var results = await customerPaintingsQuery.Select(painting => painting.Id).Distinct().ToListAsync();
+
+        // `results` now contains any canvas ids from manifests of this customer, that also were found in created canvas paintings
+        // for a successful operation the results should be empty
+        if (results.Count == 0) return;
+
+        throw new CanvasPaintingValidationException(results.Select(p => (p, "Id used in one of your other manifests")));
+    }
+
     private InterimCanvasPainting CreatePartialCanvasPainting(int customerId, PaintedResource paintedResource,
         int canvasOrder, bool implicitOrdering)
     {
@@ -74,6 +110,7 @@ public class ManifestPaintedResourceParser(
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
         var cp = new InterimCanvasPainting
         {
+            Id = specifiedCanvasId!, // might be null, but is `null!` in prop initializer
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
@@ -87,8 +124,9 @@ public class ManifestPaintedResourceParser(
             Target = payloadCanvasPainting?.Target,
             CustomerId = customerId,
             CanvasPaintingType = CanvasPaintingType.PaintedResource,
-            CanvasOriginalId = payloadCanvasPainting?.CanvasOriginalId != null ? 
-                CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId, payloadCanvasPainting.CanvasOriginalId) 
+            CanvasOriginalId = payloadCanvasPainting?.CanvasOriginalId != null
+                ? CanvasOriginalHelper.TryGetValidCanvasOriginalId(presentationPathGenerator, customerId,
+                    payloadCanvasPainting.CanvasOriginalId)
                 : null,
             Thumbnail = payloadCanvasPainting?.Thumbnail == null
                 ? null
@@ -97,12 +135,7 @@ public class ManifestPaintedResourceParser(
                     : null,
             ImplicitOrder = implicitOrdering
         };
-
-        if (specifiedCanvasId != null)
-        {
-            cp.Id = specifiedCanvasId;
-        }
-
+        
         return cp;
     }
 
@@ -111,7 +144,7 @@ public class ManifestPaintedResourceParser(
         paintedResource.CanvasPainting ??= new();
 
         var canvasPainting = paintedResource.CanvasPainting;
-        
+
         if (canvasPainting.CanvasId == null) return null;
 
         if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
@@ -126,8 +159,7 @@ public class ManifestPaintedResourceParser(
                 $"The host for canvas id '{canvasPainting.CanvasId}' could not be recognised");
         }
         
-        var parsedCanvasId =
-            pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
+        var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
         CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
         
         if (customerId != parsedCanvasId.Customer)
@@ -138,7 +170,7 @@ public class ManifestPaintedResourceParser(
 
         return parsedCanvasId.Resource;
     }
-    
+
     private static (int? space, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
     {
         // Read props from Asset - id must be there. If not, throw an exception

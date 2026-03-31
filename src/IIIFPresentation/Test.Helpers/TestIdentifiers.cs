@@ -44,12 +44,14 @@ public static class TestIdentifiers
     public static (string slug, string id, string assetId) SlugResourceAsset([CallerMemberName] string testMethod = "")
         => (testMethod, $"{testMethod}_id", $"{testMethod}_a");
 
+
+    private static int canvasUniqueIdCounter = 1;
     /// <summary>
     /// Helper method that returns slug, id assetId and canvasId values
     /// </summary>
     public static (string slug, string id, string assetId, string canvasId) SlugResourceAssetCanvas(
         [CallerMemberName] string testMethod = "")
-        => (testMethod, $"{testMethod}_id", $"{testMethod}_a", $"{testMethod}_c");
+        => (testMethod, $"{testMethod}_id", $"{testMethod}_a", $"{testMethod}_{Interlocked.Increment(ref canvasUniqueIdCounter)}_c");
 
     /// <summary>
     /// Helper method that returns new <see cref="AssetId"/> for specified customer and space
