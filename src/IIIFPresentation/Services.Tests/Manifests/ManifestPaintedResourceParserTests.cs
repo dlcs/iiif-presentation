@@ -3,11 +3,16 @@ using FakeItEasy;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
 using Newtonsoft.Json.Linq;
+using Repository;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Exceptions;
 using Services.Manifests.Model;
+using Services.Manifests.Settings;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using PresCanvasPainting = Models.API.Manifest.CanvasPainting;
 
@@ -19,33 +24,63 @@ public class ManifestPaintedResourceParserTests
     private const int CustomerId = 1234;
     private const int DefaultSpace = 10;
     private readonly string[] assetIds = ["frodo", "merry", "pippin", "sam", "gandalf", "balrog"];
-    
+
+    private const string ExistingCanvasId = "cp_20251029_exists";
+    private const string ExistingManifestId = "mf_20251029_exists";
     public ManifestPaintedResourceParserTests()
     {
+      
         var pathRewriteParser = new PathRewriteParser(Options.Create(PathRewriteOptions.Default),
             new NullLogger<PathRewriteParser>());
 
-        sut = new ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(),
+        var existingCanvasPaintings = new List<Models.Database.CanvasPainting>()
+        {
+            new Models.Database.CanvasPainting
+            {
+                Id = ExistingCanvasId,
+                ManifestId = ExistingManifestId,
+                CustomerId = CustomerId
+            }
+        };
+        var dbContextMock = A.Fake<PresentationContext>();
+        var mockCanvasPaintings = existingCanvasPaintings.BuildMockDbSet();
+        A.CallTo(() => dbContextMock.CanvasPaintings).Returns(mockCanvasPaintings);
+        
+        sut = new  ManifestPaintedResourceParser(pathRewriteParser, A.Fake<IPresentationPathGenerator>(), Options.Create(new PathSettings
+            {
+                PresentationApiUrl = new  Uri("http://localhost"),
+                CustomerPresentationApiUrl = new Dictionary<int, Uri>()
+                {
+                    {1, new Uri("https://foo.com")},
+                    {2, new Uri("https://default.com")},
+                    {3, new Uri("https://dlcs.example")},
+                    {4, new Uri("https://invalid")},
+                    {5, new Uri("https://no-customer.com")},
+                    {6, new Uri("https://additional-path-no-customer.com")},
+                }
+            }),
+            dbContextMock,
             new NullLogger<ManifestPaintedResourceParser>());
     }
 
     [Fact]
-    public void Parse_ReturnsEmptyEnumerable_IfItemsNull()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
+    public async Task Parse_ReturnsEmptyEnumerable_IfItemsNull()
+        => (await sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId)).Should().BeEmpty();
 
     [Fact]
-    public void Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
-        => sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId).Should().BeEmpty();
+    public async Task Parse_ReturnsEmptyEnumerable_IfItemsEmpty()
+        => (await sut.ParseToCanvasPainting(new PresentationManifest(), CustomerId)).Should().BeEmpty();
 
     [Theory]
-    [InlineData("https://foo.com/example/1/canvases/canvas")]
-    [InlineData("https://default.com/additionalElement/1/canvases/canvas")]
-    [InlineData("https://dlcs.example/1/random/foo/bar/baz")]
-    [InlineData("https://invalid/format")]
-    [InlineData("https://dlcs.example/1/canvases/")]
-    [InlineData("https://dlcs.example/1/canvases")]
-    [InlineData("https://dlcs.example/1/canvases/canvas/")]
-    public void Parse_Throws_InvalidCanvasId(string canvasId)
+    [InlineData("https://foo.com/example/1/canvases/canvas", "Canvas Id /example/1/canvases/canvas is not valid", 1)]
+    [InlineData("https://default.com/additionalElement/2/canvases/canvas", "Canvas Id /additionalElement/2/canvases/canvas is not valid", 2)]
+    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://invalid/format", "Canvas Id /format is not valid", 4)]
+    [InlineData("https://dlcs.example/3/canvases/", "Canvas Id /3/canvases/ is not valid", 3)]
+    [InlineData("https://dlcs.example/3/canvases", "Canvas Id /3/canvases is not valid", 3)]
+    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id does not match the customer found from the calling URL", 2)]
+    public async Task Parse_Throws_InvalidCanvasId(string canvasId, string message, int customerId)
     {
         var manifest = new PresentationManifest
         {
@@ -59,18 +94,18 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        Action action = () => sut.ParseToCanvasPainting(manifest, CustomerId);
-        action.Should().Throw<InvalidCanvasIdException>();
+        Func<Task> action = () => sut.ParseToCanvasPainting(manifest, customerId);
+        await action.Should().ThrowAsync<InvalidCanvasIdException>().WithMessage(message);;
     }
     
     [Theory]
-    [InlineData("https://default.com/1/canvases/canvas")]
-    [InlineData("https://foo.com/foo/1/canvases/canvas")]
-    [InlineData("https://no-customer.com/canvases/canvas")]
-    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
-    [InlineData("https://dlcs.example/1/canvases/canvas?foo=bar")]
-    [InlineData("canvas")]
-    public void Parse_Parses_WhenRewrittenCanvasId(string canvasId)
+    [InlineData("https://default.com/2/canvases/canvas", 2)]
+    [InlineData("https://foo.com/foo/1/canvases/canvas", 1)]
+    [InlineData("https://no-customer.com/canvases/canvas", 5)]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas", 6)]
+    [InlineData("https://dlcs.example/3/canvases/canvas?foo=bar", 3)]
+    [InlineData("canvas", 1)]
+    public async Task Parse_Parses_WhenRewrittenCanvasId(string canvasId, int customerId)
     {
         var manifest = new PresentationManifest
         {
@@ -84,13 +119,264 @@ public class ManifestPaintedResourceParserTests
             ]
         };
 
-        var parsed = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var parsed = await sut.ParseToCanvasPainting(manifest, customerId);
         
         parsed.First().Id.Should().Be("canvas");
     }
     
     [Fact]
-    public void Parse_SingleItem_AssetOnly()
+    public async Task Parse_SingleItem_Throws_CanvasPaintingValidationException()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}",
+                        CanvasOrder = 0,
+                        StaticHeight = 1023,
+                        StaticWidth = 513,
+                        Label = new LanguageMap("en", "label"),
+                        Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+        var expected =
+            new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
+        var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
+        throwInfo.Which.Errors.Should().BeEquivalentTo(expected.Errors);
+    }
+    
+    [Fact]
+    public async Task Parse_SingleItem_DoesNotThrow_CanvasPaintingValidationException_IfIdInSameManifest()
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}",
+                        CanvasOrder = 0,
+                        StaticHeight = 1023,
+                        StaticWidth = 513,
+                        Label = new LanguageMap("en", "label"),
+                        Thumbnail = "https://localhost/thumbnail",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, ExistingManifestId);
+
+        await parseAction.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task Parse_MultiImageCompositionAndChoice_SameDuplicatedCanvasId_Throws_CanvasPaintingValidationException()
+    {
+        // Based on https://github.com/dlcs/docs/blob/wip-skeleton/public/manifest-builder/database.py#L90-L99
+        var fullCanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}";
+        
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = fullCanvasId,
+                        CanvasOrder = 18,
+                        CanvasLabel = new LanguageMap("en", "ms125 9r fragments and multi-spectral"),
+                        Label = new LanguageMap("en", "ms125 9r background"),
+                        Ingesting = true
+                    },
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[1]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = fullCanvasId,
+                        CanvasOrder = 19,
+                        Label = new LanguageMap("en", "ms125 9r fragment 3"),
+                        Target = "xywh=800,1000,900,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[2]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = fullCanvasId,
+                        CanvasOrder = 20,
+                        ChoiceOrder = 1,
+                        Label = new LanguageMap("en", "ms125 9r fragment 2 natural"),
+                        Target = "xywh=300,500,650,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[3]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = fullCanvasId,
+                        CanvasOrder = 20,
+                        ChoiceOrder = 2,
+                        Label = new LanguageMap("en", "ms125 9r fragment 2 IR"),
+                        Target = "xywh=300,500,650,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[4]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = fullCanvasId,
+                        CanvasOrder = 21,
+                        Label = new LanguageMap("en", "ms125 9r fragment 1"),
+                        Target = "xywh=100,100,1000,500",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+        var expected =
+            new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
+        var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
+        throwInfo.Which.Errors.Should().BeEquivalentTo(expected.Errors);
+    }
+    
+    [Fact]
+    public async Task Parse_MultiImage_SomeDuplicatedCanvasId_Throws_CanvasPaintingValidationException()
+    {
+        // Based on https://github.com/dlcs/docs/blob/wip-skeleton/public/manifest-builder/database.py#L90-L99
+        var duplicatedId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}";
+        var otherId = $"http://localhost/{CustomerId}/canvases/{TestIdentifiers.Id()}";
+        
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = otherId,
+                        CanvasOrder = 18,
+                        CanvasLabel = new LanguageMap("en", "ms125 9r fragments and multi-spectral"),
+                        Label = new LanguageMap("en", "ms125 9r background"),
+                        Ingesting = true
+                    },
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[1]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = otherId,
+                        CanvasOrder = 19,
+                        Label = new LanguageMap("en", "ms125 9r fragment 3"),
+                        Target = "xywh=800,1000,900,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[2]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = otherId,
+                        CanvasOrder = 20,
+                        ChoiceOrder = 1,
+                        Label = new LanguageMap("en", "ms125 9r fragment 2 natural"),
+                        Target = "xywh=300,500,650,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[3]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = otherId,
+                        CanvasOrder = 20,
+                        ChoiceOrder = 2,
+                        Label = new LanguageMap("en", "ms125 9r fragment 2 IR"),
+                        Target = "xywh=300,500,650,900",
+                        Ingesting = true
+                    }
+                },
+                new PaintedResource
+                {
+                    Asset = GetAsset(id: assetIds[4]),
+                    CanvasPainting = new PresCanvasPainting
+                    {
+                        CanvasId = duplicatedId,
+                        CanvasOrder = 21,
+                        Label = new LanguageMap("en", "ms125 9r fragment 1"),
+                        Target = "xywh=100,100,1000,500",
+                        Ingesting = true
+                    }
+                }
+            ]
+        };
+        
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+        var expected =
+            new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
+        var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
+        throwInfo.Which.Errors.Should().BeEquivalentTo(expected.Errors);
+    }
+
+    [Theory]
+    [InlineData("https://default.com/2/canvases/canvas")]
+    [InlineData("https://dlcs.example/3/canvases/canvas?foo=bar")]
+    [InlineData("https://no-customer.com/canvases/canvas")]
+    [InlineData("https://additional-path-no-customer.com/foo/canvases/canvas")]
+    [InlineData("https://entirely-random-host.com/1/canvases/canvas")]
+    public async Task Parse_ThrowsError_WhenRewrittenCanvasIdForWrongCustomer(string canvasId)
+    {
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAsset(),
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId }
+                }
+            ]
+        };
+
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        await action.Should().ThrowExactlyAsync<InvalidCanvasIdException>()
+            .WithMessage($"The host for canvas id '{canvasId}' could not be recognised");
+    }
+    
+    [Fact]
+    public async Task Parse_SingleItem_AssetOnly()
     {
         var manifest = new PresentationManifest
         {
@@ -117,13 +403,13 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_MultiCanvas_AssetOnly()
+    public async Task Parse_MultiCanvas_AssetOnly()
     {
         var manifest = new PresentationManifest
         {
@@ -164,13 +450,13 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleItem()
+    public async Task Parse_SingleItem()
     {
         var manifest = new PresentationManifest
         {
@@ -214,13 +500,13 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_MultiItem_CanvasId()
+    public async Task Parse_MultiItem_CanvasId()
     {
         var manifest = new PresentationManifest
         {
@@ -295,13 +581,13 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_SingleCanvasWithChoices()
+    public async Task Parse_SingleCanvasWithChoices()
     {
         var manifest = new PresentationManifest
         {
@@ -378,12 +664,12 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
-    public void Parse_MultiImageComposition()
+    public async Task Parse_MultiImageComposition()
     {
         // Composite 
         var manifest = new PresentationManifest
@@ -443,12 +729,12 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
-    public void Parse_MultiImageCompositionAndChoice_SameCanvas()
+    public async Task Parse_MultiImageCompositionAndChoice_SameCanvas()
     {
         // Based on https://github.com/dlcs/docs/blob/wip-skeleton/public/manifest-builder/database.py#L90-L99
         var fullCanvasId = $"http://localhost/{CustomerId}/canvases/one";
@@ -596,12 +882,12 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
         canvasPaintings.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public void Parse_MultiCanvas_WithMixOfImplicitOrdering()
+    public async Task Parse_MultiCanvas_WithMixOfImplicitOrdering()
     {
         var manifest = new PresentationManifest
         {
@@ -642,9 +928,34 @@ public class ManifestPaintedResourceParserTests
             },
         };
         
-        var canvasPaintings = sut.ParseToCanvasPainting(manifest, CustomerId);
+        var canvasPaintings = await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         canvasPaintings.Should().BeEquivalentTo(expected);
+    }
+    
+    [Theory]
+    [InlineData(null, "The space for asset 'frodo' is '-1' and cannot be negative")]
+    [InlineData("first", "The space for asset 'frodo' with canvas id 'first' is '-1' and cannot be negative")]
+    public void Parse_SingleItem_AssetOnly_WithNegativeSpace_ThrowsError(string? canvasId, string errorMessage)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new PresCanvasPainting { CanvasId = canvasId },
+                    Asset = GetAsset(space: -1)
+                }
+            ]
+        };
+        
+        // Act
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+        
+        // Assert
+        action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
     private JObject GetAsset(int? space = null, string? id = null)

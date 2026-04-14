@@ -3,7 +3,7 @@ using Manifest = Models.Database.Collections.Manifest;
 
 namespace Models.Database.General;
 
-public class Hierarchy
+public class Hierarchy : ICustomerEntity
 {
     public int Id { get; set; }
     

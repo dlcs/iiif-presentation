@@ -1,5 +1,6 @@
 using System.Data;
 using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Helpers;
@@ -57,7 +58,7 @@ public class CreateCollectionHandler(
         if (!isStorageCollection)
         {
             iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF<IIIF.Presentation.V3.Collection>(logger);
-            if (iiifCollection.Error) return ErrorHelper.CannotValidateIIIF<PresentationCollection>();
+            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF<PresentationCollection>();
         }
         
         var parsedParentSlugResult =
@@ -74,7 +75,7 @@ public class CreateCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return ErrorHelper.CannotGenerateUniqueId<PresentationCollection>();
+            return UpsertErrorHelper.CannotGenerateUniqueId<PresentationCollection>();
         }
 
         var dateCreated = DateTime.UtcNow;

@@ -48,7 +48,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
-        var collection = await dbContext.RetrieveCollectionWithParentAsync(request.CustomerId, request.Id,
+        var collection = await dbContext.RetrieveCollectionWithParentAsync(request.Id,
             cancellationToken: cancellationToken);
 
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
@@ -72,7 +72,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
 
         if (collection.IsStorageCollection)
         {
-            var items = await dbContext.RetrieveCollectionItems(request.CustomerId, collection.Id)
+            var items = await dbContext.RetrieveCollectionItems(collection.Id)
                 .AsOrderedCollectionItemsQuery(request.RequestModifiers.OrderBy, request.RequestModifiers.Descending)
                 .Skip((request.RequestModifiers.Page - 1) * request.RequestModifiers.PageSize)
                 .Take(request.RequestModifiers.PageSize)

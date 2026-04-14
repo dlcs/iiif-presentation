@@ -30,13 +30,13 @@ if you would like to view the SQL the migration will produce, you can use the fo
 dotnet ef migrations script -i -o .\migrate.sql -p Repository -s API
 ```
 
-### DLCS Named Query
+### IIIF-Cloud Services Named Query
 
-As part of handling assets in canvas paintings, items are ingested via the DLCS.  In order to track items that have been ingested, a new global named query needs to be added to the DLCS to track manifests.  This can be done in 2 ways, as follows:
+As part of handling assets in canvas paintings, items are ingested via the IIIF-CS.  In order to track items that have been ingested, a new global named query needs to be added to the IIIF-CS to track manifests.  This can be done in 2 ways, as follows:
 
 1. POST to the named query endpoint:
 
-**NOTE:** This is required to be done as the admin customer using the DLCS API
+**NOTE:** This is required to be done as the admin customer using the IIIF-CS API
 
 ```
 POST {{baseUrl}}/customers/1/namedQueries
@@ -48,7 +48,7 @@ POST {{baseUrl}}/customers/1/namedQueries
 }
 ```
 
-2. Directly into the DLCS database
+2. Directly into the Protagonist database
 
 ```sql
 INSERT INTO "NamedQueries" ("Id", "Customer", "Name", "Global", "Template")
@@ -71,7 +71,7 @@ The IIIF Presentation solution is made up of a series of C# projects, scripts an
 | AWS | Module that contains calls and helper functions that interact with AWS |
 | BackgroundHandler | Contains anything that needs to occur after actions from third-party services have completed, such as interactions with Protagonist |
 | Core | Low-level module that provides helper functions to all projects  |
-| DLCS | Contains calling code for the DLCS to allow images to be ingested and retrieved |
+| DLCS | Contains client code for the DLCS to allow assets to be ingested and retrieved |
 | Models | POCO's used throughout the solution |
 | Repository | Used primarily to provide access to the database context, as well as various helper functions and some data access classes |
 | Services | Contains functions that are shared by running applications only, such as the API and BackgroundHandler |
@@ -84,3 +84,11 @@ The general hierarchy of dependencies from lowest to highest are as follows:
 | AWS, Repository, DLCS |
 | Services |
 | API, BackgroundHandler |
+
+#### Global query filters
+
+This project takes advantage of a global query filter to filter all queries on the database by customer id automatically, so that it does not need to be specified on queries.  This is because the vast majority (if not all) require filtering by customer id and it's better to avoid issues with missing this filter out. 
+
+Some tests do require checking other customers than the one set for retrieval, and this can be done by using `.IgnoreQueryFilters` on the query to allow querying without the global query filter.
+
+Adding this query filter to entities in the context is controlled using the `ICustomerEntity` interface.  By implementing this interface, everything will automatically be pulled through that is required to get the global query filter working.

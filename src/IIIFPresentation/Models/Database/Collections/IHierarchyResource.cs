@@ -9,5 +9,7 @@ public interface IHierarchyResource : IIdentifiable
 {
     List<Hierarchy>? Hierarchy { get; }
     
+    public Guid Etag { get; set; }
+    
     public DateTime Created { get; set; }
 }

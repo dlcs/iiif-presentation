@@ -1,8 +1,5 @@
 ﻿using AWS.Helpers;
-using AWS.Settings;
 using BackgroundHandler.BatchCompletion;
-using BackgroundHandler.Helpers;
-using BackgroundHandler.Settings;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
 using Core.Web;
@@ -45,7 +42,7 @@ public class BatchCompletionPathRewriteTests
         dbContext = dbFixture.DbContext;
         
         // The context used by SUT should track to mimic context config in actual use
-        var sutContext = dbFixture.GetNewPresentationContext();
+        var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
         
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
@@ -95,7 +92,7 @@ public class BatchCompletionPathRewriteTests
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
             new NullLogger<ManifestS3Manager>());
 
-        sut = new BatchCompletionMessageHandler(sutContext, manifestS3Manager,
+        sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
             new NullLogger<BatchCompletionMessageHandler>());
     }
     

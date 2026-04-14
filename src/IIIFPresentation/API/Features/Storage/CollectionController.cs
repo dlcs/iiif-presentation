@@ -128,7 +128,7 @@ public class CollectionController(
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
-        return await HandleDelete(new DeleteCollection(customerId, id));
+        return await HandleDelete(new DeleteCollection(customerId, id, Request.Headers.IfMatch));
     }
 
     /// <summary> 

@@ -1,13 +1,13 @@
 ﻿using System.Net;
 using Amazon.S3;
-using API.Infrastructure.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.General;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -41,8 +41,8 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();
 
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{dbManifest.Id}");
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/manifests/{dbManifest.Id}", dbContext.GetETag(dbManifest));
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -87,6 +87,25 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         dbContext.Manifests.Remove(dbManifest);
         await dbContext.SaveChangesAsync();
     }
+    
+    [Fact]
+    public async Task DeleteManifest_FailsToDeleteManifest_WhenEtagDoesNotMatch()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+                $"{Customer}/manifests/FirstChildManifest");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        errorResponse!.ErrorTypeUri.Should().Be("http://localhost/errors/DeleteResourceErrorType/EtagNotMatching");
+        errorResponse.Detail.Should().Be("Etag does not match");
+    }
 
     [Fact]
     public async Task DeleteManifest_DeletesInS3()
@@ -107,8 +126,8 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var id = responseCollection!.Id.GetLastPathElement();
 
-        requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{id}");
+        requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{id}",
+            dbContext.GetETag(id, Customer, ResourceType.IIIFManifest));
 
 
         // Act

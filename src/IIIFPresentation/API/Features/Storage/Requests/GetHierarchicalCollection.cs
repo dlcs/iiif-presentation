@@ -61,7 +61,7 @@ public class GetHierarchicalCollectionHandler(
         else
         {
             var items = await dbContext
-                .RetrieveCollectionItems(request.Hierarchy.CustomerId, request.Hierarchy.Collection.Id, true)
+                .RetrieveCollectionItems(request.Hierarchy.Collection.Id, true)
                 .ToListAsync(cancellationToken: cancellationToken);
 
             // The incoming slug will be the base, use that to generate child item path

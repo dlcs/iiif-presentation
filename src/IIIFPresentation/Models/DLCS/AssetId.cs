@@ -35,7 +35,7 @@ public class AssetId
         var parts = assetImageId.Split("/", StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 3)
         {
-            throw new ArgumentException(
+            throw new AssetIdException(
                 $"AssetId '{assetImageId}' is invalid. Must be in format customer/space/asset");
         }
 
@@ -45,7 +45,7 @@ public class AssetId
         }
         catch (FormatException fmEx)
         {
-            throw new ArgumentException(
+            throw new AssetIdException(
                 $"AssetId '{assetImageId}' is invalid. Must be in format customer/space/asset",
                 fmEx);
         }

@@ -14,7 +14,6 @@ using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
-using Models.API.Collection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -95,7 +94,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                 {
                     CanvasPainting = new CanvasPainting()
                     {
-                        CanvasId = $"https://iiif.example/{Customer}/canvases/canvasId"
+                        CanvasId = $"https://localhost:7230/{Customer}/canvases/canvasId"
                     },
                     Asset = new(new JProperty("id", assetId), new JProperty("batch", TestIdentifiers.BatchId()))
                 }
@@ -213,6 +212,87 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().HaveCount(1);
+    }
+    
+    [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_WithNegativeSpace()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var space = -1;
+        var batchId = TestIdentifiers.BatchId();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting": {
+                                            "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "space": {{space}},
+                                     }
+                                 }
+                             ] 
+                         }
+                         """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' is '{space}' and cannot be negative");
+    }
+    
+    [Theory]
+    [InlineData("first", "", "Error parsing the asset id from an attached asset - AssetId '1/999/' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]
+    [InlineData("first", "extra/slash", "Error parsing the asset id from an attached asset - AssetId '1/999/extra/slash' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]
+    [InlineData("first", "https://fully.qualified.com/assetId", "Error parsing the asset id from an attached asset - AssetId '1/999/https://fully.qualified.com/assetId' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]
+    [InlineData(null, "", "Error parsing the asset id from an attached asset - AssetId '1/999/' is invalid. Must be in format customer/space/asset")]
+    public async Task CreateManifest_ReturnsErrorAsset_WhenAssetIdCannotBeParsed(string? canvasPaintingId, string assetId, string error)
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        var manifestWithSpace = $$"""
+                                  {
+                                      "type": "Manifest",
+                                      "slug": "{{slug}}",
+                                      "parent": "http://localhost/{{Customer}}/collections/root",
+                                      "paintedResources": [
+                                          {
+                                             "canvasPainting": {
+                                                     "canvasId": "{{canvasPaintingId}}"
+                                             },
+                                              "asset": {
+                                                  "id": "{{assetId}}",
+                                                  "space": {{NewlyCreatedSpace}},
+                                              }
+                                          }
+                                      ] 
+                                  }
+                                  """;
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        
+        errorResponse!.Detail.Should().Be(error);
     }
 
     [Fact]

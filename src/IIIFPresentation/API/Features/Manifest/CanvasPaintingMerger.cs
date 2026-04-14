@@ -117,7 +117,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
             {
                 orderedCanvasPainting =
                     matchedPaintedResourceCanvasPaintings.FirstOrDefault(cp =>
-                        cp.CanvasOrder == itemsCanvasPainting.CanvasOrder) ?? throw new CanvasPaintingMergerException(
+                        cp.CanvasOrder == currentCanvasOrder) ?? throw new CanvasPaintingMergerException(
                         $"Canvas with id {itemsCanvasPainting.CanvasOriginalId} refers to multiple canvases, and the matching canvas order cannot be found");
                 
                 // Going through all the multi-item canvases to find the first specified canvas label, as the first found
@@ -138,7 +138,8 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
             MatchImplicitItemsToCanvasOrder(itemsCanvasPainting, matchedPaintedResourceCanvasPaintings);
 
             itemsCanvasPaintings.Remove(itemsCanvasPainting);
-            currentCanvasOrder += matchedPaintedResourceCanvasPaintings.Count;
+            // group by allows counts to work correctly with choice and composite canvases
+            currentCanvasOrder += matchedPaintedResourceCanvasPaintings.GroupBy(pr => pr.CanvasOrder).Count();
         }
     }
 

@@ -1,8 +1,10 @@
 ﻿namespace Models.API.General;
 
-public enum DeleteCollectionType
+public enum DeleteResourceErrorType
 {
     CannotDeleteRootCollection = 1,
     CollectionNotEmpty = 2,
-    Unknown = 3
+    EtagNotMatching = 3,
+    NotFound = 4,
+    Unknown = 5
 }

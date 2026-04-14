@@ -44,7 +44,7 @@ public class PostHierarchicalCollectionHandler(
         CancellationToken cancellationToken)
     {
         var convertResult = request.RawRequestBody.ConvertCollectionToIIIF<Collection>(logger);
-        if (convertResult.Error) return ErrorHelper.CannotValidateIIIF<Collection>();
+        if (convertResult.Error) return UpsertErrorHelper.CannotValidateIIIF<Collection>();
         var collectionFromBody = convertResult.ConvertedIIIF!;
         
         var splitSlug = request.Slug.Split('/');
@@ -58,7 +58,7 @@ public class PostHierarchicalCollectionHandler(
         if (parentValidationError != null) return parentValidationError;
         
         var id = await GenerateUniqueId(request, cancellationToken);
-        if (id == null) return ErrorHelper.CannotGenerateUniqueId<Collection>();
+        if (id == null) return UpsertErrorHelper.CannotGenerateUniqueId<Collection>();
 
         var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
         dbContext.Collections.Add(collection);

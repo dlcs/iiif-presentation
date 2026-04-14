@@ -25,6 +25,8 @@ public enum ModifyCollectionType
     ErrorMergingPaintedResourcesWithItems = 21,
     PublicIdIncorrect = 22,
     PaintableAssetError = 23,
+    AssetError = 24,
     AssetsDoNotMatch = 25,
+    CustomerIdDoesNotMatchCaller = 26,
     Unknown = 1000
 }

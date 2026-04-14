@@ -2,10 +2,11 @@
 using Core;
 using IIIF;
 using Models.API.General;
+using Services.Manifests.Exceptions;
 
-namespace API.Features.Storage.Helpers;
+namespace API.Features.Common.Helpers;
 
-public static class ErrorHelper
+public static class UpsertErrorHelper
 {
     public static ModifyEntityResult<TCollection, ModifyCollectionType> NullParentResponse<TCollection>() 
         where TCollection : JsonLdBase
@@ -43,14 +44,14 @@ public static class ErrorHelper
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
             "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
-            WriteResult.PreConditionFailed);
+            WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> EtagNonMatching<T>()
         where T : JsonLdBase
     {
         return ModifyEntityResult<T, ModifyCollectionType>.Failure(
-            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreConditionFailed);
+            "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreconditionFailed);
     }
     
     public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)
@@ -90,6 +91,16 @@ public static class ErrorHelper
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
     
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(params (string canvasId, string reason)[] multiple) 
+        where TCollection : JsonLdBase
+    {
+        var failures = string.Join(", ", multiple.Select(p => $"{p.canvasId}: {p.reason}"));
+        var message = $"Errors encountered when parsing painted resources: {failures}.";
+        
+        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(message,
+            ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
+    }
+
     public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
@@ -109,6 +120,16 @@ public static class ErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
             ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetError<TCollection>(AssetException exception)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(exception.Message,
+            ModifyCollectionType.AssetError, WriteResult.BadRequest);
+    
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> CustomerIdDoesNotMatchCaller<TCollection>(string field)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The {field} has a customer id that does not match the customer id found on the calling URL",
+            ModifyCollectionType.CustomerIdDoesNotMatchCaller, WriteResult.BadRequest);
     
     private static string CollectionType(bool isStorageCollection)
     {

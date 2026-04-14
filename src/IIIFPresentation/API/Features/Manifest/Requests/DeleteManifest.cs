@@ -1,54 +1,32 @@
-﻿using API.Features.Storage.Helpers;
-using AWS.Helpers;
+﻿using API.Features.Common.Helpers;
+using API.Features.Storage.Helpers;
 using Core;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Repository;
 
 namespace API.Features.Manifest.Requests;
 
-public class DeleteManifest(int customerId, string manifestId)
-    : IRequest<ResultMessage<DeleteResult, DeleteManifestType>>
+public class DeleteManifest(int customerId, string manifestId, string? etag)
+    : IRequest<ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
+    public string? Etag { get; } = etag;
 }
 
 public class DeleteManifestHandler(
-    PresentationContext dbContext,
-    IIIIFS3Service iiifS3,
+    HierarchyResourceDeleter hierarchyResourceDeleter,
     ILogger<DeleteManifestHandler> logger)
-    : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteManifestType>>
+    : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
-    public async Task<ResultMessage<DeleteResult, DeleteManifestType>> Handle(DeleteManifest request,
+    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteManifest request,
         CancellationToken cancellationToken)
     {
         logger.LogDebug("Deleting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
             request.CustomerId);
 
-        var manifest =
-            await dbContext.RetrieveManifestAsync(request.CustomerId, request.ManifestId, true,
-                withCanvasPaintings: false, cancellationToken: cancellationToken);
-        
-        if (manifest is null) return new(DeleteResult.NotFound);
-
-        dbContext.Manifests.Remove(manifest);
-
-        await iiifS3.DeleteIIIFFromS3(manifest);
-
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            logger.LogError(ex, "Error attempting to delete manifest {ManifestId} for customer {CustomerId}",
-                request.ManifestId, request.CustomerId);
-            return new(DeleteResult.Error,
-                DeleteManifestType.Unknown, "Error deleting manifest");
-        }
-        
-        return new(DeleteResult.Deleted);
+        return await hierarchyResourceDeleter.DeleteResource<Models.Database.Collections.Manifest>(request.Etag,
+            request.CustomerId, request.ManifestId, cancellationToken);
     }
 }

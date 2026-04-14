@@ -7,6 +7,7 @@ using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.CustomerCreation;
 using BackgroundHandler.Listener;
 using Repository;
+using Repository.Helpers;
 
 namespace BackgroundHandler.Infrastructure;
 

@@ -100,7 +100,7 @@ public class ManifestController(
     {
         if (!Request.HasShowExtraHeader()) return this.Forbidden();
 
-        return await HandleDelete(new DeleteManifest(customerId, id));
+        return await HandleDelete(new DeleteManifest(customerId, id, Request.Headers.IfMatch));
     }
 
     private async Task<IActionResult> ManifestUpsert<T, TEnum>(

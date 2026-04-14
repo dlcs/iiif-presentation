@@ -17,8 +17,8 @@ public static class ParentValidator
     public static ModifyEntityResult<TCollection, ModifyCollectionType>? ValidateParentCollection<TCollection>(Collection? parentCollection) 
         where TCollection : JsonLdBase
     {
-        if (parentCollection == null) return ErrorHelper.NullParentResponse<TCollection>();
+        if (parentCollection == null) return UpsertErrorHelper.NullParentResponse<TCollection>();
         
-        return !parentCollection.IsStorageCollection ? ErrorHelper.ParentMustBeStorageCollection<TCollection>() : null;
+        return !parentCollection.IsStorageCollection ? UpsertErrorHelper.ParentMustBeStorageCollection<TCollection>() : null;
     }
 }

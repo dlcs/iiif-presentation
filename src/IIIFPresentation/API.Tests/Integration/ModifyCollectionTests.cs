@@ -4,8 +4,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Amazon.S3;
-using API.Infrastructure.Helpers;
-using API.Infrastructure.Validation;
 using API.Tests.Integration.Infrastructure;
 using Core.Infrastructure;
 using Core.Response;
@@ -14,7 +12,6 @@ using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Models.API.Collection;
 using Models.API.General;
 using Models.Database.General;
@@ -47,7 +44,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         
         parent = dbContext.Collections
-            .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
+            .First(x => x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
 
         storageFixture.DbFixture.CleanUp();
     }
@@ -108,7 +105,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -200,7 +197,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -252,10 +249,10 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Act
         // note the current modified timestamp on this and other customer's root collection
-        var thisCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == Customer && c.Id == RootCollection.Id);
+        var thisCustomerRootCollection = dbContext.Collections.First(c => c.Id == RootCollection.Id);
         var thisCustomerRootModified = thisCustomerRootCollection.Modified;
         
-        var otherCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
+        var otherCustomerRootCollection = dbContext.Collections.IgnoreQueryFilters().First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
         var otherCustomerRootModified = otherCustomerRootCollection.Modified; // save to var
         
         // make the modyfying call
@@ -264,8 +261,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
         
         // get after action completed
-        thisCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == Customer && c.Id == RootCollection.Id);
-        otherCustomerRootCollection = dbContext.Collections.First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
+        thisCustomerRootCollection = dbContext.Collections.First(c => c.Id == RootCollection.Id);
+        otherCustomerRootCollection = dbContext.Collections.IgnoreQueryFilters().First(c => c.CustomerId == otherCustomerId && c.Id == RootCollection.Id);
         
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created); // action succeeded
@@ -342,7 +339,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -394,7 +391,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -514,7 +511,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -792,7 +789,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -844,7 +841,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -881,7 +878,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -918,7 +915,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -957,7 +954,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -1213,7 +1210,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1299,7 +1296,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1587,7 +1584,7 @@ $$"""
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1701,7 +1698,7 @@ $$"""
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -2223,7 +2220,7 @@ $$"""
         var id = responseCollection!.Id!.Split('/', StringSplitOptions.TrimEntries).Last();
 
         var fromDatabase = dbContext.Collections.First(c => c.Id == id);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.CollectionId == id);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -2273,7 +2270,7 @@ $$"""
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
 
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -2321,7 +2318,7 @@ $$"""
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CustomerId == 1 && h.Slug == slug);
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
 
         var fromS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,

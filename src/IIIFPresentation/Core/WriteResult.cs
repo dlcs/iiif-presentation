@@ -58,5 +58,5 @@ public enum WriteResult
     /// <summary>
     /// Request failed a precondition
     /// </summary>
-    PreConditionFailed
+    PreconditionFailed
 }

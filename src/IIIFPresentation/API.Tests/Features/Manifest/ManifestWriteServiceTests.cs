@@ -50,6 +50,8 @@ public class ManifestWriteServiceTests
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
+        dbFixture.CustomerIdProvider.SetCustomerId(Customer);
+        
         dlcsSettings = DefaultSettings.DlcsSettings();
 
         var typedPathTemplateOptions = Options.Create(PathRewriteOptions.Default);
@@ -65,14 +67,15 @@ public class ManifestWriteServiceTests
         
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
 
+        var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://base") };
+
         var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
             new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
-                new NullLogger<PaintableAssetIdentifier>()),
-            Options.Create(new PathSettings { PresentationApiUrl = new Uri("https://base") }),
+                new NullLogger<PaintableAssetIdentifier>()), Options.Create(pathSettings), 
             new NullLogger<ManifestItemsParser>());
         
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), presentationContext, new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
@@ -102,12 +105,12 @@ public class ManifestWriteServiceTests
             PathRules = PathRewriteOptions.Default
         })));
 
-        sut = new ManifestWriteService(presentationContext, identityManager, iiifS3Service, canvasPaintingResolver,
+        sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
-            presentationContext.Collections.First(x => x.CustomerId == Customer && x.Id == RootCollection.Id);
+            presentationContext.Collections.First(x => x.Id == RootCollection.Id);
 
         A.CallTo(() =>
             parentSlugParser.Parse(A<PresentationManifest>._, A<int>._, A<string>._,
@@ -148,7 +151,7 @@ public class ManifestWriteServiceTests
                     Asset = asset,
                     CanvasPainting = new CanvasPainting
                     {
-                        CanvasId = "someCanvasId",
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
                         CanvasOrder = 1
                     }
                 }

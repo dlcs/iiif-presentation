@@ -9,6 +9,7 @@ using Models;
 using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
+using Repository.Helpers;
 
 namespace BackgroundHandler.CustomerCreation;
 
@@ -17,6 +18,7 @@ namespace BackgroundHandler.CustomerCreation;
 /// </summary>
 public class CustomerCreatedMessageHandler(
     PresentationContext dbContext,
+    ICustomerIdProvider  customerIdProvider,
     ILogger<CustomerCreatedMessageHandler> logger)
     : IMessageHandler
 {
@@ -29,6 +31,8 @@ public class CustomerCreatedMessageHandler(
             try
             {
                 var customerCreatedMessage = DeserializeMessage(message);
+                
+                customerIdProvider.SetCustomerId(customerCreatedMessage.Id);
 
                 await EnsureRootCollection(customerCreatedMessage, cancellationToken);
 
@@ -49,9 +53,7 @@ public class CustomerCreatedMessageHandler(
         
         logger.LogInformation("Ensuring new customer {CustomerId} has root collection", customerId);
 
-        if (await dbContext.Collections.AnyAsync(
-                c => c.Id == KnownCollections.RootCollection && c.CustomerId == customerId,
-                cancellationToken))
+        if (await dbContext.Collections.AnyAsync(c => c.Id == KnownCollections.RootCollection, cancellationToken))
         {
             logger.LogInformation("Customer {CustomerId} already has root collection, no-op", customerId);
             return;

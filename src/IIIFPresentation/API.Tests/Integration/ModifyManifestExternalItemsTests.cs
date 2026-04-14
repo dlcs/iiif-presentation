@@ -1761,4 +1761,41 @@ public class ModifyManifestExternalItemsTests : IClassFixture<PresentationAppFac
         canvasPainting.CanvasOriginalId.Should()
             .Be($"https://localhost:7230/{Customer}/canvases/additionalSlug/{slug}");
     }
+    
+    [Fact]
+    public async Task PutFlatId_ReturnsCanvasPaintingWithRandomId_WhenCanvasIdForAnotherCustomer()
+    {
+        // Arrange
+        var (slug, id) = TestIdentifiers.SlugResource();
+        var manifest = $@"
+{{
+    ""@context"": ""http://iiif.io/api/presentation/3/context.json"",
+    ""id"": ""https://iiif.example/manifest.json"",
+    ""type"": ""Manifest"",
+    ""parent"": ""http://localhost/{Customer}/collections/{RootCollection.Id}"",
+    ""slug"": ""{slug}"",
+    ""items"": [
+        {{
+            ""id"": ""https://localhost:7230/{Customer + 1}/canvases/{slug}"",
+            ""type"": ""Canvas""
+        }}
+    ]
+}}";
+        
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}", manifest);
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        var canvasPainting = responseManifest.PaintedResources.First().CanvasPainting;
+        canvasPainting.CanvasId.Split('/').Last().Should().NotBe(slug, "recognised host with unrecognised path");
+        canvasPainting.CanvasOriginalId.Should()
+            .Be($"https://localhost:7230/{Customer + 1}/canvases/{slug}");
+    }
 }

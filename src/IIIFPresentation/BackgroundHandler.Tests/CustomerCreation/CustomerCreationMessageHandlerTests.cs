@@ -19,7 +19,8 @@ public class CustomerCreationMessageHandlerTests
     public CustomerCreationMessageHandlerTests(PresentationContextFixture dbFixture)
     {
         dbContext = dbFixture.DbContext;
-        sut = new CustomerCreatedMessageHandler(dbFixture.DbContext, new NullLogger<CustomerCreatedMessageHandler>());
+        sut = new CustomerCreatedMessageHandler(dbFixture.DbContext, dbFixture.CustomerIdProvider,
+            new NullLogger<CustomerCreatedMessageHandler>());
     }
     
     [Fact]

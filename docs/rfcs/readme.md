@@ -5,3 +5,4 @@
 3. [Identity Rewrites](0003-identity-rewrites.md)
 4. [Etag Changes](0004-etag-changes.md)
 5. [Mixed Manifests](0005-mixed-manifests.md)
+6. [Adjuncts](0006-adjuncts.md)

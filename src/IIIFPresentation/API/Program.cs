@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using API.Auth;
+using API.Features.Common.Helpers;
 using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
@@ -8,19 +9,18 @@ using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
 using API.Paths;
 using API.Settings;
-using Core.Web;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Newtonsoft.Json;
 using Repository;
+using Repository.Helpers;
 using Repository.Paths;
 using Serilog;
 using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
-using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -70,7 +70,7 @@ builder.Services
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
     .AddSingleton<PaintableAssetIdentifier>()
-    .AddSingleton<ManifestPaintedResourceParser>()
+    .AddScoped<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddSingleton<IPresentationPathGenerator, HostnameDrivenPresentationPathGenerator>()
@@ -81,7 +81,9 @@ builder.Services
     .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()
+    .AddScoped<HierarchyResourceDeleter>()
     .AddHttpContextAccessor()
+    .AddScoped<ICustomerIdProvider, HttpContextCustomerIdProvider>()
     .AddOutgoingHeaders();
 builder.Services.ConfigureMediatR();
 builder.Services.ConfigureIdGenerator();
@@ -113,7 +115,7 @@ app
     .UseMiddleware<CorrelationIdMiddleware>()
     .UseMiddleware<TrailingSlashRedirectMiddleware>();
 
-IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, app.Logger);
+IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, new MigrationCustomerIdProvider(), app.Logger);
 
 app
     .UseSwagger()

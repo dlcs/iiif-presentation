@@ -690,4 +690,128 @@ public class CanvasPaintingMergerTests
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage("Canvas with id paintedResource_1 has a mismatched case with matched canvas painting(s) PaintedResource_1,painteDResource_1.  Canvases and canvas paintings cannot differ by case");
     }
+    
+    [Fact]
+    public void CombinePaintedResources_CreatesMultipleCompositeCanvases_WhenItemsTrackedByPaintedResourcesWithMultipleCompositeCanvases()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 1;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_2");
+            }).BuildInterim();
+        
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+            })
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 1;
+            }).WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 2;
+            })
+            .WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 3;
+            }).BuildInterim();
+
+        // Act
+        var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        merged.Count.Should().Be(4);
+        var first = merged.First();
+        first.Id.Should().Be($"paintedResource_1");
+        first.CanvasOrder.Should().Be(0);
+        
+        first.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var second = merged[1];
+        second.Id.Should().Be($"paintedResource_1");
+        second.CanvasOrder.Should().Be(1);
+        second.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var third = merged[2];
+        third.Id.Should().Be($"paintedResource_2");
+        third.CanvasOrder.Should().Be(2);
+        third.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var last = merged.Last();
+        last.Id.Should().Be($"paintedResource_2");
+        last.CanvasOrder.Should().Be(3);
+        last.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+    }
+    
+    [Fact]
+    public void CombinePaintedResources_CreatesMultipleChoiceCanvases_WhenItemsTrackedByPaintedResourcesWithMultipleChoiceCanvases()
+    {
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_1");
+            }).WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 1;
+                cp.CanvasOriginalId = new Uri($"https://localhost/1/paintedResource_2");
+            }).BuildInterim();
+        
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 1;
+            })
+            .WithCanvasPainting($"paintedResource_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 2;
+            }).WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 1;
+                cp.ChoiceOrder = 1;
+            })
+            .WithCanvasPainting($"paintedResource_2", cp =>
+            {
+                cp.CanvasOrder = 1;
+                cp.ChoiceOrder = 2;
+            }).BuildInterim();
+
+        // Act
+        var merged = sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, []);
+
+        // Assert
+        merged.Count.Should().Be(4);
+        var first = merged.First();
+        first.Id.Should().Be($"paintedResource_1");
+        first.CanvasOrder.Should().Be(0);
+        first.ChoiceOrder.Should().Be(1);
+        
+        first.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var second = merged[1];
+        second.Id.Should().Be($"paintedResource_1");
+        second.CanvasOrder.Should().Be(0);
+        second.ChoiceOrder.Should().Be(2);
+        second.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var third = merged[2];
+        third.Id.Should().Be($"paintedResource_2");
+        third.CanvasOrder.Should().Be(1);
+        third.ChoiceOrder.Should().Be(1);
+        third.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+        
+        var last = merged.Last();
+        last.Id.Should().Be($"paintedResource_2");
+        last.CanvasOrder.Should().Be(1);
+        last.ChoiceOrder.Should().Be(2);
+        last.CanvasPaintingType.Should().Be(CanvasPaintingType.Mixed);
+    }
 }
