@@ -12,4 +12,5 @@ public static class AssetProperties
     public const string FullId = "@id";
     public const string Manifests = "manifests";
     public const string Ingesting = "ingesting";
+    public const string Adjuncts = "adjuncts";
 }

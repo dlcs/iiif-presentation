@@ -1,10 +1,11 @@
 using API.Features.Storage.Validators;
-using API.Infrastructure.Validation;
 using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 
 namespace API.Features.Manifest.Validators;
 
@@ -24,6 +25,9 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
     {
+        When(m => m.PaintedResources?.Any(pr => pr.Asset?[AssetProperties.Adjuncts] != null) == true,
+            AdjunctsValidation);
+        
         RuleForEach(m => m.PaintedResources)
             .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
             .When(m => m.PaintedResources != null && m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
@@ -74,4 +78,16 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .WithMessage(
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
      }
+    
+    // Validation rules specific to Adjuncts only
+    private void AdjunctsValidation()
+    {
+        RuleForEach(m => m.PaintedResources)
+            .Where(pr => pr.Asset?[AssetProperties.Adjuncts] is JArray)
+            .ChildRules(pr =>
+            {
+                pr.RuleFor(r => r.Asset![AssetProperties.Adjuncts]!.ToObject<List<Adjunct>>())
+                    .ForEach(adjunct => adjunct.SetValidator(new AdjunctValidator()));
+            });
+    }
 }

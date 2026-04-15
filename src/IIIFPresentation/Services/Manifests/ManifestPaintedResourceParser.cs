@@ -97,7 +97,7 @@ public class ManifestPaintedResourceParser(
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var (space, assetId) =
+        var (space, adjuncts, assetId) =
             GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
 
         if (space < 0)
@@ -116,6 +116,7 @@ public class ManifestPaintedResourceParser(
             CanvasOrder = canvasOrder,
             SuspectedAssetId = assetId,
             SuspectedSpace = space,
+            SuspectedAdjuncts = adjuncts,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -171,11 +172,12 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
 
-    private static (int? space, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
+    private static (int? space, List<Adjunct>? adjuncts, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
     {
         // Read props from Asset - id must be there. If not, throw an exception
         var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var adjuncts = asset.TryGetValue<List<Adjunct>?>(AssetProperties.Adjuncts);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
-        return (space, id);
+        return (space, adjuncts, id);
     }
 }

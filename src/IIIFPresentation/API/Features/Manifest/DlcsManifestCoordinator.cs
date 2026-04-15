@@ -92,9 +92,17 @@ public class DlcsManifestCoordinator(
             itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
 
+        var errorFromAdjuncts = await HandleAdjunctInteractions(itemCanvasPaintingsWithAssets.GetCanvasPaintingsWithSuspectedAdjuncts(), cancellationToken);
+        if (errorFromAdjuncts != null) return errorFromAdjuncts;
+        
         return await HandlePaintedResourceDlcsInteractions(request, manifestId,
             itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
             cancellationToken);
+    }
+
+    private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(List<InterimCanvasPainting>? getCanvasPaintingsWithSuspectedAdjuncts, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
     }
 
     private async Task<DlcsInteractionResult?> HandleItemsDlcsInteractions(WriteManifestRequest request, string manifestId, List<AssetId>? existingAssetIds,

@@ -1,4 +1,5 @@
-﻿using Models.Database;
+﻿using Models.API.Manifest;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests.Model;
 
@@ -23,6 +24,11 @@ public class InterimCanvasPainting : CanvasPainting
     /// Whether the ordering for this record is set explicitly, or set by the API
     /// </summary>
     public bool ImplicitOrder { get; set; }
+    
+    /// <summary>
+    /// Potential adjuncts in the body of the request
+    /// </summary>
+    public List<Adjunct>? SuspectedAdjuncts { get; set; }
 }
 
 public enum CanvasPaintingType

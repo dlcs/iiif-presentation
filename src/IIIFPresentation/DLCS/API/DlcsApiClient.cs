@@ -43,7 +43,7 @@ public interface IDlcsApiClient
     /// <param name="assets">assets to update</param>
     /// <param name="operationType">whether to add, remove or replace</param>
     /// <param name="manifests">manifests to update</param>
-    public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType, 
+    public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType,
         List<string> manifests, CancellationToken cancellationToken = default);
 }
 
