@@ -444,7 +444,7 @@ public class ManifestWriteService(
     /// <summary>
     /// Contains results of a manifest that has been parsed into the format iiif-presentation understands
     /// </summary>
-    private sealed class ResolvedManifestData
+    private class ResolvedManifestData
     {
         /// <summary>
         /// If canvas painting resolution or slug parsing failed.
@@ -468,7 +468,7 @@ public class ManifestWriteService(
     /// <summary>
     /// Contains results following DLCS interactions
     /// </summary>
-    private sealed class DlcsHandleResult
+    private class DlcsHandleResult
     {
         /// <summary>
         /// If the DLCS interaction or canvas painting update failed.
