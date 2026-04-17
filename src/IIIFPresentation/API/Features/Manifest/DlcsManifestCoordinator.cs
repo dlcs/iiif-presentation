@@ -12,6 +12,7 @@ using DLCS.Models;
 using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -69,7 +70,7 @@ public class DlcsManifestCoordinator(
             return null;
         }
     }
-    
+
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
@@ -79,6 +80,7 @@ public class DlcsManifestCoordinator(
     /// <param name="previousManifestAssetIds">every asset id in the previous manifest</param>
     /// <param name="dbManifest">The current manifest in the database</param>
     /// <param name="itemCanvasPaintingsWithAssets">canvas paintings from items that contain asset ids</param>
+    /// <param name="adjuncts">The adjuncts to add to the database</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
@@ -86,23 +88,16 @@ public class DlcsManifestCoordinator(
         List<AssetId>? previousManifestAssetIds = null,
         Models.Database.Collections.Manifest? dbManifest = null,
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
+        List<Adjunct>? adjuncts = null,
         CancellationToken cancellationToken = default)
     {
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
             itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
-
-        var errorFromAdjuncts = await HandleAdjunctInteractions(itemCanvasPaintingsWithAssets.GetCanvasPaintingsWithSuspectedAdjuncts(), cancellationToken);
-        if (errorFromAdjuncts != null) return errorFromAdjuncts;
         
         return await HandlePaintedResourceDlcsInteractions(request, manifestId,
-            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
+            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], adjuncts ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
             cancellationToken);
-    }
-
-    private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(List<InterimCanvasPainting>? getCanvasPaintingsWithSuspectedAdjuncts, CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
     }
 
     private async Task<DlcsInteractionResult?> HandleItemsDlcsInteractions(WriteManifestRequest request, string manifestId, List<AssetId>? existingAssetIds,
@@ -130,6 +125,7 @@ public class DlcsManifestCoordinator(
         WriteManifestRequest request,
         string manifestId, 
         List<AssetId> assetsFromItems,
+        List<Adjunct> adjuncts,
         List<AssetId>? previousManifestAssetIds = null,
         int? manifestSpaceId = null,
         CancellationToken cancellationToken = default)
@@ -175,12 +171,12 @@ public class DlcsManifestCoordinator(
             
         }
 
-        return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, assetsFromItems, spaceId,
+        return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, adjuncts, assetsFromItems, spaceId,
             createdSpace, cancellationToken);
     }
 
     private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
+        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<Adjunct> adjuncts, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
         CancellationToken cancellationToken)
     {
         List<DlcsInteractionRequest> dlcsInteractionRequests;
@@ -209,7 +205,6 @@ public class DlcsManifestCoordinator(
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
         // create batches for assets
         var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);
-        
         if (batchError != null)  return new DlcsInteractionResult(batchError, spaceId);
         
         // then update existing assets in another manifest with the current manifest id
@@ -217,6 +212,14 @@ public class DlcsManifestCoordinator(
             dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
         await RemoveUnusedAssets(previousManifestAssetIds, manifestId, request.CustomerId, assets, assetsFromItems, cancellationToken);
+        
+        // finally ingest adjuncts
+        if (adjuncts.Count > 0)
+        {
+            var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjuncts,
+                DeliverableType.Adjunct, cancellationToken);
+            if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
+        }
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
@@ -316,14 +319,19 @@ public class DlcsManifestCoordinator(
         }
         
         // `assets` now contain all the assets that should be ingested by DLCS
-        
+        return await IngestDeliverables(customerId, manifestId, assets.Values.ToList(), DeliverableType.Asset, cancellationToken);
+    }
+
+    private async Task<EntityResult?> IngestDeliverables<T>(int customerId, string manifestId, 
+        List<T> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken)
+    {
         try
         {
-            var batches = await dlcsApiClient.IngestAssets(customerId,
-                assets.Values.ToList(),
-                cancellationToken);
-
-            await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);
+            var batches = await dlcsApiClient.IngestDeliverables(customerId,
+                deliverables,
+                cancellationToken: CancellationToken.None);
+            
+            await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType, cancellationToken);
             return null;
         }
         catch (DlcsException exception)

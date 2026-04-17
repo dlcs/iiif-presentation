@@ -22,9 +22,9 @@ public interface IDlcsApiClient
     Task<Space> CreateSpace(int customerId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Ingest assets into the DLCS
+    /// Ingest deliverables into the DLCS
     /// </summary>
-    public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
+    public Task<List<Batch>> IngestDeliverables<T>(int customerId, List<T> deliverables, bool adjunctQueue = false,
         CancellationToken cancellationToken = default);
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
@@ -77,13 +77,13 @@ internal class DlcsApiClient(
         return space ?? throw new DlcsException("Failed to create space", HttpStatusCode.InternalServerError);
     }
     
-    public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> assets, CancellationToken cancellationToken = default)
+    public async Task<List<Batch>> IngestDeliverables<T>(int customerId, List<T> deliverables, bool adjunctQueue = false, CancellationToken cancellationToken = default)
     {
-        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfAssets} assets", customerId,
-            assets.Count);
-        var queuePath = $"/customers/{customerId}/queue";
+        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfDeliverables} {Type}", customerId,
+            deliverables.Count, adjunctQueue ? "adjuncts" : "assets");
+        var queuePath = $"/customers/{customerId}/queue{(adjunctQueue ? "/adjuncts" : "")}";
         
-        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedAssetList = deliverables.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
         var tasks = chunkedAssetList.Select(async chunkedAssets =>

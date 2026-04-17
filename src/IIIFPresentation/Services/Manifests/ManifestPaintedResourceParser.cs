@@ -97,26 +97,26 @@ public class ManifestPaintedResourceParser(
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var (space, adjuncts, assetId) =
+        var assetDetails =
             GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
 
-        if (space < 0)
+        if (assetDetails.Space < 0)
         {
             throw new AssetException(
-                $"The space for asset '{assetId}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{space}' and cannot be negative",
-                assetId);
+                $"The space for asset '{assetDetails.Id}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{assetDetails.Space}' and cannot be negative",
+                assetDetails.Id);
         }
-        
-        logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
+
+        logger.LogTrace("Processing canvas painting for asset {AssetId}", assetDetails.Id);
         var cp = new InterimCanvasPainting
         {
             Id = specifiedCanvasId!, // might be null, but is `null!` in prop initializer
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
-            SuspectedAssetId = assetId,
-            SuspectedSpace = space,
-            SuspectedAdjuncts = adjuncts,
+            SuspectedAssetId = assetDetails.Id,
+            SuspectedSpace = assetDetails.Space,
+            SuspectedAdjuncts = assetDetails.Adjuncts,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -172,12 +172,26 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
 
-    private static (int? space, List<Adjunct>? adjuncts, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
+    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset)
     {
         // Read props from Asset - id must be there. If not, throw an exception
-        var space = asset.TryGetValue<int?>(AssetProperties.Space);
-        var adjuncts = asset.TryGetValue<List<Adjunct>?>(AssetProperties.Adjuncts);
-        var id = asset.GetRequiredValue<string>(AssetProperties.Id);
-        return (space, adjuncts, id);
+        var adjuncts = asset.TryGetCollectionValue<Adjunct>(AssetProperties.Adjuncts);
+        asset.Remove(AssetProperties.Adjuncts);
+        return new AssetDetails
+        {
+            Space = asset.TryGetValue<int?>(AssetProperties.Space),
+            Adjuncts = adjuncts?.ToList(),
+            Id = asset.GetRequiredValue<string>(AssetProperties.Id)
+        };
+    }
+    
+    /// <summary>
+    /// Parsed details extracted from an asset <see cref="JObject"/> within a <see cref="PaintedResource"/>
+    /// </summary>
+    private class AssetDetails
+    {
+        public int? Space { get; init; }
+        public List<Adjunct>? Adjuncts { get; init; }
+        public required string Id { get; init; }
     }
 }

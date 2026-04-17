@@ -147,6 +147,12 @@ public class PresentationContext : DbContext
                 .HasConversion(
                     b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
+
+            entity.Property(e => e.DeliverableType)
+                .IsRequired()
+                .HasConversion(
+                    d => d.ToString(),
+                    d => d.GetEnumFromString<DeliverableType>(true));
         });
     }
     

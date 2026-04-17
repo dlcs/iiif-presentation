@@ -88,7 +88,7 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task IngestAssets_ReturnsListOfSingleBatch_IfIngested()
+    public async Task IngestDeliverables_ReturnsListOfSingleBatch_IfIngested()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
@@ -101,13 +101,13 @@ public class DlcsApiClientTests
         
         dynamic jsonObject = new JObject();
         jsonObject.someObject = "someValue";
-        var batches = await sut.IngestAssets(customerId, new List<JObject>() { jsonObject }, CancellationToken.None);
+        var batches = await sut.IngestDeliverables(customerId, new List<JObject>() { jsonObject }, cancellationToken: CancellationToken.None);
 
         batches.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public async Task IngestAssets_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
+    public async Task IngestDeliverables_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
@@ -128,8 +128,8 @@ public class DlcsApiClientTests
         dynamic secondJsonObject = new JObject();
         secondJsonObject.someObject = "someValue";
 
-        var batches = await sut.IngestAssets(customerId, new List<JObject> { jsonObject, secondJsonObject },
-            CancellationToken.None);
+        var batches = await sut.IngestDeliverables(customerId, new List<JObject> { jsonObject, secondJsonObject },
+            cancellationToken: CancellationToken.None);
 
         batches.Should().BeEquivalentTo(expected);
     }
@@ -138,7 +138,7 @@ public class DlcsApiClientTests
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.Conflict)]
     [InlineData(HttpStatusCode.BadRequest)]
-    public async Task IngestAssets_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    public async Task IngestDeliverables_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
     {
         using var stub = new ApiStub();
         const int customerId = 4;
@@ -146,8 +146,9 @@ public class DlcsApiClientTests
             .IfBody(body => body.Contains("\"someString\""))
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
-        
-        Func<Task> action = () => sut.IngestAssets(customerId, new List<string> {"someString"}, CancellationToken.None);
+
+        Func<Task> action = () => sut.IngestDeliverables(customerId, new List<string> { "someString" },
+            cancellationToken: CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }

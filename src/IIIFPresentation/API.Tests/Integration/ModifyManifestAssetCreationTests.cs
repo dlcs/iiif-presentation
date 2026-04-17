@@ -51,13 +51,13 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         // Echo back "batch" value set in first Asset
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch>
                 {
                     new()
                     {
-                        ResourceId = x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(),
+                        ResourceId = x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(),
                         Submitted = DateTime.Now
                     }
                 }));
@@ -788,9 +788,9 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
              currentCanvasOrder++;
          }
          
-         A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
              A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == assetId),
-             A<CancellationToken>._)).MustHaveHappened();
+             A<bool>._, A<CancellationToken>._)).MustHaveHappened();
      }
      
      [Fact]
@@ -1039,9 +1039,9 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          // Arrange
          var (slug, assetId) = TestIdentifiers.SlugResource();
 
-         A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
              A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-             A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
+             A<bool>._, A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
 
          var manifestWithoutSpace = $$"""
                                       {
@@ -1688,4 +1688,117 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         assetId.Value<string>().Should()
             .EndWith($"/customers/{Customer}/spaces/{NewlyCreatedSpace}/images/{postedAssetId}");
     }
+     
+     [Fact]
+     public async Task CreateManifest_CorrectlyCreatesAssetRequests_WithAdjuncts()
+     {
+         // Arrange
+         var (slug, assetId) = TestIdentifiers.SlugResource();
+         var space = 18;
+         var batchId = TestIdentifiers.BatchId();
+         var adjunctBatchId = TestIdentifiers.BatchId();
+         var manifestWithSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "label": {
+                                  "en": [
+                                      "post testing"
+                                  ]
+                              },
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "thumbnail": [
+                                  {
+                                      "id": "https://example.org/img/thumb.jpg",
+                                      "type": "Image",
+                                      "format": "image/jpeg",
+                                      "width": 300,
+                                      "height": 200
+                                  }
+                              ],
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "space": {{space}},
+                                          "origin": "some/origin",
+                                          "adjuncts" : [
+                                              { 
+                                                  "id": "external",
+                                                  "externalId": "https://hosted.example/image/mets.xml",
+                                                  "@type": "Dataset",
+                                                  "mediaType": "text/xml",
+                                                  "iiifLink": "seeAlso"
+                                              },
+                                              {
+                                                  "id": "hosted",
+                                                  "origin": "https://origin.example/annotation-page",
+                                                  "@type": "AnnotationPage",
+                                                  "mediaType": "application/json",
+                                                  "label": { "en": [ "Line-level annotations" ] },
+                                                  "iiifLink": "annotations"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ] 
+                          }
+                          """;
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+         requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+         
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<Adjunct>>._, A<bool>._, A<CancellationToken>._))
+             .ReturnsLazily(x => Task.FromResult(
+                 new List<Batch>
+                 {
+                     new()
+                     {
+                         ResourceId = adjunctBatchId.ToString(),
+                         Submitted = DateTime.Now
+                     }
+                 }));
+         
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         responseManifest!.Id.Should().NotBeNull();
+         responseManifest.CreatedBy.Should().Be("Admin");
+         responseManifest.Slug.Should().Be(slug);
+         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
+
+         var dbManifest = dbContext.Manifests.Include(m => m.CanvasPaintings)
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x =>
+             x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+         
+         dbManifest.CanvasPaintings.Should().HaveCount(1);
+         // space comes from the asset
+         dbManifest.CanvasPaintings!.First().AssetId.ToString().Should().Be($"{Customer}/{space}/{assetId}");
+         dbManifest.Batches.Should().HaveCount(2);
+         var assetsBatch = dbManifest.Batches!.First();
+         assetsBatch.Status.Should().Be(BatchStatus.Ingesting);
+         assetsBatch.Id.Should().Be(batchId);
+         assetsBatch.DeliverableType.Should().Be(DeliverableType.Asset);
+         
+         var adjunctsBatch = dbManifest.Batches!.Last();
+         adjunctsBatch.Id.Should().Be(adjunctBatchId);
+         adjunctsBatch.DeliverableType.Should().Be(DeliverableType.Adjunct);
+         dbManifest.LastProcessed.Should().BeNull();
+         
+         var savedS3 =
+             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+                 $"staging/{Customer}/manifests/{dbManifest.Id}");
+         var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
+         s3Manifest.Id.Should().EndWith(dbManifest.Id);
+         s3Manifest.Items.Should().HaveCount(1);
+     }
 }

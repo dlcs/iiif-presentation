@@ -35,11 +35,11 @@ public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Progr
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         // Echo back "batch" value set in first Asset
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
+                    ResourceId =  x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
 
@@ -97,9 +97,9 @@ public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Progr
         canvasPaintings.Should().HaveCount(1);
         canvasPaintings.First().Ingesting.Should().BeTrue();
         
-        A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(A<int>._,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).MustHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
     }
     
     [Fact]
@@ -156,9 +156,9 @@ public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Progr
         canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
-        A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(A<int>._,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).MustHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
     }
     
     [Fact]
@@ -218,9 +218,9 @@ public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Progr
         canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
-        A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(A<int>._,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).MustHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
         
         A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
             A<List<string>>.That.Matches(a => a.First() == $"{Customer}/{NewlyCreatedSpace}/{assetId}"),
@@ -284,9 +284,9 @@ public class SetAlwaysReingestTests : IClassFixture<PresentationAppFactory<Progr
         canvasPaintings.First().Ingesting.Should().BeTrue();
         
         // ingest occurs for the asset, even though it's tracked
-        A.CallTo(() => DLCSApiClient.IngestAssets(A<int>._,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(A<int>._,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).MustHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
         
         // asset manifest value gets updated after the batch call
         A.CallTo(() => DLCSApiClient.UpdateAssetManifest(Customer,
