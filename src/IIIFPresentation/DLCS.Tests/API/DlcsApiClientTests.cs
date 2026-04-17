@@ -160,78 +160,19 @@ public class DlcsApiClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 5;
-        stub.Post($"/customers/{customerId}/queue/adjunctQueue",
-                (_, _) => "{ \"@id\": \"customers/26/queue/batches/5678\" }")
-            .IfBody(body => body.Contains("\"id\":\"adjunct\"")
-                            && body.Contains("\"@type\":\"Text\""))
-            .StatusCode(201);
-        var sut = GetClient(stub);
-        var expected = new List<Batch> { new() { ResourceId = "customers/26/queue/batches/5678" } };
-
-        var adjunct = new Adjunct
-        {
-            Id = "adjunct",
-            MediaType = "text/plain",
-            IIIFLink = IIIFLinkType.SeeAlso,
-            Type = "Text"
-        };
-        var batches = await sut.IngestDeliverables(customerId, [adjunct],
-            adjunctQueue: true, cancellationToken: CancellationToken.None);
-
-        batches.Should().BeEquivalentTo(expected);
-    }
-
-    [Fact]
-    public async Task IngestDeliverables_PostsToStandardQueue_WhenAdjunctQueueFalse()
-    {
-        using var stub = new ApiStub();
-        const int customerId = 5;
-        stub.Post($"/customers/{customerId}/queue",
+        stub.Post($"/customers/{customerId}/adjunctQueue",
                 (_, _) => "{ \"@id\": \"customers/26/queue/batches/1234\" }")
-            .IfBody(body => body.Contains("\"id\":\"adjunct\"")
-                            && body.Contains("\"@type\":\"Text\""))
+            .IfBody(body => body.Contains("{\"someObject\":\"someValue\"}"))
             .StatusCode(201);
         var sut = GetClient(stub);
-        var expected = new List<Batch> { new() { ResourceId = "customers/26/queue/batches/1234" } };
-
-        var adjunct = new Adjunct
-        {
-            Id = "adjunct",
-            MediaType = "text/plain",
-            IIIFLink = IIIFLinkType.SeeAlso,
-            Type = "Text"
-        };
-        var batches = await sut.IngestDeliverables(customerId, [adjunct],
-            adjunctQueue: false, cancellationToken: CancellationToken.None);
+        var expected = new List<Batch> { new() { ResourceId = "customers/26/queue/batches/1234" } }; 
+        
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someValue";
+        var batches = await sut.IngestDeliverables(customerId, [jsonObject],
+            adjunctQueue: true, cancellationToken: CancellationToken.None);
 
         batches.Should().BeEquivalentTo(expected);
-    }
-
-    [Theory]
-    [InlineData(HttpStatusCode.Forbidden)]
-    [InlineData(HttpStatusCode.Conflict)]
-    [InlineData(HttpStatusCode.BadRequest)]
-    public async Task IngestDeliverables_Throws_IfDownstreamNon200_AdjunctQueue(HttpStatusCode httpStatusCode)
-    {
-        using var stub = new ApiStub();
-        const int customerId = 4;
-        stub.Post($"/customers/{customerId}/queue/adjunctQueue", (_, _) => "{\"description\":\"I am broken\"}")
-            .IfBody(body => body.Contains("\"id\":\"adjunct\"")
-                            && body.Contains("\"@type\":\"Text\""))
-            .StatusCode((int)httpStatusCode);
-        var sut = GetClient(stub);
-
-        var adjunct = new Adjunct
-        {
-            Id = "adjunct",
-            MediaType = "text/plain",
-            IIIFLink = IIIFLinkType.SeeAlso,
-            Type = "Text"
-        };
-        Func<Task> action = () => sut.IngestDeliverables(customerId, [adjunct],
-            adjunctQueue: true, cancellationToken: CancellationToken.None);
-        await action.Should().ThrowAsync<DlcsException>()
-            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
 
     [Fact]

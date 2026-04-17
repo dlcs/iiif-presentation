@@ -175,24 +175,24 @@ public class ManifestPaintedResourceParser(
     private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset, int customerId)
     {
         // Read props from Asset - id must be there. If not, throw an exception
-        var adjuncts = asset.TryGetCollectionValue<Adjunct>(AssetProperties.Adjuncts);
+        var adjuncts = asset.TryGetCollectionValue<JObject>(AssetProperties.Adjuncts);
         asset.Remove(AssetProperties.Adjuncts);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
         var space = asset.TryGetValue<int?>(AssetProperties.Space);
         return new AssetDetails
         {
             Space = space,
-            Adjuncts = adjuncts != null ? HydrateAdjuncts(adjuncts, customerId, id, space) : null,
+            Adjuncts = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
             Id = id
         };
     }
 
-    private static List<Adjunct> HydrateAdjuncts(IEnumerable<Adjunct> adjuncts, int customerId, string assetId, int? space)
+    private static List<JObject> HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)
     {
         var resolvedSpace = space ?? SpaceHelper.DefaultSpaceForLaterPopulation;
         return adjuncts.Select(a =>
         {
-            a.AssetId ??= new AssetId(customerId, resolvedSpace, assetId);
+            a[AssetProperties.Asset] ??= new AssetId(customerId, resolvedSpace, assetId).ToString();
             return a;
         }).ToList();
     }
@@ -203,7 +203,7 @@ public class ManifestPaintedResourceParser(
     private class AssetDetails
     {
         public int? Space { get; init; }
-        public List<Adjunct>? Adjuncts { get; init; }
+        public List<JObject>? Adjuncts { get; init; }
         public required string Id { get; init; }
     }
 }

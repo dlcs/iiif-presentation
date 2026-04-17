@@ -86,7 +86,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .Where(pr => pr.Asset?[AssetProperties.Adjuncts] is JArray)
             .ChildRules(pr =>
             {
-                pr.RuleFor(r => r.Asset![AssetProperties.Adjuncts]!.ToObject<List<Adjunct>>())
+                pr.RuleFor(r => r.Asset![AssetProperties.Adjuncts]!.ToObject<List<JObject>>())
                     .ForEach(adjunct => adjunct.SetValidator(new AdjunctValidator()));
             });
     }

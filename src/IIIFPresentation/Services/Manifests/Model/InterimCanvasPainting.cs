@@ -1,4 +1,4 @@
-﻿using Models.API.Manifest;
+﻿using Newtonsoft.Json.Linq;
 using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests.Model;
@@ -28,7 +28,7 @@ public class InterimCanvasPainting : CanvasPainting
     /// <summary>
     /// Potential adjuncts in the body of the request
     /// </summary>
-    public List<Adjunct>? SuspectedAdjuncts { get; set; }
+    public List<JObject>? SuspectedAdjuncts { get; set; }
 }
 
 public enum CanvasPaintingType

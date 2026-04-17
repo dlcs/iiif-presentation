@@ -6,6 +6,8 @@ using FluentValidation.TestHelper;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 
 namespace API.Tests.Features.Manifest.Validators;
 
@@ -495,7 +497,7 @@ public class PresentationManifestValidatorTests
     {
         var manifest = new PresentationManifest
         {
-            Items = 
+            Items =
             [
                 new Canvas
                 {
@@ -507,9 +509,70 @@ public class PresentationManifestValidatorTests
                 }
             ]
         };
-        
+
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.Items)
             .WithErrorMessage("The id in 'items' contains duplicates, which is not allowed");
+    }
+
+    [Fact]
+    public void PaintedResource_Manifest_NoError_WhenValidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1/1/asset",
+                        [AssetProperties.Adjuncts] = new JArray
+                        {
+                            new JObject
+                            {
+                                [AdjunctProperties.Id] = "my-adjunct",
+                                [AdjunctProperties.ExternalId] = "https://example.com"
+                            }
+                        }
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void PaintedResource_Manifest_Error_WhenInvalidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1/1/asset",
+                        [AssetProperties.Adjuncts] = new JArray
+                        {
+                            new JObject
+                            {
+                                [AdjunctProperties.ExternalId] = "https://example.com"
+                            }
+                        }
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage == "Adjunct 'id' must not be empty");
     }
 }

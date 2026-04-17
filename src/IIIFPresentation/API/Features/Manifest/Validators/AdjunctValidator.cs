@@ -1,27 +1,27 @@
+using Core.Helpers;
 using FluentValidation;
-using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 
 namespace API.Features.Manifest.Validators;
 
-public class AdjunctValidator : AbstractValidator<Adjunct>
+public class AdjunctValidator : AbstractValidator<JObject>
 {
-    private static readonly char[] ProhibitedCharacters = ['/', '=', ','];
-    private static readonly string ProhibitedCharacterDisplay =
-        string.Join(", ", ProhibitedCharacters.Select(p => $"'{p}'"));
-
     public AdjunctValidator()
     {
-        RuleFor(a => a.Id)
-            .NotEmpty()
+        RuleFor(a => a[AssetProperties.Id])
+            .Must(id => id is { Type: JTokenType.String } && !string.IsNullOrEmpty(id.Value<string>()))
             .WithMessage("Adjunct 'id' must not be empty");
 
-        RuleFor(a => a.Id)
-            .Must(id => !ProhibitedCharacters.Any(id.Contains))
-            .When(a => !string.IsNullOrEmpty(a.Id))
-            .WithMessage($"Adjunct 'id' contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
+        RuleFor(a => a[AssetProperties.Id])
+            .Must(id => !ProhibitedCharacters.Characters.Any(id!.Value<string>()!.Contains))
+            .When(a => a.ContainsKey(AdjunctProperties.Id) &&
+                       a[AdjunctProperties.Id] is { Type: JTokenType.String } t &&
+                       !string.IsNullOrEmpty(t.Value<string>()))
+            .WithMessage($"Adjunct 'id' contains a prohibited character. Cannot contain any of: {ProhibitedCharacters.Display}");
 
         RuleFor(a => a)
-            .Must(a => a.ExternalId != null || !string.IsNullOrEmpty(a.Origin))
+            .Must(a => a.ContainsKey(AdjunctProperties.ExternalId) || a.ContainsKey(AdjunctProperties.Origin))
             .WithMessage("Adjunct must have either 'externalId' or 'origin' set");
     }
 }

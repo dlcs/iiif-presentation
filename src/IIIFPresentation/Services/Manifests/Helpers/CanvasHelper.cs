@@ -1,4 +1,5 @@
 ﻿using Core.Exceptions;
+using Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Repository.Paths;
 
@@ -6,10 +7,6 @@ namespace Services.Manifests.Helpers;
 
 public static class CanvasHelper
 {
-    private static readonly List<char> ProhibitedCharacters = ['/', '=', ',',];
-    private static readonly string ProhibitedCharacterDisplay =
-        string.Join(',', ProhibitedCharacters.Select(p => $"'{p}'"));
-    
     /// <summary>
     /// Checks for if the canvas id has any prohibited characters
     /// </summary>
@@ -20,17 +17,17 @@ public static class CanvasHelper
     /// <remarks>This method will return null if not set to throw an exception and has invalid characters</remarks>
     public static string? CheckForProhibitedCharacters(string canvasId, ILogger logger, bool throwException = true)
     {
-        if (ProhibitedCharacters.Any(canvasId.Contains))
+        if (ProhibitedCharacters.Characters.Any(canvasId.Contains))
         {
             if (throwException)
             {
                 throw new InvalidCanvasIdException(canvasId,
-                    $"Canvas id contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}");
+                    $"Canvas id contains a prohibited character. Cannot contain any of: {ProhibitedCharacters.Display}");
             }
 
             logger.LogWarning(
                 "Canvas id {CanvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}",
-                canvasId, ProhibitedCharacterDisplay);
+                canvasId, ProhibitedCharacters.Display);
             
             return null;
         }

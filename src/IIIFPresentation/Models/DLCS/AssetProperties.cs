@@ -13,4 +13,16 @@ public static class AssetProperties
     public const string Manifests = "manifests";
     public const string Ingesting = "ingesting";
     public const string Adjuncts = "adjuncts";
+    public const string Asset = "asset";
+}
+
+/// <summary>
+/// Adjunct is generally a pass-through object and isn't strongly typed. However, we do access some properties of it so
+/// this class maintains a list of accessed properties
+/// </summary>
+public static class AdjunctProperties
+{
+    public const string Id = "id";
+    public const string ExternalId = "externalId";
+    public const string Origin = "origin";
 }

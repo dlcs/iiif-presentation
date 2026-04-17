@@ -7,6 +7,7 @@ using Core.Exceptions;
 using Core.Helpers;
 using Models.API.Manifest;
 using Models.Database;
+using Newtonsoft.Json.Linq;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -309,7 +310,7 @@ public class CanvasPaintingResolver(
         PresUpdateResult? error = null,
         List<InterimCanvasPainting>? canvasPaintings = null,
         List<InterimCanvasPainting>? assetsIdentifiedInItems = null,
-        List<Adjunct>? adjuncts = null)
+        List<JObject>? adjuncts = null)
     {
         public PresUpdateResult? Error { get; set; } = error;
 
@@ -317,6 +318,6 @@ public class CanvasPaintingResolver(
 
         public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; } = assetsIdentifiedInItems;
         
-        public List<Adjunct>? Adjuncts { get; set; } = adjuncts;
+        public List<JObject>? Adjuncts { get; set; } = adjuncts;
     }
 }

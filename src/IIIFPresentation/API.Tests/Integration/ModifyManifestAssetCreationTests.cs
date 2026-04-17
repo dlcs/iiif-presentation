@@ -1730,7 +1730,8 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                                   "externalId": "https://hosted.example/image/mets.xml",
                                                   "@type": "Dataset",
                                                   "mediaType": "text/xml",
-                                                  "iiifLink": "seeAlso"
+                                                  "iiifLink": "seeAlso",
+                                                  "batch": "{{adjunctBatchId}}",
                                               },
                                               {
                                                   "id": "hosted",
@@ -1750,17 +1751,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          var requestMessage =
              HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
          requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
-         
-         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<Adjunct>>._, A<bool>._, A<CancellationToken>._))
-             .ReturnsLazily(x => Task.FromResult(
-                 new List<Batch>
-                 {
-                     new()
-                     {
-                         ResourceId = adjunctBatchId.ToString(),
-                         Submitted = DateTime.Now
-                     }
-                 }));
          
          // Act
          var response = await httpClient.AsCustomer().SendAsync(requestMessage);

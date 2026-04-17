@@ -74,11 +74,11 @@ public class ManifestPaintedResourceParserTests
     [Theory]
     [InlineData("https://foo.com/example/1/canvases/canvas", "Canvas Id /example/1/canvases/canvas is not valid", 1)]
     [InlineData("https://default.com/additionalElement/2/canvases/canvas", "Canvas Id /additionalElement/2/canvases/canvas is not valid", 2)]
-    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/', '=', ','", 3)]
     [InlineData("https://invalid/format", "Canvas Id /format is not valid", 4)]
     [InlineData("https://dlcs.example/3/canvases/", "Canvas Id /3/canvases/ is not valid", 3)]
     [InlineData("https://dlcs.example/3/canvases", "Canvas Id /3/canvases is not valid", 3)]
-    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/', '=', ','", 3)]
     [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id does not match the customer found from the calling URL", 2)]
     public async Task Parse_Throws_InvalidCanvasId(string canvasId, string message, int customerId)
     {

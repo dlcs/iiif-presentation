@@ -88,7 +88,7 @@ public class DlcsManifestCoordinator(
         List<AssetId>? previousManifestAssetIds = null,
         Models.Database.Collections.Manifest? dbManifest = null,
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
-        List<Adjunct>? adjuncts = null,
+        List<JObject>? adjuncts = null,
         CancellationToken cancellationToken = default)
     {
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
@@ -125,7 +125,7 @@ public class DlcsManifestCoordinator(
         WriteManifestRequest request,
         string manifestId, 
         List<AssetId> assetsFromItems,
-        List<Adjunct> adjuncts,
+        List<JObject> adjuncts,
         List<AssetId>? previousManifestAssetIds = null,
         int? manifestSpaceId = null,
         CancellationToken cancellationToken = default)
@@ -168,7 +168,6 @@ public class DlcsManifestCoordinator(
             }
 
             SpaceHelper.UpdateAssets(assetsWithoutSpaces, spaceId.Value);
-            
         }
 
         return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, adjuncts, assetsFromItems, spaceId,
@@ -176,7 +175,7 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<Adjunct> adjuncts, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
+        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<JObject> adjuncts, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
         CancellationToken cancellationToken)
     {
         List<DlcsInteractionRequest> dlcsInteractionRequests;

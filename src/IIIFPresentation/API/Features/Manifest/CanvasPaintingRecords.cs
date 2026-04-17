@@ -1,6 +1,7 @@
 ﻿using API.Infrastructure.Requests;
 using Models.API.General;
 using Models.API.Manifest;
+using Newtonsoft.Json.Linq;
 using Services.Manifests.Model;
 
 namespace API.Features.Manifest;
@@ -16,7 +17,7 @@ public class CanvasPaintingRecords
             Error = updateResult
         };
     
-    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<Adjunct>? adjuncts) =>
+    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<JObject>? adjuncts) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,
@@ -45,5 +46,5 @@ public class CanvasPaintingRecords
     /// Details of all canvas paintings that have assets identified in items, as opposed to the canvas paintings directly.
     /// </summary>
     /// <remarks>This can contain modified records if the item has been identified as an update</remarks>
-    public List<Adjunct>? Adjuncts { get; private init; }
+    public List<JObject>? Adjuncts { get; private init; }
 }
