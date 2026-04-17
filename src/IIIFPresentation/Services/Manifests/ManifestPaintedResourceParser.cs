@@ -98,7 +98,7 @@ public class ManifestPaintedResourceParser(
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
         var assetDetails =
-            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
+            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)), customerId);
 
         if (assetDetails.Space < 0)
         {
@@ -172,17 +172,29 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
 
-    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset)
+    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset, int customerId)
     {
         // Read props from Asset - id must be there. If not, throw an exception
         var adjuncts = asset.TryGetCollectionValue<Adjunct>(AssetProperties.Adjuncts);
         asset.Remove(AssetProperties.Adjuncts);
+        var id = asset.GetRequiredValue<string>(AssetProperties.Id);
+        var space = asset.TryGetValue<int?>(AssetProperties.Space);
         return new AssetDetails
         {
-            Space = asset.TryGetValue<int?>(AssetProperties.Space),
-            Adjuncts = adjuncts?.ToList(),
-            Id = asset.GetRequiredValue<string>(AssetProperties.Id)
+            Space = space,
+            Adjuncts = adjuncts != null ? HydrateAdjuncts(adjuncts, customerId, id, space) : null,
+            Id = id
         };
+    }
+
+    private static List<Adjunct> HydrateAdjuncts(IEnumerable<Adjunct> adjuncts, int customerId, string assetId, int? space)
+    {
+        var resolvedSpace = space ?? SpaceHelper.DefaultSpaceForLaterPopulation;
+        return adjuncts.Select(a =>
+        {
+            a.AssetId ??= new AssetId(customerId, resolvedSpace, assetId);
+            return a;
+        }).ToList();
     }
     
     /// <summary>

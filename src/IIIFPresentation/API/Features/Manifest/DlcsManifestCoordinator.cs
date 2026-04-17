@@ -217,7 +217,7 @@ public class DlcsManifestCoordinator(
         if (adjuncts.Count > 0)
         {
             var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjuncts,
-                DeliverableType.Adjunct, cancellationToken);
+                DeliverableType.Adjunct, true, cancellationToken);
             if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
         }
 
@@ -319,16 +319,18 @@ public class DlcsManifestCoordinator(
         }
         
         // `assets` now contain all the assets that should be ingested by DLCS
-        return await IngestDeliverables(customerId, manifestId, assets.Values.ToList(), DeliverableType.Asset, cancellationToken);
+        return await IngestDeliverables(customerId, manifestId, assets.Values.ToList(), DeliverableType.Asset,
+            cancellationToken: cancellationToken);
     }
 
     private async Task<EntityResult?> IngestDeliverables<T>(int customerId, string manifestId, 
-        List<T> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken)
+        List<T> deliverables, DeliverableType deliverableType, bool adjunctQueue = false, CancellationToken cancellationToken = default)
     {
         try
         {
             var batches = await dlcsApiClient.IngestDeliverables(customerId,
                 deliverables,
+                adjunctQueue,
                 cancellationToken: CancellationToken.None);
             
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType, cancellationToken);

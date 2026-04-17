@@ -81,12 +81,12 @@ internal class DlcsApiClient(
     {
         logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfDeliverables} {Type}", customerId,
             deliverables.Count, adjunctQueue ? "adjuncts" : "assets");
-        var queuePath = $"/customers/{customerId}/queue{(adjunctQueue ? "/adjuncts" : "")}";
+        var queuePath = $"/customers/{customerId}/{(adjunctQueue ? "adjunctQueue" : "queue")}";
         
-        var chunkedAssetList = deliverables.Chunk(settings.MaxBatchSize);
+        var chunkedDeliverableList = deliverables.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
-        var tasks = chunkedAssetList.Select(async chunkedAssets =>
+        var tasks = chunkedDeliverableList.Select(async chunkedAssets =>
         {
             var hydraImages = new HydraCollection<T>(chunkedAssets);
 

@@ -21,7 +21,8 @@ public class Adjunct
     /// <summary>
     /// The asset id this adjunct is associated with
     /// </summary>
-    public AssetId AssetId { get; set; }
+    [JsonPropertyName("adjunct")]
+    public AssetId? AssetId { get; set; }
     
     /// <summary>
     /// The type of the adjunct
@@ -49,26 +50,15 @@ public class Adjunct
     /// </summary>
     public Uri? ExternalId { get; set; }
 
-    public string? Origin { get; set; }
-
     /// <summary>
-    /// When the adjunct was created
+    /// The location of the file used to generate a IIIF-CS adjunct
     /// </summary>
-    public DateTime Created { get; set; }
+    public string? Origin { get; set; }
     
     /// <summary>
     /// When the adjunct last finished processing
     /// </summary>
     public DateTime? Finished { get; set; }
-
-    /// <inheritdoc/>
-    public string ItemId => Id;
-    
-    /// <inheritdoc/>
-    public string Identifier() => $"adjunct '{Id}' for asset '{AssetId}'";
-
-    /// <inheritdoc/>
-    public AssetId GetAssetId() => AssetId;
     
     /// <summary>
     /// The size in bytes of the adjunct

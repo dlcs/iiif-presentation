@@ -358,3 +358,5 @@ MigrationBackup/
 API/API.xml
 
 .env
+
+.claude/
