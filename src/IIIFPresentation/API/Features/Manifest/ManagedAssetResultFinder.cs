@@ -85,7 +85,7 @@ public class ManagedAssetResultFinder(
             assetsNotFoundInSameManifest.Add((assetId, paintedResource));
         }
 
-        var inAnotherManifest = FindAssetsInAnotherManifest(customerId, assetsNotFoundInSameManifest);
+        var inAnotherManifest = FindAssetsInAnotherManifest(assetsNotFoundInSameManifest);
         
         List<(AssetId assetId, PaintedResource paintedResource)> checkDlcs = [];
 
@@ -203,7 +203,7 @@ public class ManagedAssetResultFinder(
         return assetsToAddToManifest;
     }
 
-    private List<CanvasPainting> FindAssetsInAnotherManifest(int customerId, 
+    private List<CanvasPainting> FindAssetsInAnotherManifest(
         List<(AssetId assetId, PaintedResource paintedResource)> assetsNotFoundInSameManifest)
     {
         List<CanvasPainting> inAnotherManifest = [];

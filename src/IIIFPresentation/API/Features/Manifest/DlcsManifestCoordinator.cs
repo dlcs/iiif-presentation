@@ -213,6 +213,19 @@ public class DlcsManifestCoordinator(
         await RemoveUnusedAssets(previousManifestAssetIds, manifestId, request.CustomerId, assets, assetsFromItems, cancellationToken);
         
         // finally ingest adjuncts
+        var adjunctErrors = await HandleAdjunctInteractions(request, manifestId, adjuncts, spaceId, cancellationToken);
+        if (adjunctErrors != null) return adjunctErrors;
+
+        var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
+            .ToList();
+        var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
+                                (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
+        return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
+    }
+
+    private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(WriteManifestRequest request, string manifestId, List<JObject> adjuncts,
+        int? spaceId, CancellationToken cancellationToken)
+    {
         if (adjuncts.Count > 0)
         {
             var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjuncts,
@@ -220,11 +233,7 @@ public class DlcsManifestCoordinator(
             if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
         }
 
-        var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
-            .ToList();
-        var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
-                                (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
-        return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
+        return null;
     }
 
     private async Task UpdateAssetsWithManifestId(WriteManifestRequest request, string manifestId,

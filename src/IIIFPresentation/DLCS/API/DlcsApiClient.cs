@@ -155,7 +155,7 @@ internal class DlcsApiClient(
             manifestId);
         
         var results = new List<JObject>();
-        var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page=1";
+        var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page=1&include=adjuncts";
 
         while (endpoint != null)
         {
