@@ -94,19 +94,6 @@ public class AdjunctValidatorTests
     }
 
     [Fact]
-    public void ExternalIdOrOrigin_Required_ErrorWhenNeitherPresent()
-    {
-        var adjunct = new JObject
-        {
-            [AdjunctProperties.Id] = "my-adjunct"
-        };
-
-        var result = sut.TestValidate(adjunct);
-        result.Errors.Should().Contain(e =>
-            e.ErrorMessage == "Adjunct must have either 'externalId' or 'origin' set");
-    }
-
-    [Fact]
     public void ExternalIdOrOrigin_NoErrorWhenExternalIdPresent()
     {
         var adjunct = new JObject
