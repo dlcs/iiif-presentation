@@ -21,7 +21,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
     private const char PathSeparator = '/';
 
     /// <summary>
-    /// Parses a full URI into  the required path segments, taking into account path rewrites
+    /// Parses a full URI into the required path segments, taking into account path rewrites
     /// </summary>
     /// <param name="host"></param>
     /// <param name="path">The path to match against</param>
@@ -149,6 +149,23 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
     }
 }
 
+/// <summary>
+/// Result of parsing a request path into CustomerId, resource identifer, and path type.
+/// Taking into account canonical paths and customer-specific rewrites.
+/// When Customer and Resource are both null, indicates the path could not be parsed.
+/// </summary>
+/// <param name="Customer">
+/// The customer ID parsed from the path, or the default if not present. Null if parsing failed.
+/// </param>
+/// <param name="Resource">
+/// The resource identifier (ManifestId, CollectionId, CanvasId, or hierarchical slug path). Null if parsing failed
+/// or no resource was present.</param>
+/// <param name="Hierarchical">
+/// True if parsed from a public hierarchical path (/{customerId}/{slug-path}), false if from a private flat path
+/// (/{customerId}/{type}/{id}).</param>
+/// <remarks>
+/// Canvas ID doesn't have a different representation for hierarchical and flat so both values are the same.
+/// </remarks>
 public record PathParts(int? Customer, string? Resource, bool Hierarchical);
 
 internal partial class GeneratedRegexes
