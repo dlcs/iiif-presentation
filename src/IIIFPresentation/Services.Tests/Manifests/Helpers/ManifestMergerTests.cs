@@ -1,5 +1,4 @@
 ﻿using Core.Exceptions;
-using Core.Web;
 using DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
@@ -14,7 +13,6 @@ using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
 using Test.Helpers;
 using Test.Helpers.Helpers;
-using Annotation = IIIF.Presentation.V2.Annotation.Annotation;
 using Canvas = IIIF.Presentation.V3.Canvas;
 using Manifest = IIIF.Presentation.V3.Manifest;
 
@@ -157,7 +155,7 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
         mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
         canvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
@@ -174,7 +172,7 @@ public class ManifestMergerTests
         var namedQueryManifest = ManifestTestCreator.New()
             .WithCanvas(assetId, c => c.WithImage())
             .Build();
-        namedQueryManifest.Items[0].Label = null;
+        namedQueryManifest.Items![0].Label = null;
 
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
         var canvasLabel = new LanguageMap("canvasPaintingCanvasLabel", "Generated canvas painting label");
@@ -185,9 +183,9 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Label.Should().BeEquivalentTo(canvasLabel, "'CanvasLabel' used to label canvas");
-        canvas.Items[0].GetFirstPaintingAnnotation().Body.As<Image>().Label.Should()
+        canvas.Items![0].GetFirstPaintingAnnotation()!.Body!.As<Image>()!.Label!.Should()
             .ContainKey("canvasPaintingLabel", "'Label' used to label Image as 'CanvasLabel' present");
 
     }
@@ -310,7 +308,7 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        mergedManifest.Thumbnail[0].Should().BeEquivalentTo(thumbnail, "Thumbnail on base manifest unchanged");
+        mergedManifest.Thumbnail![0].Should().BeEquivalentTo(thumbnail, "Thumbnail on base manifest unchanged");
     }
 
     [Fact]
@@ -334,8 +332,8 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(2, "Two canvas paintings");
-        mergedManifest.Items[0].Id.Should().Contain(assetIdTwo.ToString(), "assetIdTwo had lower CanvasOrder");
-        mergedManifest.Items[1].Id.Should().Contain(assetIdOne.ToString(), "assetIdOne had higher CanvasOrder");
+        mergedManifest.Items![0].Id.Should().Contain(assetIdTwo.ToString(), "assetIdTwo had lower CanvasOrder");
+        mergedManifest.Items![1].Id.Should().Contain(assetIdOne.ToString(), "assetIdOne had higher CanvasOrder");
     }
 
     [Fact]
@@ -358,7 +356,7 @@ public class ManifestMergerTests
             .WithCanvas(canvas2NoChoice, c => c.WithImage())
             .Build();
         
-        namedQueryManifest.Items[0].Thumbnail = null;
+        namedQueryManifest.Items![0].Thumbnail = null;
         namedQueryManifest.Items[1].Thumbnail = null;
         namedQueryManifest.Items[2].Thumbnail = null;
         namedQueryManifest.Items[3].Thumbnail = null;
@@ -405,7 +403,7 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // should be 1 + 3 then 4 + 2 then 5
-        mergedManifest.Items[0].Id.Should().Contain("first");
+        mergedManifest.Items![0].Id.Should().Contain("first");
         mergedManifest.Items[0].Thumbnail.Should().BeNull("ManifestMerger handles no thumbs");
         mergedManifest.Items[1].Id.Should().Contain("second");
         mergedManifest.Items[1].Thumbnail.Should().BeNull("ManifestMerger handles no thumbs");
@@ -436,7 +434,7 @@ public class ManifestMergerTests
             .Build();
         
         // Clear thumb from 3 in order that 2nd choice thumbnail is used to prove first non-null is used. Not just first
-        namedQueryManifest.Items[3].Thumbnail = null;
+        namedQueryManifest.Items![3].Thumbnail = null;
 
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
             canvas0Choice1,
@@ -488,9 +486,9 @@ public class ManifestMergerTests
         // Assert first canvas (2 choices)
         var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
-        firstCanvas.Label.Keys.Should()
+        firstCanvas.Label!.Keys.Should()
             .Contain("canvas0Choice1CanvasLabel", "First non-null canvasLabel in choice used");
-        firstCanvas.Thumbnail.Single().Id.Should()
+        firstCanvas.Thumbnail!.Single().Id.Should()
             .Contain(canvas0Choice1.ToString(), "Thumbnail of first item in choice used");
         firstCanvas.Annotations.Should().HaveCount(2, "2 adjuncts - one on each Asset are elevated to Canvas level");
         firstCanvas.Annotations!.First().Id.Should().Be("anno1", "First anno is correct");
@@ -499,16 +497,16 @@ public class ManifestMergerTests
         // Assert second canvas (2 choices)
         var secondCanvas = mergedManifest.Items[1];
         secondCanvas.Id.Should().Be("https://localhost:5000/0/canvases/second", "canvasId correct");
-        secondCanvas.Label.Keys.Should()
+        secondCanvas.Label!.Keys.Should()
             .Contain("canvas1Choice1CanvasLabel", "First non-null canvasLabel in choice used");
-        secondCanvas.Thumbnail.Single().Id.Should().Contain(canvas1Choice2.ToString(),
+        secondCanvas.Thumbnail!.Single().Id.Should().Contain(canvas1Choice2.ToString(),
             "Thumbnail of second item in choice used as first is null");
 
         // Assert third canvas (single item)
         var thirdCanvas = mergedManifest.Items[2];
         thirdCanvas.Id.Should().Contain("https://localhost:5000/0/canvases/third", "canvasId correct");
         thirdCanvas.Label.Should().BeNull("Only label from CanvasPainting used");
-        thirdCanvas.Thumbnail.Single().Id.Should().Contain(canvas2NoChoice.ToString(), "Thumbnail of single item used");
+        thirdCanvas.Thumbnail!.Single().Id.Should().Contain(canvas2NoChoice.ToString(), "Thumbnail of single item used");
 
         var firstCanvasAnnotationPage = mergedManifest.GetCanvasAnnotationPage(0);
         firstCanvasAnnotationPage.Id.Should().Be("https://localhost:5000/0/canvases/first/annopages/0",
@@ -519,18 +517,18 @@ public class ManifestMergerTests
             .Be("https://localhost:5000/0/canvases/first/annotations/0", "Anno id based on canvas");
 
         var target = firstCanvasSinglePaintingAnno.Target as Canvas;
-        target.Id.Should().Be("https://localhost:5000/0/canvases/first", "Painting anno targets entire canvas");
+        target!.Id.Should().Be("https://localhost:5000/0/canvases/first", "Painting anno targets entire canvas");
 
-        var firstAnnotationBody = firstCanvasSinglePaintingAnno.Body.As<PaintingChoice>();
-        firstAnnotationBody.Items[0].As<Image>().Id.Should().Contain(canvas0Choice1.ToString(), "Choices are in correct order");
-        firstAnnotationBody.Items[0].As<Image>().Label.Keys.Should().Contain("canvasPaintingLabel", "Choice label set");
-        firstAnnotationBody.Items[1].As<Image>().Id.Should().Contain(canvas0Choice2.ToString(), "Choices are in correct order");
+        var firstAnnotationBody = firstCanvasSinglePaintingAnno.Body!.As<PaintingChoice>()!;
+        firstAnnotationBody.Items![0].As<Image>()!.Id.Should().Contain(canvas0Choice1.ToString(), "Choices are in correct order");
+        firstAnnotationBody.Items![0].As<Image>()!.Label!.Keys.Should().Contain("canvasPaintingLabel", "Choice label set");
+        firstAnnotationBody.Items![1].As<Image>()!.Id.Should().Contain(canvas0Choice2.ToString(), "Choices are in correct order");
 
-        var secondAnnotationBody = mergedManifest.GetCanvasAnnotationPage(1).Items[0].As<PaintingAnnotation>()
-            .Body.As<PaintingChoice>();
-        secondAnnotationBody.Items[0].As<Image>().Id.Should().Contain(canvas1Choice1.ToString());
-        secondAnnotationBody.Items[1].As<Image>().Id.Should().Contain(canvas1Choice2.ToString());
-        secondAnnotationBody.Items[1].As<Image>().Label.Should()
+        var secondAnnotationBody = mergedManifest.GetCanvasAnnotationPage(1).Items![0].As<PaintingAnnotation>()!
+            .Body!.As<PaintingChoice>()!;
+        secondAnnotationBody.Items![0].As<Image>()!.Id.Should().Contain(canvas1Choice1.ToString());
+        secondAnnotationBody.Items![1].As<Image>()!.Id.Should().Contain(canvas1Choice2.ToString());
+        secondAnnotationBody.Items![1].As<Image>()!.Label.Should()
             .BeNull("label cannot be carried over from named query");
     }
     
@@ -617,14 +615,14 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // Assert first canvas (single item choices)
-        var firstCanvas = mergedManifest.Items[0];
+        var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
         firstCanvas.Label.Should()
             .ContainKey("canvas0CanvasLabel", "CanvasLabel used for canvas");
-        firstCanvas.Thumbnail.Single().Id.Should()
+        firstCanvas.Thumbnail!.Single().Id.Should()
             .Contain(canvas0.ToString(), "Thumbnail of first item in choice used");
         var paintingAnno = firstCanvas.GetFirstPaintingAnnotation();
-        paintingAnno.Target.As<Canvas>().Id.Should().Be(firstCanvas.Id, "Targets entire canvas");
+        paintingAnno!.Target!.As<Canvas>()!.Id.Should().Be(firstCanvas.Id, "Targets entire canvas");
         paintingAnno.Body.As<Image>().Label.Should().ContainKey("canvas0Label", "Label used for body");
         
         // Assert second canvas (4 painting annos)
@@ -698,7 +696,7 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(2, "Two canvas paintings");
-        mergedManifest.Items[1].GetFirstPaintingAnnotation().Body.Should().BeNull("No NQ painting anno found");
+        mergedManifest.Items![1].GetFirstPaintingAnnotation()!.Body.Should().BeNull("No NQ painting anno found");
         
         var foundCanvasPainting = canvasPaintings.Single(cp => cp.AssetId == assetIdFound);
         foundCanvasPainting.Ingesting.Should().BeFalse("CP for asset found and marked as ingested");
@@ -771,7 +769,7 @@ public class ManifestMergerTests
         var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
 
         // Assert
-        var image = mergedManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
+        var image = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
         image!.Id.Should()
             .Be($"https://dlcs.test/iiif-img/{assetId}/full/220,200/0/default.jpg",
                 "w,h set from statics set on canvasPainting");
@@ -792,8 +790,8 @@ public class ManifestMergerTests
             .Build();
         
         // Fake the image.id like it has been rewritten
-        var nqImage = namedQueryManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
-        nqImage.Id = $"https://other.host/image/{assetId.Asset}/full/100,100/0/default.jpg";
+        var nqImage = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
+        nqImage!.Id = $"https://other.host/image/{assetId.Asset}/full/100,100/0/default.jpg";
 
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
         canvasPaintings[0].StaticHeight = 200;
@@ -803,7 +801,7 @@ public class ManifestMergerTests
         var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
 
         // Assert
-        var image = mergedManifest.Items[0].GetFirstPaintingAnnotation().Body as Image;
+        var image = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
         image!.Id.Should()
             .Be($"https://other.host/image/{assetId.Asset}/full/220,200/0/default.jpg",
                 "w,h set from statics set on canvasPainting");
@@ -862,14 +860,14 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
         mergedManifest.Metadata.Should().BeNull("No manifest metadata from NQ persisted");
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        
-        var canvas = mergedManifest.Items[0];
+
+        var canvas = mergedManifest.Items![0];
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
         canvas.Label.Should().ContainKey("canvasPaintingLabel", "Label from CanvasPainting");
         canvas.Metadata.Should().BeNull("No canvas metadata from NQ persisted");
     }
-    
+
     [Fact]
     public void ProcessCanvasPaintings_MergesCanvas_WhenMatchingCanvasOriginalId()
     {
@@ -882,7 +880,7 @@ public class ManifestMergerTests
         var manifest =  ManifestTestCreator.New()
             .WithCanvas($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", c => c.WithImage())
             .Build();
-        manifest.Items[0].Homepage =
+        manifest.Items![0].Homepage =
         [
             new Image()
             {
@@ -899,7 +897,7 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
         mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}");
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
@@ -925,7 +923,7 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
         mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", "expected id of the canvas");
         canvas.Width.Should().BeNull("No width due to no matching canvas");
         canvas.Height.Should().BeNull( "No height due to no matching canvas");
@@ -968,13 +966,13 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
         mergedManifest.Metadata.Should().NotBeNull("Manifest metadata from original manifest persisted");
         mergedManifest.Items.Should().HaveCount(2, "Single canvasPainting");
-        var canvasFromOriginal = mergedManifest.Items.First();
+        var canvasFromOriginal = mergedManifest.Items!.First();
         canvasFromOriginal.Id.Should().Be($"https://dlcs.test/iiif-img/{id}/canvas/c/");
         canvasFromOriginal.Width.Should().Be(110, "Width from items");
         canvasFromOriginal.Height.Should().Be(110, "Height from items");
         canvasFromOriginal.Metadata.Should().NotBeNull("Manifest metadata from items");
         
-        var canvasFromAssetId = mergedManifest.Items.Last();
+        var canvasFromAssetId = mergedManifest.Items!.Last();
         canvasFromAssetId.Id.Should().StartWith($"https://localhost:5000/0/canvases/{assetId}_");
         canvasFromAssetId.Width.Should().Be(110, "Width from NQ");
         canvasFromAssetId.Height.Should().Be(110, "Height from NQ");
@@ -1019,7 +1017,7 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}");
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
@@ -1055,7 +1053,7 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
-        var canvas = mergedManifest.Items[0];
+        var canvas = mergedManifest.Items![0];
         canvas.Id.Should().Be($"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}", "id rewritten");
         canvas.Width.Should().Be(110, "Width from NQ");
         canvas.Height.Should().Be(110, "Height from NQ");
@@ -1100,18 +1098,18 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // Assert first canvas (2 choices)
-        var firstCanvas = mergedManifest.Items[0];
+        var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
-        firstCanvas.Label.Keys.Should()
+        firstCanvas.Label!.Keys.Should()
             .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
-        firstCanvas.Thumbnail.Single().Id.Should()
+        firstCanvas.Thumbnail!.Single().Id.Should()
             .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
 
-        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
-        choice.Items[0].As<Sound>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel");
-        choice.Items[0].As<Sound>().Id.Should().Contain(assetId.ToString(), "asset used");
-        choice.Items[1].As<Sound>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel");
-        choice.Items[1].As<Sound>().Id.Should().Contain(assetId.ToString(), "asset used");
+        var choice = firstCanvas.GetFirstPaintingAnnotation()!.Body!.As<PaintingChoice>()!;
+        choice.Items![0].As<Sound>()!.Label!.Keys.Should().Contain("canvas0Choice1CanvasLabel");
+        choice.Items[0].As<Sound>()!.Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Sound>()!.Label!.Keys.Should().Contain("canvas0Choice2CanvasLabel");
+        choice.Items[1].As<Sound>()!.Id.Should().Contain(assetId.ToString(), "asset used");
     }
     
     [Fact]
@@ -1153,20 +1151,20 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // Assert first canvas (2 choices)
-        var firstCanvas = mergedManifest.Items[0];
+        var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
-        firstCanvas.Label.Keys.Should()
+        firstCanvas.Label!.Keys.Should()
             .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
-        firstCanvas.Thumbnail.Single().Id.Should()
+        firstCanvas.Thumbnail!.Single().Id.Should()
             .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
 
-        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
-        choice.Items[0].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel");
-        choice.Items[0].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
-        choice.Items[1].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel");
-        choice.Items[1].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        var choice = firstCanvas.GetFirstPaintingAnnotation()!.Body!.As<PaintingChoice>()!;
+        choice.Items![0].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice1CanvasLabel");
+        choice.Items[0].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice2CanvasLabel");
+        choice.Items[1].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
     }
-    
+
     [Fact]
     public void ProcessCanvasPaintings_AllowsLabelsToBeSetInChoice_ForSinglePaintingChoiceVideoAsset()
     {
@@ -1206,22 +1204,22 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // Assert first canvas (2 choices)
-        var firstCanvas = mergedManifest.Items[0];
+        var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
-        firstCanvas.Label.Keys.Should()
+        firstCanvas.Label!.Keys.Should()
             .Contain("canvas0Choice1CanvasLabel", "First non-null label in choice used");
-        firstCanvas.Thumbnail.Single().Id.Should()
+        firstCanvas.Thumbnail!.Single().Id.Should()
             .Contain(assetId.ToString(), "Thumbnail of first item in choice used");
 
-        var choice = firstCanvas.GetFirstPaintingAnnotation().Body.As<PaintingChoice>();
-        choice.Items[0].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
-        choice.Items[0].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
-        choice.Items[1].As<Video>().Label.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
-        choice.Items[1].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
-        choice.Items[2].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
-        choice.Items[2].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
-        choice.Items[3].As<Video>().Label.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
-        choice.Items[3].As<Video>().Id.Should().Contain(assetId.ToString(), "asset used");
+        var choice = firstCanvas.GetFirstPaintingAnnotation()!.Body!.As<PaintingChoice>()!;
+        choice.Items![0].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
+        choice.Items[0].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[1].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice1CanvasLabel", "first video in named query");
+        choice.Items[1].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[2].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
+        choice.Items[2].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
+        choice.Items[3].As<Video>()!.Label!.Keys.Should().Contain("canvas0Choice2CanvasLabel", "second video in named query");
+        choice.Items[3].As<Video>()!.Id.Should().Contain(assetId.ToString(), "asset used");
     }
     
     [Fact]
@@ -1236,7 +1234,7 @@ public class ManifestMergerTests
             .WithCanvas(assetId, c => c.WithVideo())
             .Build();
 
-        namedQueryManifest.Items[0].Items[0].Items[0] = new PaintingAnnotation
+        namedQueryManifest.Items![0].Items![0].Items![0] = new PaintingAnnotation
         {
             Body = new PaintingChoice
             {
