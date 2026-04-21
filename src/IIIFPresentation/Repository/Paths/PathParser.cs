@@ -1,7 +1,5 @@
-using Core.Exceptions;
 using Core.Helpers;
 using IIIF.Presentation.V3;
-using Models.API.Manifest;
 using Models.DLCS;
 
 namespace Repository.Paths;
@@ -13,6 +11,9 @@ public static class PathParser
 {
     private const char PathSeparator = '/';
     
+    /// <summary>
+    /// Get <see cref="AssetId"/> from a NamedQuery <see cref="Canvas"/>
+    /// </summary>
     public static AssetId GetAssetIdFromNamedQueryCanvasId(this Canvas canvas, ILogger? logger = null)
     {
         var canvasId = canvas.Id.ThrowIfNullOrWhiteSpace(nameof(canvas.Id));

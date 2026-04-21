@@ -1,8 +1,4 @@
-using Core.Web;
-using Core.Exceptions;
 using IIIF.Presentation.V3;
-using Microsoft.Extensions.Logging.Abstractions;
-using Models.API.Manifest;
 using Models.DLCS;
 using Repository.Paths;
 

@@ -337,13 +337,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     }
 
     /// <summary>
-    /// Populate general properties that are derived from assets - these are generally derived from
+    /// Populate general properties that are derived from assets - these are generally from adjuncts but "rendering"
+    /// may reference assets on the file-delivery channel.
     /// </summary>
     private void SetAssetDerivedProperties(StructureBase structureBase, Canvas namedQueryCanvas, string identifier)
     {
         if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
         {
-            // TODO - handle inlineAnnotations - parse and rewrite the identities (need to decide format)
             logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
             structureBase.Annotations ??= [];
             structureBase.Annotations.AddDistinctById(namedQueryCanvas.Annotations);
@@ -356,6 +356,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             structureBase.SeeAlso.AddDistinctById(namedQueryCanvas.SeeAlso);
         }
 
+        // NOTE: These can be assets, or file delivery-channel. We only want to add file d-c renderings to Canvases but
+        // the restrictions on 'stub' assets will mean that the .Rendering property will only ever have file d-c for
+        // Canvas level. Protagonist will prevent stub assets being anything other than 'none' d-c. 
         if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
         {
             logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", identifier);
