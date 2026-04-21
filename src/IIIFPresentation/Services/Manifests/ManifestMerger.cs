@@ -59,7 +59,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             return baseManifest;
         }
 
-        //var canvasDictionary = BuildAssetIdToCanvasLookup(namedQueryManifest!);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
         SetManifestContext(baseManifest, namedQueryManifest!);
@@ -301,14 +300,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private void HandleCanvasPainting(CanvasPainting canvasPainting, Canvas workingCanvas, Canvas namedQueryCanvas,
         IPaintable body)
     {
-        // Renderings are accumulated
-        if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
-        {
-            logger.LogTrace("NQ Canvas for AssetId {AssetId} has rendering", canvasPainting.AssetId);
-            workingCanvas.Rendering ??= [];
-            workingCanvas.Rendering.AddRange(namedQueryCanvas.Rendering);
-        }
-
         // Any custom behaviours are added but only unique values
         if (!namedQueryCanvas.Behavior.IsNullOrEmpty())
         {
@@ -340,7 +331,37 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             workingCanvas.Width = namedQueryCanvas.Width;
         }
         
+        SetAssetDerivedProperties(workingCanvas, namedQueryCanvas, canvasPainting.AssetId!.ToString());
+        
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
+    }
+
+    /// <summary>
+    /// Populate general properties that are derived from assets - these are generally derived from
+    /// </summary>
+    private void SetAssetDerivedProperties(StructureBase structureBase, Canvas namedQueryCanvas, string identifier)
+    {
+        if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
+        {
+            // TODO - handle inlineAnnotations - parse and rewrite the identities (need to decide format)
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
+            structureBase.Annotations ??= [];
+            structureBase.Annotations.AddDistinctById(namedQueryCanvas.Annotations);
+        }
+
+        if (!namedQueryCanvas.SeeAlso.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", identifier);
+            structureBase.SeeAlso ??= [];
+            structureBase.SeeAlso.AddDistinctById(namedQueryCanvas.SeeAlso);
+        }
+
+        if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", identifier);
+            structureBase.Rendering ??= [];
+            structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
+        }
     }
 
     /// <summary>

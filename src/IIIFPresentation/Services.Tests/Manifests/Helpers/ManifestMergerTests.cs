@@ -191,6 +191,100 @@ public class ManifestMergerTests
             .ContainKey("canvasPaintingLabel", "'Label' used to label Image as 'CanvasLabel' present");
 
     }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_GeneratesExpectedManifest_SingleImage_WithAdjuncts()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage()
+                .WithAdjunctAnnotation("anno1")
+                .WithAdjunctAnnotation("anno2")
+                .WithAdjunctRendering("rendering")
+                .WithAdjunctSeeAlso("seeAlso"))
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items![0];
+        
+        canvas.Annotations.Should().HaveCount(2, "Two adjuncts added");
+        canvas.Annotations!.First().Id.Should().Be("anno1");
+        canvas.Annotations!.Last().Id.Should().Be("anno2");
+        
+        canvas.Rendering.Should().HaveCount(2, "One from Adjunct and one from Image");
+        canvas.Rendering!.First().Type.Should().Be("Image", "Default added by ManifestTestCreator");
+        canvas.Rendering!.Last().Id.Should().Be("rendering");
+        
+        canvas.SeeAlso.Should().HaveCount(1, "One seeAlso adjunct added");
+        canvas.SeeAlso!.First().Id.Should().Be("seeAlso");
+    }
+    
+    [Fact]
+    public void ProcessCanvasPaintings_GeneratesExpectedManifest_SingleImage_WithAdjuncts_WithoutOverwriting()
+    {
+        // Arrange
+        var seeAlsoId = TestIdentifiers.IdWithSuffix(suffix: "seeAlso");
+        var assetId = TestIdentifiers.AssetId();
+        
+        var originalSeeAlso = new ExternalResource("Test")
+        {
+            Id = seeAlsoId,
+            Format = "text/html",
+            Label = new LanguageMap("none", "I am here")
+        };
+        
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        
+        // Create base Manifest with a single Canvas, which is a "matching" canvas that will be populated with matching
+        // NQ content. The NQ Asset has Adjuncts - one of those Adjuncts is already on the IIIF Canvas and it shouldn't
+        // be overwritten, or duplicated
+        var manifest = new Manifest
+        {
+            Items =
+            [
+                new Canvas
+                {
+                    Id = canvasPaintings.First().Id,
+                    SeeAlso = [originalSeeAlso]
+                }
+            ]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage()
+                .WithAdjunctAnnotation("anno1")
+                .WithAdjunctRendering("rendering")
+                .WithAdjunctSeeAlso("anotherSeeAlso")
+                .WithAdjunctSeeAlso(seeAlsoId))
+            .Build();
+        
+        // Act
+        var mergedManifest = sut.ProcessCanvasPaintings(manifest, namedQueryManifest, canvasPaintings);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
+        var canvas = mergedManifest.Items![0];
+        
+        canvas.Annotations.Should().HaveCount(1, "Single Adjunct");
+        canvas.Annotations!.First().Id.Should().Be("anno1");
+        
+        canvas.Rendering.Should().HaveCount(2, "One from Adjunct and one from Image");
+        canvas.Rendering!.First().Type.Should().Be("Image", "Default added by ManifestTestCreator");
+        
+        canvas.SeeAlso.Should().HaveCount(2, "Two seeAlso adjuncts");
+        canvas.SeeAlso!.First().Should().BeEquivalentTo(originalSeeAlso,
+            "Original seeAlso has an id matching with NQ adjunct so we won't overwrite");
+        canvas.SeeAlso!.Last().Id.Should().Be("anotherSeeAlso");
+    }
 
     [Fact]
     public void ProcessCanvasPaintings_ShouldNotUpdateAttachedManifestThumbnail()
@@ -332,9 +426,11 @@ public class ManifestMergerTests
         var canvas2NoChoice = TestIdentifiers.AssetId(postfix: "_5");
 
         var namedQueryManifest = ManifestTestCreator.New()
-            .WithCanvas(canvas0Choice1, c => c.WithImage())
+            .WithCanvas(canvas0Choice1, c => c.WithImage()
+                .WithAdjunctAnnotation("anno1"))
             .WithCanvas(canvas1Choice2, c => c.WithImage())
-            .WithCanvas(canvas0Choice2, c => c.WithImage())
+            .WithCanvas(canvas0Choice2, c => c.WithImage()
+                .WithAdjunctAnnotation("anno2"))
             .WithCanvas(canvas1Choice1, c => c.WithImage())
             .WithCanvas(canvas2NoChoice, c => c.WithImage())
             .Build();
@@ -390,12 +486,15 @@ public class ManifestMergerTests
         mergedManifest.Thumbnail.Should().BeNull();
 
         // Assert first canvas (2 choices)
-        var firstCanvas = mergedManifest.Items[0];
+        var firstCanvas = mergedManifest.Items![0];
         firstCanvas.Id.Should().Be("https://localhost:5000/0/canvases/first", "canvasId correct");
         firstCanvas.Label.Keys.Should()
             .Contain("canvas0Choice1CanvasLabel", "First non-null canvasLabel in choice used");
         firstCanvas.Thumbnail.Single().Id.Should()
             .Contain(canvas0Choice1.ToString(), "Thumbnail of first item in choice used");
+        firstCanvas.Annotations.Should().HaveCount(2, "2 adjuncts - one on each Asset are elevated to Canvas level");
+        firstCanvas.Annotations!.First().Id.Should().Be("anno1", "First anno is correct");
+        firstCanvas.Annotations!.Last().Id.Should().Be("anno2", "First anno is correct");
 
         // Assert second canvas (2 choices)
         var secondCanvas = mergedManifest.Items[1];
@@ -455,10 +554,12 @@ public class ManifestMergerTests
             .WithCanvas(canvas0, c => c.WithImage())
             .WithCanvas(canvas1Background, c => c.WithImage())
             .WithCanvas(canvas1TopLeft, c => c.WithImage())
-            .WithCanvas(canvas1BottomRight, c => c.WithImage())
-            .WithCanvas(canvas1Choice1, c => c.WithImage())
-            .WithCanvas(canvas1Choice2, c => c.WithImage())
+            .WithCanvas(canvas1BottomRight, c => c.WithImage().WithAdjunctSeeAlso("seeAlso1"))
+            .WithCanvas(canvas1Choice1, c => c.WithImage().WithAdjunctSeeAlso("seeAlso2"))
+            .WithCanvas(canvas1Choice2, c => c.WithImage().WithAdjunctSeeAlso("seeAlso1"))
             .Build();
+        namedQueryManifest.Items![0].Rendering![0].Id = "https://this-makes-me-unique";
+        namedQueryManifest.Items![1].Rendering![0].Id = "https://this-also-makes-me-unique";
         
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(
             canvas0,
@@ -528,14 +629,14 @@ public class ManifestMergerTests
         
         // Assert second canvas (4 painting annos)
         var secondCanvas = mergedManifest.Items[1];
-        secondCanvas.Rendering.Should().HaveCount(5, "Renderings are accumulated");
+        secondCanvas.Rendering.Should().HaveCount(2, "Renderings deduplicated by Id");
         secondCanvas.Id.Should().Be("https://localhost:5000/0/canvases/second", "canvasId correct");
-        secondCanvas.Label.Keys.Should()
+        secondCanvas.Label!.Keys.Should()
             .Contain("canvas1CanvasLabel", "First non-null canvasLabel in canvas is used");
-        secondCanvas.Thumbnail.Single().Id.Should().Contain(canvas1Background.ToString(),
+        secondCanvas.Thumbnail!.Single().Id.Should().Contain(canvas1Background.ToString(),
             "First non-null thumbnail used for canvas");
         
-        secondCanvas.GetFirstAnnotationPage().Items.Should()
+        secondCanvas.GetFirstAnnotationPage()!.Items.Should()
             .HaveCount(4, "5 canvasPaintings share canvas but 2 are choice");
         
         // First painting anno (background)
@@ -565,10 +666,15 @@ public class ManifestMergerTests
         choicePaintingAnno.Target.As<Canvas>().Id.Should().Be($"{secondCanvas.Id}#xywh=50,50,50,50", "Targets section of canvas");
         var paintingChoice = choicePaintingAnno.Body.As<PaintingChoice>();
         paintingChoice.Items.Should().HaveCount(2);
-        paintingChoice.Items[0].As<Image>().Label.Should().ContainKey("canvas1_1:0", "Label set on first choice");
+        paintingChoice.Items![0].As<Image>().Label.Should().ContainKey("canvas1_1:0", "Label set on first choice");
         paintingChoice.Items[0].As<Image>().Id.Should().Contain(canvas1Choice1.ToString());
         paintingChoice.Items[1].As<Image>().Label.Should().BeNull("No label on second choice");
         paintingChoice.Items[1].As<Image>().Id.Should().Contain(canvas1Choice2.ToString());
+        
+        // Ensure Adjuncts are elevated to Canvas level
+        secondCanvas.SeeAlso.Should().HaveCount(2, "There are 3 seeAlso but 2 have duplicate Id");
+        secondCanvas.SeeAlso!.First().Id.Should().Be("seeAlso1");
+        secondCanvas.SeeAlso!.Last().Id.Should().Be("seeAlso2");
     }
     
     [Fact]
@@ -825,21 +931,31 @@ public class ManifestMergerTests
         canvas.Height.Should().BeNull( "No height due to no matching canvas");
     }
     
-    [Fact]
-    public void ProcessCanvasPaintings_MergesMixedCanvas_WhenMatchingCanvasIdAndAssetId()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ProcessCanvasPaintings_MergesMixedCanvas_WhenMatchingCanvasIdAndAssetId(bool placeholderCanvas)
     {
-        // Arrange
+        // This is testing that we can handle a Manifest with an "item"-only canvas and an Asset-introduced canvas.
+        // The "item" canvas shouldn't be changed at all. The Asset canvas should be populated with content from NQ
         var id = TestIdentifiers.Id();
         var assetId = TestIdentifiers.AssetId();
+        
+        // Create a canvas with a CanvasOriginalId ("items" only)
         var matchingCanvasIdFromOriginal = new Uri($"https://dlcs.test/iiif-img/{id}/canvas/c/");
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(matchingCanvasIdFromOriginal);
         canvasPaintings.AddRange(ManifestTestCreator.GenerateCanvasPaintings(assetId));
         var currentCanvasPainting = canvasPaintings.Last();
         
-        var manifest =  ManifestTestCreator.New()
-            .WithCanvas($"https://dlcs.test/iiif-img/{id}/canvas/c/", c => c.WithImage())
+        var manifest = ManifestTestCreator.New()
+            .WithCanvas(matchingCanvasIdFromOriginal.ToString(), c => c.WithImage())
             .Build();
-        manifest.Items.Add(new Canvas(){Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}"});
+        
+        if (placeholderCanvas)
+        {
+            // Add a placeholder Canvas mimicking Provisional canvas. This isn't required but theory proves this
+            manifest.Items!.Add(new Canvas(){Id = $"https://localhost:5000/0/canvases/{currentCanvasPainting.Id}"});
+        }
         
         var namedQueryManifest = ManifestTestCreator.New()
             .WithCanvas(assetId, c => c.WithImage())
