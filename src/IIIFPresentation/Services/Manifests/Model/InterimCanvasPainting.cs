@@ -28,7 +28,7 @@ public class InterimCanvasPainting : CanvasPainting
     /// <summary>
     /// Potential adjuncts in the body of the request
     /// </summary>
-    public List<JObject>? SuspectedAdjuncts { get; set; }
+    public AdjunctInteraction? SuspectedAdjuncts { get; set; }
 }
 
 public enum CanvasPaintingType

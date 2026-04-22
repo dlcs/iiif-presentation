@@ -552,7 +552,83 @@ public class DlcsApiClientTests
     }
 
 
-    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1)
+    [Fact]
+    public async Task DeleteAdjuncts_MakesSingleRequest_WhenTotalAdjunctCountWithinLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return "{}";
+            }).StatusCode(200);
+
+        var sut = GetClient(stub, maxImageListSize: 5);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = "asset1", Adjunct = ["a", "b"] },
+            new() { Id = "asset2", Adjunct = ["c"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DeleteAdjuncts_MakesMultipleRequests_WhenTotalAdjunctCountExceedsLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return "{}";
+            }).StatusCode(200);
+
+        // Two items each with 3 adjuncts (total 6) exceeds limit of 5 → 2 requests
+        var sut = GetClient(stub, maxImageListSize: 5);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = "asset1", Adjunct = ["a", "b", "c"] },
+            new() { Id = "asset2", Adjunct = ["d", "e", "f"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task DeleteAdjuncts_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int)httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.DeleteAdjuncts(customerId,
+            [new AdjunctAssetIdentifier { Id = "asset1", Adjunct = ["a"] }],
+            CancellationToken.None);
+
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
+    }
+
+    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1, int maxImageListSize = 500)
     {
         stub.EnsureStarted();
 
@@ -564,7 +640,8 @@ public class DlcsApiClientTests
         var options = Options.Create(new DlcsSettings()
         {
             ApiUri = new Uri("https://localhost"),
-            MaxBatchSize = maxBatchSize
+            MaxBatchSize = maxBatchSize,
+            MaxImageListSize = maxImageListSize
         });
 
         return new DlcsApiClient(httpClient, options, new NullLogger<DlcsApiClient>());

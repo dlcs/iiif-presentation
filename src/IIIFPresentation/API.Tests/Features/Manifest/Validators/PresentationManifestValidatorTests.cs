@@ -534,7 +534,7 @@ public class PresentationManifestValidatorTests
                             new JObject
                             {
                                 [AdjunctProperties.Id] = "my-adjunct",
-                                [AdjunctProperties.ExternalId] = "https://example.com"
+                                ["property"] = "https://example.com"
                             }
                         }
                     }
@@ -564,7 +564,7 @@ public class PresentationManifestValidatorTests
                         {
                             new JObject
                             {
-                                [AdjunctProperties.ExternalId] = "https://example.com"
+                                ["property"] = "https://example.com"
                             }
                         }
                     }

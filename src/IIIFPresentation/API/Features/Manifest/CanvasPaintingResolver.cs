@@ -7,7 +7,6 @@ using Core.Exceptions;
 using Core.Helpers;
 using Models.API.Manifest;
 using Models.Database;
-using Newtonsoft.Json.Linq;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -263,7 +262,8 @@ public class CanvasPaintingResolver(
 
             return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets(),
                 paintedResourceCanvasPaintings.Where(cp => cp.SuspectedAdjuncts != null)
-                    .SelectMany(cp => cp.SuspectedAdjuncts!).ToList());
+                    .Select(cp => cp.SuspectedAdjuncts!)
+                    .ToList());
         }
         catch (InvalidCanvasIdException cpId)
         {
@@ -310,14 +310,14 @@ public class CanvasPaintingResolver(
         PresUpdateResult? error = null,
         List<InterimCanvasPainting>? canvasPaintings = null,
         List<InterimCanvasPainting>? assetsIdentifiedInItems = null,
-        List<JObject>? adjuncts = null)
+        List<AdjunctInteraction>? adjuncts = null)
     {
         public PresUpdateResult? Error { get; set; } = error;
 
         public List<InterimCanvasPainting>? CanvasPaintings { get; set; } = canvasPaintings;
 
         public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; } = assetsIdentifiedInItems;
-        
-        public List<JObject>? Adjuncts { get; set; } = adjuncts;
+
+        public List<AdjunctInteraction>? Adjuncts { get; set; } = adjuncts;
     }
 }

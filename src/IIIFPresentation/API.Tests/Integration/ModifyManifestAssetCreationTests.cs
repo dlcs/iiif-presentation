@@ -1783,12 +1783,77 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          adjunctsBatch.Id.Should().Be(adjunctBatchId);
          adjunctsBatch.DeliverableType.Should().Be(DeliverableType.Adjunct);
          dbManifest.LastProcessed.Should().BeNull();
-         
+
          var savedS3 =
              await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
                  $"staging/{Customer}/manifests/{dbManifest.Id}");
          var s3Manifest = savedS3.ResponseStream.FromJsonStream<Manifest>();
          s3Manifest.Id.Should().EndWith(dbManifest.Id);
          s3Manifest.Items.Should().HaveCount(1);
+     }
+
+     [Fact]
+     public async Task CreateManifest_CorrectlyAddsSpaceToAdjunct_WhenAssetHasNoSpace()
+     {
+         // Arrange
+         var (slug, assetId) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+         var adjunctBatchId = TestIdentifiers.BatchId();
+         var manifestWithoutSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "label": { "en": [ "post testing" ] },
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "external",
+                                                  "externalId": "https://hosted.example/image/mets.xml",
+                                                  "@type": "Dataset",
+                                                  "mediaType": "text/xml",
+                                                  "iiifLink": "seeAlso",
+                                                  "batch": "{{adjunctBatchId}}"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithoutSpace);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.CanvasPaintings)
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+         dbManifest.CanvasPaintings!.First().AssetId.ToString().Should()
+             .Be($"{Customer}/{NewlyCreatedSpace}/{assetId}");
+
+         dbManifest.Batches.Should().HaveCount(2);
+         dbManifest.Batches!.First().DeliverableType.Should().Be(DeliverableType.Asset);
+         dbManifest.Batches!.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
+
+         // adjunct was ingested with the space correctly set (not the -1 placeholder)
+         var expectedAsset = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+             A<List<JObject>>.That.Matches(o =>
+                 o.Single().GetValue("asset") != null && o.Single().GetValue("asset")!.ToString() == expectedAsset),
+             A<bool>._, A<CancellationToken>._)).MustHaveHappened();
      }
 }

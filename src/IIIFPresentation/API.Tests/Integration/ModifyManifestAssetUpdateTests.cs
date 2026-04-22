@@ -2886,4 +2886,228 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         canvasPainting.AssetId!.ToString().Should()
             .Be($"{Customer}/{finalSpace}/{assetId}", "asset id updated to point at new space");
     }
+    
+    [Fact]
+    public async Task UpdateManifest_ReplacesAdjuncts_WhenNewAdjunctOnKnownAssetImmediateReturn()
+    {
+        // This test checks that an adjunct on an asset will be replaced (i.e.: 1 removed, 1 added)
+        // when a known asset is not set to reingest, causing an immediate return
+        
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<ICollection<string>>.That.Matches(o =>
+                    o.First().Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_")),
+                A<CancellationToken>._))
+            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
+                Task.FromResult((IList<JObject>)assetIds
+                    .Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
+                    .Select(x => JObject.Parse($$"""
+                                                 {
+                                                   "id": "{{x.Split('/').Last()}}",
+                                                   "space": {{NewlyCreatedSpace}},
+                                                   "adjuncts" : [{"id" : "something"}]
+                                                 }
+                                                 """)).ToList()));
+        
+        A.CallTo(() =>
+                DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                    A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => ManifestTestCreator.New()
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1"), c => c.WithImage())
+                .Build());
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = TestIdentifiers.BatchId();
+        var newAdjunctId = "different";
+            
+        var manifestWithSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "fromDlcs_{{assetId}}_1",
+                                          "mediaType": "image/jpg",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "adjuncts": [
+                                            {   
+                                                "id": "{{newAdjunctId}}",
+                                                "batch": {{batchId}}
+                                            }
+                                          ]
+                                      },
+                                      "reingest": false
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithSpace, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(1);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
+        
+        // deleted the adjunct returned from GetCustomerImages
+        A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
+            A<List<AdjunctAssetIdentifier>>.That.Matches(a => a.Single().Adjunct.Single() == "something"),
+            A<CancellationToken>._)).MustHaveHappened();
+        
+        // new adjunct ingested
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+            A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == newAdjunctId),
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        dbManifest.Batches.Should().HaveCount(2); // initial batch from setup + adjunct batch
+        dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_ReplacesAdjuncts_WhenNewAdjunctOnKnownAsset()
+    {
+        // This test checks that an adjunct on an asset will be replaced (i.e.: 1 removed, 1 added)
+        // when a known asset is set to reingest
+        
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                StaticWidth = 1200,
+                StaticHeight = 1800,
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
+            }
+        };
+
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
+                A<ICollection<string>>._,
+                A<CancellationToken>._)).ReturnsLazily(x => Task.FromResult((IList<JObject>)[])).Once().Then
+            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
+                Task.FromResult((IList<JObject>)assetIds
+                    .Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
+                    .Select(x => JObject.Parse($$"""
+                                                 {
+                                                   "id": "{{x.Split('/').Last()}}",
+                                                   "space": {{NewlyCreatedSpace}},
+                                                   "adjuncts" : [{"id" : "something"}]
+                                                 }
+                                                 """)).ToList()));
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+        
+        var batchId = TestIdentifiers.BatchId();
+        var adjunctBatchId = TestIdentifiers.BatchId();
+        var newAdjunctId = "different";
+
+        var manifestWithSpace = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "fromDlcs_{{assetId}}_1",
+                                          "mediaType": "image/jpg",
+                                          "batch": {{batchId}},
+                                          "space": {{NewlyCreatedSpace}},
+                                          "adjuncts": [
+                                            {   
+                                                "id": "{{newAdjunctId}}",
+                                                "batch": {{adjunctBatchId}}
+                                            }
+                                          ]
+                                      },
+                                      "reingest": true
+                                  }
+                              ] 
+                          }
+                          """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                manifestWithSpace, dbContext.GetETag(testManifest));
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+        responseManifest!.PaintedResources.Should().HaveCount(1);
+        
+        var dbManifest = dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .Include(m => m.Batches)
+            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
+        
+        // asset reingested
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+            A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == $"fromDlcs_{assetId}_1"),
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        // deleted the adjunct returned from GetCustomerImages
+        A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
+            A<List<AdjunctAssetIdentifier>>.That.Matches(a => a.Single().Adjunct.Single() == "something"),
+            A<CancellationToken>._)).MustHaveHappened();
+        
+        // new adjunct ingested
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+            A<List<JObject>>.That.Matches(o => o.Single().GetValue("id")!.ToString() == newAdjunctId),
+            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
+        
+        dbManifest.Batches.Should().HaveCount(3); // initial batch from setup + asset batch + adjunct batch
+        dbManifest.Batches[1].DeliverableType.Should().Be(DeliverableType.Asset);
+        dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
+    }
 }

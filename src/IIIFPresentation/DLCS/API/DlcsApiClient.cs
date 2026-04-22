@@ -45,6 +45,14 @@ public interface IDlcsApiClient
     /// <param name="manifests">manifests to update</param>
     public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType,
         List<string> manifests, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes adjuncts from assets
+    /// </summary>
+    /// <param name="customerId">The customer id</param>
+    /// <param name="bulkDelete">The adjuncts to delete</param>
+    public Task DeleteAdjuncts(int customerId, IEnumerable<AdjunctAssetIdentifier> bulkDelete,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -220,6 +228,44 @@ internal class DlcsApiClient(
         }
         
         return assetsResponse.ToArray();
+    }
+    
+    public async Task DeleteAdjuncts(int customerId, IEnumerable<AdjunctAssetIdentifier> bulkDelete,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Deleting adjuncts for customer {CustomerId}", customerId);
+
+        var chunks = ChunkByAdjunctCount(bulkDelete, settings.MaxImageListSize);
+
+        foreach (var chunk in chunks)
+        {
+            var payload = new HydraCollection<AdjunctAssetIdentifier>(chunk);
+            var endpoint = $"/customers/{customerId}/deleteAdjuncts";
+
+            await CallDlcsApiForJson(HttpMethod.Get, endpoint, payload, cancellationToken);
+        }
+    }
+
+    private static IEnumerable<AdjunctAssetIdentifier[]> ChunkByAdjunctCount(
+        IEnumerable<AdjunctAssetIdentifier> source, int maxAdjunctCount)
+    {
+        var currentChunk = new List<AdjunctAssetIdentifier>();
+        var currentCount = 0;
+
+        foreach (var item in source)
+        {
+            if (currentCount + item.Adjunct.Count > maxAdjunctCount && currentChunk.Count > 0)
+            {
+                yield return currentChunk.ToArray();
+                currentChunk.Clear();
+                currentCount = 0;
+            }
+
+            currentChunk.Add(item);
+            currentCount += item.Adjunct.Count;
+        }
+
+        if (currentChunk.Count > 0) yield return currentChunk.ToArray();
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,

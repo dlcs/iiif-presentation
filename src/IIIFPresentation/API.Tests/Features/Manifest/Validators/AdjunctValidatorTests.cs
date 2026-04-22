@@ -14,7 +14,7 @@ public class AdjunctValidatorTests
     {
         var adjunct = new JObject
         {
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
@@ -28,7 +28,7 @@ public class AdjunctValidatorTests
         var adjunct = new JObject
         {
             [AdjunctProperties.Id] = string.Empty,
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
@@ -42,7 +42,7 @@ public class AdjunctValidatorTests
         var adjunct = new JObject
         {
             [AdjunctProperties.Id] = "my-adjunct",
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
@@ -58,7 +58,7 @@ public class AdjunctValidatorTests
         var adjunct = new JObject
         {
             [AdjunctProperties.Id] = id,
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
@@ -72,7 +72,7 @@ public class AdjunctValidatorTests
         var adjunct = new JObject
         {
             [AdjunctProperties.Id] = "my-adjunct",
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
@@ -84,40 +84,12 @@ public class AdjunctValidatorTests
     {
         var adjunct = new JObject
         {
-            [AdjunctProperties.ExternalId] = "https://example.com"
+            ["property"] = "https://example.com"
         };
 
         var result = sut.TestValidate(adjunct);
         result.Errors.Should().NotContain(e =>
             e.ErrorMessage ==
             "Adjunct 'id' contains a prohibited character. Cannot contain any of: '/', '=', ','");
-    }
-
-    [Fact]
-    public void ExternalIdOrOrigin_NoErrorWhenExternalIdPresent()
-    {
-        var adjunct = new JObject
-        {
-            [AdjunctProperties.Id] = "my-adjunct",
-            [AdjunctProperties.ExternalId] = "https://example.com"
-        };
-
-        var result = sut.TestValidate(adjunct);
-        result.Errors.Should().NotContain(e =>
-            e.ErrorMessage == "Adjunct must have either 'externalId' or 'origin' set");
-    }
-
-    [Fact]
-    public void ExternalIdOrOrigin_NoErrorWhenOriginPresent()
-    {
-        var adjunct = new JObject
-        {
-            [AdjunctProperties.Id] = "my-adjunct",
-            [AdjunctProperties.Origin] = "https://example.com/origin"
-        };
-
-        var result = sut.TestValidate(adjunct);
-        result.Errors.Should().NotContain(e =>
-            e.ErrorMessage == "Adjunct must have either 'externalId' or 'origin' set");
     }
 }

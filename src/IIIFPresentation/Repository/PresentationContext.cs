@@ -136,12 +136,14 @@ public class PresentationContext : DbContext
 
         modelBuilder.Entity<Batch>(entity =>
         {
+            entity.HasKey(b => new { b.Id, b.DeliverableType });
+
             entity
                 .HasOne(cp => cp.Manifest)
                 .WithMany(m => m.Batches)
                 .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasConversion(

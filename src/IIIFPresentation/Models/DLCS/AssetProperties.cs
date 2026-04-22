@@ -23,6 +23,4 @@ public static class AssetProperties
 public static class AdjunctProperties
 {
     public const string Id = "id";
-    public const string ExternalId = "externalId";
-    public const string Origin = "origin";
 }

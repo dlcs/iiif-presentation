@@ -187,14 +187,16 @@ public class ManifestPaintedResourceParser(
         };
     }
 
-    private static List<JObject> HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)
+    private static AdjunctInteraction HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)
     {
         var resolvedSpace = space ?? SpaceHelper.DefaultSpaceForLaterPopulation;
-        return adjuncts.Select(a =>
+        var key = new AssetId(customerId, resolvedSpace, assetId);
+        var hydratedAdjuncts = adjuncts.Select(a =>
         {
-            a[AssetProperties.Asset] ??= new AssetId(customerId, resolvedSpace, assetId).ToString();
+            a[AssetProperties.Asset] ??= key.ToString();
             return a;
         }).ToList();
+        return new AdjunctInteraction { AssetId = key, Adjuncts = hydratedAdjuncts };
     }
     
     /// <summary>
@@ -203,7 +205,7 @@ public class ManifestPaintedResourceParser(
     private class AssetDetails
     {
         public int? Space { get; init; }
-        public List<JObject>? Adjuncts { get; init; }
+        public AdjunctInteraction? Adjuncts { get; init; }
         public required string Id { get; init; }
     }
 }
