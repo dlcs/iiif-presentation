@@ -3,18 +3,11 @@
 /// <summary>
 /// Generic representation of message pulled from queue.
 /// </summary>
-public class QueueMessage
+public class QueueMessage(string body, Dictionary<string, string> attributes, string messageId)
 {
-    public string Body { get; }
+    public string Body { get; } = body;
 
-    public Dictionary<string, string> Attributes { get; }
-        
-    public string MessageId { get; }
+    public Dictionary<string, string> Attributes { get; } = attributes;
 
-    public QueueMessage(string body, Dictionary<string, string> attributes, string messageId)
-    {
-        Body = body;
-        Attributes = attributes;
-        MessageId = messageId;
-    }
+    public string MessageId { get; } = messageId;
 }

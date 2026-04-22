@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text.Json;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
 using BackgroundHandler.Infrastructure;
@@ -19,8 +18,6 @@ public class BatchCompletionMessageHandler(
     ILogger<BatchCompletionMessageHandler> logger)
     : IMessageHandler
 {
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
         using (LogContextHelpers.SetServiceName(nameof(BatchCompletionMessageHandler), message.MessageId))
@@ -45,6 +42,7 @@ public class BatchCompletionMessageHandler(
 
     private async Task TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, CancellationToken cancellationToken)
     {
+        // Could this, in 1 operation, read + complete the batch + return whether there are others waiting?
         var batch = await dbContext.Batches.Include(b => b.Manifest)
             .ThenInclude(m => m.CanvasPaintings)
             .SingleOrDefaultAsync(b => b.Id == batchCompletionMessage.Id, cancellationToken);
@@ -54,7 +52,7 @@ public class BatchCompletionMessageHandler(
 
         var sw = Stopwatch.StartNew();
         
-        // Other batches haven't completed, so no point populating items until all are complete
+        // Other batches haven't completed, so no can't populate Manifest until all are complete
         if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId &&
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))
@@ -88,21 +86,15 @@ public class BatchCompletionMessageHandler(
     
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)
     {
-        BatchCompletionMessage? deserializedBatchCompletionMessage;
-        
         try
         {
-            deserializedBatchCompletionMessage =
-                JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions);
+            return BatchCompletionMessage.FromQueueMessage(message);
         }
         catch (Exception)
         {
             logger.LogWarning("Could not deserialize message - attempting to deserialize using the old style format");
-            var deserialized = JsonSerializer.Deserialize<OldBatchCompletionMessage>(message.Body, JsonSerializerOptions);
-            deserializedBatchCompletionMessage = deserialized?.ConvertBatchCompletionMessage();
+            throw;
         }
-        
-        return deserializedBatchCompletionMessage.ThrowIfNull(nameof(deserializedBatchCompletionMessage));
     }
     
     private static void CompleteBatch(Batch batch, DateTime finished)
