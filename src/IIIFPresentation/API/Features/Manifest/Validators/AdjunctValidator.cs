@@ -9,11 +9,11 @@ public class AdjunctValidator : AbstractValidator<JObject>
 {
     public AdjunctValidator()
     {
-        RuleFor(a => a[AssetProperties.Id])
+        RuleFor(a => a[AdjunctProperties.Id])
             .Must(id => id is { Type: JTokenType.String } && !string.IsNullOrEmpty(id.Value<string>()))
             .WithMessage("Adjunct 'id' must not be empty");
 
-        RuleFor(a => a[AssetProperties.Id])
+        RuleFor(a => a[AdjunctProperties.Id])
             .Must(id => !ProhibitedCharacters.Characters.Any(id!.Value<string>()!.Contains))
             .When(a => a.ContainsKey(AdjunctProperties.Id) &&
                        a[AdjunctProperties.Id] is { Type: JTokenType.String } t &&

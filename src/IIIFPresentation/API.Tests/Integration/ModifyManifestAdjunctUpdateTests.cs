@@ -41,7 +41,7 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new()
                 {
-                    ResourceId = x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(),
+                    ResourceId = x.Arguments.Get<List<JObject>>("deliverables").First().GetValue("batch").ToString(),
                     Submitted = DateTime.Now
                 }}));
 
@@ -414,7 +414,7 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
     [Fact]
     public async Task UpdateManifest_LeavesAdjunctsAlone_WhenNewAdjunctOnKnownAsset()
     {
-        // This test checks that an adjunct on an asset will be replaced (i.e.: 1 removed, 1 added)
+        // This test checks that an adjunct on an asset will be replaced (i.e.: 1 added)
         // when a known asset is set to reingest
 
         // Arrange
@@ -453,7 +453,6 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
 
         var batchId = TestIdentifiers.BatchId();
         var adjunctBatchId = TestIdentifiers.BatchId();
-        var newAdjunctId = "different";
 
         var manifestWithSpace = $$"""
                           {
@@ -472,7 +471,7 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
                                           "space": {{NewlyCreatedSpace}},
                                           "adjuncts": [
                                             {
-                                                "id": "{{newAdjunctId}}",
+                                                "id": "{{existingAdjunctId}}",
                                                 "batch": {{adjunctBatchId}}
                                             }
                                           ]
@@ -511,11 +510,11 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
         // deleted the adjunct returned from GetCustomerImages
         A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
             A<List<AdjunctAssetIdentifier>>.That.Matches(a => a.Count == 1 && a.First().Adjunct.Single() == existingAdjunctId),
-            A<CancellationToken>._)).MustHaveHappened();
+            A<CancellationToken>._)).MustNotHaveHappened();
 
         // new adjunct ingested
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-            A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == newAdjunctId),
+            A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == existingAdjunctId),
             A<bool>._, A<CancellationToken>._)).MustHaveHappened();
 
         dbManifest.Batches.Should().HaveCount(3); // initial batch from setup + asset batch + adjunct batch
@@ -619,7 +618,6 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
             A<CancellationToken>._)).MustHaveHappened();
         
         dbManifest.Batches.Should().HaveCount(2); // initial batch from setup + asset batch
-        dbManifest.Batches[1].DeliverableType.Should().Be(DeliverableType.Asset);
         dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Asset);
     }
     
@@ -719,7 +717,6 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
             A<CancellationToken>._)).MustNotHaveHappened();
         
         dbManifest.Batches.Should().HaveCount(2); // initial batch from setup + asset batch
-        dbManifest.Batches[1].DeliverableType.Should().Be(DeliverableType.Asset);
         dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Asset);
     }
 

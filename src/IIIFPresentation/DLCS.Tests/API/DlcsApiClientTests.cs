@@ -559,7 +559,7 @@ public class DlcsApiClientTests
         const int customerId = 5;
         var callCount = 0;
 
-        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) =>
             {
                 callCount++;
@@ -586,7 +586,7 @@ public class DlcsApiClientTests
         const int customerId = 5;
         var callCount = 0;
 
-        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) =>
             {
                 callCount++;
@@ -615,7 +615,7 @@ public class DlcsApiClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 4;
-        stub.Request(HttpMethod.Get).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) => "{\"description\":\"I am broken\"}")
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);

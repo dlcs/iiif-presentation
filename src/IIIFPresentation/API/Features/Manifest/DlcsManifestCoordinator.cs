@@ -231,6 +231,7 @@ public class DlcsManifestCoordinator(
     private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(WriteManifestRequest request, string manifestId, List<AdjunctInteraction> adjuncts,
         int? spaceId, CancellationToken cancellationToken)
     {
+        // don't bother 
         if (adjuncts.Count > 0)
         {
             // this removes any adjuncts that were created on previous interactions with the DLCS (including on previous manifests etc.)
@@ -242,7 +243,7 @@ public class DlcsManifestCoordinator(
             if (adjunctList.Count > 0)
             {
                 var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjunctList,
-                    DeliverableType.Adjunct, true, cancellationToken);
+                    DeliverableType.Adjunct, cancellationToken);
                 if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
             }
         }
@@ -388,14 +389,14 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task<EntityResult?> IngestDeliverables<T>(int customerId, string manifestId, 
-        List<T> deliverables, DeliverableType deliverableType, bool adjunctQueue = false, CancellationToken cancellationToken = default)
+        List<T> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken = default)
     {
         try
         {
             var batches = await dlcsApiClient.IngestDeliverables(customerId,
                 deliverables,
-                adjunctQueue,
-                cancellationToken: CancellationToken.None);
+                deliverableType == DeliverableType.Adjunct,
+                cancellationToken: cancellationToken);
             
             await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType, cancellationToken);
             return null;

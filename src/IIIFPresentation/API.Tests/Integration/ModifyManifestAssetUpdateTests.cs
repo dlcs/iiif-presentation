@@ -53,7 +53,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(), 
+                    ResourceId =  x.Arguments.Get<List<JObject>>("deliverables").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
         

@@ -138,7 +138,7 @@ internal class DlcsApiClient(
         logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
             string.Join(",", assetIds));
 
-        var endpoint = $"/customers/{customerId}/allImages";
+        var endpoint = $"/customers/{customerId}/allImages?include=adjuncts";
         var results = new List<JObject>();
         foreach (var idBatch in assetIds.Distinct().Chunk(settings.MaxImageListSize))
         {
@@ -242,7 +242,7 @@ internal class DlcsApiClient(
             var payload = new HydraCollection<AdjunctAssetIdentifier>(chunk);
             var endpoint = $"/customers/{customerId}/deleteAdjuncts";
 
-            await CallDlcsApiForJson(HttpMethod.Get, endpoint, payload, cancellationToken);
+            await CallDlcsApiForJson(HttpMethod.Delete, endpoint, payload, cancellationToken);
         }
     }
 
