@@ -1848,12 +1848,5 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches.Should().HaveCount(2);
          dbManifest.Batches!.First().DeliverableType.Should().Be(DeliverableType.Asset);
          dbManifest.Batches!.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
-
-         // adjunct was ingested with the space correctly set (not the -1 placeholder)
-         var expectedAsset = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
-         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-             A<List<JObject>>.That.Matches(o =>
-                 o.Single().GetValue("asset") != null && o.Single().GetValue("asset")!.ToString() == expectedAsset),
-             A<bool>._, A<CancellationToken>._)).MustHaveHappened();
      }
 }

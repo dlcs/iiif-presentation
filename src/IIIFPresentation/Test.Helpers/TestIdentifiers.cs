@@ -43,6 +43,12 @@ public static class TestIdentifiers
     /// </summary>
     public static (string slug, string id, string assetId) SlugResourceAsset([CallerMemberName] string testMethod = "")
         => (testMethod, $"{testMethod}_id", $"{testMethod}_a");
+    
+    /// <summary>
+    /// Helper method that returns slug, id, assetId and adjunctId values
+    /// </summary>
+    public static (string slug, string id, string assetId, string adjunctId) SlugResourceAssetAdjunct([CallerMemberName] string testMethod = "")
+        => (testMethod, $"{testMethod}_id", $"{testMethod}_a", $"{testMethod}_adjunct");
 
 
     private static int canvasUniqueIdCounter = 1;

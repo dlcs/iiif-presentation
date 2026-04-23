@@ -238,9 +238,13 @@ public class DlcsManifestCoordinator(
             await DeleteUnusedAdjuncts(request.CustomerId, adjuncts, cancellationToken);
             
             var adjunctList = adjuncts.SelectMany(a => a.Adjuncts).ToList();
-            var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjunctList,
-                DeliverableType.Adjunct, true, cancellationToken);
-            if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
+
+            if (adjunctList.Count > 0)
+            {
+                var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjunctList,
+                    DeliverableType.Adjunct, true, cancellationToken);
+                if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
+            }
         }
 
         return null;
