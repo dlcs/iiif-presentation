@@ -1849,4 +1849,45 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          dbManifest.Batches!.First().DeliverableType.Should().Be(DeliverableType.Asset);
          dbManifest.Batches!.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
      }
+
+     [Fact]
+     public async Task CreateManifest_BadRequest_WhenAdjunctHasMissingId()
+     {
+         // Arrange
+         var (slug, assetId) = TestIdentifiers.SlugResource();
+         var space = 18;
+         var manifestWithInvalidAdjunct = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "mediaType": "image/jpg",
+                                          "space": {{space}},
+                                          "adjuncts": [
+                                              {
+                                                  "externalId": "https://hosted.example/image/mets.xml",
+                                                  "@type": "Dataset"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithInvalidAdjunct);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         errorResponse!.Detail.Should().Be("Adjunct 'id' must not be empty");
+     }
 }

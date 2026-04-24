@@ -628,6 +628,75 @@ public class DlcsApiClientTests
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
 
+    [Fact]
+    public async Task DeleteAdjuncts_SplitsItem_WhenSingleItemExceedsLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return "{}";
+            }).StatusCode(200);
+
+        // 4 adjuncts with a limit of 3 → split into [a,b,c] and [d] → 2 requests
+        var sut = GetClient(stub, maxImageListSize: 3);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = "asset1", Adjunct = ["a", "b", "c", "d"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetCustomerImages_IncludesAdjunctsQueryParam_WhenCalledByAssetIds()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedQuery = string.Empty;
+
+        stub.Post($"/customers/{customerId}/allImages",
+                (req, _) =>
+                {
+                    capturedQuery = req.QueryString.Value ?? string.Empty;
+                    return """{ "@id": "customers/5/allImages", "member": [] }""";
+                })
+            .StatusCode(200);
+
+        var sut = GetClient(stub);
+        await sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
+
+        capturedQuery.Should().Contain("include=adjuncts");
+    }
+
+    [Fact]
+    public async Task GetCustomerImages_IncludesAdjunctsQueryParam_WhenCalledByManifestId()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedQuery = string.Empty;
+
+        stub.Get($"/customers/{customerId}/allImages",
+                (req, _) =>
+                {
+                    capturedQuery = req.QueryString.Value ?? string.Empty;
+                    return """{ "@id": "customers/5/allImages", "member": [] }""";
+                })
+            .StatusCode(200);
+
+        var sut = GetClient(stub);
+        await sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+
+        capturedQuery.Should().Contain("include=adjuncts");
+    }
+
     private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1, int maxImageListSize = 500)
     {
         stub.EnsureStarted();

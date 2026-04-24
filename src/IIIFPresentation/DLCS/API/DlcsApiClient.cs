@@ -254,15 +254,22 @@ internal class DlcsApiClient(
 
         foreach (var item in source)
         {
-            if (currentCount + item.Adjunct.Count > maxAdjunctCount && currentChunk.Count > 0)
+            // A single asset may have more adjuncts than the per-request limit. Pre-split the adjunct
+            // list so each resulting sub-item is within the limit before the accumulation logic runs.
+            foreach (var adjunctBatch in item.Adjunct.Chunk(maxAdjunctCount))
             {
-                yield return currentChunk.ToArray();
-                currentChunk.Clear();
-                currentCount = 0;
-            }
+                var splitItem = new AdjunctAssetIdentifier { Id = item.Id, Adjunct = [..adjunctBatch] };
 
-            currentChunk.Add(item);
-            currentCount += item.Adjunct.Count;
+                if (currentCount + splitItem.Adjunct.Count > maxAdjunctCount && currentChunk.Count > 0)
+                {
+                    yield return currentChunk.ToArray();
+                    currentChunk.Clear();
+                    currentCount = 0;
+                }
+
+                currentChunk.Add(splitItem);
+                currentCount += splitItem.Adjunct.Count;
+            }
         }
 
         if (currentChunk.Count > 0) yield return currentChunk.ToArray();
