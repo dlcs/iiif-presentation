@@ -559,12 +559,12 @@ public class DlcsApiClientTests
         const int customerId = 5;
         var callCount = 0;
 
-        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) =>
             {
                 callCount++;
-                return "{}";
-            }).StatusCode(200);
+                return string.Empty;
+            }).StatusCode(204);
 
         var sut = GetClient(stub, maxImageListSize: 5);
 
@@ -586,12 +586,12 @@ public class DlcsApiClientTests
         const int customerId = 5;
         var callCount = 0;
 
-        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) =>
             {
                 callCount++;
-                return "{}";
-            }).StatusCode(200);
+                return string.Empty;
+            }).StatusCode(204);
 
         // Two items each with 3 adjuncts (total 6) exceeds limit of 5 → 2 requests
         var sut = GetClient(stub, maxImageListSize: 5);
@@ -615,7 +615,7 @@ public class DlcsApiClientTests
     {
         using var stub = new ApiStub();
         const int customerId = 4;
-        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) => "{\"description\":\"I am broken\"}")
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
@@ -635,12 +635,12 @@ public class DlcsApiClientTests
         const int customerId = 5;
         var callCount = 0;
 
-        stub.Request(HttpMethod.Delete).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
             .Response((_, _) =>
             {
                 callCount++;
-                return "{}";
-            }).StatusCode(200);
+                return string.Empty;
+            }).StatusCode(204);
 
         // 4 adjuncts with a limit of 3 → split into [a,b,c] and [d] → 2 requests
         var sut = GetClient(stub, maxImageListSize: 3);

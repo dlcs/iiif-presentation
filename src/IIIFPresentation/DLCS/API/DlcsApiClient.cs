@@ -242,7 +242,10 @@ internal class DlcsApiClient(
             var payload = new HydraCollection<AdjunctAssetIdentifier>(chunk);
             var endpoint = $"/customers/{customerId}/deleteAdjuncts";
 
-            await CallDlcsApiForJson(HttpMethod.Delete, endpoint, payload, cancellationToken);
+            var response = await CallDlcsApi(HttpMethod.Post, endpoint, payload, cancellationToken);
+            
+            // we only need to read the response if we get an error code, as this will throw errors for handling
+            if (!response.IsSuccessStatusCode) await response.ReadAsDlcsResponse<DlcsError>(cancellationToken);
         }
     }
 
