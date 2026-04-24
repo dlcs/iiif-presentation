@@ -129,6 +129,7 @@ app
 app.MapControllers();
 
 app.MapHealthChecks("/health");
+app.AddVersionEndpoint();
 
 app.Run();
 
