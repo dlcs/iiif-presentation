@@ -21,13 +21,12 @@ public static class JObjectX
 
         if (adjunctInteraction != null)
         {
-            if (jObject[AssetProperties.Adjuncts] is JArray existingAdjuncts)
-            {
-                adjunctInteraction.ExistingAdjunctIds = existingAdjuncts
+            adjunctInteraction.ExistingAdjunctIds = jObject[AssetProperties.Adjuncts] is JArray existingAdjuncts
+                ? existingAdjuncts
                     .Select(a => a[AdjunctProperties.Id]?.Value<string>())
                     .OfType<string>()
-                    .ToList();
-            }
+                    .ToList()
+                : [];
         }
     }
 }

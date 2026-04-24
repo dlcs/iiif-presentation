@@ -16,12 +16,12 @@ public class CanvasPaintingRecords
             Error = updateResult
         };
     
-    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<AdjunctInteraction>? adjuncts) =>
+    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<AdjunctInteraction>? adjunctInteractions) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,
             CanvasPaintingsThatContainItemsWithAssets = itemsWithAssets,
-            Adjuncts = adjuncts
+            AdjunctInteractions = adjunctInteractions
         };
     
     /// <summary>
@@ -42,8 +42,7 @@ public class CanvasPaintingRecords
     public List<InterimCanvasPainting>? CanvasPaintingsThatContainItemsWithAssets { get; private init; }
     
     /// <summary>
-    /// Details of all canvas paintings that have assets identified in items, as opposed to the canvas paintings directly.
+    /// Details of all adjunct interactions that are needed to work out if adjuncts are new or a replacement.
     /// </summary>
-    /// <remarks>This can contain modified records if the item has been identified as an update</remarks>
-    public List<AdjunctInteraction>? Adjuncts { get; private init; }
+    public List<AdjunctInteraction>? AdjunctInteractions { get; private init; }
 }

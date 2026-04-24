@@ -216,7 +216,7 @@ public class ManifestWriteService(
     {
         var dlcsResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
             existingAssetIds, existingManifest,
-            canvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, canvasPaintingRecords.Adjuncts, cancellationToken);
+            canvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, canvasPaintingRecords.AdjunctInteractions, cancellationToken);
         if (dlcsResult.Error != null) return DlcsHandleResult.Failure(dlcsResult.Error);
 
         if (existingManifest == null)

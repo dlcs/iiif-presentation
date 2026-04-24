@@ -41,7 +41,7 @@ public class CanvasPaintingResolver(
             var insertCanvasPaintingsError = await HandleInserts(manifestParseResult.CanvasPaintings, customerId, cancellationToken);
             if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
 
-            return CanvasPaintingRecords.Success(manifestParseResult.CanvasPaintings, manifestParseResult.AssetsIdentifiedInItems, manifestParseResult.Adjuncts);
+            return CanvasPaintingRecords.Success(manifestParseResult.CanvasPaintings, manifestParseResult.AssetsIdentifiedInItems, manifestParseResult.AdjunctInteractions);
         }
         catch (InvalidCanvasIdException cpId)
         {
@@ -77,7 +77,7 @@ public class CanvasPaintingResolver(
         
         var insertCanvasPaintingsError = await HandleInserts(toInsert, customerId, cancellationToken);
         if (insertCanvasPaintingsError != null) return CanvasPaintingRecords.Failure(insertCanvasPaintingsError);
-        return CanvasPaintingRecords.Success(toInsert, manifestParseResult.AssetsIdentifiedInItems, manifestParseResult.Adjuncts);
+        return CanvasPaintingRecords.Success(toInsert, manifestParseResult.AssetsIdentifiedInItems, manifestParseResult.AdjunctInteractions);
     }
     
     private List<InterimCanvasPainting> UpdateCanvasPaintingRecords(List<CanvasPainting> existingCanvasPaintings, 
@@ -310,7 +310,7 @@ public class CanvasPaintingResolver(
         PresUpdateResult? error = null,
         List<InterimCanvasPainting>? canvasPaintings = null,
         List<InterimCanvasPainting>? assetsIdentifiedInItems = null,
-        List<AdjunctInteraction>? adjuncts = null)
+        List<AdjunctInteraction>? adjunctInteractions = null)
     {
         public PresUpdateResult? Error { get; set; } = error;
 
@@ -318,6 +318,6 @@ public class CanvasPaintingResolver(
 
         public List<InterimCanvasPainting>? AssetsIdentifiedInItems { get; set; } = assetsIdentifiedInItems;
 
-        public List<AdjunctInteraction>? Adjuncts { get; set; } = adjuncts;
+        public List<AdjunctInteraction>? AdjunctInteractions { get; set; } = adjunctInteractions;
     }
 }

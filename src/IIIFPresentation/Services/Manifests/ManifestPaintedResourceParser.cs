@@ -116,7 +116,7 @@ public class ManifestPaintedResourceParser(
             CanvasOrder = canvasOrder,
             SuspectedAssetId = assetDetails.Id,
             SuspectedSpace = assetDetails.Space,
-            SuspectedAdjuncts = assetDetails.Adjuncts,
+            SuspectedAdjuncts = assetDetails.AdjunctInteractions,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -182,7 +182,7 @@ public class ManifestPaintedResourceParser(
         return new AssetDetails
         {
             Space = space,
-            Adjuncts = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
+            AdjunctInteractions = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
             Id = id
         };
     }
@@ -205,7 +205,7 @@ public class ManifestPaintedResourceParser(
     private class AssetDetails
     {
         public int? Space { get; init; }
-        public AdjunctInteraction? Adjuncts { get; init; }
+        public AdjunctInteraction? AdjunctInteractions { get; init; }
         public required string Id { get; init; }
     }
 }
