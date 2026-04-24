@@ -231,7 +231,6 @@ public class DlcsManifestCoordinator(
     private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(WriteManifestRequest request, string manifestId, List<AdjunctInteraction> adjunctInteractions,
         int? spaceId, CancellationToken cancellationToken)
     {
-        // don't bother 
         if (adjunctInteractions.Count > 0)
         {
             // this removes any adjuncts that were created on previous interactions with the DLCS (including on previous manifests etc.)

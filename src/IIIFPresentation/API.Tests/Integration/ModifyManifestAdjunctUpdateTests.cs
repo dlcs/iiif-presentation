@@ -189,117 +189,6 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
     }
     
     [Fact]
-    public async Task UpdateManifest_ReplacesAdjuncts_WhenSameAdjunctOnKnownAsset()
-    {
-        // This test checks that an adjunct on an asset will be replaced (i.e.: 1 ingested for replacement, with no removal)
-        // when a known asset is set to reingest
-
-        // Arrange
-        var (slug, id, assetId, existingAdjunctId) = TestIdentifiers.SlugResourceAssetAdjunct();
-
-        var initialCanvasPaintings = new List<CanvasPainting>
-        {
-            new()
-            {
-                Id = "first",
-                StaticWidth = 1200,
-                StaticHeight = 1800,
-                CanvasOrder = 1,
-                ChoiceOrder = 1,
-                AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
-            }
-        };
-
-        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
-                A<ICollection<string>>._,
-                A<CancellationToken>._)).ReturnsLazily(x => Task.FromResult((IList<JObject>)[])).Once().Then
-            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
-                Task.FromResult((IList<JObject>)assetIds
-                    .Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
-                    .Select(x => JObject.Parse($$"""
-                                                 {
-                                                   "id": "{{x.Split('/').Last()}}",
-                                                   "space": {{NewlyCreatedSpace}},
-                                                   "adjuncts" : [{"id" : "{{existingAdjunctId}}"}]
-                                                 }
-                                                 """)).ToList()));
-
-        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
-            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
-        await dbContext.SaveChangesAsync();
-
-        var batchId = TestIdentifiers.BatchId();
-        var adjunctBatchId = TestIdentifiers.BatchId();
-        
-        var manifestWithSpace = $$"""
-                          {
-                              "type": "Manifest",
-                              "slug": "{{slug}}",
-                              "parent": "http://localhost/{{Customer}}/collections/root",
-                              "paintedResources": [
-                                  {
-                                     "canvasPainting":{
-                                        "canvasOrder": 1
-                                     },
-                                      "asset": {
-                                          "id": "fromDlcs_{{assetId}}_1",
-                                          "mediaType": "image/jpg",
-                                          "batch": {{batchId}},
-                                          "space": {{NewlyCreatedSpace}},
-                                          "adjuncts": [
-                                            {
-                                                "id": "{{existingAdjunctId}}",
-                                                "batch": {{adjunctBatchId}}
-                                            }
-                                          ]
-                                      },
-                                      "reingest": true
-                                  }
-                              ]
-                          }
-                          """;
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
-                manifestWithSpace, dbContext.GetETag(testManifest));
-
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-
-        responseManifest!.PaintedResources.Should().HaveCount(1);
-
-        var dbManifest = dbContext.Manifests
-            .Include(m => m.CanvasPaintings)
-            .Include(m => m.Batches)
-            .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
-
-        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
-
-        // asset reingested
-        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-            A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == $"fromDlcs_{assetId}_1"),
-            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
-
-        // deleted the adjunct returned from GetCustomerImages
-        A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
-            A<List<AdjunctAssetIdentifier>>.That.Matches(a => a.Count == 1 && a.First().Adjunct.Single() == existingAdjunctId),
-            A<CancellationToken>._)).MustNotHaveHappened();
-
-        // new adjunct ingested
-        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-            A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == existingAdjunctId),
-            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
-
-        dbManifest.Batches.Should().HaveCount(3); // initial batch from setup + asset batch + adjunct batch
-        dbManifest.Batches[1].DeliverableType.Should().Be(DeliverableType.Asset);
-        dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
-    }
-    
-    [Fact]
     public async Task UpdateManifest_ReplacesAdjuncts_WhenNewAdjunctOnKnownAsset()
     {
         // This test checks that an adjunct on an asset will be replaced (i.e.: 1 removed, 1 added)
@@ -507,7 +396,7 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
             A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == $"fromDlcs_{assetId}_1"),
             A<bool>._, A<CancellationToken>._)).MustHaveHappened();
 
-        // deleted the adjunct returned from GetCustomerImages
+        // no adjunct deletion occurs
         A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
             A<List<AdjunctAssetIdentifier>>.That.Matches(a => a.Count == 1 && a.First().Adjunct.Single() == existingAdjunctId),
             A<CancellationToken>._)).MustNotHaveHappened();
