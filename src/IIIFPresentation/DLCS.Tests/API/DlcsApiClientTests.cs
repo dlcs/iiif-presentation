@@ -149,7 +149,9 @@ public class DlcsApiClientTests
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
 
-        Func<Task> action = () => sut.IngestDeliverables(customerId, ["someString"],
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someString";
+        Func<Task> action = () => sut.IngestDeliverables(customerId, [jsonObject],
             cancellationToken: CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);

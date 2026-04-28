@@ -11,7 +11,7 @@ public static class BatchHelper
     /// This method adds, but does not save batches to the batches table
     /// </summary>
     public static async Task AddBatchesToDatabase(this List<Batch> batches,
-        int customerId, string manifestId, PresentationContext dbContext, DeliverableType deliverableType = DeliverableType.Asset, 
+        int customerId, string manifestId, PresentationContext dbContext, DeliverableType deliverableType, 
         CancellationToken cancellationToken = default)
     {
         var dbBatches = batches.Select(b => new Models.Database.General.Batch

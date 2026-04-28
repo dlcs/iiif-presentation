@@ -24,7 +24,7 @@ public interface IDlcsApiClient
     /// <summary>
     /// Ingest deliverables into the DLCS
     /// </summary>
-    public Task<List<Batch>> IngestDeliverables<T>(int customerId, List<T> deliverables, bool adjunctQueue = false,
+    public Task<List<Batch>> IngestDeliverables(int customerId, List<JObject> deliverables, bool adjunctQueue = false,
         CancellationToken cancellationToken = default);
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
@@ -85,7 +85,7 @@ internal class DlcsApiClient(
         return space ?? throw new DlcsException("Failed to create space", HttpStatusCode.InternalServerError);
     }
     
-    public async Task<List<Batch>> IngestDeliverables<T>(int customerId, List<T> deliverables, bool adjunctQueue = false, CancellationToken cancellationToken = default)
+    public async Task<List<Batch>> IngestDeliverables(int customerId, List<JObject> deliverables, bool adjunctQueue = false, CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfDeliverables} {Type}", customerId,
             deliverables.Count, adjunctQueue ? "adjuncts" : "assets");
@@ -96,7 +96,7 @@ internal class DlcsApiClient(
 
         var tasks = chunkedDeliverableList.Select(async chunkedAssets =>
         {
-            var hydraImages = new HydraCollection<T>(chunkedAssets);
+            var hydraImages = new HydraCollection<JObject>(chunkedAssets);
 
             var batch = await CallDlcsApiFor<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)

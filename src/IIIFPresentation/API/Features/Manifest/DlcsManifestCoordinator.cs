@@ -387,8 +387,8 @@ public class DlcsManifestCoordinator(
             cancellationToken: cancellationToken);
     }
 
-    private async Task<EntityResult?> IngestDeliverables<T>(int customerId, string manifestId, 
-        List<T> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken = default)
+    private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId, 
+        List<JObject> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken = default)
     {
         try
         {

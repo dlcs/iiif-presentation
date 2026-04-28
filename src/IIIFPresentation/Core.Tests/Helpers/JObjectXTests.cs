@@ -59,8 +59,41 @@ public class JObjectXTests
     public void TryGetValue_ThrowsError_IfNotCorrectType()
     {
         var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
-        
+
         Action action = () => jobject.TryGetValue<int>("name");
         action.Should().ThrowExactly<FormatException>().WithMessage("The input string 'John Doe' was not in a correct format.");
+    }
+
+    [Fact]
+    public void TryGetCollectionValue_ReturnsNull_IfPropertyNotFound()
+    {
+        var jobject = JObject.Parse("{ \"name\": \"John Doe\" }");
+
+        jobject.TryGetCollectionValue<string>("other").Should().BeNull();
+    }
+
+    [Fact]
+    public void TryGetCollectionValue_ReturnsCollection_IfFound()
+    {
+        var jobject = JObject.Parse("{ \"tags\": [\"a\", \"b\", \"c\"] }");
+
+        jobject.TryGetCollectionValue<string>("tags").Should().BeEquivalentTo(["a", "b", "c"]);
+    }
+
+    [Fact]
+    public void TryGetCollectionValue_ReturnsEmptyCollection_IfArrayIsEmpty()
+    {
+        var jobject = JObject.Parse("{ \"tags\": [] }");
+
+        jobject.TryGetCollectionValue<string>("tags").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryGetCollectionValue_ThrowsError_IfNotCorrectType()
+    {
+        var jobject = JObject.Parse("{ \"tags\": [\"a\", \"b\"] }");
+
+        Action action = () => jobject.TryGetCollectionValue<int>("tags")!.ToList();
+        action.Should().Throw<Exception>();
     }
 }
