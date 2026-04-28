@@ -32,9 +32,9 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
     public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
-    
+
     public static readonly DlcsInteractionResult NoInteraction = new(null, null);
-        
+
     public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
 }
 
@@ -83,11 +83,11 @@ public class DlcsManifestCoordinator(
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId,
-        List<AssetId>? previousManifestAssetIds = null,
-        Models.Database.Collections.Manifest? dbManifest = null,
-        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
-        List<AdjunctInteraction>? adjunctInteractions = null,
-        CancellationToken cancellationToken = default)
+        List<AssetId>? previousManifestAssetIds,
+        Models.Database.Collections.Manifest? dbManifest,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
+        List<AdjunctInteraction>? adjunctInteractions,
+        CancellationToken cancellationToken)
     {
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
             itemCanvasPaintingsWithAssets, cancellationToken);
@@ -106,8 +106,7 @@ public class DlcsManifestCoordinator(
             var assetsToUpdateWithManifestId = await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, existingAssetIds,
                 cancellationToken);
             
-            await UpdateAssetsWithManifestId(request, manifestId,
-                assetsToUpdateWithManifestId, cancellationToken);
+            await UpdateAssetsWithManifestId(request, manifestId, assetsToUpdateWithManifestId, cancellationToken);
         }
         catch (PresentationException presentationException)
         {
@@ -124,9 +123,9 @@ public class DlcsManifestCoordinator(
         string manifestId,
         List<AssetId> assetsFromItems,
         List<AdjunctInteraction> adjunctInteractions,
-        List<AssetId>? previousManifestAssetIds = null,
-        int? manifestSpaceId = null,
-        CancellationToken cancellationToken = default)
+        List<AssetId>? previousManifestAssetIds,
+        int? manifestSpaceId,
+        CancellationToken cancellationToken)
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
@@ -222,6 +221,8 @@ public class DlcsManifestCoordinator(
 
         var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
             .ToList();
+        
+        // TODO - update this to look at the number of Batches outstanding, rather than interaction results
         var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
                                 (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
         return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
@@ -388,7 +389,7 @@ public class DlcsManifestCoordinator(
     }
 
     private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId, 
-        List<JObject> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken = default)
+        List<JObject> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken)
     {
         try
         {
@@ -409,7 +410,7 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private WriteResult ErrorStatusCodeToWriteResult(HttpStatusCode statusCode)
+    private static WriteResult ErrorStatusCodeToWriteResult(HttpStatusCode statusCode)
     {
         return statusCode switch
         {
