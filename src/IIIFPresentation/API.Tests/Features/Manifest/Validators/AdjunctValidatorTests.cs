@@ -2,12 +2,13 @@ using API.Features.Manifest.Validators;
 using FluentValidation.TestHelper;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 
 namespace API.Tests.Features.Manifest.Validators;
 
 public class AdjunctValidatorTests
 {
-    private readonly AdjunctValidator sut = new();
+    private readonly AdjunctValidator sut = new(new ServicesSettings());
 
     [Fact]
     public void Id_Required_ErrorWhenMissing()

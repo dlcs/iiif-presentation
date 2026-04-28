@@ -1,18 +1,21 @@
 using API.Features.Storage.Validators;
-using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 
 namespace API.Features.Manifest.Validators;
 
 public class PresentationManifestValidator : AbstractValidator<PresentationManifest>
 {
-    public PresentationManifestValidator(IOptions<ApiSettings> options)
+    private readonly ServicesSettings servicesSettings;
+
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
     {
+        servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
         
@@ -87,7 +90,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .ChildRules(pr =>
             {
                 pr.RuleFor(r => r.Asset![AssetProperties.Adjuncts]!.ToObject<List<JObject>>())
-                    .ForEach(adjunct => adjunct.SetValidator(new AdjunctValidator()));
+                    .ForEach(adjunct => adjunct.SetValidator(new AdjunctValidator(servicesSettings)));
             });
     }
 }

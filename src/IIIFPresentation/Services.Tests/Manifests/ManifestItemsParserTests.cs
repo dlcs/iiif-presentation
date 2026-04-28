@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Repository.Paths;
 using Services.Manifests;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
@@ -40,8 +41,9 @@ public class ManifestItemsParserTests
 
         sut = new ManifestItemsParser(pathRewriteParser,
             new TestPresentationConfigGenerator("http://base", PathRewriteOptions.Default),
-            new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings), new NullLogger<PaintableAssetIdentifier>()), 
+            new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings), new NullLogger<PaintableAssetIdentifier>()),
             Options.Create(pathSettings),
+            new CanvasHelper(Options.Create(new ServicesSettings())),
             new NullLogger<ManifestItemsParser>());
     }
     

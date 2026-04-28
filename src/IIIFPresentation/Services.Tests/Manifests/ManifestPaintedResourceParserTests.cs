@@ -10,6 +10,7 @@ using Repository;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using Test.Helpers;
@@ -60,6 +61,7 @@ public class ManifestPaintedResourceParserTests
                 }
             }),
             dbContextMock,
+            new CanvasHelper(Options.Create(new ServicesSettings())),
             new NullLogger<ManifestPaintedResourceParser>());
     }
 

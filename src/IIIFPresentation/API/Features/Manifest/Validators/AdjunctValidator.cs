@@ -1,23 +1,23 @@
-using Core.Helpers;
 using FluentValidation;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 
 namespace API.Features.Manifest.Validators;
 
 public class AdjunctValidator : AbstractValidator<JObject>
 {
-    public AdjunctValidator()
+    public AdjunctValidator(ServicesSettings settings)
     {
         RuleFor(a => a[AdjunctProperties.Id])
             .Must(id => id is { Type: JTokenType.String } && !string.IsNullOrEmpty(id.Value<string>()))
             .WithMessage("Adjunct 'id' must not be empty");
 
         RuleFor(a => a[AdjunctProperties.Id])
-            .Must(id => !ProhibitedCharacters.Characters.Any(id!.Value<string>()!.Contains))
+            .Must(id => !settings.ProhibitedCharacters.Any(id!.Value<string>()!.Contains))
             .When(a => a.ContainsKey(AdjunctProperties.Id) &&
                        a[AdjunctProperties.Id] is { Type: JTokenType.String } t &&
                        !string.IsNullOrEmpty(t.Value<string>()))
-            .WithMessage($"Adjunct 'id' contains a prohibited character. Cannot contain any of: {ProhibitedCharacters.Display}");
+            .WithMessage($"Adjunct 'id' contains a prohibited character. Cannot contain any of: {settings.ProhibitedCharactersDisplay}");
     }
 }

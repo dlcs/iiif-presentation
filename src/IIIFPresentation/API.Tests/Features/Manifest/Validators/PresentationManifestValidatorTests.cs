@@ -1,7 +1,5 @@
 ﻿using API.Features.Manifest.Validators;
-using API.Settings;
-using AWS.Settings;
-using DLCS;
+using Services.Manifests.Settings;
 using FluentValidation.TestHelper;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Options;
@@ -13,14 +11,7 @@ namespace API.Tests.Features.Manifest.Validators;
 
 public class PresentationManifestValidatorTests
 {
-    private readonly PresentationManifestValidator sut = new(Options.Create(new ApiSettings()
-    {
-        AWS = new AWSSettings(),
-        DLCS = new DlcsSettings
-        {
-            ApiUri = new Uri("https://localhost")
-        }
-    }));
+    private readonly PresentationManifestValidator sut = new(Options.Create(new ServicesSettings()));
 
     [Theory]
     [InlineData(null)]
