@@ -19,9 +19,9 @@ public static class BatchHelper
             Id = Convert.ToInt32(b.ResourceId!.GetLastPathElement()),
             CustomerId = customerId,
             Submitted = b.Submitted.ToUniversalTime(),
-            Processed = deliverableType == DeliverableType.Asset ? null : DateTime.UtcNow,
-            Finished = deliverableType == DeliverableType.Asset ? null : DateTime.UtcNow,
-            Status = deliverableType == DeliverableType.Asset ? BatchStatus.Ingesting : BatchStatus.Completed,
+            Processed = b.Finished.HasValue ? DateTime.UtcNow : null,
+            Finished = b.Finished?.ToUniversalTime(),
+            Status = b.Finished.HasValue ? BatchStatus.Completed : BatchStatus.Ingesting,
             DeliverableType = deliverableType,
             ManifestId = manifestId
         });
