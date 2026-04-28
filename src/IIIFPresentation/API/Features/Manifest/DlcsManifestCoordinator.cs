@@ -23,15 +23,13 @@ using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.M
 
 namespace API.Features.Manifest;
 
-public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, bool onlySpace = false, 
+public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, 
     List<AssetId>? ingestedAssets = null)
 {
     public EntityResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
     public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
-    
-    public bool OnlySpace { get; } = onlySpace;
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
     
@@ -161,7 +159,7 @@ public class DlcsManifestCoordinator(
                 // you wanted a space, and there are no assets, so no further work required
                 if (assets.Count == 0)
                 {
-                    return new DlcsInteractionResult(null, spaceId, onlySpace: true);
+                    return new DlcsInteractionResult(null, spaceId);
                 }
                 
                 createdSpace = true;
@@ -207,9 +205,10 @@ public class DlcsManifestCoordinator(
         }
 
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
+        
         // create batches for assets
         var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);
-        if (batchError != null)  return new DlcsInteractionResult(batchError, spaceId);
+        if (batchError != null) return new DlcsInteractionResult(batchError, spaceId);
         
         // then update existing assets in another manifest with the current manifest id
         await UpdateAssetsWithManifestId(request, manifestId,
