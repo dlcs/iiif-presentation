@@ -167,7 +167,7 @@ public class ManifestWriteService(
             if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
             // Carry out any DLCS interactions and update canvas paintings
-            var dlcsResult = await HandleDlcsInteractions(request, manifestId, resolved.CanvasPaintingRecords!,
+            var dlcsResult = await HandleDlcsInteractions(request, manifestId, resolved.ParsedManifestResult!,
                 cancellationToken: cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
@@ -198,7 +198,7 @@ public class ManifestWriteService(
             if (resolved.Error != null) return resolved.Error;
 
             // Carry out any DLCS interactions and update canvas paintings
-            var dlcsResult = await HandleDlcsInteractions(request, existingManifest.Id, resolved.CanvasPaintingRecords!, existingAssetIds, existingManifest, cancellationToken);
+            var dlcsResult = await HandleDlcsInteractions(request, existingManifest.Id, resolved.ParsedManifestResult!, existingAssetIds, existingManifest, cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
             var (error, dbManifest) = await UpdateDatabaseRecord(request, resolved.ParsedParentSlug!, existingManifest,
@@ -211,7 +211,7 @@ public class ManifestWriteService(
     }
 
     private async Task<DlcsHandleResult> HandleDlcsInteractions(WriteManifestRequest request, string manifestId,
-        CanvasPaintingRecords canvasPaintingRecords, List<AssetId>? existingAssetIds = null, DbManifest? existingManifest = null, 
+        ParsedManifestResult canvasPaintingRecords, List<AssetId>? existingAssetIds = null, DbManifest? existingManifest = null, 
         CancellationToken cancellationToken = default)
     {
         var dlcsResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
@@ -231,14 +231,14 @@ public class ManifestWriteService(
     }
 
     private void UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(DbManifest existingManifest, 
-        CanvasPaintingRecords updatedCanvasPaintingRecords, DlcsInteractionResult dlcsInteractionResult)
+        ParsedManifestResult updatedParsedManifestResult, DlcsInteractionResult dlcsInteractionResult)
     {
         existingManifest.CanvasPaintings ??= [];
         
         SpaceHelper.UpdateCanvasPaintings(existingManifest.CanvasPaintings, dlcsInteractionResult.SpaceId);
 
         UpdateCanvasPaintingsAfterDlcsInteractions(existingManifest.CanvasPaintings,
-            updatedCanvasPaintingRecords.CanvasPaintingsToAdd, dlcsInteractionResult);
+            updatedParsedManifestResult.CanvasPaintingsToAdd, dlcsInteractionResult);
     }
 
     private List<CanvasPainting> UpdateCanvasPaintingsAfterDlcsInteractions(List<CanvasPainting> initialCanvasPaintings,
@@ -264,7 +264,7 @@ public class ManifestWriteService(
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);
     }
 
-    private async Task<(PresUpdateResult? error, CanvasPaintingRecords? records)> ResolveCanvasPaintings(
+    private async Task<(PresUpdateResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
         WriteManifestRequest request, DbManifest? existingManifest, CancellationToken cancellationToken)
     {
         var isCreate = existingManifest == null;
@@ -453,7 +453,7 @@ public class ManifestWriteService(
         /// <summary>
         /// Canvas paintings resolved from the request
         /// </summary>
-        public CanvasPaintingRecords? CanvasPaintingRecords { get; private init; }
+        public ParsedManifestResult? ParsedManifestResult { get; private init; }
         /// <summary>
         /// Parsed parent and slug from the request hierarchy path.
         /// </summary>
@@ -461,8 +461,8 @@ public class ManifestWriteService(
 
         public static ResolvedManifestData Failure(PresUpdateResult error) => new() { Error = error };
 
-        public static ResolvedManifestData Success(CanvasPaintingRecords records, ParsedParentSlug slug) =>
-            new() { CanvasPaintingRecords = records, ParsedParentSlug = slug };
+        public static ResolvedManifestData Success(ParsedManifestResult records, ParsedParentSlug slug) =>
+            new() { ParsedManifestResult = records, ParsedParentSlug = slug };
     }
 
     /// <summary>

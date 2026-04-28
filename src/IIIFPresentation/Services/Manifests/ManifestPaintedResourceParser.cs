@@ -117,7 +117,7 @@ public class ManifestPaintedResourceParser(
             CanvasOrder = canvasOrder,
             SuspectedAssetId = assetDetails.Id,
             SuspectedSpace = assetDetails.Space,
-            SuspectedAdjuncts = assetDetails.AdjunctInteractions,
+            AdjunctInteraction = assetDetails.AdjunctInteractions,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,

@@ -6,17 +6,18 @@ using Services.Manifests.Model;
 namespace API.Features.Manifest;
 
 /// <summary>
-/// Records class containing details of canvas paintings that require further processing
+/// Records class containing details of various tghings that require further processing, such as canvas paintings
+/// and adjunct interactions
 /// </summary>
-public class CanvasPaintingRecords
+public class ParsedManifestResult
 {
-    public static CanvasPaintingRecords Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
+    public static ParsedManifestResult Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
         new()
         {
             Error = updateResult
         };
     
-    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<AdjunctInteraction>? adjunctInteractions) =>
+    public static ParsedManifestResult Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<AdjunctInteraction>? adjunctInteractions) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,
