@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using CanvasPainting = Models.Database.CanvasPainting;
+﻿using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace Services.Manifests.Model;
 
