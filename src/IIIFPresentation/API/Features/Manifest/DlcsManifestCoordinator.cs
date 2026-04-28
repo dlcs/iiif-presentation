@@ -94,7 +94,7 @@ public class DlcsManifestCoordinator(
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
             itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
-        
+
         return await HandlePaintedResourceDlcsInteractions(request, manifestId,
             itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], adjunctInteractions ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
             cancellationToken);
@@ -233,10 +233,12 @@ public class DlcsManifestCoordinator(
     {
         if (adjunctInteractions.Count > 0)
         {
-            // this removes any adjuncts that were created on previous interactions with the DLCS (including on previous manifests etc.)
+            // ExistingAdjunctIds may already be set for assets checked against DLCS in FindAssetsThatRequireAdditionalWork;
+            // this call fills in any that were missed (e.g. assets that were already known and skipped the IIIF-CS check)
             await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
+            // remove any adjuncts in IIIF-CS that are no longer in the manifest
             await DeleteUnusedAdjuncts(request.CustomerId, adjunctInteractions, cancellationToken);
-            
+
             var adjunctList = adjunctInteractions.SelectMany(a => a.Adjuncts).ToList();
 
             if (adjunctList.Count > 0)

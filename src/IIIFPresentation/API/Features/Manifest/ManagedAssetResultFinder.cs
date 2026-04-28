@@ -285,7 +285,8 @@ public class ManagedAssetResultFinder(
         {
             var assetId = asset.GetAssetId(customerId);
             existingAssetIds.Add(assetId);
-            
+
+            // pre-populate ExistingAdjunctIds where possible, avoiding a separate lookup later
             asset.SetExistingAdjunctIds(adjuncts, assetId);
         }
 
