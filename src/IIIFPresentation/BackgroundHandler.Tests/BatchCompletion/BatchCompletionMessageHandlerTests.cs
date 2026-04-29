@@ -276,4 +276,33 @@ public class BatchCompletionMessageHandlerTests
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
+
+    [Fact]
+    public async Task HandleMessage_DoesNotUpdateBatch_WhenDeliverableTypeMismatch()
+    {
+        // Arrange - batch stored with Asset type, message arrives with Adjunct type
+        var batchId = TestIdentifiers.BatchId();
+        var asset = TestIdentifiers.Id();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "type-mismatch");
+        const int space = 2;
+
+        var manifest = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        manifest.Entity.Batches!.Single().DeliverableType = DeliverableType.Asset; // stored as Asset
+        var assetId = new AssetId(CustomerId, space, asset);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: DeliverableType.Adjunct); // message is Adjunct
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert - message is handled successfully (true) but batch is NOT retrieved/updated due to type mismatch
+        result.Should().BeTrue("Message processed successfully");
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        var batch = dbContext.Batches.Single(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Ingesting, "Batch status not updated due to type mismatch");
+        batch.Processed.Should().BeNull("Batch processed timestamp not set due to type mismatch");
+    }
 }

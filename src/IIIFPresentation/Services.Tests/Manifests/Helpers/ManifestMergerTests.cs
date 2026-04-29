@@ -492,7 +492,7 @@ public class ManifestMergerTests
             .Contain(canvas0Choice1.ToString(), "Thumbnail of first item in choice used");
         firstCanvas.Annotations.Should().HaveCount(2, "2 adjuncts - one on each Asset are elevated to Canvas level");
         firstCanvas.Annotations!.First().Id.Should().Be("anno1", "First anno is correct");
-        firstCanvas.Annotations!.Last().Id.Should().Be("anno2", "First anno is correct");
+        firstCanvas.Annotations!.Last().Id.Should().Be("anno2", "Last anno is correct");
 
         // Assert second canvas (2 choices)
         var secondCanvas = mergedManifest.Items[1];

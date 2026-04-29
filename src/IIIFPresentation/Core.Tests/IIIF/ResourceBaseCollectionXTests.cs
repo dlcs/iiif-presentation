@@ -3,7 +3,7 @@ using IIIF.Presentation.V3;
 
 namespace Core.Tests.IIIF;
 
-public class IIIFCollectionXTests
+public class ResourceBaseCollectionXTests
 {
     private class TestItem : ResourceBase
     {

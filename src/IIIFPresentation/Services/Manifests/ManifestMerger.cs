@@ -76,21 +76,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             throw new ArgumentNullException("namedQueryManifest.Items");
         }
     }
-
-    private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
-    {
-        try
-        {
-            return namedQueryManifest
-                .Items!
-                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
-            throw;
-        }
-    }
     
     /// <summary>
     /// Merges a generated named-query manifest with the current manifest in S3
@@ -159,7 +144,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First())
             };
 
-            // Whether this is choice or non-choice, canvasPainting
             if (!isChoice)
             {
                 ProcessNonChoice(canvasOrderGroup.Single(), canvas, currentPaintingAnno, singleItemCanvas);

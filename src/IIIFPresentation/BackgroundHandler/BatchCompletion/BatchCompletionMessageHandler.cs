@@ -90,9 +90,9 @@ public class BatchCompletionMessageHandler(
         {
             return BatchCompletionMessage.FromQueueMessage(message);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            logger.LogWarning("Could not deserialize message - attempting to deserialize using the old style format");
+            logger.LogWarning(ex, "Could not deserialize message");
             throw;
         }
     }

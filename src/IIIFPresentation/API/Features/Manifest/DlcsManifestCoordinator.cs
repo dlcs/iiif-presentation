@@ -191,7 +191,7 @@ public class DlcsManifestCoordinator(
         }
         catch (AssetIdException assetIdException)
         {
-            logger.LogError(assetIdException, "Error parsing  DLCS asset that requires more work for manifest {ManifestId}", manifestId);
+            logger.LogError(assetIdException, "Error parsing DLCS asset that requires more work for manifest {ManifestId}", manifestId);
 
             var error = $"Error parsing the asset id from an attached asset - {assetIdException.Message}";
 
@@ -208,7 +208,7 @@ public class DlcsManifestCoordinator(
 
         // create batches for assets
         var collectedBatches = new List<Batch>();
-        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), collectedBatches,
+        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest, collectedBatches,
             cancellationToken);
         if (batchError != null) return new DlcsInteractionResult(batchError, spaceId);
 

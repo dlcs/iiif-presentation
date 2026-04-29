@@ -799,7 +799,6 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          // Arrange
          var (assetId ,slug) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
-         //Fake.ClearRecordedCalls(DLCSApiClient);
 
          var manifestWithoutSpace = $$"""
                                       {

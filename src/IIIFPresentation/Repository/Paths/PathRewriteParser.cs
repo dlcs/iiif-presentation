@@ -150,7 +150,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 }
 
 /// <summary>
-/// Result of parsing a request path into CustomerId, resource identifer, and path type.
+/// Result of parsing a request path into CustomerId, resource identifier, and path type.
 /// Taking into account canonical paths and customer-specific rewrites.
 /// When Customer and Resource are both null, indicates the path could not be parsed.
 /// </summary>

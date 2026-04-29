@@ -2,10 +2,10 @@ using IIIF.Presentation.V3;
 
 namespace Core.IIIF;
 
-public static class IIIFCollectionX
+public static class ResourceBaseCollectionX
 {
     /// <summary>
-    /// Add items to a list that are not already present, based in their Id property.
+    /// Add items to a list that are not already present, based on their id property.
     /// </summary>
     public static void AddDistinctById<T>(this IList<T> target, IEnumerable<T>? source) where T : ResourceBase
     {

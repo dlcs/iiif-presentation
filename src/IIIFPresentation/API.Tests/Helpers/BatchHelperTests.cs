@@ -68,7 +68,10 @@ public class BatchHelperTests
         trackedBatch.CustomerId.Should().Be(customerId);
         trackedBatch.ManifestId.Should().Be(manifestId);
         trackedBatch.Submitted.Should().Be(submitted.ToUniversalTime());
-        trackedBatch.Finished.Should().Be(finished);
+        trackedBatch.Submitted.Kind.Should().Be(DateTimeKind.Utc);
+        trackedBatch.Finished.Should().NotBeNull();
+        trackedBatch.Finished!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        trackedBatch.Finished.Should().Be(finished.ToUniversalTime());
         trackedBatch.Status.Should().Be(BatchStatus.Completed);
         trackedBatch.DeliverableType.Should().Be(DeliverableType.Asset);
         trackedBatch.Processed.Should().NotBeNull();
@@ -242,5 +245,30 @@ public class BatchHelperTests
         var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 707);
         trackedBatch.Processed.Should().NotBeNull();
         trackedBatch.Processed!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public async Task AddBatchesToDatabase_ConvertsFinishedTimeToUtc()
+    {
+        // Arrange
+        var customerId = PresentationContextFixture.CustomerId;
+        var manifestId = "test-manifest";
+        var unspecifiedTime = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified);
+        var batch = new Batch
+        {
+            ResourceId = "http://dlcs.example.com/batches/808",
+            Submitted = DateTime.UtcNow,
+            Finished = unspecifiedTime
+        };
+        var batches = new List<Batch> { batch };
+
+        // Act
+        await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
+
+        // Assert
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 808);
+        trackedBatch.Finished.Should().NotBeNull();
+        trackedBatch.Finished!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        trackedBatch.Finished.Should().Be(unspecifiedTime.ToUniversalTime());
     }
 }
