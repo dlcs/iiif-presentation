@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using AWS.SQS;
+using Models.Database.General;
 
 namespace BackgroundHandler.BatchCompletion;
 
@@ -33,7 +34,7 @@ public class BatchCompletionMessage(
 
     public DateTime Finished { get; } = finished;
 
-    public BatchCompletionType Type { get; private set; }
+    public DeliverableType DeliverableType { get; private set; }
 
     public static BatchCompletionMessage FromQueueMessage(QueueMessage message)
     {
@@ -41,25 +42,16 @@ public class BatchCompletionMessage(
             JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions)
             ?? throw new JsonException("Deserialized BatchCompletionMessage was null");
 
-        if (!message.Attributes.TryGetValue("Type", out var type) || string.IsNullOrEmpty(type))
+        if (message.Attributes.TryGetValue("Type", out var type) &&
+            type.Equals("AdjunctBatch", StringComparison.OrdinalIgnoreCase))
         {
-            batchCompletionMessage.Type = BatchCompletionType.Batch;
+            batchCompletionMessage.DeliverableType = DeliverableType.Adjunct;
         }
         else
         {
-            batchCompletionMessage.Type = type.Equals("Batch", StringComparison.OrdinalIgnoreCase)
-                ? BatchCompletionType.Batch
-                : BatchCompletionType.AdjunctBatch;
+            batchCompletionMessage.DeliverableType = DeliverableType.Asset;
         }
 
         return batchCompletionMessage;
     }
-}
-
-// TODO - check if this is already in API once merged
-public enum BatchCompletionType
-{
-    Unknown,
-    Batch,
-    AdjunctBatch
 }

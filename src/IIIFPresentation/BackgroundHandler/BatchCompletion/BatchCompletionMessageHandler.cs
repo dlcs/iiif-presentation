@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
-using BackgroundHandler.Infrastructure;
-using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
@@ -42,17 +40,19 @@ public class BatchCompletionMessageHandler(
 
     private async Task TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, CancellationToken cancellationToken)
     {
-        // Could this, in 1 operation, read + complete the batch + return whether there are others waiting?
+        // Load batch the incoming message is referring to
         var batch = await dbContext.Batches.Include(b => b.Manifest)
             .ThenInclude(m => m.CanvasPaintings)
-            .SingleOrDefaultAsync(b => b.Id == batchCompletionMessage.Id, cancellationToken);
+            .SingleOrDefaultAsync(
+                b => b.Id == batchCompletionMessage.Id && b.DeliverableType == batchCompletionMessage.DeliverableType,
+                cancellationToken);
         
         // batch isn't tracked by presentation, so nothing to do
         if (batch == null) return;
 
         var sw = Stopwatch.StartNew();
         
-        // Other batches haven't completed, so no can't populate Manifest until all are complete
+        // Other batches haven't completed, so can't populate Manifest until all are complete
         if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId &&
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))

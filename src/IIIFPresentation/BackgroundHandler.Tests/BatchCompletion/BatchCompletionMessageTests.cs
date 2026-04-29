@@ -2,6 +2,7 @@ using System.Text.Json;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
 using FluentAssertions;
+using Models.Database.General;
 
 namespace BackgroundHandler.Tests.BatchCompletion;
 
@@ -30,49 +31,50 @@ public class BatchCompletionMessageTests
     }
 
     [Fact]
-    public void FromQueueMessage_TypeIsBatch_WhenNoTypeAttribute()
+    public void FromQueueMessage_DeliverableTypeIsAsset_WhenNoTypeAttribute()
     {
         var message = ValidMessage();
 
         var result = BatchCompletionMessage.FromQueueMessage(message);
 
-        result.Type.Should().Be(BatchCompletionType.Batch);
+        result.DeliverableType.Should().Be(DeliverableType.Asset);
     }
 
     [Fact]
-    public void FromQueueMessage_TypeIsBatch_WhenTypeAttributeIsEmpty()
+    public void FromQueueMessage_DeliverableTypeIsAsset_WhenTypeAttributeIsEmpty()
     {
         var message = ValidMessage(new Dictionary<string, string> { ["Type"] = "" });
 
         var result = BatchCompletionMessage.FromQueueMessage(message);
 
-        result.Type.Should().Be(BatchCompletionType.Batch);
+        result.DeliverableType.Should().Be(DeliverableType.Asset);
     }
 
     [Theory]
     [InlineData("Batch")]
     [InlineData("batch")]
     [InlineData("BATCH")]
-    public void FromQueueMessage_TypeIsBatch_WhenTypeAttributeIsBatch(string typeValue)
+    [InlineData("anything-else")]
+    public void FromQueueMessage_DeliverableTypeIsAsset_WhenTypeAttributeIsNotAdjunctBatch(string typeValue)
     {
         var message = ValidMessage(new Dictionary<string, string> { ["Type"] = typeValue });
 
         var result = BatchCompletionMessage.FromQueueMessage(message);
 
-        result.Type.Should().Be(BatchCompletionType.Batch);
+        result.DeliverableType.Should().Be(DeliverableType.Asset);
     }
 
     [Theory]
     [InlineData("AdjunctBatch")]
     [InlineData("adjunctbatch")]
-    [InlineData("anything-else")]
-    public void FromQueueMessage_TypeIsAdjunctBatch_WhenTypeAttributeIsNotBatch(string typeValue)
+    [InlineData("ADJUNCTBATCH")]
+    public void FromQueueMessage_DeliverableTypeIsAdjunct_WhenTypeAttributeIsAdjunctBatch(string typeValue)
     {
         var message = ValidMessage(new Dictionary<string, string> { ["Type"] = typeValue });
 
         var result = BatchCompletionMessage.FromQueueMessage(message);
 
-        result.Type.Should().Be(BatchCompletionType.AdjunctBatch);
+        result.DeliverableType.Should().Be(DeliverableType.Adjunct);
     }
 
     [Fact]
@@ -88,7 +90,7 @@ public class BatchCompletionMessageTests
 
         result.Id.Should().Be(42);
         result.Customer.Should().Be(7);
-        result.Type.Should().Be(BatchCompletionType.Batch);
+        result.DeliverableType.Should().Be(DeliverableType.Asset);
     }
 
     [Fact]
