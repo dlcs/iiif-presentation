@@ -20,17 +20,17 @@ public class CanvasHelper(IOptions<ServicesSettings> options)
     /// <remarks>This method will return null if not set to throw an exception and has invalid characters</remarks>
     public string? CheckForProhibitedCharacters(string canvasId, ILogger logger, bool throwException = true)
     {
-        if (settings.ProhibitedCharacters.Any(canvasId.Contains))
+        if (settings.ProhibitedCanvasIdCharacters.Any(canvasId.Contains))
         {
             if (throwException)
             {
                 throw new InvalidCanvasIdException(canvasId,
-                    $"Canvas id contains a prohibited character. Cannot contain any of: {settings.ProhibitedCharactersDisplay}");
+                    $"Canvas id contains a prohibited character. Cannot contain any of: {settings.ProhibitedCanvasIdCharactersDisplay}");
             }
 
             logger.LogWarning(
                 "Canvas id {CanvasId} contains a prohibited character. Cannot contain any of: {ProhibitedCharacterDisplay}",
-                canvasId, settings.ProhibitedCharactersDisplay);
+                canvasId, settings.ProhibitedCanvasIdCharactersDisplay);
 
             return null;
         }

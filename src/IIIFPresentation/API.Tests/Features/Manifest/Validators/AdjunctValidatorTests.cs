@@ -52,8 +52,7 @@ public class AdjunctValidatorTests
 
     [Theory]
     [InlineData("foo/bar")]
-    [InlineData("foo=bar")]
-    [InlineData("foo,bar")]
+    [InlineData("foo\\bar")]
     public void Id_ProhibitedCharacters_ErrorWhenPresent(string id)
     {
         var adjunct = new JObject
@@ -64,7 +63,7 @@ public class AdjunctValidatorTests
 
         var result = sut.TestValidate(adjunct);
         result.ShouldHaveValidationErrorFor(a => a[AssetProperties.Id])
-            .WithErrorMessage("Adjunct 'id' contains a prohibited character. Cannot contain any of: '/', '=', ','");
+            .WithErrorMessage("Adjunct 'id' contains a prohibited character. Cannot contain any of: '/', '\\'");
     }
 
     [Fact]
