@@ -1,15 +1,18 @@
-﻿using Core.Exceptions;
+using Core.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Repository.Paths;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 namespace Services.Tests.Manifests.Helpers;
 
 public class CanvasHelperTests
 {
     ILogger<CanvasHelperTests> logger = new NullLogger<CanvasHelperTests>();
-    
+    private readonly CanvasHelper sut = new(Options.Create(new ServicesSettings()));
+
     [Fact]
     public void CheckForProhibitedCharacters_AllowsString_WithNoProhibitedCharacters()
     {
@@ -17,12 +20,12 @@ public class CanvasHelperTests
         var stringToCheck = "valid";
 
         // Act
-        Action action = () => CanvasHelper.CheckForProhibitedCharacters(stringToCheck, logger);
+        Action action = () => sut.CheckForProhibitedCharacters(stringToCheck, logger);
 
         // Assert
         action.Should().NotThrow();
     }
-    
+
     [Theory]
     [InlineData('/')]
     [InlineData('=')]
@@ -33,12 +36,12 @@ public class CanvasHelperTests
         var stringToCheck = "invalid" + invalidCharacter;
 
         // Act
-        Action action = () => CanvasHelper.CheckForProhibitedCharacters(stringToCheck, logger);
+        Action action = () => sut.CheckForProhibitedCharacters(stringToCheck, logger);
 
         // Assert
         action.Should().ThrowExactly<InvalidCanvasIdException>();
     }
-    
+
     [Theory]
     [InlineData('/')]
     [InlineData('=')]
@@ -49,12 +52,12 @@ public class CanvasHelperTests
         var stringToCheck = "invalid" + invalidCharacter;
 
         // Act
-        var canvasId = CanvasHelper.CheckForProhibitedCharacters(stringToCheck, logger, false);
+        var canvasId = sut.CheckForProhibitedCharacters(stringToCheck, logger, false);
 
         // Assert
         canvasId.Should().BeNull();
     }
-    
+
     [Fact]
     public void CheckParsedCanvasIdForErrors_AllowsCanvasId_WithNoProhibitedCharacters()
     {
@@ -62,12 +65,12 @@ public class CanvasHelperTests
         var pathPartsToCheck = new PathParts(1, "valid", false);
 
         // Act
-        Action action = () => CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "/some/path", logger);
+        Action action = () => sut.CheckParsedCanvasIdForErrors(pathPartsToCheck, "/some/path", logger);
 
         // Assert
         action.Should().NotThrow();
     }
-    
+
     [Theory]
     [InlineData('/')]
     [InlineData('=')]
@@ -78,12 +81,12 @@ public class CanvasHelperTests
         var pathPartsToCheck = new PathParts(1, "invalid" + invalidCharacter, false);
 
         // Act
-        Action action = () => CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger);
+        Action action = () => sut.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger);
 
         // Assert
         action.Should().ThrowExactly<InvalidCanvasIdException>();
     }
-    
+
     [Theory]
     [InlineData('/')]
     [InlineData('=')]
@@ -94,12 +97,12 @@ public class CanvasHelperTests
         var pathPartsToCheck = new PathParts(1, "invalid" + invalidCharacter, false);
 
         // Act
-        var canvasId =  CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
+        var canvasId =  sut.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
 
         // Assert
         canvasId.Should().BeNull();
     }
-    
+
     [Fact]
     public void CheckParsedCanvasIdForErrors_ThrowsError_WhenPathPartsNull()
     {
@@ -107,12 +110,12 @@ public class CanvasHelperTests
         var pathPartsToCheck = new PathParts(1, null, false);
 
         // Act
-        Action action = () => CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger);
+        Action action = () => sut.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger);
 
         // Assert
         action.Should().ThrowExactly<InvalidCanvasIdException>();
     }
-    
+
     [Fact]
     public void CheckParsedCanvasIdForErrors_DoesNotThrowError_WhenPathPartsNullWithThrowErrorsFalse()
     {
@@ -120,7 +123,7 @@ public class CanvasHelperTests
         var pathPartsToCheck = new PathParts(1, null, false);
 
         // Act
-        var canvasId = CanvasHelper.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
+        var canvasId = sut.CheckParsedCanvasIdForErrors(pathPartsToCheck, "some/path", logger, false);
 
         // Assert
         canvasId.Should().BeNull();

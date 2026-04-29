@@ -5,11 +5,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
+using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using Services.Manifests.Settings;
 using Test.Helpers;
@@ -60,6 +62,7 @@ public class ManifestPaintedResourceParserTests
                 }
             }),
             dbContextMock,
+            new CanvasHelper(Options.Create(new ServicesSettings())),
             new NullLogger<ManifestPaintedResourceParser>());
     }
 
@@ -74,11 +77,11 @@ public class ManifestPaintedResourceParserTests
     [Theory]
     [InlineData("https://foo.com/example/1/canvases/canvas", "Canvas Id /example/1/canvases/canvas is not valid", 1)]
     [InlineData("https://default.com/additionalElement/2/canvases/canvas", "Canvas Id /additionalElement/2/canvases/canvas is not valid", 2)]
-    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://dlcs.example/3/random/foo/bar/baz", "Canvas id contains a prohibited character. Cannot contain any of: '/', '=', ','", 3)]
     [InlineData("https://invalid/format", "Canvas Id /format is not valid", 4)]
     [InlineData("https://dlcs.example/3/canvases/", "Canvas Id /3/canvases/ is not valid", 3)]
     [InlineData("https://dlcs.example/3/canvases", "Canvas Id /3/canvases is not valid", 3)]
-    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/','=',','", 3)]
+    [InlineData("https://dlcs.example/3/canvases/canvas/", "Canvas id contains a prohibited character. Cannot contain any of: '/', '=', ','", 3)]
     [InlineData("https://default.com/1/canvases/canvas", "The customer parsed from the canvas id does not match the customer found from the calling URL", 2)]
     public async Task Parse_Throws_InvalidCanvasId(string canvasId, string message, int customerId)
     {
@@ -958,6 +961,59 @@ public class ManifestPaintedResourceParserTests
         action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
+    [Fact]
+    public async Task Parse_WithAdjuncts_ThrowsAssetException_WhenAdjunctAssetDoesNotMatchParent()
+    {
+        var mismatchedAssetId = "9999/99/wrong-asset";
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAssetWithAdjuncts(adjunctAsset: mismatchedAssetId)
+                }
+            ]
+        };
+
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        await action.Should().ThrowAsync<AssetException>()
+            .WithMessage($"Adjunct asset '{mismatchedAssetId}' does not match parent asset '{CustomerId}/{DefaultSpace}/{assetIds[0]}'");
+    }
+
+    [Fact]
+    public async Task Parse_WithAdjuncts_DoesNotThrow_WhenAdjunctAssetMatchesParent()
+    {
+        var matchingAssetId = $"{CustomerId}/{DefaultSpace}/{assetIds[0]}";
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAssetWithAdjuncts(adjunctAsset: matchingAssetId)
+                }
+            ]
+        };
+
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        await action.Should().NotThrowAsync();
+    }
+
     private JObject GetAsset(int? space = null, string? id = null)
         => new() { ["id"] = id ?? assetIds[0], ["space"] = space ?? DefaultSpace };
+
+    private JObject GetAssetWithAdjuncts(int? space = null, string? id = null, string? adjunctAsset = null)
+    {
+        var adjunct = new JObject();
+        if (adjunctAsset != null) adjunct[AssetProperties.Asset] = adjunctAsset;
+        return new JObject
+        {
+            ["id"] = id ?? assetIds[0],
+            ["space"] = space ?? DefaultSpace,
+            [AssetProperties.Adjuncts] = new JArray(adjunct)
+        };
+    }
 }

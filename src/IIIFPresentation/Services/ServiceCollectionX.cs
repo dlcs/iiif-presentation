@@ -14,5 +14,6 @@ public static class ServiceCollectionX
         builder.Services.Configure<PathSettings>(pathSettings);
         var typedPathTemplateOptions = pathSettings.GetSection(TypedPathTemplateOptions.SettingsName);
         builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
+        builder.Services.Configure<ServicesSettings>(builder.Configuration.GetSection(ServicesSettings.SettingsName));
     }
 }

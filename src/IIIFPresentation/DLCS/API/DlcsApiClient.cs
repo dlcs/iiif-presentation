@@ -22,9 +22,9 @@ public interface IDlcsApiClient
     Task<Space> CreateSpace(int customerId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Ingest assets into the DLCS
+    /// Ingest deliverables into the DLCS
     /// </summary>
-    public Task<List<Batch>> IngestAssets<T>(int customerId, List<T> images,
+    public Task<List<Batch>> IngestDeliverables(int customerId, List<JObject> deliverables, bool adjunctQueue = false,
         CancellationToken cancellationToken = default);
 
     Task<List<JObject>> GetBatchAssets(int customerId, int batchId,
@@ -43,8 +43,16 @@ public interface IDlcsApiClient
     /// <param name="assets">assets to update</param>
     /// <param name="operationType">whether to add, remove or replace</param>
     /// <param name="manifests">manifests to update</param>
-    public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType, 
+    public Task<Asset[]> UpdateAssetManifest(int customerId, ICollection<string> assets, OperationType operationType,
         List<string> manifests, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes adjuncts from assets
+    /// </summary>
+    /// <param name="customerId">The customer id</param>
+    /// <param name="bulkDelete">The adjuncts to delete</param>
+    public Task DeleteAdjuncts(int customerId, IEnumerable<AdjunctAssetIdentifier> bulkDelete,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -77,18 +85,18 @@ internal class DlcsApiClient(
         return space ?? throw new DlcsException("Failed to create space", HttpStatusCode.InternalServerError);
     }
     
-    public async Task<List<Batch>> IngestAssets<T>(int customerId, List<T> assets, CancellationToken cancellationToken = default)
+    public async Task<List<Batch>> IngestDeliverables(int customerId, List<JObject> deliverables, bool adjunctQueue = false, CancellationToken cancellationToken = default)
     {
-        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfAssets} assets", customerId,
-            assets.Count);
-        var queuePath = $"/customers/{customerId}/queue";
+        logger.LogTrace("Creating new batch for customer {CustomerId} with {NumberOfDeliverables} {Type}", customerId,
+            deliverables.Count, adjunctQueue ? "adjuncts" : "assets");
+        var queuePath = $"/customers/{customerId}/{(adjunctQueue ? "adjunctQueue" : "queue")}";
         
-        var chunkedAssetList = assets.Chunk(settings.MaxBatchSize);
+        var chunkedDeliverableList = deliverables.Chunk(settings.MaxBatchSize);
         var batches = new ConcurrentBag<Batch>();
 
-        var tasks = chunkedAssetList.Select(async chunkedAssets =>
+        var tasks = chunkedDeliverableList.Select(async chunkedAssets =>
         {
-            var hydraImages = new HydraCollection<T>(chunkedAssets);
+            var hydraImages = new HydraCollection<JObject>(chunkedAssets);
 
             var batch = await CallDlcsApiFor<Batch>(HttpMethod.Post, queuePath, hydraImages, cancellationToken);
             if (batch == null)
@@ -130,7 +138,7 @@ internal class DlcsApiClient(
         logger.LogTrace("Requesting images for customer {CustomerId}: {AssetIds}", customerId,
             string.Join(",", assetIds));
 
-        var endpoint = $"/customers/{customerId}/allImages";
+        var endpoint = $"/customers/{customerId}/allImages?include=adjuncts";
         var results = new List<JObject>();
         foreach (var idBatch in assetIds.Distinct().Chunk(settings.MaxImageListSize))
         {
@@ -155,7 +163,7 @@ internal class DlcsApiClient(
             manifestId);
         
         var results = new List<JObject>();
-        var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page=1";
+        var endpoint = $"/customers/{customerId}/allImages?q={{\"manifests\": [\"{manifestId}\"]}}&pageSize={settings.MaxImageListSize}&page=1&include=adjuncts";
 
         while (endpoint != null)
         {
@@ -220,6 +228,54 @@ internal class DlcsApiClient(
         }
         
         return assetsResponse.ToArray();
+    }
+    
+    public async Task DeleteAdjuncts(int customerId, IEnumerable<AdjunctAssetIdentifier> bulkDelete,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogTrace("Deleting adjuncts for customer {CustomerId}", customerId);
+
+        var chunks = ChunkByAdjunctCount(bulkDelete, settings.MaxImageListSize);
+
+        foreach (var chunk in chunks)
+        {
+            var payload = new HydraCollection<AdjunctAssetIdentifier>(chunk);
+            var endpoint = $"/customers/{customerId}/deleteAdjuncts";
+
+            var response = await CallDlcsApi(HttpMethod.Post, endpoint, payload, cancellationToken);
+            
+            // we only need to read the response if we get an error code, as this will throw errors for handling
+            if (!response.IsSuccessStatusCode) await response.ReadAsDlcsResponse<DlcsError>(cancellationToken);
+        }
+    }
+
+    private static IEnumerable<AdjunctAssetIdentifier[]> ChunkByAdjunctCount(
+        IEnumerable<AdjunctAssetIdentifier> source, int maxAdjunctCount)
+    {
+        var currentChunk = new List<AdjunctAssetIdentifier>();
+        var currentCount = 0;
+
+        foreach (var item in source)
+        {
+            // A single asset may have more adjuncts than the per-request limit. Pre-split the adjunct
+            // list so each resulting sub-item is within the limit before the accumulation logic runs.
+            foreach (var adjunctBatch in item.Adjunct.Chunk(maxAdjunctCount))
+            {
+                var splitItem = new AdjunctAssetIdentifier { Id = item.Id, Adjunct = [..adjunctBatch] };
+
+                if (currentCount + splitItem.Adjunct.Count > maxAdjunctCount && currentChunk.Count > 0)
+                {
+                    yield return currentChunk.ToArray();
+                    currentChunk.Clear();
+                    currentCount = 0;
+                }
+
+                currentChunk.Add(splitItem);
+                currentCount += splitItem.Adjunct.Count;
+            }
+        }
+
+        if (currentChunk.Count > 0) yield return currentChunk.ToArray();
     }
 
     private async Task<JObject?> CallDlcsApiForJson(HttpMethod httpMethod, string path, object? payload,

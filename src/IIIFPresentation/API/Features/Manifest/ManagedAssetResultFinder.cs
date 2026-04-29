@@ -28,7 +28,7 @@ public class ManagedAssetResultFinder(
     /// Checks a presentation manifest to find what assets require further processing by the DLCS
     /// </summary>
     public async Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(PresentationManifest presentationManifest,
-         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, CancellationToken cancellationToken)
+         List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, List<AdjunctInteraction>? adjuncts, CancellationToken cancellationToken)
     {
         logger.LogTrace("Checking for known assets");
         var stopwatch = new Stopwatch();
@@ -85,7 +85,7 @@ public class ManagedAssetResultFinder(
             assetsNotFoundInSameManifest.Add((assetId, paintedResource));
         }
 
-        var inAnotherManifest = FindAssetsInAnotherManifest(customerId, assetsNotFoundInSameManifest);
+        var inAnotherManifest = FindAssetsInAnotherManifest(assetsNotFoundInSameManifest);
         
         List<(AssetId assetId, PaintedResource paintedResource)> checkDlcs = [];
 
@@ -129,7 +129,7 @@ public class ManagedAssetResultFinder(
             }
         }
 
-        dlcsInteractionRequests.AddRange(await CheckDlcsForAssets(checkDlcs, customerId, cancellationToken));
+        dlcsInteractionRequests.AddRange(await CheckDlcsForAssets(checkDlcs, customerId, adjuncts, cancellationToken));
         
         stopwatch.Stop();
         logger.LogTrace("Checking for known assets took {Elapsed} milliseconds", stopwatch.Elapsed.Milliseconds);
@@ -203,7 +203,7 @@ public class ManagedAssetResultFinder(
         return assetsToAddToManifest;
     }
 
-    private List<CanvasPainting> FindAssetsInAnotherManifest(int customerId, 
+    private List<CanvasPainting> FindAssetsInAnotherManifest(
         List<(AssetId assetId, PaintedResource paintedResource)> assetsNotFoundInSameManifest)
     {
         List<CanvasPainting> inAnotherManifest = [];
@@ -229,7 +229,8 @@ public class ManagedAssetResultFinder(
     }
 
     private async Task<List<DlcsInteractionRequest>> CheckDlcsForAssets(
-        List<(AssetId assetId, PaintedResource paintedResource)> assetsToCheck, int customerId, CancellationToken cancellationToken)
+        List<(AssetId assetId, PaintedResource paintedResource)> assetsToCheck, int customerId, List<AdjunctInteraction>? adjuncts,
+        CancellationToken cancellationToken)
     {
         IList<JObject> dlcsAssets;
         
@@ -244,7 +245,7 @@ public class ManagedAssetResultFinder(
             throw;
         }
         
-        var dlcsAssetIds = dlcsAssets.Select(d => d.GetAssetId(customerId)).ToList();
+        var dlcsAssetIds = PerformAssetInteractions(adjuncts, dlcsAssets, customerId);
 
         List<DlcsInteractionRequest> interactionRequest = [];
         
@@ -275,6 +276,22 @@ public class ManagedAssetResultFinder(
         
         return interactionRequest;
     }
+
+    private List<AssetId> PerformAssetInteractions(List<AdjunctInteraction>? adjuncts, IList<JObject> dlcsAssets, int customerId)
+    {
+        List<AssetId> existingAssetIds = [];
+
+        foreach (var asset in dlcsAssets)
+        {
+            var assetId = asset.GetAssetId(customerId);
+            existingAssetIds.Add(assetId);
+
+            // pre-populate ExistingAdjunctIds where possible, avoiding a separate lookup later
+            asset.SetExistingAdjunctIds(adjuncts, assetId);
+        }
+
+        return existingAssetIds;
+    }
 }
 
 /// <summary>
@@ -284,8 +301,8 @@ public interface IManagedAssetResultFinder
 {
     public Task<List<DlcsInteractionRequest>> FindAssetsThatRequireAdditionalWork(
         PresentationManifest presentationManifest,
-        List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId,
-        CancellationToken cancellationToken);
+        List<AssetId>? existingAssetIds, int? spaceId, bool spaceCreated, int customerId, 
+        List<AdjunctInteraction>? adjuncts, CancellationToken cancellationToken);
     
     public Task<List<AssetId>> CheckAssetsFromItemsExist(
         List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,

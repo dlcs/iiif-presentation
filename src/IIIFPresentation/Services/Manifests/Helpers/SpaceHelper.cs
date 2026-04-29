@@ -1,6 +1,7 @@
 ﻿using Models.Database;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Model;
 
 namespace Services.Manifests.Helpers;
 
@@ -37,6 +38,24 @@ public static class SpaceHelper
         foreach (var canvasPainting in canvasPaintings.Where(canvasPainting => canvasPainting.AssetId?.Space == DefaultSpaceForLaterPopulation))
         {
             canvasPainting.AssetId = new AssetId(canvasPainting.AssetId!.Customer, spaceId.Value, canvasPainting.AssetId.Asset);
+        }
+    }
+
+    /// <summary>
+    /// Updates adjunct interactions with a specified space id where the asset id was marked for population following
+    /// DLCS interactions. Also updates the asset reference in each adjunct JObject.
+    /// </summary>
+    /// <param name="adjuncts">The adjunct interactions to check</param>
+    /// <param name="spaceId">The space id to set</param>
+    public static void UpdateAdjuncts(List<AdjunctInteraction> adjuncts, int? spaceId)
+    {
+        if (!spaceId.HasValue) return;
+        foreach (var adjunct in adjuncts.Where(a => a.AssetId.Space == DefaultSpaceForLaterPopulation))
+        {
+            var updatedAssetId = new AssetId(adjunct.AssetId.Customer, spaceId.Value, adjunct.AssetId.Asset);
+            adjunct.AssetId = updatedAssetId;
+            foreach (var item in adjunct.Adjuncts)
+                item[AssetProperties.Asset] = updatedAssetId.ToString();
         }
     }
 }

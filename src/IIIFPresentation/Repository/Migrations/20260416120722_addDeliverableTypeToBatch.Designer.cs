@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Repository;
@@ -11,9 +12,11 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260416120722_addDeliverableTypeToBatch")]
+    partial class addDeliverableTypeToBatch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -241,16 +244,20 @@ namespace Repository.Migrations
             modelBuilder.Entity("Models.Database.General.Batch", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    b.Property<string>("DeliverableType")
-                        .HasColumnType("text")
-                        .HasColumnName("deliverable_type");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")
                         .HasColumnName("customer_id");
+
+                    b.Property<string>("DeliverableType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("deliverable_type");
 
                     b.Property<DateTime?>("Finished")
                         .HasColumnType("timestamp with time zone")
@@ -274,7 +281,7 @@ namespace Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted");
 
-                    b.HasKey("Id", "DeliverableType")
+                    b.HasKey("Id")
                         .HasName("pk_batches");
 
                     b.HasIndex("ManifestId", "CustomerId")

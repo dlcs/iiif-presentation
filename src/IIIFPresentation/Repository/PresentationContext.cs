@@ -136,17 +136,25 @@ public class PresentationContext : DbContext
 
         modelBuilder.Entity<Batch>(entity =>
         {
+            entity.HasKey(b => new { b.Id, b.DeliverableType });
+
             entity
                 .HasOne(cp => cp.Manifest)
                 .WithMany(m => m.Batches)
                 .HasForeignKey(cp => new { cp.ManifestId, cp.CustomerId })
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasConversion(
                     b => b.ToString(),
                     b => b.GetEnumFromString<BatchStatus>(true));
+
+            entity.Property(e => e.DeliverableType)
+                .IsRequired()
+                .HasConversion(
+                    d => d.ToString(),
+                    d => d.GetEnumFromString<DeliverableType>(true));
         });
     }
     

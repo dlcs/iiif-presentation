@@ -49,11 +49,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         // Echo back "batch" value set in first Asset
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
+                    ResourceId =  x.Arguments.Get<List<JObject>>("deliverables").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
         
@@ -498,9 +498,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
+            A<bool>._, A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
         
         var payload = $$"""
                          {
@@ -2007,9 +2007,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         newAssetManifestSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/{NewlyCreatedSpace}/{assetId}_3"));
         newAssetAssetSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/3/{assetId}_3"));
         
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnNothing"),
-            A<CancellationToken>._)).MustNotHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
         
         dbManifest.Batches.Should().HaveCount(2);
         dbManifest.Batches.Single(b => b.Id == batchId).Should().NotBeNull("Assets not found, so batch created");
@@ -2455,9 +2455,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(o =>
-                    o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<CancellationToken>._))
+                    o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<bool>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     

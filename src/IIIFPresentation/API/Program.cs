@@ -21,6 +21,7 @@ using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -69,6 +70,7 @@ builder.Services
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
+    .AddSingleton<CanvasHelper>()
     .AddSingleton<PaintableAssetIdentifier>()
     .AddScoped<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
@@ -82,6 +84,7 @@ builder.Services
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
+    .AddScoped<ServicesSettings>()
     .AddHttpContextAccessor()
     .AddScoped<ICustomerIdProvider, HttpContextCustomerIdProvider>()
     .AddOutgoingHeaders();

@@ -38,11 +38,6 @@ public class ParentSlugParserTests
         
         A.CallTo(() => httpContextAccessor.HttpContext.Request).Returns(request);
         
-        var options = Options.Create(new DlcsSettings
-        {
-            ApiUri = new Uri("http://localhost")
-        });
-        
         var typedTemplateOptions = Options.Create(new TypedPathTemplateOptions());
         var pathRewriteParser = new PathRewriteParser(typedTemplateOptions, new NullLogger<PathRewriteParser>());
 
