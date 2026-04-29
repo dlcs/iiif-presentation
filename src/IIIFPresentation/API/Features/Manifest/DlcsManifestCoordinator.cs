@@ -19,6 +19,7 @@ using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using Batch = Models.Database.General.Batch;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
@@ -181,7 +182,7 @@ public class DlcsManifestCoordinator(
         CancellationToken cancellationToken)
     {
         List<DlcsInteractionRequest> dlcsInteractionRequests;
-        
+
         try
         {
             dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
@@ -204,32 +205,36 @@ public class DlcsManifestCoordinator(
         }
 
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
-        
+
         // create batches for assets
-        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);
+        var collectedBatches = new List<Batch>();
+        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), collectedBatches,
+            cancellationToken);
         if (batchError != null) return new DlcsInteractionResult(batchError, spaceId);
-        
+
         // then update existing assets in another manifest with the current manifest id
         await UpdateAssetsWithManifestId(request, manifestId,
             dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
         await RemoveUnusedAssets(previousManifestAssetIds, manifestId, request.CustomerId, assets, assetsFromItems, cancellationToken);
-        
+
         // finally ingest adjuncts
-        var adjunctErrors = await HandleAdjunctInteractions(request, manifestId, adjunctInteractions, spaceId, cancellationToken);
+        var adjunctErrors = await HandleAdjunctInteractions(request, manifestId, adjunctInteractions, spaceId,
+            collectedBatches, cancellationToken);
         if (adjunctErrors != null) return adjunctErrors;
 
-        var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
+        var ingestedAssets = dlcsInteractionRequests
+            .Where(d => d.Ingest != IngestType.NoIngest)
+            .Select(d => d.AssetId)
             .ToList();
         
-        // TODO - update this to look at the number of Batches outstanding, rather than interaction results
-        var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
-                                (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
-        return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
+        // All-of-empty is true, so no batches submitted ⇒ canBeBuiltUpfront
+        var canBeBuiltUpfront = collectedBatches.All(b => b.Status == BatchStatus.Completed);
+        return new DlcsInteractionResult(null, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
     }
 
     private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(WriteManifestRequest request, string manifestId, List<AdjunctInteraction> adjunctInteractions,
-        int? spaceId, CancellationToken cancellationToken)
+        int? spaceId, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         if (adjunctInteractions.Count > 0)
         {
@@ -244,7 +249,7 @@ public class DlcsManifestCoordinator(
             if (adjunctList.Count > 0)
             {
                 var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjunctList,
-                    DeliverableType.Adjunct, cancellationToken);
+                    DeliverableType.Adjunct, collectedBatches, cancellationToken);
                 if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
             }
         }
@@ -340,8 +345,8 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, 
-        List<DlcsInteractionRequest> dlcsInteractionRequests, CancellationToken cancellationToken)
+    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId,
+        List<DlcsInteractionRequest> dlcsInteractionRequests, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         if (dlcsInteractionRequests.Count == 0) return null;
 
@@ -385,11 +390,11 @@ public class DlcsManifestCoordinator(
         
         // `assets` now contain all the assets that should be ingested by DLCS
         return await IngestDeliverables(customerId, manifestId, assets.Values.ToList(), DeliverableType.Asset,
-            cancellationToken: cancellationToken);
+            collectedBatches, cancellationToken);
     }
 
-    private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId, 
-        List<JObject> deliverables, DeliverableType deliverableType, CancellationToken cancellationToken)
+    private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId,
+        List<JObject> deliverables, DeliverableType deliverableType, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         try
         {
@@ -397,8 +402,10 @@ public class DlcsManifestCoordinator(
                 deliverables,
                 deliverableType == DeliverableType.Adjunct,
                 cancellationToken: cancellationToken);
-            
-            await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType, cancellationToken);
+
+            var dbBatches = await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType,
+                cancellationToken);
+            collectedBatches.AddRange(dbBatches);
             return null;
         }
         catch (DlcsException exception)

@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 namespace API.Features.Manifest;
 
-public class DlcsInteractionRequest (JObject asset, IngestType ingest, 
+public class DlcsInteractionRequest(JObject asset, IngestType ingest, 
     bool patch, AssetId assetId)
 {
     /// <summary>
@@ -29,10 +29,21 @@ public class DlcsInteractionRequest (JObject asset, IngestType ingest,
 
 public enum IngestType
 {
-    // do not ingest
+    /// <summary>
+    /// Do not ingest asset.
+    /// </summary>
     NoIngest,
-    // ingest with a manifest id
+    
+    /// <summary>
+    /// Ingest asset and set manifest id for Asset.
+    /// This is used when the Asset is not already part of the Manifest - it is new or already associated
+    /// with a different Manifest.
+    /// </summary>
     ManifestId,
-    // ingest without a manifest id
+    
+    /// <summary>
+    /// Ingest asset without updating manifest id for Asset.
+    /// This is used when the Asset is already part of the Manifest (e.g. for reingest scenarios)
+    /// </summary>
     NoManifestId
 }

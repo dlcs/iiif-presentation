@@ -28,7 +28,7 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     private readonly PresentationContext dbContext;
     private readonly string parent;
     private const int Customer = 1;
-    private readonly IDlcsApiClient dlcsApiClient;
+    private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private const int NewlyCreatedSpace = 900;
     private const int ExampleCustomer = 601;
     private const int NoCustomerCustomer = 602;
@@ -37,13 +37,12 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     {
         dbContext = storageFixture.DbFixture.DbContext;
         
-        dlcsApiClient = A.Fake<IDlcsApiClient>();
-        A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-            services => services.AddSingleton(dlcsApiClient));
+            services => services.AddSingleton(DLCSApiClient));
         
         parent = dbContext.Collections
             .First(x => x.CustomerId == Customer && x.Hierarchy!.Any(h => h.Slug == string.Empty)).Id;
@@ -333,10 +332,9 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
     public async Task CreateManifest_CreatesManifest_WhenRewrittenPathsAndAdditionalPathElements()
     {
         // Arrange
-        var slug = TestIdentifiers.Id();
-        var customer = 601;
+        var (slug, canvasPaintingId, assetId) = TestIdentifiers.SlugResourceAsset();
+        const int customer = 601;
         
-        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         var manifest = new PresentationManifest
         {
             Parent = $"http://example.com/foo/{customer}/collections/{RootCollection.Id}",
@@ -351,13 +349,20 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
                     },
                     Asset = new JObject
                     {
-                        ["id"] = "someId",
+                        ["id"] = assetId,
                         ["mediaType"] = "image/jpeg",
                         ["space"] = 1
                     }
                 }
             ]
         };
+
+        // Return an unfinished signifying more work to do
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(customer,
+                A<List<JObject>>.That.Matches(o =>
+                    o.Count == 1 && o.First().GetValue("id")!.ToString() == assetId),
+                false, A<CancellationToken>._))
+            .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{customer}/manifests", manifest.AsJson());
@@ -371,11 +376,11 @@ public class ModifyRewrittenPathTests : IClassFixture<PresentationAppFactory<Pro
         
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
-        responseManifest.Id.Should().NotBeNull();
+        responseManifest!.Id.Should().NotBeNull();
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://example.com/foo/{customer}/collections/{RootCollection.Id}", "uses the host based path parser");
-        responseManifest.PaintedResources[0].CanvasPainting.CanvasId.Should().Be($"http://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the host based path parser");
-        responseManifest.Items[0].Id.Should().Be($"https://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the settings based path parser");
+        responseManifest.PaintedResources![0].CanvasPainting!.CanvasId.Should().Be($"http://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the host based path parser");
+        responseManifest.Items![0].Id.Should().Be($"https://example.com/example/{customer}/canvases/{canvasPaintingId}", "uses the settings based path parser");
     }
     
     [Fact]

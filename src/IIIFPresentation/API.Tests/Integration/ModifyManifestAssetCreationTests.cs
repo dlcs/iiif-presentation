@@ -50,14 +50,14 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
-        // Echo back "batch" value set in first Asset
+        // Echo back "batch" value set in first deliverable
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch>
                 {
                     new()
                     {
-                        ResourceId = x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(),
+                        ResourceId = x.Arguments[1].As<List<JObject>>().First().GetValue("batch")?.ToString(),
                         Submitted = DateTime.Now
                     }
                 }));
@@ -799,7 +799,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          // Arrange
          var (assetId ,slug) = TestIdentifiers.SlugResource();
          var batchId = TestIdentifiers.BatchId();
-         Fake.ClearRecordedCalls(DLCSApiClient);
+         //Fake.ClearRecordedCalls(DLCSApiClient);
 
          var manifestWithoutSpace = $$"""
                                       {
@@ -1889,5 +1889,84 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
          var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
          errorResponse!.Detail.Should().Be("Adjunct 'id' must not be empty");
+     }
+     
+     [Fact]
+     public async Task CreateManifest_ReturnsImmediately_IfAdjunctAndAssetBatchAutoCompleted()
+     {
+         // Arrange
+         var (slug, assetId) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+         var adjunctBatchId = TestIdentifiers.BatchId();
+         var manifest = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "{{assetId}}",
+                                                  "externalId": "https://hosted.example/image/mets.xml",
+                                                  "@type": "Dataset",
+                                                  "mediaType": "text/xml",
+                                                  "iiifLink": "seeAlso"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+         
+         // Configure fake to return a completed batch for Asset and Adjunct - signifying we can complete now
+         var finishDate = new DateTime(2026, 4, 29, 12, 4, 7, DateTimeKind.Utc);
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                 A<List<JObject>>.That.Matches(o =>
+                     o.Count == 1 && o.First().GetValue("id")!.ToString().Contains(assetId)),
+                 false, A<CancellationToken>._))
+             .Returns([new Batch { Finished = finishDate, ResourceId = batchId.ToString() }]);
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                 A<List<JObject>>.That.Matches(o =>
+                     o.Count == 1 && o.First().GetValue("id")!.ToString().Contains(assetId)),
+                 true, A<CancellationToken>._))
+             .Returns([new Batch { Finished = finishDate, ResourceId = adjunctBatchId.ToString() }]);
+         
+         // Configure NQ to return a manifest, as this is sync processing
+         A.CallTo(() =>
+                 DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                     A<CancellationToken>.Ignored))
+             .ReturnsLazily(() => ManifestTestCreator.New()
+                 .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, assetId), c => c.WithImage())
+                 .Build());
+         
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Created);
+         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+
+         var dbManifest = dbContext.Manifests
+             .Include(m => m.Batches)
+             .First(x => x.Id == responseManifest!.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
+
+         var dbBatches = dbManifest.Batches!;
+         dbBatches.Should().HaveCount(2);
+         var assetBatch = dbBatches.Single(b => b.Id == batchId);
+         var adjunctBatch = dbBatches.Single(b => b.Id == adjunctBatchId);
+         
+         assetBatch.DeliverableType.Should().Be(DeliverableType.Asset);
+         assetBatch.Finished.Should().Be(finishDate, "Asset batch finished - date taken from dlcs batch");
+         
+         adjunctBatch.DeliverableType.Should().Be(DeliverableType.Adjunct);
+         adjunctBatch.Finished.Should().Be(finishDate, "Adjunct batch finished - date taken from dlcs batch");
      }
 }

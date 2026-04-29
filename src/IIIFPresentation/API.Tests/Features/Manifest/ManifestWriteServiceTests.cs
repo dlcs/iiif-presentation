@@ -60,7 +60,6 @@ public class ManifestWriteServiceTests
         var idGenerator = new SqidsGenerator(sqidsEncoder, new NullLogger<SqidsGenerator>());
         
         var identityManager = new IdentityManager(idGenerator, presentationContext, new NullLogger<IdentityManager>());
-        var iiifS3Service = A.Fake<IIIIFS3Service>();
         
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
@@ -439,7 +438,7 @@ public class ManifestWriteServiceTests
         // Arrange
         dynamic asset = new JObject();
 
-        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        var (slug, resourceId,  assetId) = TestIdentifiers.SlugResourceAsset();
 
         asset.id = assetId;
 
@@ -493,7 +492,11 @@ public class ManifestWriteServiceTests
         // Arrange
         dynamic asset = new JObject();
 
-        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        // Setup a fake batch with resource ID, this is unfinished so means it's sync complete
+        A.CallTo(() => dlcsClient.IngestDeliverables(Customer, A<List<JObject>>._, false, A<CancellationToken>._))
+            .Returns([new Batch { Finished = null, ResourceId = "12345" }]);
+
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
 
         asset.id = assetId;
         
@@ -527,10 +530,10 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
-        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
-        paintedResource.CanvasPainting.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        ingestedManifest.Entity!.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items!.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
+        var paintedResource = ingestedManifest.Entity.PaintedResources!.First();
+        paintedResource.CanvasPainting!.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
         paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
     }
     

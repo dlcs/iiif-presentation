@@ -806,14 +806,14 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
                 AssetId = new AssetId(Customer, NewlyCreatedSpace, $"{assetId}_1")
             }
         };
-
+        
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer,
                 A<ICollection<string>>.That.Matches(o =>
                     o.First().Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_")),
                 A<CancellationToken>._))
-            .ReturnsLazily((int customerId, ICollection<string> assetIds, CancellationToken can) =>
+            .ReturnsLazily((int _, ICollection<string> assetIds, CancellationToken _) =>
                 Task.FromResult((IList<JObject>)assetIds
-                    .Where(a => a.Split('/', StringSplitOptions.None).Last().StartsWith("fromDlcs_"))
+                    .Where(a => a.Split('/').Last().StartsWith("fromDlcs_"))
                     .Select(x => JObject.Parse($$"""
                                                  {
                                                    "id": "{{x.Split('/').Last()}}",
@@ -832,9 +832,16 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
             batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
         await dbContext.SaveChangesAsync();
-
+        
         var batchId = TestIdentifiers.BatchId();
-        var newAdjunctId = "different";
+        const string newAdjunctId = "different";
+        
+        // Batch creation call response must have a Finished date to immediately complete
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                A<List<JObject>>.That.Matches(o =>
+                    o.Count == 1 && o.First().GetValue("id")!.ToString() == newAdjunctId),
+                true, A<CancellationToken>._))
+            .Returns([new Batch { Finished = DateTime.UtcNow, ResourceId = batchId.ToString() }]);
 
         var manifestWithSpace = $$"""
                           {
@@ -881,7 +888,7 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
             .Include(m => m.Batches)
             .First(x => x.Id == responseManifest.Id!.Split('/', StringSplitOptions.TrimEntries).Last());
 
-        dbManifest.CanvasPaintings.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
+        dbManifest.CanvasPaintings!.First(cp => cp.CanvasOrder == 1).Should().NotBeNull("asset added to manifest");
 
         // deleted the adjunct returned from GetCustomerImages
         A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
@@ -891,9 +898,9 @@ public class ModifyManifestAdjunctUpdateTests : IClassFixture<PresentationAppFac
         // new adjunct ingested
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
             A<List<JObject>>.That.Matches(o => o.Count == 1 && o.First().GetValue("id")!.ToString() == newAdjunctId),
-            A<bool>._, A<CancellationToken>._)).MustHaveHappened();
+            true, A<CancellationToken>._)).MustHaveHappened();
 
         dbManifest.Batches.Should().HaveCount(2); // initial batch from setup + adjunct batch
-        dbManifest.Batches.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
+        dbManifest.Batches!.Last().DeliverableType.Should().Be(DeliverableType.Adjunct);
     }
 }

@@ -12,7 +12,7 @@ public static class BatchHelper
     /// This method creates <see cref="DbBatch"/> entities from provided DLCS <see cref="Batch"/> records and adds these
     /// to current DB context, without saving
     /// </summary>
-    public static async Task AddBatchesToDatabase(this List<Batch> batches,
+    public static async Task<IReadOnlyList<DbBatch>> AddBatchesToDatabase(this List<Batch> batches,
         int customerId, string manifestId, PresentationContext dbContext, DeliverableType deliverableType, 
         CancellationToken cancellationToken = default)
     {
@@ -29,5 +29,6 @@ public static class BatchHelper
         }).ToList();
         
         await dbContext.Batches.AddRangeAsync(dbBatches, cancellationToken);
+        return dbBatches;
     }
 }
