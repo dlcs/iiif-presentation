@@ -279,11 +279,10 @@ public class DlcsManifestCoordinator(
 
             var currentIds = adjunctInteraction.Adjuncts
                 .Select(a => a[AdjunctProperties.Id]?.Value<string>())
-                .Where(id => id != null)
-                .ToHashSet();
-
+                .Where(id => id != null);
+            
             var adjunctsToDelete = adjunctInteraction.ExistingAdjunctIds
-                .Where(id => !currentIds.Contains(id))
+                .Except(currentIds)
                 .ToList();
 
             if (adjunctsToDelete.Count > 0)

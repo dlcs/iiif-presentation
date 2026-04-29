@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -960,6 +961,59 @@ public class ManifestPaintedResourceParserTests
         action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
+    [Fact]
+    public async Task Parse_WithAdjuncts_ThrowsAssetException_WhenAdjunctAssetDoesNotMatchParent()
+    {
+        var mismatchedAssetId = "9999/99/wrong-asset";
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAssetWithAdjuncts(adjunctAsset: mismatchedAssetId)
+                }
+            ]
+        };
+
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        await action.Should().ThrowAsync<AssetException>()
+            .WithMessage($"Adjunct asset '{mismatchedAssetId}' does not match parent asset '{CustomerId}/{DefaultSpace}/{assetIds[0]}'");
+    }
+
+    [Fact]
+    public async Task Parse_WithAdjuncts_DoesNotThrow_WhenAdjunctAssetMatchesParent()
+    {
+        var matchingAssetId = $"{CustomerId}/{DefaultSpace}/{assetIds[0]}";
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = GetAssetWithAdjuncts(adjunctAsset: matchingAssetId)
+                }
+            ]
+        };
+
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        await action.Should().NotThrowAsync();
+    }
+
     private JObject GetAsset(int? space = null, string? id = null)
         => new() { ["id"] = id ?? assetIds[0], ["space"] = space ?? DefaultSpace };
+
+    private JObject GetAssetWithAdjuncts(int? space = null, string? id = null, string? adjunctAsset = null)
+    {
+        var adjunct = new JObject();
+        if (adjunctAsset != null) adjunct[AssetProperties.Asset] = adjunctAsset;
+        return new JObject
+        {
+            ["id"] = id ?? assetIds[0],
+            ["space"] = space ?? DefaultSpace,
+            [AssetProperties.Adjuncts] = new JArray(adjunct)
+        };
+    }
 }

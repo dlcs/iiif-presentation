@@ -117,7 +117,7 @@ public class ManifestPaintedResourceParser(
             CanvasOrder = canvasOrder,
             SuspectedAssetId = assetDetails.Id,
             SuspectedSpace = assetDetails.Space,
-            AdjunctInteraction = assetDetails.AdjunctInteractions,
+            AdjunctInteraction = assetDetails.AdjunctInteraction,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -183,7 +183,7 @@ public class ManifestPaintedResourceParser(
         return new AssetDetails
         {
             Space = space,
-            AdjunctInteractions = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
+            AdjunctInteraction = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
             Id = id
         };
     }
@@ -192,9 +192,20 @@ public class ManifestPaintedResourceParser(
     {
         var resolvedSpace = space ?? SpaceHelper.DefaultSpaceForLaterPopulation;
         var key = new AssetId(customerId, resolvedSpace, assetId);
+        var keyString = key.ToString();
         var hydratedAdjuncts = adjuncts.Select(a =>
         {
-            a[AssetProperties.Asset] ??= key.ToString();
+            var adjunctAsset = a[AssetProperties.Asset]?.ToString();
+            if (adjunctAsset == null)
+            {
+                a[AssetProperties.Asset] = keyString;
+            }
+            else if (adjunctAsset != keyString)
+            {
+                throw new AssetException(
+                    $"Adjunct asset '{adjunctAsset}' does not match parent asset '{keyString}'",
+                    adjunctAsset);
+            }
             return a;
         }).ToList();
         return new AdjunctInteraction { AssetId = key, Adjuncts = hydratedAdjuncts };
@@ -206,7 +217,7 @@ public class ManifestPaintedResourceParser(
     private class AssetDetails
     {
         public int? Space { get; init; }
-        public AdjunctInteraction? AdjunctInteractions { get; init; }
+        public AdjunctInteraction? AdjunctInteraction { get; init; }
         public required string Id { get; init; }
     }
 }

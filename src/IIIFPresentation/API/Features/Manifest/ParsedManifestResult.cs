@@ -6,7 +6,7 @@ using Services.Manifests.Model;
 namespace API.Features.Manifest;
 
 /// <summary>
-/// Records class containing details of various tghings that require further processing, such as canvas paintings
+/// Records class containing details of various things that require further processing, such as canvas paintings
 /// and adjunct interactions
 /// </summary>
 public class ParsedManifestResult
