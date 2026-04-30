@@ -57,7 +57,7 @@ public class BatchCompletionMessageHandler(
                                                   b.Status != BatchStatus.Completed &&
                                                   b.Id != batch.Id, cancellationToken))
         {
-            CompleteBatch(batch, batchCompletionMessage.Finished);
+            TryCompleteBatch(batch, batchCompletionMessage.Finished);
         }
         else
         {
@@ -67,8 +67,17 @@ public class BatchCompletionMessageHandler(
 
             try
             {
-                CompleteBatch(batch, batchCompletionMessage.Finished);
-                await manifestS3Manager.UpsertManifestFromStagingInStorage(batch.Manifest!, cancellationToken);
+                if (TryCompleteBatch(batch, batchCompletionMessage.Finished))
+                {
+                    await manifestS3Manager.UpsertManifestFromStagingInStorage(batch.Manifest!, cancellationToken);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "Batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId} already completed",
+                        batch.Id, batch.CustomerId, batch.ManifestId);
+                    return;
+                }
             }
             catch (Exception e)
             {
@@ -97,10 +106,18 @@ public class BatchCompletionMessageHandler(
         }
     }
     
-    private static void CompleteBatch(Batch batch, DateTime finished)
-    {
+    /// <summary>
+    /// Attempt to complete the batch if it hasn't already been marked as complete. This can happen in instances where
+    /// the SQS is either re-delivered (unlikely) or the batch auto-completed in the API, and the API already marked
+    /// this batch as complete.
+    /// </summary>
+    private static bool TryCompleteBatch(Batch batch, DateTime finished)
+    { 
+        if (batch.Status == BatchStatus.Completed) return false;
+        
         batch.Processed = DateTime.UtcNow;
         batch.Finished = finished;
         batch.Status = BatchStatus.Completed;
+        return true;
     }
 }

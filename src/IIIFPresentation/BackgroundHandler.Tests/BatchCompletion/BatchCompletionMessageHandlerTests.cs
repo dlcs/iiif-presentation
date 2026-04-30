@@ -135,6 +135,44 @@ public class BatchCompletionMessageHandlerTests
     [Theory]
     [InlineData(DeliverableType.Asset)]
     [InlineData(DeliverableType.Adjunct)]
+    public async Task HandleMessage_AlreadyCompletedBatch_DoesNotUpdateManifest(DeliverableType deliverableType)
+    {
+        // Arrange - the stored batch is already Completed, assert that in this instance we don't change the Processed
+        // date and don't attempt to re-save the item in S3
+        var batchId = TestIdentifiers.BatchId();
+        var asset = TestIdentifiers.Id();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType}");
+        var otherBatchId = TestIdentifiers.BatchId();
+        const int space = 2;
+        
+        // Set processed date far in past to assert it hasn't changed
+        var processedDate = new DateTime(2020, 4, 30, 12, 17, 15, DateTimeKind.Utc);
+
+        var manifest = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var batchInDatabase = manifest.Entity.Batches!.Single();
+        batchInDatabase.DeliverableType = deliverableType;
+        batchInDatabase.Status = BatchStatus.Completed;
+        batchInDatabase.Processed = processedDate;
+        
+        var assetId = new AssetId(CustomerId, space, asset);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.Batches.AddTestBatch(otherBatchId, manifest.Entity, deliverableType);
+        await dbContext.SaveChangesAsync();
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: deliverableType);
+
+        // Act and Assert
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleAsync(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Completed);
+        batch.Processed.Should().Be(processedDate, "Process date hasn't changed");
+    }
+
+    [Theory]
+    [InlineData(DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct)]
     public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType)
     {
         // Arrange
