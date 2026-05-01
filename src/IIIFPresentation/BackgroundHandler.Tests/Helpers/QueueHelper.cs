@@ -19,7 +19,7 @@ public static class QueueHelper
     ""submitted"":""2024-12-19T21:03:31.57Z"",
     ""finished"":""{finished ?? DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssK}""
 }}";
-        return new QueueMessage(batchMessage, new Dictionary<string, string>()
+        return new QueueMessage(batchMessage, new Dictionary<string, string>
         {
             ["Type"] = deliverableType == DeliverableType.Asset ? "Batch" : "AdjunctBatch"
         }, "foo");
