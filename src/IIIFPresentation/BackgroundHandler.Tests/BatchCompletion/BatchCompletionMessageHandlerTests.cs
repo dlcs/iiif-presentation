@@ -221,7 +221,7 @@ public class BatchCompletionMessageHandlerTests
         firstCanvas.Items![0].Id.Should().Be(
             $"https://localhost:5000/1/canvases/{canvasPaintingId}/annopages/1",
             "AnnotationPage Id overwritten");
-        var paintingAnnotation = firstCanvas.Items![0].Items![0].As<PaintingAnnotation>();
+        var paintingAnnotation = firstCanvas.GetFirstPaintingAnnotation()!;
         paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
