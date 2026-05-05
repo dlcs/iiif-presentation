@@ -41,8 +41,8 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IPresentationPathGenerator, SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
-    .AddSingleton<IManifestMerger, ManifestMerger>()
-    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
+    .AddScoped<IManifestMerger, ManifestMerger>()
+    .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<ICustomerIdProvider, SetCustomerIdProvider>()
     .Configure<DlcsSettings>(dlcsSettings);
 

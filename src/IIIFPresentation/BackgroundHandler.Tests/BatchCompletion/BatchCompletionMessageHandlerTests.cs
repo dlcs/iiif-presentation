@@ -54,7 +54,7 @@ public class BatchCompletionMessageHandlerTests
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
 
-        pathSettings = new PathSettings()
+        pathSettings = new PathSettings
         {
             PresentationApiUrl = new Uri("https://localhost:5000")
         };
@@ -98,23 +98,30 @@ public class BatchCompletionMessageHandlerTests
                 dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
-    
-    [Fact]
-    public async Task HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting()
+
+    [Theory]
+    [InlineData(DeliverableType.Asset, DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct, DeliverableType.Asset)]
+    [InlineData(DeliverableType.Asset, DeliverableType.Adjunct)]
+    [InlineData(DeliverableType.Adjunct, DeliverableType.Adjunct)]
+    public async Task HandleMessage_DoesNotUpdateBatchedImages_WhenAnotherBatchWaiting_RegardlessOfType(
+        DeliverableType dbType, DeliverableType messageType)
     {
         // Arrange
         var batchId = TestIdentifiers.BatchId();
-        var identifier = TestIdentifiers.Id();
+        var asset = TestIdentifiers.Id();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{dbType}_{messageType}");
         var otherBatchId = TestIdentifiers.BatchId();
         const int space = 2;
 
-        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
-        var assetId = new AssetId(CustomerId, space, identifier);
+        var manifest = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        manifest.Entity.Batches!.Single().DeliverableType = messageType;
+        var assetId = new AssetId(CustomerId, space, asset);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
-        await dbContext.Batches.AddTestBatch(otherBatchId, manifest.Entity);
+        await dbContext.Batches.AddTestBatch(otherBatchId, manifest.Entity, dbType);
         await dbContext.SaveChangesAsync();
 
-        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: messageType);
 
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
@@ -125,14 +132,55 @@ public class BatchCompletionMessageHandlerTests
         batch.Manifest!.LastProcessed.Should().BeNull();
     }
 
-    [Fact]
-    public async Task HandleMessage_SavesResultingManifest_ToS3()
+    [Theory]
+    [InlineData(DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct)]
+    public async Task HandleMessage_AlreadyCompletedBatch_DoesNotUpdateManifest(DeliverableType deliverableType)
+    {
+        // Arrange - the stored batch is already Completed, assert that in this instance we don't change the Processed
+        // date and don't attempt to re-save the item in S3
+        var batchId = TestIdentifiers.BatchId();
+        var asset = TestIdentifiers.Id();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType}");
+        var otherBatchId = TestIdentifiers.BatchId();
+        const int space = 2;
+        
+        // Set processed date far in past to assert it hasn't changed
+        var processedDate = new DateTime(2020, 4, 30, 12, 17, 15, DateTimeKind.Utc);
+
+        var manifest = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var batchInDatabase = manifest.Entity.Batches!.Single();
+        batchInDatabase.DeliverableType = deliverableType;
+        batchInDatabase.Status = BatchStatus.Completed;
+        batchInDatabase.Processed = processedDate;
+        
+        var assetId = new AssetId(CustomerId, space, asset);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.Batches.AddTestBatch(otherBatchId, manifest.Entity, deliverableType);
+        await dbContext.SaveChangesAsync();
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: deliverableType);
+
+        // Act and Assert
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        var batch = await dbContext.Batches.Include(b => b.Manifest).SingleAsync(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Completed);
+        batch.Processed.Should().Be(processedDate, "Process date hasn't changed");
+    }
+
+    [Theory]
+    [InlineData(DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct)]
+    public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType)
     {
         // Arrange
         var batchId = TestIdentifiers.BatchId();
         var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: deliverableType.ToString());
         const int space = 2;
-        var flatId = $"https://localhost:5000/1/manifests/{identifier}";
+        var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
@@ -140,19 +188,20 @@ public class BatchCompletionMessageHandlerTests
                 Id = identifier
             });
 
-        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(batchId: batchId);
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
         var manifest = manifestEntityEntry.Entity;
+        manifest.Batches!.Single().DeliverableType = deliverableType;
         var assetId = new AssetId(CustomerId, space, identifier);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
             canvasOrder: 1, ingesting: true);
         await dbContext.SaveChangesAsync();
 
-        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: deliverableType);
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
         ResourceBase? resourceBase = null;
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
                 flatId, false, A<CancellationToken>._))
             .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
                 resourceBase = arg1);
@@ -162,16 +211,17 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeTrue("Message successfully handled");
-        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifest.Id),
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
                 flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
         var savedManifest = (IIIFManifest)resourceBase!;
         var expectedCanvasId = $"https://localhost:5000/1/canvases/{canvasPaintingId}";
-        savedManifest.Items[0].Id.Should().Be(expectedCanvasId, "Canvas Id overwritten");
-        savedManifest.Items[0].Items[0].Id.Should().Be(
+        var firstCanvas = savedManifest.Items![0];
+        firstCanvas.Id.Should().Be(expectedCanvasId, "Canvas Id overwritten");
+        firstCanvas.Items![0].Id.Should().Be(
             $"https://localhost:5000/1/canvases/{canvasPaintingId}/annopages/1",
             "AnnotationPage Id overwritten");
-        var paintingAnnotation = savedManifest.Items[0].Items[0].Items[0].As<PaintingAnnotation>();
+        var paintingAnnotation = firstCanvas.GetFirstPaintingAnnotation()!;
         paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
@@ -205,52 +255,6 @@ public class BatchCompletionMessageHandlerTests
 
         // Assert
         handleMessage.Should().BeFalse("ReadFromS3 returned null, false expected");
-    }
-    
-    [Fact]
-    public async Task HandleMessage_UpdatesBatchedImages_WhenOldStyleBatchCompletion()
-    {
-        // Arrange
-        const int batchId = 124;
-        const string identifier = nameof(HandleMessage_UpdatesBatchedImages_WhenOldStyleBatchCompletion);
-        const int space = 2;
-
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
-            .ReturnsLazily(() => new IIIFManifest
-            {
-                Id = identifier
-            });
-
-        var manifest = await dbContext.Manifests.AddTestManifest(batchId: batchId);
-        var assetId = new AssetId(CustomerId, space, identifier);
-        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
-        await dbContext.SaveChangesAsync();
-
-        var finished = DateTime.UtcNow.AddHours(-1);
-        var message = QueueHelper.CreateOldQueueMessage(batchId, CustomerId, finished);
-
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
-
-        // Act
-        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
-
-        // Assert
-        handleMessage.Should().BeTrue();
-        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
-            .MustHaveHappened();
-
-        var batch = dbContext.Batches.Include(b => b.Manifest).Single(b => b.Id == batchId);
-        batch.Status.Should().Be(BatchStatus.Completed);
-        batch.Finished.Should().BeCloseTo(finished, TimeSpan.FromSeconds(10));
-        batch.Processed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-        batch.Manifest!.LastProcessed.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-
-        var canvasPainting = dbContext.CanvasPaintings.Single(c => c.AssetId == assetId);
-        canvasPainting.Ingesting.Should().BeFalse();
-        canvasPainting.StaticWidth.Should().Be(75, "width taken from NQ manifest image->imageService");
-        canvasPainting.StaticHeight.Should().Be(75, "height taken from NQ manifest image->imageService");
-        canvasPainting.AssetId!.ToString().Should().Be(assetId.ToString());
     }
     
     [Fact]
@@ -309,5 +313,34 @@ public class BatchCompletionMessageHandlerTests
         paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
+    }
+
+    [Fact]
+    public async Task HandleMessage_DoesNotUpdateBatch_WhenDeliverableTypeMismatch()
+    {
+        // Arrange - batch stored with Asset type, message arrives with Adjunct type
+        var batchId = TestIdentifiers.BatchId();
+        var asset = TestIdentifiers.Id();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "type-mismatch");
+        const int space = 2;
+
+        var manifest = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        manifest.Entity.Batches!.Single().DeliverableType = DeliverableType.Asset; // stored as Asset
+        var assetId = new AssetId(CustomerId, space, asset);
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest.Entity, assetId: assetId, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: DeliverableType.Adjunct); // message is Adjunct
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert - message is handled successfully (true) but batch is NOT retrieved/updated due to type mismatch
+        result.Should().BeTrue("Message processed successfully");
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        var batch = dbContext.Batches.Single(b => b.Id == batchId);
+        batch.Status.Should().Be(BatchStatus.Ingesting, "Batch status not updated due to type mismatch");
+        batch.Processed.Should().BeNull("Batch processed timestamp not set due to type mismatch");
     }
 }

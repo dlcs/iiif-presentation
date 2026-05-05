@@ -104,6 +104,36 @@ public static class ManifestTestCreatorX
         options.GenerateCanvasPaintingOptions.Add(canvasPainting);
         return options;
     }
+
+    public static GenerateCanvasOptions WithAdjunctSeeAlso(this GenerateCanvasOptions options, string? id = null)
+    {
+        options.Adjuncts ??= [];
+        options.Adjuncts.Add(new() { Type = AdjunctType.SeeAlso, Id = id });
+        return options;
+    }
+
+    public static GenerateCanvasOptions WithAdjunctAnnotation(this GenerateCanvasOptions options, string? id = null)
+    {
+        options.Adjuncts ??= [];
+        options.Adjuncts.Add(new() { Type = AdjunctType.Annotation, Id = id });
+        return options;
+    }
+
+    public static GenerateCanvasOptions WithAdjunctInlineAnnotation(this GenerateCanvasOptions options, AssetId? assetId)
+    {
+        // This is parsed to find the adjunct/asset-id so needs to be in set format
+        var id = $"https://dlcs.test/adjunct-annotations/{assetId}";
+        options.Adjuncts ??= [];
+        options.Adjuncts.Add(new() { Type = AdjunctType.InlineAnnotation, Id = id });
+        return options;
+    }
+
+    public static GenerateCanvasOptions WithAdjunctRendering(this GenerateCanvasOptions options, string? id = null)
+    {
+        options.Adjuncts ??= [];
+        options.Adjuncts.Add(new() { Type = AdjunctType.Rendering, Id = id });
+        return options;
+    }
 }
 
 public class GenerateCanvasPaintingOptions
@@ -124,6 +154,20 @@ public class GenerateCanvasPaintingsOptions
     public List<GenerateCanvasPaintingOptions>? GenerateCanvasPaintingOptions { get; set; }
 }
 
+public enum AdjunctType
+{
+    SeeAlso,
+    Annotation,
+    InlineAnnotation,
+    Rendering
+}
+
+public class GenerateAdjunctOptions
+{
+    public required AdjunctType Type { get; set; }
+    public string? Id { get; set; }
+}
+
 public class GenerateCanvasOptions
 {
     public enum Content
@@ -140,6 +184,7 @@ public class GenerateCanvasOptions
     public bool UsePaintingChoice => PaintingChoiceOverride ?? Count > 1;
     public int Count { get; set; } = 1;
     public Content ContentType { get; set; }
+    public List<GenerateAdjunctOptions>? Adjuncts { get; set; }
 }
 
 public class GenerateManifestOptions
@@ -150,10 +195,10 @@ public class GenerateManifestOptions
 
 public class ManifestTestCreator
 {
-    public static GenerateManifestOptions New(string? id = null) => new() {Id = id};
-    public static GenerateCanvasOptions Canvas(string? id = null) => new() {Id = id};
-    
-    public static GenerateCanvasPaintingsOptions CanvasPaintings(string? id = null) => new() {Id = id};
+    public static GenerateManifestOptions New(string? id = null) => new() { Id = id };
+    public static GenerateCanvasOptions Canvas(string? id = null) => new() { Id = id };
+
+    public static GenerateCanvasPaintingsOptions CanvasPaintings(string? id = null) => new() { Id = id };
 
     public static List<CanvasPainting> GenerateCanvasPaintings(GenerateCanvasPaintingsOptions options)
     {
@@ -255,7 +300,7 @@ public class ManifestTestCreator
         var id = options.Id;
         var temporal = options.ContentType is GenerateCanvasOptions.Content.Sound or GenerateCanvasOptions.Content.Video;
         var spatial = options.ContentType is GenerateCanvasOptions.Content.Image or GenerateCanvasOptions.Content.Video;
-        return new()
+        var canvas = new Canvas
         {
             Id = id,
             Label = new("en", $"{id}"),
@@ -300,6 +345,68 @@ public class ManifestTestCreator
                 }
             ]
         };
+
+        if (options.Adjuncts != null)
+        {
+            PopulateAdjuncts(canvas, options.Adjuncts, id);
+        }
+
+        return canvas;
+    }
+
+    private static void PopulateAdjuncts(Canvas canvas, List<GenerateAdjunctOptions> adjuncts, string canvasId)
+    {
+        foreach (var adjunct in adjuncts)
+        {
+            switch (adjunct.Type)
+            {
+                case AdjunctType.SeeAlso:
+                    canvas.SeeAlso ??= [];
+                    canvas.SeeAlso.Add(new ExternalResource("SeeAlso")
+                    {
+                        Id = adjunct.Id ?? $"{canvasId}/seeAlso/{Guid.NewGuid()}",
+                        Label = new("en", "SeeAlso Adjunct")
+                    });
+                    break;
+
+                case AdjunctType.Annotation:
+                    canvas.Annotations ??= [];
+                    canvas.Annotations.Add(new AnnotationPage
+                    {
+                        Id = adjunct.Id ?? $"{canvasId}/annotations/{Guid.NewGuid()}",
+                        Label = new("en", "Annotation Adjunct"),
+                        Items = []
+                    });
+                    break;
+
+                case AdjunctType.Rendering:
+                    canvas.Rendering ??= [];
+                    canvas.Rendering.Add(new ExternalResource("Rendering")
+                    {
+                        Id = adjunct.Id ?? $"{canvasId}/rendering/{Guid.NewGuid()}",
+                        Label = new("en", "Rendering Adjunct")
+                    });
+                    break;
+
+                case AdjunctType.InlineAnnotation:
+                    canvas.Annotations ??= [];
+                    canvas.Annotations.Add(new AnnotationPage
+                    {
+                        Id = adjunct.Id,
+                        Label = new("en", "InlineAnnotation Adjunct"),
+                        Items =
+                        [
+                            new GeneralAnnotation("motivation")
+                            {
+                                Id = $"{adjunct.Id}/{Guid.NewGuid()}",
+                                Body = [new ExternalResource("InlineAnnotation")],
+                                Target = new Canvas{ Id = canvasId },
+                            }
+                        ],
+                    });
+                    break;
+            }
+        }
     }
 
     private static List<ExternalResource>? GenerateAnnotationRendering(GenerateCanvasOptions options)

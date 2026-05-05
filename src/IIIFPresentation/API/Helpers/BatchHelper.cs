@@ -2,30 +2,33 @@
 using Models.Database.General;
 using Repository;
 using Batch = DLCS.Models.Batch;
+using DbBatch = Models.Database.General.Batch;
 
 namespace API.Helpers;
 
 public static class BatchHelper
 {
     /// <summary>
-    /// This method adds, but does not save batches to the batches table
+    /// This method creates <see cref="DbBatch"/> entities from provided DLCS <see cref="Batch"/> records and adds these
+    /// to current DB context, without saving
     /// </summary>
-    public static async Task AddBatchesToDatabase(this List<Batch> batches,
+    public static async Task<IReadOnlyList<DbBatch>> AddBatchesToDatabase(this List<Batch> batches,
         int customerId, string manifestId, PresentationContext dbContext, DeliverableType deliverableType, 
         CancellationToken cancellationToken = default)
     {
-        var dbBatches = batches.Select(b => new Models.Database.General.Batch
+        var dbBatches = batches.Select(b => new DbBatch
         {
             Id = Convert.ToInt32(b.ResourceId!.GetLastPathElement()),
             CustomerId = customerId,
             Submitted = b.Submitted.ToUniversalTime(),
-            Processed = deliverableType == DeliverableType.Asset ? null : DateTime.UtcNow,
-            Finished = deliverableType == DeliverableType.Asset ? null : DateTime.UtcNow,
-            Status = deliverableType == DeliverableType.Asset ? BatchStatus.Ingesting : BatchStatus.Completed,
+            Processed = b.Finished.HasValue ? DateTime.UtcNow : null,
+            Finished = b.Finished?.ToUniversalTime(),
+            Status = b.Finished.HasValue ? BatchStatus.Completed : BatchStatus.Ingesting,
             DeliverableType = deliverableType,
             ManifestId = manifestId
-        });
+        }).ToList();
         
         await dbContext.Batches.AddRangeAsync(dbBatches, cancellationToken);
+        return dbBatches;
     }
 }

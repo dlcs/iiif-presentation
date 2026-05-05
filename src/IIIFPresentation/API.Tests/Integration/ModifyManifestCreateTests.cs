@@ -22,6 +22,7 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Batch = DLCS.Models.Batch;
 using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
 
@@ -34,7 +35,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
-    private readonly IDlcsApiClient dlcsApiClient;
+    private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private const int Customer = 1;
     private const int ExampleCustomer = 601;
     private const int InvalidSpaceCustomer = 34512;
@@ -44,15 +45,14 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        dlcsApiClient = A.Fake<IDlcsApiClient>();
-        A.CallTo(() => dlcsApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
-        A.CallTo(() => dlcsApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
             .ThrowsAsync(new DlcsException("Error creating DLCS space", HttpStatusCode.BadRequest));
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
                 appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-                services => services.AddSingleton(dlcsApiClient)
+                services => services.AddSingleton(DLCSApiClient)
             );
 
         storageFixture.DbFixture.CleanUp();
@@ -727,6 +727,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 }
             ]
         };
+        
+        SetupApiClientWithBatchReturn(assetId);
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
@@ -738,7 +740,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        var id = responseCollection!.Id.GetLastPathElement();
+        var id = responseCollection!.Id!.GetLastPathElement();
 
         var savedS3 =
             await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -786,6 +788,9 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_ReturnsManifest_WithProvisionalItems()
     {
         var slug = TestIdentifiers.Slug();
+        var assetId1 = TestIdentifiers.AssetId(postfix: "-1").Asset;
+        var assetId2 = TestIdentifiers.AssetId(postfix: "-2").Asset;
+        var assetId3 = TestIdentifiers.AssetId(postfix: "-3").Asset;
 
         #region ManifestJson
 
@@ -810,7 +815,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                               "choiceOrder": 1
                           },
                           "asset": {
-                              "id": "test-AssetByPresentation-multiple-1",
+                              "id": "{{assetId1}}",
                               "mediaType": "image/png",
                               "space": {{NewlyCreatedSpace}},
                               "origin": "https://example.com/customers/34/space/22/1.png",
@@ -832,7 +837,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                               "choiceOrder": 2
                           },
                           "asset": {
-                              "id": "test-AssetByPresentation-multiple-2",
+                              "id": "{{assetId2}}",
                               "mediaType": "image/png",
                               "space": {{NewlyCreatedSpace}},
                               "origin": "https://example.com/customers/34/space/22/2.png",
@@ -853,7 +858,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                               "canvasOrder": 2
                           },
                           "asset": {
-                              "id": "test-AssetByPresentation-multiple-3",
+                              "id": "{{assetId3}}",
                               "mediaType": "image/png",
                               "space": {{NewlyCreatedSpace}},
                               "origin": "https://example.com/customers/34/space/22/3.png",
@@ -874,34 +879,36 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
               """;
 
         #endregion
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestJson);
         
-            var requestMessage =
-                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestJson);
+        SetupApiClientWithBatchReturn(assetId1, assetId2, assetId3);
 
-            // Act
-            var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-            // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-            var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-            responseCollection.Should().NotBeNull("valid manifest is expected");
-            responseCollection!.Slug.Should().Be(slug, "it should remain unchanged");
-            responseCollection.Items.Should().NotBeNull("we expect provisional items to be filled");
-            responseCollection.Items!.Should()
-                .HaveCount(2, "there are 3 images, but two of them are choices under one canvas");
-            var firstCanvas = responseCollection.Items!.First();
-            firstCanvas.Type.Should().Be("Canvas");
-            firstCanvas.Items.Should().NotBeNull("Canvas should have AnnotationPage");
-            var firstAnnotationPage = firstCanvas.Items!.First();
-            firstAnnotationPage.Type.Should().Be("AnnotationPage");
-            firstAnnotationPage.Items.Should().NotBeNull("AnnotationPage should have Annotation");
-            var firstAnnotation = firstAnnotationPage.Items!.First();
-            firstAnnotation.Should().BeOfType<PaintingAnnotation>();
-            var firstBody = (firstAnnotation as PaintingAnnotation)!.Body;
-            firstBody.Should().BeOfType<PaintingChoice>();
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseCollection.Should().NotBeNull("valid manifest is expected");
+        responseCollection!.Slug.Should().Be(slug, "it should remain unchanged");
+        responseCollection.Items.Should().NotBeNull("we expect provisional items to be filled");
+        responseCollection.Items!.Should()
+            .HaveCount(2, "there are 3 images, but two of them are choices under one canvas");
+        var firstCanvas = responseCollection.Items!.First();
+        firstCanvas.Type.Should().Be("Canvas");
+        firstCanvas.Items.Should().NotBeNull("Canvas should have AnnotationPage");
+        var firstAnnotationPage = firstCanvas.Items!.First();
+        firstAnnotationPage.Type.Should().Be("AnnotationPage");
+        firstAnnotationPage.Items.Should().NotBeNull("AnnotationPage should have Annotation");
+        var firstAnnotation = firstAnnotationPage.Items!.First();
+        firstAnnotation.Should().BeOfType<PaintingAnnotation>();
+        var firstBody = (firstAnnotation as PaintingAnnotation)!.Body;
+        firstBody.Should().BeOfType<PaintingChoice>();
     }
-    
+
     [Fact]
     public async Task PutFlatId_Unauthorized_IfNoAuthTokenProvided()
     {
@@ -1493,7 +1500,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 }
             ]
         };
-
+        
+        SetupApiClientWithBatchReturn(assetId);
 
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
@@ -1575,6 +1583,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             ]
         };
         
+        SetupApiClientWithBatchReturn(assetId);
+
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
@@ -1585,12 +1595,12 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        presentationManifest.PaintedResources.Count.Should().Be(1);
-        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+        presentationManifest!.PaintedResources.Should().HaveCount(1);
+        presentationManifest.PaintedResources!.Single().CanvasPainting!.CanvasId.Should()
             .Be($"http://localhost/{Customer}/canvases/{canvasPaintingId}");
-        presentationManifest.Items.Count.Should().Be(1);
+        presentationManifest.Items.Should().HaveCount(1);
     }
-    
+
     [Fact]
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform()
     {
@@ -1622,6 +1632,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             ]
         };
         
+        SetupApiClientWithBatchReturn(assetId);
+
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
         
@@ -1632,10 +1644,10 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        presentationManifest.PaintedResources.Count.Should().Be(1);
-        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+        presentationManifest!.PaintedResources.Should().HaveCount(1);
+        presentationManifest.PaintedResources!.First().CanvasPainting!.CanvasId.Should()
             .Be($"http://localhost/{Customer}/canvases/{canvasPaintingId}");
-        presentationManifest.Items.Count.Should().Be(1);
+        presentationManifest.Items.Should().HaveCount(1);
     }
     
     [Fact]
@@ -1739,7 +1751,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInForChoice()
     {
         // Arrange
-        var slug = TestIdentifiers.Slug();
+        var (slug, assetId) = TestIdentifiers.SlugResource();
         var manifest = new PresentationManifest
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
@@ -1759,7 +1771,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                     },
                     Asset = new JObject
                     {
-                        ["id"] = "1b",
+                        ["id"] = assetId,
                         ["mediaType"] = "image/jpeg"
                     },
                 },
@@ -1773,12 +1785,14 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                     },
                     Asset = new JObject
                     {
-                        ["id"] = "1b",
+                        ["id"] = assetId,
                         ["mediaType"] = "image/jpeg"
                     },
                 }
             ]
         };
+        
+        SetupApiClientWithBatchReturn(assetId);
         
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
@@ -1790,12 +1804,12 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var presentationManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        presentationManifest.PaintedResources.Count.Should().Be(2);
-        presentationManifest.PaintedResources.First().CanvasPainting.CanvasId.Should()
+        presentationManifest!.PaintedResources.Should().HaveCount(2);
+        presentationManifest.PaintedResources!.First().CanvasPainting!.CanvasId.Should()
             .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
-        presentationManifest.PaintedResources.Last().CanvasPainting.CanvasId.Should()
+        presentationManifest.PaintedResources!.Last().CanvasPainting!.CanvasId.Should()
             .Be($"http://localhost/{Customer}/canvases/manifestFromPainted");
-        presentationManifest.Items.Count.Should().Be(1);
+        presentationManifest.Items.Should().HaveCount(1);
     }
 
     [Fact]
@@ -1854,5 +1868,19 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
+    }
+    
+    /// <summary>
+    /// Configure dlcsApiClient fake for batch creation
+    /// </summary>
+    private static void SetupApiClientWithBatchReturn(params string[] assetIds)
+    {
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                A<List<JObject>>.That.Matches(o =>
+                    o.Count == assetIds.Length &&
+                    assetIds.All(id => o.Any(obj => obj.GetValue("id")!.ToString() == id))),
+                false,
+                A<CancellationToken>._))
+            .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
     }
 }
