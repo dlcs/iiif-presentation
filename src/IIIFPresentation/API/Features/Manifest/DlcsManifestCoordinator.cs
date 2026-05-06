@@ -130,7 +130,7 @@ public class DlcsManifestCoordinator(
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty())
+        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty() && adjunctInteractions.Count == 0)
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -241,6 +241,12 @@ public class DlcsManifestCoordinator(
             // ExistingAdjunctIds may already be set for assets checked against DLCS in FindAssetsThatRequireAdditionalWork;
             // this call fills in any that were missed (e.g. assets that were already known and skipped the IIIF-CS check)
             await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
+
+            // Ensure stub assets (space 0) exist before ingesting their adjuncts
+            var stubAssetError = await EnsureStubAssetsExist(request.CustomerId, manifestId, adjunctInteractions,
+                collectedBatches, cancellationToken);
+            if (stubAssetError != null) return new DlcsInteractionResult(stubAssetError, spaceId);
+
             // remove any adjuncts in IIIF-CS that are no longer in the manifest
             await DeleteUnusedAdjuncts(request.CustomerId, adjunctInteractions, cancellationToken);
 
@@ -255,6 +261,35 @@ public class DlcsManifestCoordinator(
         }
 
         return null;
+    }
+
+    private async Task<EntityResult?> EnsureStubAssetsExist(int customerId, string manifestId,
+        List<AdjunctInteraction> adjunctInteractions, List<Batch> collectedBatches, CancellationToken cancellationToken)
+    {
+        // Manifest-level stub assets live in space 0; ExistingAdjunctIds == null means the asset was not found in DLCS
+        var missingStubAssets = adjunctInteractions
+            .Where(a => a.AssetId.Space == 0 && a.ExistingAdjunctIds == null)
+            .ToList();
+
+        if (missingStubAssets.Count == 0) return null;
+
+        var stubAssetJObjects = missingStubAssets
+            .Select(a => new JObject
+            {
+                [AssetProperties.Id] = a.AssetId.Asset,
+                [AssetProperties.Space] = 0,
+                [AssetProperties.Manifests] = new JArray(manifestId)
+            })
+            .ToList();
+
+        var result = await IngestDeliverables(customerId, manifestId, stubAssetJObjects, DeliverableType.Asset,
+            collectedBatches, cancellationToken);
+
+        // Mark as having no existing adjuncts so DeleteUnusedAdjuncts skips them
+        foreach (var interaction in missingStubAssets)
+            interaction.ExistingAdjunctIds = [];
+
+        return result;
     }
 
     private async Task EnrichExistingAdjunctIds(WriteManifestRequest request, List<AdjunctInteraction> adjunctInteractions,

@@ -159,12 +159,12 @@ public class ManifestWriteService(
     {
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
-            var resolved = await ResolveCanvasPaintingsAndParentSlug(request, cancellationToken: cancellationToken);
-            if (resolved.Error != null) return resolved.Error;
-
-            // Ensure we have a manifestId
+            // Generate manifest ID before canvas painting resolution so it's available for stub asset naming
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+
+            var resolved = await ResolveCanvasPaintingsAndParentSlug(request, manifestId, cancellationToken: cancellationToken);
+            if (resolved.Error != null) return resolved.Error;
 
             // Carry out any DLCS interactions and update canvas paintings
             var dlcsResult = await HandleDlcsInteractions(request, manifestId, resolved.ParsedManifestResult!,
@@ -255,7 +255,7 @@ public class ManifestWriteService(
     private async Task<ResolvedManifestData> ResolveCanvasPaintingsAndParentSlug(WriteManifestRequest request,
         string? manifestId = null, DbManifest? existingManifest = null, CancellationToken cancellationToken = default)
     {
-        var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, cancellationToken);
+        var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, manifestId, cancellationToken);
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
 
         var (slugError, parsedParentSlug) = await ParseParentSlug(request, manifestId, cancellationToken);
@@ -265,13 +265,13 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
-        WriteManifestRequest request, DbManifest? existingManifest, CancellationToken cancellationToken)
+        WriteManifestRequest request, DbManifest? existingManifest, string? manifestId, CancellationToken cancellationToken)
     {
         var isCreate = existingManifest == null;
-        
+
         var result = isCreate
             ? await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                cancellationToken)
+                manifestId, cancellationToken)
             : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 existingManifest!, cancellationToken);
         return result.Error != null ? (result.Error, null) : (null, result);

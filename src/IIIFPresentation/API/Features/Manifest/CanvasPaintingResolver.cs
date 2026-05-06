@@ -7,6 +7,7 @@ using Core.Exceptions;
 using Core.Helpers;
 using Models.API.Manifest;
 using Models.Database;
+using Models.DLCS;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -29,11 +30,11 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<ParsedManifestResult> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, string? manifestId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var manifestParseResult =  await ParseManifest(customerId, presentationManifest, null);
+            var manifestParseResult = await ParseManifest(customerId, presentationManifest, null, manifestId);
             if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
 
             Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
@@ -66,7 +67,7 @@ public class CanvasPaintingResolver(
     public async Task<ParsedManifestResult> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
-        var manifestParseResult = await ParseManifest(customerId, presentationManifest, existingManifest.Id);
+        var manifestParseResult = await ParseManifest(customerId, presentationManifest, existingManifest.Id, existingManifest.Id);
         if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
         
         existingManifest.CanvasPaintings ??= [];
@@ -245,8 +246,8 @@ public class CanvasPaintingResolver(
         }
     }
     
-    private async Task<ManifestParseResult> ParseManifest(int customerId, 
-        PresentationManifest presentationManifest, string? existingManifestId)
+    private async Task<ManifestParseResult> ParseManifest(int customerId,
+        PresentationManifest presentationManifest, string? existingManifestId, string? manifestId = null)
     {
         try
         {
@@ -260,10 +261,16 @@ public class CanvasPaintingResolver(
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
 
-            return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets(),
-                paintedResourceCanvasPaintings.Where(cp => cp.AdjunctInteraction != null)
-                    .Select(cp => cp.AdjunctInteraction!)
-                    .ToList());
+            var adjunctInteractions = paintedResourceCanvasPaintings
+                .Where(cp => cp.AdjunctInteraction != null)
+                .Select(cp => cp.AdjunctInteraction!)
+                .ToList();
+
+            var manifestAdjunctInteraction = GetManifestAdjunctInteraction(customerId, presentationManifest, manifestId);
+            if (manifestAdjunctInteraction != null)
+                adjunctInteractions.Add(manifestAdjunctInteraction);
+
+            return new ManifestParseResult(null, res, itemsCanvasPaintings.GetItemsWithSuspectedAssets(), adjunctInteractions);
         }
         catch (InvalidCanvasIdException cpId)
         {
@@ -305,6 +312,30 @@ public class CanvasPaintingResolver(
             return new ManifestParseResult(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message));
         }
     }
+
+    private static AdjunctInteraction? GetManifestAdjunctInteraction(int customerId,
+        PresentationManifest presentationManifest, string? manifestId)
+    {
+        if (presentationManifest.Adjuncts == null || manifestId == null) return null;
+
+        var stubAssetId = new AssetId(customerId, 0, ManifestStubAssetId(manifestId));
+        var stubAssetIdString = stubAssetId.ToString();
+
+        var hydratedAdjuncts = presentationManifest.Adjuncts
+            .Select(a =>
+            {
+                a[AssetProperties.Asset] = stubAssetIdString;
+                return a;
+            })
+            .ToList();
+
+        return new AdjunctInteraction { AssetId = stubAssetId, Adjuncts = hydratedAdjuncts };
+    }
+
+    /// <summary>
+    /// The asset id for the manifest-level stub asset in space 0, given the manifest's internal id.
+    /// </summary>
+    public static string ManifestStubAssetId(string manifestId) => $"Manifest_{manifestId}";
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,
