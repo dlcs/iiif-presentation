@@ -509,4 +509,71 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task CreateManifest_WithManifestAdjuncts_ReturnsAdjunctsPopulatedFromDlcs()
+    {
+        // Arrange: create a manifest with adjuncts via POST
+        var (slug, _) = TestIdentifiers.SlugResource();
+        var adjunctId = "mets.xml";
+
+        var postPayload = $$"""
+            {
+                "type": "Manifest",
+                "slug": "{{slug}}",
+                "parent": "http://localhost/{{Customer}}/collections/root",
+                "adjuncts": [
+                    { "id": "{{adjunctId}}", "mediaType": "text/xml" }
+                ]
+            }
+            """;
+
+        var postResponse = await httpClient.AsCustomer().SendAsync(
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", postPayload));
+        postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var manifestId = (await postResponse.ReadAsPresentationResponseAsync<PresentationManifest>())!.Id!.Split('/').Last();
+
+        // Mock DLCS to return the stub asset with adjuncts for the manifest-scoped lookup
+        var stubAssetName = CanvasPaintingResolver.ManifestStubAssetId(manifestId);
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, manifestId, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>(
+            [
+                JObject.Parse($$"""
+                    {
+                        "@id": "https://localhost/customers/{{Customer}}/spaces/0/images/{{stubAssetName}}",
+                        "id": "{{stubAssetName}}",
+                        "space": 0,
+                        "adjuncts": [{ "id": "{{adjunctId}}", "mediaType": "text/xml" }]
+                    }
+                    """)
+            ]));
+
+        // Act
+        var getResponse = await httpClient.AsCustomer().SendAsync(
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"{Customer}/manifests/{manifestId}"));
+
+        // Assert - 202 because the adjunct batches are still in Ingesting state
+        getResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var manifest = await getResponse.ReadAsPresentationResponseAsync<PresentationManifest>();
+        manifest!.Adjuncts.Should().HaveCount(1);
+        manifest.Adjuncts![0]["id"]!.Value<string>().Should().Be(adjunctId);
+
+        // Stub asset was sent to DLCS (space 0, adjunctQueue = false)
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                A<List<JObject>>.That.Matches(list =>
+                    list.Count == 1 &&
+                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(manifestId) &&
+                    list[0][AssetProperties.Space]!.Value<int>() == 0),
+                false, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        // Adjunct was sent to DLCS (adjunctQueue = true)
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                A<List<JObject>>.That.Matches(list =>
+                    list.Count == 1 &&
+                    list[0][AdjunctProperties.Id]!.Value<string>() == adjunctId),
+                true, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
 }

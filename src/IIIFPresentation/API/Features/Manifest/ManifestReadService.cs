@@ -4,10 +4,10 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
-using DLCS.API;
 using Models.API.Manifest;
 using Models.Database.Collections;
-using Models.Database.General;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -68,7 +68,6 @@ public class ManifestReadService(
         // or if not found in "staging", an error was logged and we fall back to "real"
         manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
 
-
         dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 
         if (manifest == null)
@@ -78,6 +77,17 @@ public class ManifestReadService(
         var assets = await getAssets;
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
             m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
+
+        if (assets != null)
+        {
+            // set manifest level adjuncts
+            var stubAssetName = CanvasPaintingResolver.ManifestStubAssetId(dbManifest.Id);
+            var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetName);
+            if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
+                manifest.Adjuncts = adjunctsArray.OfType<JObject>()
+                    .Select(a => { a.Remove(AssetProperties.Asset); return a; })
+                    .ToList();
+        }
 
         Guid? etag = dbManifest.Etag;
         if (dbManifest.IsIngesting())
