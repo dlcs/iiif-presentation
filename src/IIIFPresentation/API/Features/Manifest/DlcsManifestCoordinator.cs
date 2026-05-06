@@ -326,7 +326,7 @@ public class DlcsManifestCoordinator(
                 .ToList();
 
             if (adjunctsToDelete.Count > 0)
-                bulkDelete.Add(new AdjunctAssetIdentifier { Id = adjunctInteraction.AssetId.ToString(), Adjunct = adjunctsToDelete });
+                bulkDelete.Add(new AdjunctAssetIdentifier { Id = adjunctInteraction.AssetId, Adjunct = adjunctsToDelete });
         }
 
         if (bulkDelete.Count > 0)

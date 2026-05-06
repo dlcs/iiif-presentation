@@ -1,4 +1,6 @@
-﻿namespace DLCS.Models;
+﻿using Models.DLCS;
+
+namespace DLCS.Models;
 
 /// <summary>
 /// Class used to allow for IIIF-CS calls that need just a list of adjunct id's attached to an asset
@@ -7,9 +9,9 @@
 public class AdjunctAssetIdentifier
 {
     /// <summary>
-    /// This is the string representation of an asset id i.e.: "{customer}/{space}/{id}"
+    /// The asset id for these adjuncts
     /// </summary>
-    public required string Id { get; set; }
+    public required AssetId Id { get; set; }
 
     /// <summary>
     /// This is a list of adjunct id's

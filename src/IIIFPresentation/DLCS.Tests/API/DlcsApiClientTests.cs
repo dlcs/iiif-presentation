@@ -572,8 +572,8 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b"] },
-            new() { Id = "asset2", Adjunct = ["c"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["c"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
@@ -600,8 +600,8 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b", "c"] },
-            new() { Id = "asset2", Adjunct = ["d", "e", "f"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["d", "e", "f"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
@@ -623,7 +623,7 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
 
         Func<Task> action = () => sut.DeleteAdjuncts(customerId,
-            [new AdjunctAssetIdentifier { Id = "asset1", Adjunct = ["a"] }],
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
             CancellationToken.None);
 
         await action.Should().ThrowAsync<DlcsException>()
@@ -649,7 +649,7 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b", "c", "d"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c", "d"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
