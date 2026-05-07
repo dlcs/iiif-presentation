@@ -30,7 +30,7 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<ParsedManifestResult> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest, string? manifestId, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, string manifestId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -313,29 +313,32 @@ public class CanvasPaintingResolver(
         }
     }
 
+    /// <summary>
+    /// Builds a manifest-level <see cref="AdjunctInteraction"/> for any adjuncts on the manifest request.
+    /// Note: stamps <see cref="AssetProperties.Asset"/> onto each adjunct JObject in-place.
+    /// </summary>
     private static AdjunctInteraction? GetManifestAdjunctInteraction(int customerId,
         PresentationManifest presentationManifest, string? manifestId)
     {
         if (presentationManifest.Adjuncts == null || manifestId == null) return null;
 
-        var stubAssetId = new AssetId(customerId, 0, ManifestStubAssetId(manifestId));
-        var stubAssetIdString = stubAssetId.ToString();
+        var manifestAdjunctId = new AssetId(customerId, 0, ManifestLevelAdjunctId(manifestId));
 
         var hydratedAdjuncts = presentationManifest.Adjuncts
             .Select(a =>
             {
-                a[AssetProperties.Asset] = stubAssetIdString;
+                a[AssetProperties.Asset] = manifestAdjunctId.ToString();
                 return a;
             })
             .ToList();
 
-        return new AdjunctInteraction { AssetId = stubAssetId, Adjuncts = hydratedAdjuncts };
+        return new AdjunctInteraction { AssetId = manifestAdjunctId, Adjuncts = hydratedAdjuncts };
     }
 
     /// <summary>
-    /// The asset id for the manifest-level stub asset in space 0, given the manifest's internal id.
+    /// The asset id for the manifest-level adjunct carrier asset in space 0, given the manifest's internal id.
     /// </summary>
-    public static string ManifestStubAssetId(string manifestId) => $"Manifest_{manifestId}";
+    public static string ManifestLevelAdjunctId(string manifestId) => $"Manifest_{manifestId}";
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,

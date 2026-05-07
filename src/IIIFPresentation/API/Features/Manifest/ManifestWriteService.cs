@@ -271,7 +271,7 @@ public class ManifestWriteService(
 
         var result = isCreate
             ? await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                manifestId, cancellationToken)
+                manifestId!, cancellationToken)
             : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 existingManifest!, cancellationToken);
         return result.Error != null ? (result.Error, null) : (null, result);

@@ -89,13 +89,13 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
-        var expectedStubAssetId = CanvasPaintingResolver.ManifestStubAssetId(manifestId);
+        var expectedManifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(manifestId);
 
-        // Stub asset should be created via regular queue (adjunctQueue = false) in space 0
+        // Manifest-level adjunct asset should be created via regular queue (adjunctQueue = false) in space 0
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == expectedStubAssetId &&
+                    list[0][AssetProperties.Id]!.Value<string>() == expectedManifestAdjunctId &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
@@ -264,7 +264,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(manifestId) &&
+                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestLevelAdjunctId(manifestId) &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappened();
@@ -310,7 +310,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(id) &&
+                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestLevelAdjunctId(id) &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
@@ -330,16 +330,16 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var (slug, id) = TestIdentifiers.SlugResource();
         var existingAdjunctId = "old-mets.xml";
         var newAdjunctId = "new-mets.xml";
-        var stubAssetId = CanvasPaintingResolver.ManifestStubAssetId(id);
+        var manifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(id);
 
-        // Simulate: stub asset exists in DLCS with an existing adjunct
+        // Simulate: manifest-level adjunct asset exists in DLCS with an existing adjunct
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, A<ICollection<string>>._, A<CancellationToken>._))
             .ReturnsLazily((int _, ICollection<string> assetIds, CancellationToken _) =>
                 Task.FromResult<IList<JObject>>(assetIds
-                    .Where(a => a.EndsWith(stubAssetId))
+                    .Where(a => a.EndsWith(manifestAdjunctId))
                     .Select(_ => JObject.Parse($$"""
                         {
-                            "id": "{{stubAssetId}}",
+                            "id": "{{manifestAdjunctId}}",
                             "space": 0,
                             "adjuncts": [{ "id": "{{existingAdjunctId}}" }]
                         }
@@ -398,16 +398,16 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         // Arrange
         var (slug, id) = TestIdentifiers.SlugResource();
         var existingAdjunctId = "old-mets.xml";
-        var stubAssetId = CanvasPaintingResolver.ManifestStubAssetId(id);
+        var manifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(id);
 
-        // Simulate: stub asset exists with existing adjunct
+        // Simulate: manifest-level adjunct asset exists with existing adjunct
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, A<ICollection<string>>._, A<CancellationToken>._))
             .ReturnsLazily((int _, ICollection<string> assetIds, CancellationToken _) =>
                 Task.FromResult<IList<JObject>>(assetIds
-                    .Where(a => a.EndsWith(stubAssetId))
+                    .Where(a => a.EndsWith(manifestAdjunctId))
                     .Select(_ => JObject.Parse($$"""
                         {
-                            "id": "{{stubAssetId}}",
+                            "id": "{{manifestAdjunctId}}",
                             "space": 0,
                             "adjuncts": [{ "id": "{{existingAdjunctId}}" }]
                         }
@@ -533,15 +533,15 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var manifestId = (await postResponse.ReadAsPresentationResponseAsync<PresentationManifest>())!.Id!.Split('/').Last();
 
-        // Mock DLCS to return the stub asset with adjuncts for the manifest-scoped lookup
-        var stubAssetName = CanvasPaintingResolver.ManifestStubAssetId(manifestId);
+        // Mock DLCS to return the manifest-level adjunct asset with adjuncts for the manifest-scoped lookup
+        var manifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(manifestId);
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, manifestId, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
             [
                 JObject.Parse($$"""
                     {
-                        "@id": "https://localhost/customers/{{Customer}}/spaces/0/images/{{stubAssetName}}",
-                        "id": "{{stubAssetName}}",
+                        "@id": "https://localhost/customers/{{Customer}}/spaces/0/images/{{manifestAdjunctId}}",
+                        "id": "{{manifestAdjunctId}}",
                         "space": 0,
                         "adjuncts": [{ "id": "{{adjunctId}}", "mediaType": "text/xml" }]
                     }
@@ -562,7 +562,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(manifestId) &&
+                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestLevelAdjunctId(manifestId) &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();

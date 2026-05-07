@@ -512,16 +512,16 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             ContentBody = TestContent.ManifestJson,
         });
 
-        var stubAssetName = CanvasPaintingResolver.ManifestStubAssetId(id);
+        var manifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(id);
         A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId, id, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
             [
                 JObject.Parse($$"""
                     {
-                        "@id": "https://localhost/customers/1/spaces/0/images/{{stubAssetName}}",
-                        "id": "{{stubAssetName}}",
+                        "@id": "https://localhost/customers/1/spaces/0/images/{{manifestAdjunctId}}",
+                        "id": "{{manifestAdjunctId}}",
                         "space": 0,
-                        "adjuncts": [{ "id": "mets.xml", "asset": "1/0/{{stubAssetName}}" }]
+                        "adjuncts": [{ "id": "mets.xml", "asset": "1/0/{{manifestAdjunctId}}" }]
                     }
                     """)
             ]));
