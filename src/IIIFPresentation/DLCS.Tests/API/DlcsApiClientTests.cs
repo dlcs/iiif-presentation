@@ -555,6 +555,30 @@ public class DlcsApiClientTests
 
 
     [Fact]
+    public async Task DeleteAdjuncts_SerializesIdAsString_NotObject()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedBody = string.Empty;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((request, _) =>
+            {
+                capturedBody = request.Body.ReadAsStringAsync().Result;
+                return string.Empty;
+            }).StatusCode(204);
+
+        var sut = GetClient(stub);
+
+        await sut.DeleteAdjuncts(customerId,
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
+            CancellationToken.None);
+
+        capturedBody.Should().Contain($"\"{customerId}/1/asset1\"");
+        capturedBody.Should().NotContain("\"customer\"");
+    }
+
+    [Fact]
     public async Task DeleteAdjuncts_MakesSingleRequest_WhenTotalAdjunctCountWithinLimit()
     {
         using var stub = new ApiStub();

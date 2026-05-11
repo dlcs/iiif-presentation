@@ -52,4 +52,12 @@ public class AssetIdConverterTests
 
         json.Should().Contain("\"3/0/test\"");
     }
+
+    [Fact]
+    public void Read_InvalidString_Throws()
+    {
+        Action act = () => JsonSerializer.Deserialize<AssetId>("\"not-an-asset-id\"", Options);
+
+        act.Should().Throw<AssetIdException>();
+    }
 }
