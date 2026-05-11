@@ -20,7 +20,7 @@ internal static class DlcsHttpContent
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JTokenConverter() }
+        Converters = { new JTokenConverter(), new AssetIdConverter() }
     };
         
     /// <summary>
