@@ -11,6 +11,7 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
+using JsonDiffPatchDotNet;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
@@ -18,6 +19,7 @@ using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers;
@@ -837,10 +839,129 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
          response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
          var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
          errorResponse!.Detail.Should()
-             .Be($"Asset {Customer}/{NewlyCreatedSpace}/{assetId} is specified multiple times, but has conflicting data - diff: {{\"batch\":[\"{batchId}\",\"DoesNotMatch\"]}}");
+             .Be($"Asset {Customer}/-1/{assetId} is specified multiple times, but has conflicting data - diff: {{\"batch\":[\"{batchId}\",\"DoesNotMatch\"]}}");
          errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsDoNotMatch");
      }
-     
+
+     [Fact]
+     public async Task CreateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdHaveDifferentAdjuncts()
+     {
+         // Arrange
+         var (assetId, slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+
+         var manifest = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "adjunct-1",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "adjunct-1",
+                                                  "profile": "https://example.org/profile/b"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         var assetKey = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+         var firstAdjuncts = new JArray(JObject.Parse($$"""{"id":"adjunct-1","profile":"https://example.org/profile/a","asset":"{{assetKey}}"}"""));
+         var secondAdjuncts = new JArray(JObject.Parse($$"""{"id":"adjunct-1","profile":"https://example.org/profile/b","asset":"{{assetKey}}"}"""));
+         var expectedDiff = JsonConvert.SerializeObject(new JsonDiffPatch().Diff(firstAdjuncts, secondAdjuncts));
+         errorResponse!.Detail.Should()
+             .Be($"Asset {assetKey} is specified multiple times with different adjuncts - diff: {expectedDiff}");
+         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
+     }
+
+     [Fact]
+     public async Task CreateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdOnlyOneHasAdjuncts()
+     {
+         // Arrange
+         var (assetId, slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+
+         var manifest = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "adjunct-1",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+         var assetKey = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+         var firstAdjuncts = new JArray(JObject.Parse($$"""{"id":"adjunct-1","profile":"https://example.org/profile/a","asset":"{{assetKey}}"}"""));
+         var expectedDiff = JsonConvert.SerializeObject(new JsonDiffPatch().Diff(firstAdjuncts, new JArray()));
+         errorResponse!.Detail.Should()
+             .Be($"Asset {assetKey} is specified multiple times with different adjuncts - diff: {expectedDiff}");
+         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
+     }
+
      [Fact]
      public async Task CreateManifest_CorrectlyOrdersAssetRequests_WhenCanvasPaintingSetsOrder()
      {

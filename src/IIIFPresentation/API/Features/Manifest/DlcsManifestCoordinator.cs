@@ -9,12 +9,10 @@ using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
-using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Models.DLCS;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.Helpers;
@@ -402,23 +400,8 @@ public class DlcsManifestCoordinator(
                     break;
             }
 
-            // If can add, move to next one
-            if (assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset)) continue;
-            
-            // else already specified
-            logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
-            var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
-
-            // if specified with the same data, we can ignore and continue
-            if (JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset)) continue;
-            
-            // else report failure with details
-            var jsonDiffPatch = new JsonDiffPatch();
-            var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
-                    
-            return EntityResult.Failure(
-                $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
-                ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
+            // Deduplicate — conflicting data is already validated earlier in the pipeline
+            assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset);
         }
         
         // `assets` now contain all the assets that should be ingested by DLCS

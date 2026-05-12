@@ -5,8 +5,11 @@ using API.Features.Manifest.Exceptions;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
+using JsonDiffPatchDotNet;
 using Models.API.Manifest;
 using Models.Database;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -253,6 +256,12 @@ public class CanvasPaintingResolver(
             var paintedResourceCanvasPaintings = (await manifestPaintedResourceParser
                 .ParseToCanvasPainting(presentationManifest, customerId)).ToList();
 
+            var adjunctError = ValidateDuplicateAdjuncts(paintedResourceCanvasPaintings);
+            if (adjunctError != null) return new ManifestParseResult(adjunctError);
+
+            var assetError = ValidateDuplicateAssets(paintedResourceCanvasPaintings, presentationManifest.PaintedResources);
+            if (assetError != null) return new ManifestParseResult(assetError);
+
             var itemsCanvasPaintings =
                 manifestItemsParser
                     .ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId).ToList();
@@ -313,6 +322,61 @@ public class CanvasPaintingResolver(
         }
     }
 
+    private static PresUpdateResult? ValidateDuplicateAdjuncts(List<InterimCanvasPainting> paintedResourceCanvasPaintings)
+    {
+        var seen = new Dictionary<string, List<JObject>?>();
+
+        foreach (var cp in paintedResourceCanvasPaintings.Where(cp => cp.SuspectedAssetId != null))
+        {
+            var key = $"{cp.CustomerId}/{cp.SuspectedSpace ?? SpaceHelper.DefaultSpaceForLaterPopulation}/{cp.SuspectedAssetId}";
+            var adjuncts = cp.AdjunctInteraction?.Adjuncts;
+
+            if (!seen.TryAdd(key, adjuncts) && !AdjunctsEqual(seen[key], adjuncts))
+            {
+                var existingAdjuncts = seen[key];
+                var diff = new JsonDiffPatch().Diff(
+                    new JArray(existingAdjuncts ?? []),
+                    new JArray(adjuncts ?? []));
+                return UpsertErrorHelper.AssetAdjunctsDoNotMatch<PresentationManifest>(key, JsonConvert.SerializeObject(diff));
+            }
+        }
+
+        return null;
+    }
+
+    private static bool AdjunctsEqual(List<JObject>? a, List<JObject>? b)
+    {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        if (a.Count != b.Count) return false;
+        return a.Zip(b).All(pair => JToken.DeepEquals(pair.First, pair.Second));
+    }
+
+    private static PresUpdateResult? ValidateDuplicateAssets(
+        List<InterimCanvasPainting> paintedResourceCanvasPaintings,
+        List<PaintedResource>? paintedResources)
+    {
+        if (paintedResources == null) return null;
+
+        var assets = new Dictionary<string, JObject>();
+        var paintedResourcesWithAssets = paintedResources.Where(pr => pr.Asset != null);
+
+        foreach (var (cp, pr) in paintedResourceCanvasPaintings.Zip(paintedResourcesWithAssets))
+        {
+            if (cp.SuspectedAssetId == null) continue;
+
+            var key = $"{cp.CustomerId}/{cp.SuspectedSpace ?? SpaceHelper.DefaultSpaceForLaterPopulation}/{cp.SuspectedAssetId}";
+            var asset = pr.Asset!;
+
+            if (!assets.TryAdd(key, asset) && !JToken.DeepEquals(assets[key], asset))
+            {
+                var diff = new JsonDiffPatch().Diff(assets[key], asset);
+                return UpsertErrorHelper.AssetsDataDoesNotMatch<PresentationManifest>(key, JsonConvert.SerializeObject(diff));
+            }
+        }
+
+        return null;
+    }
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,
