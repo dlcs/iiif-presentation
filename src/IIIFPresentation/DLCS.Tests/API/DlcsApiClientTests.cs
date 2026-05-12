@@ -731,6 +731,9 @@ public class DlcsApiClientTests
         {
             BaseAddress = new Uri(stub.Address)
         };
+        // Stubbery doesn't support HTTP/1.1 keep-alive across multiple requests; force connection-close
+        // so each request gets a fresh connection and avoids ResponseEnded on the second call
+        httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
         var options = Options.Create(new DlcsSettings()
         {
