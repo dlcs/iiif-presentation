@@ -87,6 +87,10 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     private void ManifestAdjunctsValidation()
     {
         RuleForEach(m => m.Adjuncts)
+            .Must(a => !a.ContainsKey(AssetProperties.Asset))
+            .WithMessage("Manifest-level adjuncts must not include an 'asset' property; it is set by the system");
+
+        RuleForEach(m => m.Adjuncts)
             .SetValidator(new AdjunctValidator(servicesSettings));
     }
 

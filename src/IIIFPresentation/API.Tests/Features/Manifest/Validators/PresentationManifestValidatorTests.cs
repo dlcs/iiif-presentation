@@ -657,4 +657,25 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.Errors.Should().Contain(e => e.ErrorMessage.StartsWith("Adjunct 'id' contains a prohibited character"));
     }
+
+    [Fact]
+    public void ManifestAdjuncts_Error_WhenAdjunctHasAssetProperty()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = "mets.xml",
+                    [AssetProperties.Asset] = "1/0/Manifest_some-id"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains("'asset'"));
+    }
 }
