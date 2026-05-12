@@ -7,7 +7,6 @@ using Core.Exceptions;
 using Core.Helpers;
 using Models.API.Manifest;
 using Models.Database;
-using Models.DLCS;
 using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
@@ -266,7 +265,9 @@ public class CanvasPaintingResolver(
                 .Select(cp => cp.AdjunctInteraction!)
                 .ToList();
 
-            var manifestAdjunctInteraction = GetManifestAdjunctInteraction(customerId, presentationManifest, manifestId);
+            var manifestAdjunctInteraction =
+                ResourceAdjunctInteractions.GetAdjunctInteraction(presentationManifest.Adjuncts, customerId,
+                    manifestId);
             if (manifestAdjunctInteraction != null)
                 adjunctInteractions.Add(manifestAdjunctInteraction);
 
@@ -313,33 +314,6 @@ public class CanvasPaintingResolver(
         }
     }
 
-    /// <summary>
-    /// Builds a manifest-level <see cref="AdjunctInteraction"/> for any adjuncts on the manifest request.
-    /// Note: stamps <see cref="AssetProperties.Asset"/> onto each adjunct JObject in-place.
-    /// </summary>
-    private static AdjunctInteraction? GetManifestAdjunctInteraction(int customerId,
-        PresentationManifest presentationManifest, string manifestId)
-    {
-        if (presentationManifest.Adjuncts == null) return null;
-
-        var manifestAdjunctId = ManifestStubAssetId(customerId, manifestId);
-
-        var hydratedAdjuncts = presentationManifest.Adjuncts
-            .Select(a =>
-            {
-                a[AssetProperties.Asset] = manifestAdjunctId.ToString();
-                return a;
-            })
-            .ToList();
-
-        return new AdjunctInteraction { AssetId = manifestAdjunctId, Adjuncts = hydratedAdjuncts };
-    }
-
-    /// <summary>
-    /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the manifest's internal id.
-    /// </summary>
-    public static AssetId ManifestStubAssetId(int customerId, string manifestId) =>
-        new(customerId, 0, $"Manifest_{manifestId}");
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,

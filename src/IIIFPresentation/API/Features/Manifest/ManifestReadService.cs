@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using API.Converters;
+using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
@@ -95,7 +96,7 @@ public class ManifestReadService(
     private static void SetManifestLevelAdjuncts(PresentationManifest manifest,
         Dictionary<string, JObject> assets, int customerId, string manifestId)
     {
-        var stubAssetId = CanvasPaintingResolver.ManifestStubAssetId(customerId, manifestId);
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
         var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
         if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
         {

@@ -1,4 +1,5 @@
 using System.Net;
+using API.Features.Common.Helpers;
 using API.Features.Manifest;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
@@ -89,7 +90,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
-        var expectedManifestAdjunctId = CanvasPaintingResolver.ManifestStubAssetId(Customer, manifestId).Asset;
+        var expectedManifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset;
 
         // Manifest-level adjunct asset should be created via regular queue (adjunctQueue = false) in space 0
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
@@ -264,7 +265,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(Customer, manifestId).Asset &&
+                    list[0][AssetProperties.Id]!.Value<string>() == ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappened();
@@ -310,7 +311,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(Customer, id).Asset &&
+                    list[0][AssetProperties.Id]!.Value<string>() == ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, id).Asset &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
@@ -330,7 +331,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var (slug, id) = TestIdentifiers.SlugResource();
         var existingAdjunctId = "old-mets.xml";
         var newAdjunctId = "new-mets.xml";
-        var manifestAdjunctId = CanvasPaintingResolver.ManifestStubAssetId(Customer, id).Asset;
+        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, id).Asset;
 
         // Simulate: manifest-level adjunct asset exists in DLCS with an existing adjunct
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, A<ICollection<string>>._, A<CancellationToken>._))
@@ -398,7 +399,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         // Arrange
         var (slug, id) = TestIdentifiers.SlugResource();
         var existingAdjunctId = "old-mets.xml";
-        var manifestAdjunctId = CanvasPaintingResolver.ManifestStubAssetId(Customer, id).Asset;
+        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, id).Asset;
 
         // Simulate: manifest-level adjunct asset exists with existing adjunct
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, A<ICollection<string>>._, A<CancellationToken>._))
@@ -534,7 +535,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var manifestId = (await postResponse.ReadAsPresentationResponseAsync<PresentationManifest>())!.Id!.Split('/').Last();
 
         // Mock DLCS to return the manifest-level adjunct asset with adjuncts for the manifest-scoped lookup
-        var manifestAdjunctId = CanvasPaintingResolver.ManifestStubAssetId(Customer, manifestId).Asset;
+        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset;
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, manifestId, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
             [
@@ -562,7 +563,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
                     list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == CanvasPaintingResolver.ManifestStubAssetId(Customer, manifestId).Asset &&
+                    list[0][AssetProperties.Id]!.Value<string>() == ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset &&
                     list[0][AssetProperties.Space]!.Value<int>() == 0),
                 false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();

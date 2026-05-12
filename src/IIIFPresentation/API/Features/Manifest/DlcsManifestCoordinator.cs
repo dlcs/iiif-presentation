@@ -266,7 +266,7 @@ public class DlcsManifestCoordinator(
     private async Task<EntityResult?> EnsureManifestAdjunctAssetsExist(int customerId, string manifestId,
         List<AdjunctInteraction> adjunctInteractions, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
-        var expectedManifestStubAssetId = CanvasPaintingResolver.ManifestStubAssetId(customerId, manifestId);
+        var expectedManifestStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
         var missingManifestAdjunctAssets = adjunctInteractions
             .Where(a => a.AssetId == expectedManifestStubAssetId && a.ExistingAdjunctIds == null)
             .ToList();
