@@ -130,7 +130,7 @@ public class DlcsManifestCoordinator(
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count == 0 && previousManifestAssetIds.IsNullOrEmpty() && adjunctInteractions.Count == 0)
+        if (!HasItems(request, assets, previousManifestAssetIds, adjunctInteractions))
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -365,6 +365,10 @@ public class DlcsManifestCoordinator(
         await dlcsApiClient.UpdateAssetManifest(customerId,
             assetsToRemove.Select(cp => cp.ToString()).ToList(), OperationType.Remove,
     [dbManifestId], cancellationToken);
+
+    private static bool HasItems(WriteManifestRequest request, List<JObject> assets,
+        List<AssetId>? previousManifestAssetIds, List<AdjunctInteraction> adjunctInteractions) =>
+        request.CreateSpace || assets.Count > 0 || !previousManifestAssetIds.IsNullOrEmpty() || adjunctInteractions.Count > 0;
 
     private static List<JObject> GetAssetJObjectList(List<PaintedResource>? paintedResources) =>
         paintedResources?
