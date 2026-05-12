@@ -139,6 +139,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
 
         responseManifest!.Adjuncts.Should().HaveCount(1);
         responseManifest.Adjuncts![0]["id"]!.Value<string>().Should().Be("mets.xml");
+        responseManifest.Adjuncts[0]["asset"].Should().BeNull("asset property should be stripped from response");
     }
 
     [Fact]

@@ -76,12 +76,13 @@ public class ManifestReadService(
                 "Unable to read and deserialize manifest from storage");
 
         var assets = await getAssets;
-        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
-            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
 
         // If the DLCS lookup failed, assets will be null (error already logged in DlcsManifestCoordinator).
         // Return the manifest without manifest-level adjuncts rather than failing the GET.
         if (assets != null) SetManifestLevelAdjuncts(manifest, assets, customerId, dbManifest.Id);
+
+        manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
+            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
 
         Guid? etag = dbManifest.Etag;
         if (dbManifest.IsIngesting())
@@ -100,9 +101,7 @@ public class ManifestReadService(
         var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
         if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
         {
-            manifest.Adjuncts = adjunctsArray.OfType<JObject>()
-                .Select(a => { a.Remove(AssetProperties.Asset); return a; })
-                .ToList();
+            manifest.Adjuncts = adjunctsArray.OfType<JObject>().ToList();
         }
     }
 }
