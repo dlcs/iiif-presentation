@@ -253,7 +253,7 @@ public class ManifestWriteService(
     }
 
     private async Task<ResolvedManifestData> ResolveCanvasPaintingsAndParentSlug(WriteManifestRequest request,
-        string? manifestId = null, DbManifest? existingManifest = null, CancellationToken cancellationToken = default)
+        string manifestId, DbManifest? existingManifest = null, CancellationToken cancellationToken = default)
     {
         var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, manifestId, cancellationToken);
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
@@ -265,13 +265,13 @@ public class ManifestWriteService(
     }
 
     private async Task<(PresUpdateResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
-        WriteManifestRequest request, DbManifest? existingManifest, string? manifestId, CancellationToken cancellationToken)
+        WriteManifestRequest request, DbManifest? existingManifest, string manifestId, CancellationToken cancellationToken)
     {
         var isCreate = existingManifest == null;
 
         var result = isCreate
             ? await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                manifestId!, cancellationToken)
+                manifestId, cancellationToken)
             : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 existingManifest!, cancellationToken);
         return result.Error != null ? (result.Error, null) : (null, result);

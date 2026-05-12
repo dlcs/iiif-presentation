@@ -247,7 +247,7 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<ManifestParseResult> ParseManifest(int customerId,
-        PresentationManifest presentationManifest, string? existingManifestId, string? manifestId = null)
+        PresentationManifest presentationManifest, string? existingManifestId, string manifestId)
     {
         try
         {
@@ -318,11 +318,11 @@ public class CanvasPaintingResolver(
     /// Note: stamps <see cref="AssetProperties.Asset"/> onto each adjunct JObject in-place.
     /// </summary>
     private static AdjunctInteraction? GetManifestAdjunctInteraction(int customerId,
-        PresentationManifest presentationManifest, string? manifestId)
+        PresentationManifest presentationManifest, string manifestId)
     {
-        if (presentationManifest.Adjuncts == null || manifestId == null) return null;
+        if (presentationManifest.Adjuncts == null) return null;
 
-        var manifestAdjunctId = new AssetId(customerId, 0, ManifestLevelAdjunctId(manifestId));
+        var manifestAdjunctId = ManifestStubAssetId(customerId, manifestId);
 
         var hydratedAdjuncts = presentationManifest.Adjuncts
             .Select(a =>
@@ -336,9 +336,10 @@ public class CanvasPaintingResolver(
     }
 
     /// <summary>
-    /// The asset id for the manifest-level adjunct carrier asset in space 0, given the manifest's internal id.
+    /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the manifest's internal id.
     /// </summary>
-    public static string ManifestLevelAdjunctId(string manifestId) => $"Manifest_{manifestId}";
+    public static AssetId ManifestStubAssetId(int customerId, string manifestId) =>
+        new(customerId, 0, $"Manifest_{manifestId}");
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,

@@ -130,7 +130,7 @@ public class DlcsManifestCoordinator(
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty() && adjunctInteractions.Count == 0)
+        if (!request.CreateSpace && assets.Count == 0 && previousManifestAssetIds.IsNullOrEmpty() && adjunctInteractions.Count == 0)
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -266,10 +266,9 @@ public class DlcsManifestCoordinator(
     private async Task<EntityResult?> EnsureManifestAdjunctAssetsExist(int customerId, string manifestId,
         List<AdjunctInteraction> adjunctInteractions, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
-        // Manifest-level adjunct assets are identified by space 0 AND the Manifest_ prefix — space 0 alone is not unique
-        var expectedManifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(manifestId);
+        var expectedManifestStubAssetId = CanvasPaintingResolver.ManifestStubAssetId(customerId, manifestId);
         var missingManifestAdjunctAssets = adjunctInteractions
-            .Where(a => a.AssetId.Space == 0 && a.AssetId.Asset == expectedManifestAdjunctId && a.ExistingAdjunctIds == null)
+            .Where(a => a.AssetId == expectedManifestStubAssetId && a.ExistingAdjunctIds == null)
             .ToList();
 
         if (missingManifestAdjunctAssets.Count == 0) return null;
@@ -278,15 +277,15 @@ public class DlcsManifestCoordinator(
             .Select(a => new JObject
             {
                 [AssetProperties.Id] = a.AssetId.Asset,
-                [AssetProperties.Space] = 0,
+                [AssetProperties.Space] = a.AssetId.Space,
                 [AssetProperties.Manifests] = new JArray { manifestId }
             })
             .ToList();
 
-        var result = await IngestDeliverables(customerId, manifestId, manifestAdjunctAssets, DeliverableType.Asset,
+        var error = await IngestDeliverables(customerId, manifestId, manifestAdjunctAssets, DeliverableType.Asset,
             collectedBatches, cancellationToken);
-        if (result != null) return result;
-
+        if (error != null) return error;
+        
         // Manifest-level adjunct asset was just created; it has no pre-existing adjuncts to diff against
         foreach (var interaction in missingManifestAdjunctAssets)
             interaction.ExistingAdjunctIds = [];

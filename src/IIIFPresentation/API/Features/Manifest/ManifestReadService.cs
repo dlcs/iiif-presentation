@@ -80,16 +80,7 @@ public class ManifestReadService(
 
         // If the DLCS lookup failed, assets will be null (error already logged in DlcsManifestCoordinator).
         // Return the manifest without manifest-level adjuncts rather than failing the GET.
-        if (assets != null)
-        {
-            // set manifest level adjuncts
-            var manifestAdjunctId = CanvasPaintingResolver.ManifestLevelAdjunctId(dbManifest.Id);
-            var manifestAdjunctAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == manifestAdjunctId);
-            if (manifestAdjunctAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
-                manifest.Adjuncts = adjunctsArray.OfType<JObject>()
-                    .Select(a => { a.Remove(AssetProperties.Asset); return a; })
-                    .ToList();
-        }
+        if (assets != null) SetManifestLevelAdjuncts(manifest, assets, customerId, dbManifest.Id);
 
         Guid? etag = dbManifest.Etag;
         if (dbManifest.IsIngesting())
@@ -99,5 +90,18 @@ public class ManifestReadService(
         }
 
         return FetchEntityResult<PresentationManifest>.Success(manifest, etag);
+    }
+
+    private static void SetManifestLevelAdjuncts(PresentationManifest manifest,
+        Dictionary<string, JObject> assets, int customerId, string manifestId)
+    {
+        var stubAssetId = CanvasPaintingResolver.ManifestStubAssetId(customerId, manifestId);
+        var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
+        if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
+        {
+            manifest.Adjuncts = adjunctsArray.OfType<JObject>()
+                .Select(a => { a.Remove(AssetProperties.Asset); return a; })
+                .ToList();
+        }
     }
 }
