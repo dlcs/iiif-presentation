@@ -254,21 +254,16 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
-        // Canvas asset batch (space = newly created space)
+        // Canvas asset and stub asset are batched together in one IngestDeliverables call
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(list =>
-                    list.Count == 1 && list[0][AssetProperties.Id]!.Value<string>() == "canvas-asset"),
+                    list.Count == 2 &&
+                    list.Any(a => a[AssetProperties.Id]!.Value<string>() == "canvas-asset") &&
+                    list.Any(a =>
+                        a[AssetProperties.Id]!.Value<string>() == ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset &&
+                        a[AssetProperties.Space]!.Value<int>() == 0)),
                 false, A<CancellationToken>._))
-            .MustHaveHappened();
-
-        // Stub asset batch (space 0)
-        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-                A<List<JObject>>.That.Matches(list =>
-                    list.Count == 1 &&
-                    list[0][AssetProperties.Id]!.Value<string>() == ResourceAdjunctInteractions.GetResourceStubAssetId(Customer, manifestId).Asset &&
-                    list[0][AssetProperties.Space]!.Value<int>() == 0),
-                false, A<CancellationToken>._))
-            .MustHaveHappened();
+            .MustHaveHappenedOnceExactly();
 
         // Adjunct batch
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,

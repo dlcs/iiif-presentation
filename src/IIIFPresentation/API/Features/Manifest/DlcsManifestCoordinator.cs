@@ -206,7 +206,14 @@ public class DlcsManifestCoordinator(
 
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
 
-        // create batches for assets
+        // Enrich adjunct state before batching so missing stub assets can be co-ingested in a single call
+        if (adjunctInteractions.Count > 0)
+        {
+            await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
+            assetsToIngest.AddRange(BuildMissingStubAssetRequests(request.CustomerId, manifestId, adjunctInteractions));
+        }
+
+        // create batches for assets (including any new stub assets)
         var collectedBatches = new List<Batch>();
         var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest, collectedBatches,
             cancellationToken);
@@ -238,15 +245,6 @@ public class DlcsManifestCoordinator(
     {
         if (adjunctInteractions.Count > 0)
         {
-            // ExistingAdjunctIds may already be set for assets checked against DLCS in FindAssetsThatRequireAdditionalWork;
-            // this call fills in any that were missed (e.g. assets that were already known and skipped the IIIF-CS check)
-            await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
-
-            // Ensure stub assets (space 0) exist before ingesting their adjuncts
-            var manifestAdjunctAssetError = await EnsureManifestAdjunctAssetsExist(request.CustomerId, manifestId, adjunctInteractions,
-                collectedBatches, cancellationToken);
-            if (manifestAdjunctAssetError != null) return new DlcsInteractionResult(manifestAdjunctAssetError, spaceId);
-
             // remove any adjuncts in IIIF-CS that are no longer in the manifest
             await DeleteUnusedAdjuncts(request.CustomerId, adjunctInteractions, cancellationToken);
 
@@ -263,34 +261,29 @@ public class DlcsManifestCoordinator(
         return null;
     }
 
-    private async Task<EntityResult?> EnsureManifestAdjunctAssetsExist(int customerId, string manifestId,
-        List<AdjunctInteraction> adjunctInteractions, List<Batch> collectedBatches, CancellationToken cancellationToken)
+    private static List<DlcsInteractionRequest> BuildMissingStubAssetRequests(int customerId, string manifestId,
+        List<AdjunctInteraction> adjunctInteractions)
     {
-        var expectedManifestStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
-        var missingManifestAdjunctAssets = adjunctInteractions
-            .Where(a => a.AssetId == expectedManifestStubAssetId && a.ExistingAdjunctIds == null)
-            .ToList();
+        var expectedStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
+        var result = new List<DlcsInteractionRequest>();
 
-        if (missingManifestAdjunctAssets.Count == 0) return null;
+        foreach (var interaction in adjunctInteractions.Where(a => a.AssetId == expectedStubAssetId && a.ExistingAdjunctIds == null))
+        {
+            result.Add(new DlcsInteractionRequest(
+                new JObject
+                {
+                    [AssetProperties.Id] = interaction.AssetId.Asset,
+                    [AssetProperties.Space] = interaction.AssetId.Space
+                },
+                IngestType.ManifestId,
+                patch: false,
+                interaction.AssetId));
 
-        var manifestAdjunctAssets = missingManifestAdjunctAssets
-            .Select(a => new JObject
-            {
-                [AssetProperties.Id] = a.AssetId.Asset,
-                [AssetProperties.Space] = a.AssetId.Space,
-                [AssetProperties.Manifests] = new JArray { manifestId }
-            })
-            .ToList();
-
-        var error = await IngestDeliverables(customerId, manifestId, manifestAdjunctAssets, DeliverableType.Asset,
-            collectedBatches, cancellationToken);
-        if (error != null) return error;
-        
-        // Manifest-level adjunct asset was just created; it has no pre-existing adjuncts to diff against
-        foreach (var interaction in missingManifestAdjunctAssets)
+            // Stub asset is being created now; it has no pre-existing adjuncts to diff against
             interaction.ExistingAdjunctIds = [];
+        }
 
-        return null;
+        return result;
     }
 
     private async Task EnrichExistingAdjunctIds(WriteManifestRequest request, List<AdjunctInteraction> adjunctInteractions,
