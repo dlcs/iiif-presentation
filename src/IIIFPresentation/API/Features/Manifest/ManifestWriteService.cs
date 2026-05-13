@@ -11,7 +11,6 @@ using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
 using IIIF.Presentation.V3;
-using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -20,6 +19,7 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
@@ -411,7 +411,7 @@ public class ManifestWriteService(
     private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
-        var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
+        var iiifManifest = request.RawRequestBody.ToManifest();
         
         if (canBeBuiltUpfront && hasAssets)
         {
