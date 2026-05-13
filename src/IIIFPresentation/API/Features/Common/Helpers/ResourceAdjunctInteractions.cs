@@ -1,3 +1,4 @@
+using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Model;
@@ -17,17 +18,16 @@ public static class ResourceAdjunctInteractions
 
     /// <summary>
     /// Builds an <see cref="AdjunctInteraction"/> for the given stub asset and adjunct list.
-    /// Returns null if <paramref name="adjuncts"/> is null (treat as "no change").
+    /// Returns null if <see cref="PresentationManifest.Adjuncts"/> is null (treat as "no change").
     /// Note: stamps <see cref="AssetProperties.Asset"/> onto each adjunct JObject in-place.
     /// </summary>
-    public static AdjunctInteraction? GetAdjunctInteraction(List<JObject>? adjuncts, int customerId, 
-        string resourceId)
+    public static AdjunctInteraction? GetAdjunctInteraction(PresentationManifest presentationManifest, int customerId)
     {
-        if (adjuncts == null) return null;
+        if (presentationManifest.Adjuncts == null) return null;
 
-        var stubAssetId = GetResourceStubAssetId(customerId, resourceId);
+        var stubAssetId = GetResourceStubAssetId(customerId, presentationManifest.Id!);
 
-        var hydratedAdjuncts = adjuncts
+        var hydratedAdjuncts = presentationManifest.Adjuncts
             .Select(a =>
             {
                 a[AssetProperties.Asset] = stubAssetId.ToString();

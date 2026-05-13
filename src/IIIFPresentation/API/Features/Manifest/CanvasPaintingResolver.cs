@@ -29,11 +29,11 @@ public class CanvasPaintingResolver(
     /// </summary>
     /// <returns>Tuple of either error OR newly created </returns>
     public async Task<ParsedManifestResult> GenerateCanvasPaintings(
-        int customerId, PresentationManifest presentationManifest, string manifestId, CancellationToken cancellationToken = default)
+        int customerId, PresentationManifest presentationManifest, CancellationToken cancellationToken = default)
     {
         try
         {
-            var manifestParseResult = await ParseManifest(customerId, presentationManifest, null, manifestId);
+            var manifestParseResult = await ParseManifest(customerId, presentationManifest);
             if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
 
             Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
@@ -66,7 +66,7 @@ public class CanvasPaintingResolver(
     public async Task<ParsedManifestResult> UpdateCanvasPaintings(int customerId, PresentationManifest presentationManifest,
         DbManifest existingManifest, CancellationToken cancellationToken = default)
     {
-        var manifestParseResult = await ParseManifest(customerId, presentationManifest, existingManifest.Id, existingManifest.Id);
+        var manifestParseResult = await ParseManifest(customerId, presentationManifest);
         if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
         
         existingManifest.CanvasPaintings ??= [];
@@ -246,12 +246,12 @@ public class CanvasPaintingResolver(
     }
     
     private async Task<ManifestParseResult> ParseManifest(int customerId,
-        PresentationManifest presentationManifest, string? existingManifestId, string manifestId)
+        PresentationManifest presentationManifest)
     {
         try
         {
             var paintedResourceCanvasPaintings = (await manifestPaintedResourceParser
-                .ParseToCanvasPainting(presentationManifest, customerId, existingManifestId)).ToList();
+                .ParseToCanvasPainting(presentationManifest, customerId)).ToList();
 
             var itemsCanvasPaintings =
                 manifestItemsParser
@@ -266,8 +266,7 @@ public class CanvasPaintingResolver(
                 .ToList();
 
             var manifestAdjunctInteraction =
-                ResourceAdjunctInteractions.GetAdjunctInteraction(presentationManifest.Adjuncts, customerId,
-                    manifestId);
+                ResourceAdjunctInteractions.GetAdjunctInteraction(presentationManifest, customerId);
             if (manifestAdjunctInteraction != null)
                 adjunctInteractions.Add(manifestAdjunctInteraction);
 

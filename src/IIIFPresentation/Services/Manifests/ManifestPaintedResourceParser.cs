@@ -30,7 +30,7 @@ public class ManifestPaintedResourceParser(
     private readonly PathSettings settings = options.Value;
     
     public async Task<IEnumerable<InterimCanvasPainting>> ParseToCanvasPainting(PresentationManifest presentationManifest,
-        int customerId, string? existingManifestId = null)
+        int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
 
@@ -38,7 +38,7 @@ public class ManifestPaintedResourceParser(
         var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
-        
+
         var count = 0;
         foreach (var paintedResource in paintedResources)
         {
@@ -58,7 +58,7 @@ public class ManifestPaintedResourceParser(
             canvasPaintings.Add(cp);
         }
 
-        await CheckInterimCanvasIds(canvasPaintings, customerId, existingManifestId);
+        await CheckInterimCanvasIds(canvasPaintings, customerId, presentationManifest.Id);
 
         return canvasPaintings;
     }
