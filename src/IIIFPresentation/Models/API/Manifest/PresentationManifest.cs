@@ -22,11 +22,16 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     public List<PaintedResource>? PaintedResources { get; set; }
 
     [JsonProperty(Order = 13)] public string? Space { get; set; }
-    
+
+    /// <summary>
+    /// Manifest-level adjuncts to be associated with this manifest via a stub asset.
+    /// </summary>
+    [JsonProperty(Order = 14)] public List<JObject>? Adjuncts { get; set; }
+
     /// <summary>
     /// Contains details of the ingestion progress
     /// </summary>
-    [JsonProperty(Order = 14)] public IngestingAssets? Ingesting { get; set; }
+    [JsonProperty(Order = 15)] public IngestingAssets? Ingesting { get; set; }
 
     [JsonIgnore] public string? FullPath { get; set; }
     

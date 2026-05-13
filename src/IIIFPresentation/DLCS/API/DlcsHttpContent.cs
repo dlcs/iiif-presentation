@@ -20,7 +20,7 @@ internal static class DlcsHttpContent
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JTokenConverter() }
+        Converters = { new JTokenConverter(), new AssetIdConverter() }
     };
         
     /// <summary>
@@ -82,7 +82,7 @@ internal static class DlcsHttpContent
 
             if (error != null)
             {
-                return new DlcsException(error.Description, response.StatusCode);
+                return new DlcsException(error.Description ?? "Unknown error", response.StatusCode);
             }
 
             throw new DlcsException("Unable to process error condition", response.StatusCode);

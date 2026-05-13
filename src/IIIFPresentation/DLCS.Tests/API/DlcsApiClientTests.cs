@@ -555,6 +555,30 @@ public class DlcsApiClientTests
 
 
     [Fact]
+    public async Task DeleteAdjuncts_SerializesIdAsString_NotObject()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedBody = string.Empty;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((request, _) =>
+            {
+                capturedBody = request.Body.ReadAsStringAsync().Result;
+                return string.Empty;
+            }).StatusCode(204);
+
+        var sut = GetClient(stub);
+
+        await sut.DeleteAdjuncts(customerId,
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
+            CancellationToken.None);
+
+        capturedBody.Should().Contain($"\"{customerId}/1/asset1\"");
+        capturedBody.Should().NotContain("\"customer\"");
+    }
+
+    [Fact]
     public async Task DeleteAdjuncts_MakesSingleRequest_WhenTotalAdjunctCountWithinLimit()
     {
         using var stub = new ApiStub();
@@ -572,8 +596,8 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b"] },
-            new() { Id = "asset2", Adjunct = ["c"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["c"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
@@ -600,8 +624,8 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b", "c"] },
-            new() { Id = "asset2", Adjunct = ["d", "e", "f"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["d", "e", "f"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
@@ -623,7 +647,7 @@ public class DlcsApiClientTests
         var sut = GetClient(stub);
 
         Func<Task> action = () => sut.DeleteAdjuncts(customerId,
-            [new AdjunctAssetIdentifier { Id = "asset1", Adjunct = ["a"] }],
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
             CancellationToken.None);
 
         await action.Should().ThrowAsync<DlcsException>()
@@ -649,7 +673,7 @@ public class DlcsApiClientTests
 
         var adjuncts = new List<AdjunctAssetIdentifier>
         {
-            new() { Id = "asset1", Adjunct = ["a", "b", "c", "d"] }
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c", "d"] }
         };
 
         await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
@@ -707,6 +731,9 @@ public class DlcsApiClientTests
         {
             BaseAddress = new Uri(stub.Address)
         };
+        // Stubbery doesn't support HTTP/1.1 keep-alive across multiple requests; force connection-close
+        // so each request gets a fresh connection and avoids ResponseEnded on the second call
+        httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
         var options = Options.Create(new DlcsSettings()
         {

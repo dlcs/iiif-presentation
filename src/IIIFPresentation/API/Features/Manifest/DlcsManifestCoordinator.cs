@@ -130,7 +130,7 @@ public class DlcsManifestCoordinator(
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty())
+        if (!HasItems(request, assets, previousManifestAssetIds, adjunctInteractions))
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -206,7 +206,14 @@ public class DlcsManifestCoordinator(
 
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
 
-        // create batches for assets
+        // Enrich adjunct state before batching so missing stub assets can be co-ingested in a single call
+        if (adjunctInteractions.Count > 0)
+        {
+            await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
+            assetsToIngest.AddRange(BuildMissingStubAssetRequests(request.CustomerId, manifestId, adjunctInteractions, request.PresentationManifest));
+        }
+
+        // create batches for assets (including any new stub assets)
         var collectedBatches = new List<Batch>();
         var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest, collectedBatches,
             cancellationToken);
@@ -238,9 +245,6 @@ public class DlcsManifestCoordinator(
     {
         if (adjunctInteractions.Count > 0)
         {
-            // ExistingAdjunctIds may already be set for assets checked against DLCS in FindAssetsThatRequireAdditionalWork;
-            // this call fills in any that were missed (e.g. assets that were already known and skipped the IIIF-CS check)
-            await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
             // remove any adjuncts in IIIF-CS that are no longer in the manifest
             await DeleteUnusedAdjuncts(request.CustomerId, adjunctInteractions, cancellationToken);
 
@@ -255,6 +259,31 @@ public class DlcsManifestCoordinator(
         }
 
         return null;
+    }
+
+    private static List<DlcsInteractionRequest> BuildMissingStubAssetRequests(int customerId, string manifestId,
+        List<AdjunctInteraction> adjunctInteractions, PresentationManifest manifest)
+    {
+        var expectedStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
+        var result = new List<DlcsInteractionRequest>();
+
+        foreach (var interaction in adjunctInteractions.Where(a => a.AssetId == expectedStubAssetId && a.ExistingAdjunctIds == null))
+        {
+            result.Add(new DlcsInteractionRequest(
+                new JObject
+                {
+                    [AssetProperties.Id] = interaction.AssetId.Asset,
+                    [AssetProperties.Space] = interaction.AssetId.Space
+                },
+                IngestType.ManifestId,
+                patch: false,
+                interaction.AssetId));
+
+            // Stub asset is being created now; it has no pre-existing adjuncts to diff against
+            interaction.ExistingAdjunctIds = [];
+        }
+
+        return result;
     }
 
     private async Task EnrichExistingAdjunctIds(WriteManifestRequest request, List<AdjunctInteraction> adjunctInteractions,
@@ -291,7 +320,7 @@ public class DlcsManifestCoordinator(
                 .ToList();
 
             if (adjunctsToDelete.Count > 0)
-                bulkDelete.Add(new AdjunctAssetIdentifier { Id = adjunctInteraction.AssetId.ToString(), Adjunct = adjunctsToDelete });
+                bulkDelete.Add(new AdjunctAssetIdentifier { Id = adjunctInteraction.AssetId, Adjunct = adjunctsToDelete });
         }
 
         if (bulkDelete.Count > 0)
@@ -329,6 +358,10 @@ public class DlcsManifestCoordinator(
         await dlcsApiClient.UpdateAssetManifest(customerId,
             assetsToRemove.Select(cp => cp.ToString()).ToList(), OperationType.Remove,
     [dbManifestId], cancellationToken);
+
+    private static bool HasItems(WriteManifestRequest request, List<JObject> assets,
+        List<AssetId>? previousManifestAssetIds, List<AdjunctInteraction> adjunctInteractions) =>
+        request.CreateSpace || assets.Count > 0 || !previousManifestAssetIds.IsNullOrEmpty() || adjunctInteractions.Count > 0;
 
     private static List<JObject> GetAssetJObjectList(List<PaintedResource>? paintedResources) =>
         paintedResources?

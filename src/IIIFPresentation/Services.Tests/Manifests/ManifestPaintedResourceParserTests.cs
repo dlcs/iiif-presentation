@@ -132,6 +132,7 @@ public class ManifestPaintedResourceParserTests
     {
         var manifest = new PresentationManifest
         {
+            Id = TestIdentifiers.Id(),
             PaintedResources =
             [
                 new PaintedResource
@@ -150,8 +151,8 @@ public class ManifestPaintedResourceParserTests
                 }
             ]
         };
-        
-        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
         var expected =
             new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
         var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
@@ -163,6 +164,7 @@ public class ManifestPaintedResourceParserTests
     {
         var manifest = new PresentationManifest
         {
+            Id = ExistingManifestId,
             PaintedResources =
             [
                 new PaintedResource
@@ -181,8 +183,8 @@ public class ManifestPaintedResourceParserTests
                 }
             ]
         };
-        
-        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, ExistingManifestId);
+
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         await parseAction.Should().NotThrowAsync();
     }
@@ -192,9 +194,10 @@ public class ManifestPaintedResourceParserTests
     {
         // Based on https://github.com/dlcs/docs/blob/wip-skeleton/public/manifest-builder/database.py#L90-L99
         var fullCanvasId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}";
-        
+
         var manifest = new PresentationManifest
         {
+            Id = TestIdentifiers.Id(),
             PaintedResources =
             [
                 new PaintedResource
@@ -262,22 +265,23 @@ public class ManifestPaintedResourceParserTests
             ]
         };
         
-        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
         var expected =
             new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
         var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();
         throwInfo.Which.Errors.Should().BeEquivalentTo(expected.Errors);
     }
-    
+
     [Fact]
     public async Task Parse_MultiImage_SomeDuplicatedCanvasId_Throws_CanvasPaintingValidationException()
     {
         // Based on https://github.com/dlcs/docs/blob/wip-skeleton/public/manifest-builder/database.py#L90-L99
         var duplicatedId = $"http://localhost/{CustomerId}/canvases/{ExistingCanvasId}";
         var otherId = $"http://localhost/{CustomerId}/canvases/{TestIdentifiers.Id()}";
-        
+
         var manifest = new PresentationManifest
         {
+            Id = TestIdentifiers.Id(),
             PaintedResources =
             [
                 new PaintedResource
@@ -345,7 +349,7 @@ public class ManifestPaintedResourceParserTests
             ]
         };
         
-        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId, TestIdentifiers.Id());
+        Func<Task> parseAction = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
         var expected =
             new CanvasPaintingValidationException([(ExistingCanvasId, "Id used in one of your other manifests")]);
         var throwInfo = await parseAction.Should().ThrowAsync<CanvasPaintingValidationException>();

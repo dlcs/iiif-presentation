@@ -17,6 +17,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     {
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
+        When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
         
         RuleFor(m => m.Items)
@@ -82,6 +83,17 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
      }
     
+    // Validation rules for manifest-level adjuncts
+    private void ManifestAdjunctsValidation()
+    {
+        RuleForEach(m => m.Adjuncts)
+            .Must(a => !a.ContainsKey(AssetProperties.Asset))
+            .WithMessage("Manifest-level adjuncts must not include an 'asset' property; it is set by the system");
+
+        RuleForEach(m => m.Adjuncts)
+            .SetValidator(new AdjunctValidator(servicesSettings));
+    }
+
     // Validation rules specific to Adjuncts only
     private void AdjunctsValidation()
     {

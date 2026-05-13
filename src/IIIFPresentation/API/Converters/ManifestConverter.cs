@@ -62,9 +62,14 @@ public static class ManifestConverter
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
         }
         
+        if (!iiifManifest.Adjuncts.IsNullOrEmpty())
+        {
+            foreach (var adjunct in iiifManifest.Adjuncts!) adjunct.Remove(AssetProperties.Asset);
+        }
+
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
-        
+
         return iiifManifest;
     }
 

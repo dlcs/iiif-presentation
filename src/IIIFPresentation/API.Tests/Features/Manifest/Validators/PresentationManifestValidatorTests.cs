@@ -566,4 +566,116 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.Errors.Should().Contain(e => e.ErrorMessage == "Adjunct 'id' must not be empty");
     }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenValidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = "manifest-adjunct",
+                    ["mediaType"] = "text/xml"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenAdjunctsNull()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts = null
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenAdjunctsEmpty()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts = []
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_Error_WhenAdjunctHasNoId()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    ["mediaType"] = "text/xml"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage == "Adjunct 'id' must not be empty");
+    }
+
+    [Theory]
+    [InlineData("foo/bar")]
+    [InlineData("foo\\bar")]
+    public void ManifestAdjuncts_Error_WhenAdjunctIdHasProhibitedCharacters(string adjunctId)
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = adjunctId
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage.StartsWith("Adjunct 'id' contains a prohibited character"));
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_Error_WhenAdjunctHasAssetProperty()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = "mets.xml",
+                    [AssetProperties.Asset] = "1/0/Manifest_some-id"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains("'asset'"));
+    }
 }
