@@ -14,8 +14,8 @@ public static class IIIFSerialisationX
     public static Manifest? ToManifest(this string json)
     {
         var manifest = json
-            .FromJson<Manifest>()
-            ?.WithoutAdditionalProperties(PresentationManifest.PresentationPropertyKeys);
+            .FromJson<Manifest>()?
+            .WithoutAdditionalProperties(PresentationManifest.PresentationPropertyKeys);
         return manifest;
     }
 
@@ -26,8 +26,8 @@ public static class IIIFSerialisationX
     public static Collection? ToCollection(this string json)
     {
         var collection = json
-            .FromJson<Collection>()
-            ?.WithoutAdditionalProperties(PresentationCollection.PresentationPropertyKeys);
+            .FromJson<Collection>()?
+            .WithoutAdditionalProperties(PresentationCollection.PresentationPropertyKeys);
         return collection;
     }
 }

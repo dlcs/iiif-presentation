@@ -6,6 +6,10 @@ namespace Models.API.Manifest;
 
 public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 {
+    /// <summary>
+    /// A collection of properties that are not part of the IIIF Presentation API spec and are custom to the
+    /// IIIF-Presentation.
+    /// </summary>
     public static readonly string[] PresentationPropertyKeys =
     [
         "slug", "publicId", "parent", "created", "modified",
