@@ -6,6 +6,13 @@ namespace Models.API.Manifest;
 
 public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 {
+    public static readonly string[] PresentationPropertyKeys =
+    [
+        "slug", "publicId", "parent", "created", "modified",
+        "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "ingesting",
+        "fullPath", "currentlyIngesting"
+    ];
+
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
     [JsonProperty(Order = 7)] public string? PublicId { get; set; }
     [JsonProperty(Order = 8)] public string? Parent { get; set; }
