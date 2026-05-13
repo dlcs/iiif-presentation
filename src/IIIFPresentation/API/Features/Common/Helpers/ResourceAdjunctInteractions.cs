@@ -1,4 +1,6 @@
+using IIIF.Presentation.V3;
 using Models.API.Manifest;
+using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Model;
@@ -10,11 +12,13 @@ namespace API.Features.Common.Helpers;
 /// </summary>
 public static class ResourceAdjunctInteractions
 {
+    public const int StubAssetSpace = 0;
+    
     /// <summary>
     /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the resources's internal id.
     /// </summary>
-    public static AssetId GetResourceStubAssetId(int customerId, string resourceId) =>
-        new(customerId, 0, $"Manifest_{resourceId}");
+    public static AssetId GetResourceStubAssetId(ResourceBase resource, int customerId, string resourceId) =>
+        new(customerId, StubAssetSpace, $"{resource.Type}_{resourceId}");
 
     /// <summary>
     /// Builds an <see cref="AdjunctInteraction"/> for the given stub asset and adjunct list.
@@ -25,7 +29,7 @@ public static class ResourceAdjunctInteractions
     {
         if (presentationManifest.Adjuncts == null) return null;
 
-        var stubAssetId = GetResourceStubAssetId(customerId, presentationManifest.Id!);
+        var stubAssetId = GetResourceStubAssetId(presentationManifest, customerId, presentationManifest.Id!);
 
         var hydratedAdjuncts = presentationManifest.Adjuncts
             .Select(a =>

@@ -10,7 +10,7 @@ public class ResourceAdjunctInteractionsTests
     [Fact]
     public void GetResourceStubAssetId_ReturnsAssetIdInSpace0()
     {
-        var result = ResourceAdjunctInteractions.GetResourceStubAssetId(5, "my-manifest");
+        var result = ResourceAdjunctInteractions.GetResourceStubAssetId(new PresentationManifest(), 5, "my-manifest");
 
         result.Customer.Should().Be(5);
         result.Space.Should().Be(0);

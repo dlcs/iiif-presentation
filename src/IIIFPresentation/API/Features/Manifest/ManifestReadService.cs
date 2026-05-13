@@ -97,7 +97,7 @@ public class ManifestReadService(
     private static void SetManifestLevelAdjuncts(PresentationManifest manifest,
         Dictionary<string, JObject> assets, int customerId, string manifestId)
     {
-        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
         var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
         if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
         {

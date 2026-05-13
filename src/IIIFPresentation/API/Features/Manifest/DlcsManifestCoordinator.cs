@@ -210,7 +210,7 @@ public class DlcsManifestCoordinator(
         if (adjunctInteractions.Count > 0)
         {
             await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
-            assetsToIngest.AddRange(BuildMissingStubAssetRequests(request.CustomerId, manifestId, adjunctInteractions));
+            assetsToIngest.AddRange(BuildMissingStubAssetRequests(request.CustomerId, manifestId, adjunctInteractions, request.PresentationManifest));
         }
 
         // create batches for assets (including any new stub assets)
@@ -262,9 +262,9 @@ public class DlcsManifestCoordinator(
     }
 
     private static List<DlcsInteractionRequest> BuildMissingStubAssetRequests(int customerId, string manifestId,
-        List<AdjunctInteraction> adjunctInteractions)
+        List<AdjunctInteraction> adjunctInteractions, PresentationManifest manifest)
     {
-        var expectedStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(customerId, manifestId);
+        var expectedStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
         var result = new List<DlcsInteractionRequest>();
 
         foreach (var interaction in adjunctInteractions.Where(a => a.AssetId == expectedStubAssetId && a.ExistingAdjunctIds == null))

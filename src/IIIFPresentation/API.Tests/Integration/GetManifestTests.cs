@@ -513,7 +513,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             ContentBody = TestContent.ManifestJson,
         });
 
-        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(PresentationContextFixture.CustomerId, id).Asset;
+        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(new PresentationManifest(), PresentationContextFixture.CustomerId, id).Asset;
         A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId, id, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
             [
