@@ -1,8 +1,7 @@
+using Core.Helpers;
 using IIIF.Presentation.V3;
 using Models.API.Manifest;
-using Models.Database.General;
 using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Services.Manifests.Model;
 
 namespace API.Features.Common.Helpers;
@@ -27,6 +26,7 @@ public static class ResourceAdjunctInteractions
     /// </summary>
     public static AdjunctInteraction? GetAdjunctInteraction(PresentationManifest presentationManifest, int customerId)
     {
+        // We only check for null here, as an empty list signals we want to delete all adjuncts
         if (presentationManifest.Adjuncts == null) return null;
 
         var stubAssetId = GetResourceStubAssetId(presentationManifest, customerId, presentationManifest.Id!);

@@ -50,7 +50,6 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     {
         s3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         dbContext = storageFixture.DbFixture.DbContext;
-        Fake.ClearRecordedCalls(DLCSApiClient);
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
             services => services.AddSingleton(DLCSApiClient));
