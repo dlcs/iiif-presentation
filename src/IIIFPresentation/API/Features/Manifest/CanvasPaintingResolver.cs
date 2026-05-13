@@ -257,11 +257,8 @@ public class CanvasPaintingResolver(
             var paintedResourceCanvasPaintings = (await manifestPaintedResourceParser
                 .ParseToCanvasPainting(presentationManifest, customerId)).ToList();
 
-            var adjunctError = ValidateDuplicateAdjuncts(paintedResourceCanvasPaintings);
-            if (adjunctError != null) return new ManifestParseResult(adjunctError);
-
-            var assetError = ValidateDuplicateAssets(paintedResourceCanvasPaintings, presentationManifest.PaintedResources);
-            if (assetError != null) return new ManifestParseResult(assetError);
+            var duplicateError = ValidateDuplicates(paintedResourceCanvasPaintings, presentationManifest.PaintedResources);
+            if (duplicateError != null) return new ManifestParseResult(duplicateError);
 
             var itemsCanvasPaintings =
                 manifestItemsParser
@@ -323,23 +320,50 @@ public class CanvasPaintingResolver(
         }
     }
 
-    private static PresUpdateResult? ValidateDuplicateAdjuncts(List<InterimCanvasPainting> paintedResourceCanvasPaintings)
+    private static PresUpdateResult? ValidateDuplicates(
+        List<InterimCanvasPainting> paintedResourceCanvasPaintings,
+        List<PaintedResource>? paintedResources)
     {
-        var seen = new Dictionary<string, List<JObject>?>();
+        // check assets for duplicates
+        if (paintedResources != null)
+        {
+            var seenAssets = new Dictionary<string, JObject>();
+            foreach (var pr in paintedResources.Where(pr => pr.Asset != null))
+            {
+                var assetId = pr.Asset![AssetProperties.Id]?.Value<string>();
+                if (assetId == null) continue;
 
+                // Include space so that the same asset ID in different spaces is not treated as a conflict
+                var space = pr.Asset[AssetProperties.Space]?.Value<int>() ?? SpaceHelper.DefaultSpaceForLaterPopulation;
+                var dedupKey = $"{space}/{assetId}";
+
+                if (!seenAssets.TryAdd(dedupKey, pr.Asset!))
+                {
+                    var existing = seenAssets[dedupKey];
+                    if (!JToken.DeepEquals(existing, pr.Asset!))
+                    {
+                        var cp = paintedResourceCanvasPaintings.FirstOrDefault(c => c.SuspectedAssetId == assetId);
+                        return UpsertErrorHelper.AssetsDataDoesNotMatch<PresentationManifest>(
+                            cp != null ? BuildAssetKey(cp) : assetId,
+                            SerializeDiff(existing, pr.Asset!));
+                    }
+                }
+            }
+        }
+
+        // check adjuncts for duplicates
+        var seenAdjuncts = new Dictionary<string, List<JObject>?>();
         foreach (var cp in paintedResourceCanvasPaintings.Where(cp => cp.SuspectedAssetId != null))
         {
             var key = BuildAssetKey(cp);
             var adjuncts = cp.AdjunctInteraction?.Adjuncts;
 
-            if (!seen.TryAdd(key, adjuncts))
+            if (!seenAdjuncts.TryAdd(key, adjuncts))
             {
-                var existing = seen[key];
+                var existing = seenAdjuncts[key];
                 if (!AdjunctsEqual(existing, adjuncts))
-                {
-                    var diff = new JsonDiffPatch().Diff(new JArray(existing ?? []), new JArray(adjuncts ?? []));
-                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch<PresentationManifest>(key, JsonConvert.SerializeObject(diff));
-                }
+                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch<PresentationManifest>(key,
+                        SerializeDiff(new JArray(existing ?? []), new JArray(adjuncts ?? [])));
             }
         }
 
@@ -358,38 +382,8 @@ public class CanvasPaintingResolver(
             && JToken.DeepEquals(j, match));
     }
 
-    private static PresUpdateResult? ValidateDuplicateAssets(
-        List<InterimCanvasPainting> paintedResourceCanvasPaintings,
-        List<PaintedResource>? paintedResources)
-    {
-        if (paintedResources == null) return null;
-
-        var seen = new Dictionary<string, JObject>();
-
-        foreach (var pr in paintedResources.Where(pr => pr.Asset != null))
-        {
-            var assetId = pr.Asset![AssetProperties.Id]?.Value<string>();
-            if (assetId == null) continue;
-
-            // Include space so that the same asset ID in different spaces is not treated as a conflict
-            var space = pr.Asset[AssetProperties.Space]?.Value<int>() ?? SpaceHelper.DefaultSpaceForLaterPopulation;
-            var dedupKey = $"{space}/{assetId}";
-
-            if (!seen.TryAdd(dedupKey, pr.Asset!))
-            {
-                var existing = seen[dedupKey];
-                if (!JToken.DeepEquals(existing, pr.Asset!))
-                {
-                    var cp = paintedResourceCanvasPaintings.FirstOrDefault(c => c.SuspectedAssetId == assetId);
-                    var key = cp != null ? BuildAssetKey(cp) : assetId;
-                    var diff = new JsonDiffPatch().Diff(existing, pr.Asset!);
-                    return UpsertErrorHelper.AssetsDataDoesNotMatch<PresentationManifest>(key, JsonConvert.SerializeObject(diff));
-                }
-            }
-        }
-
-        return null;
-    }
+    private static string SerializeDiff(JToken left, JToken right)
+        => JsonConvert.SerializeObject(new JsonDiffPatch().Diff(left, right));
 
     // Omits the space sentinel from user-facing keys — space is unknown until DLCS interaction
     private static string BuildAssetKey(InterimCanvasPainting cp) =>
