@@ -4,7 +4,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Services.Manifests.Model;
 
-namespace API.Features.Common.Helpers;
+namespace Services.Manifests.Helpers;
 
 /// <summary>
 /// Generates adjunct interactions for resource level adjuncts
@@ -12,7 +12,7 @@ namespace API.Features.Common.Helpers;
 public static class ResourceAdjunctInteractions
 {
     public const int StubAssetSpace = 0;
-    
+
     /// <summary>
     /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the resources's internal id.
     /// </summary>

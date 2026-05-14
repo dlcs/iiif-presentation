@@ -30,6 +30,13 @@ public interface IManifestMerger
     /// <returns>Populated manifest</returns>
     Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings);
+
+    /// <summary>
+    /// Apply manifest-level adjuncts from the stub canvas in the NQ manifest to the base manifest.
+    /// The stub canvas is identified by AssetId {customerId}/0/Manifest_{manifestId}.
+    /// </summary>
+    Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
+        string manifestId);
 }
 
 public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
@@ -66,6 +73,35 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         return baseManifest;
     }
     
+    public Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
+        string manifestId)
+    {
+        if (namedQueryManifest?.Items.IsNullOrEmpty() != false) return baseManifest;
+
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
+
+        foreach (var canvas in namedQueryManifest.Items!)
+        {
+            AssetId canvasAssetId;
+            try
+            {
+                canvasAssetId = canvas.GetAssetIdFromNamedQueryCanvasId();
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
+            if (canvasAssetId != stubAssetId) continue;
+
+            logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
+            SetAssetDerivedProperties(baseManifest, canvas, stubAssetId.ToString());
+            break;
+        }
+
+        return baseManifest;
+    }
+
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
