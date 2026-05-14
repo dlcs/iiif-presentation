@@ -55,6 +55,18 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
+    public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNQManifestHasNullItems()
+    {
+        var baseManifest = new Manifest { Id = "base" };
+        var nqManifest = new Manifest { Items = null };
+
+        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+
+        result.Should().Be(baseManifest);
+        result.SeeAlso.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
     public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNQManifestHasNoItems()
     {
         var baseManifest = new Manifest { Id = "base" };
@@ -163,7 +175,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_SkipsUnparseableCanvases_AndContinues()
+    public void ApplyManifestLevelAdjuncts_SkipsUnparseableCanvas_AndStillFindsStub()
     {
         var baseManifest = new Manifest { Id = "base" };
         var seeAlsoId = "https://example.com/mets.xml";

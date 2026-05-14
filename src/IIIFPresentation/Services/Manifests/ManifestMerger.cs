@@ -35,6 +35,11 @@ public interface IManifestMerger
     /// Apply manifest-level adjuncts from the stub canvas in the NQ manifest to the base manifest.
     /// The stub canvas is identified by AssetId {customerId}/0/Manifest_{manifestId}.
     /// </summary>
+    /// <param name="baseManifest">Manifest to apply adjuncts onto</param>
+    /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, searched for the stub canvas</param>
+    /// <param name="customerId">Customer id, used to construct the stub AssetId</param>
+    /// <param name="manifestId">Internal manifest id, used to construct the stub AssetId</param>
+    /// <returns>The base manifest with adjuncts applied in-place</returns>
     Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
         string manifestId);
 }
@@ -80,23 +85,20 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
 
-        foreach (var canvas in namedQueryManifest.Items!)
+        var stubCanvas = namedQueryManifest.Items!.FirstOrDefault(canvas =>
         {
-            AssetId canvasAssetId;
-            try
+            try { return canvas.GetAssetIdFromNamedQueryCanvasId() == stubAssetId; }
+            catch (Exception e)
             {
-                canvasAssetId = canvas.GetAssetIdFromNamedQueryCanvasId();
+                logger.LogWarning(e, "Could not parse canvas id {CanvasId} when looking for stub canvas", canvas.Id);
+                return false;
             }
-            catch (Exception)
-            {
-                continue;
-            }
+        });
 
-            if (canvasAssetId != stubAssetId) continue;
-
+        if (stubCanvas != null)
+        {
             logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
-            SetAssetDerivedProperties(baseManifest, canvas, stubAssetId.ToString());
-            break;
+            SetAssetDerivedProperties(baseManifest, stubCanvas, stubAssetId.ToString());
         }
 
         return baseManifest;

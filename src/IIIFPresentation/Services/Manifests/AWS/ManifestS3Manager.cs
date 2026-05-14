@@ -65,8 +65,8 @@ public class ManifestS3Manager(
             namedQueryManifest,
             dbManifest.CanvasPaintings);
 
-        manifestMerger.ApplyManifestLevelAdjuncts(mergedManifest, namedQueryManifest, dbManifest.CustomerId,
-            dbManifest.Id);
+        mergedManifest = manifestMerger.ApplyManifestLevelAdjuncts(mergedManifest, namedQueryManifest,
+            dbManifest.CustomerId, dbManifest.Id);
 
         await SaveManifestInStorage(mergedManifest, dbManifest, false, cancellationToken);
         

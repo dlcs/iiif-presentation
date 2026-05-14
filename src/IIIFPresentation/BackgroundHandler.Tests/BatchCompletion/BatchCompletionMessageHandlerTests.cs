@@ -227,6 +227,58 @@ public class BatchCompletionMessageHandlerTests
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
     }
 
+    [Theory]
+    [InlineData(DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct)]
+    public async Task HandleMessage_SavesManifestLevelAdjuncts_WhenStubCanvasInNQ(DeliverableType deliverableType)
+    {
+        // Arrange
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType}_adjuncts");
+        const int space = 2;
+        var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
+        const string seeAlsoId = "https://example.com/mets.xml";
+        var assetId = new AssetId(CustomerId, space, identifier);
+        var stubAssetId = new AssetId(CustomerId, 0, $"Manifest_{manifestId}");
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { Id = identifier });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        manifest.Batches!.Single().DeliverableType = deliverableType;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.SaveChangesAsync();
+
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(stubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
+            .Build();
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(nqManifest);
+
+        ResourceBase? resourceBase = null;
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
+                flatId, false, A<CancellationToken>._))
+            .Invokes((ResourceBase arg1, IHierarchyResource _, string _, bool _, CancellationToken _) =>
+                resourceBase = arg1);
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: deliverableType);
+
+        // Act
+        var handleMessage = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        handleMessage.Should().BeTrue();
+        var savedManifest = (IIIFManifest)resourceBase!;
+        savedManifest.Items.Should().HaveCount(1, "stub canvas must not appear in manifest items");
+        savedManifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
+            "manifest-level seeAlso applied from stub canvas");
+    }
+
     [Fact]
     public async Task HandleMessage_ReturnsFalse_NoException_WhenStagingMissing()
     {
