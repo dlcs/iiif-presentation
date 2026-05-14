@@ -74,12 +74,16 @@ public static class AssetDuplicateValidator
         return null;
     }
 
-    // Order-insensitive: adjuncts are matched by id, then deep-compared
+    // Compares two adjunct lists without regard to order.
+    // Each adjunct is looked up by its id in the previous list, then deep-compared —
+    // so reordering adjuncts is not treated as a conflict, but any property change is.
+    // Relies on AdjunctValidator having already enforced non-empty ids upstream.
     private static bool AdjunctsEqual(List<JObject>? previous, List<JObject>? current)
     {
         var left = previous ?? [];
         var right = current ?? [];
         if (left.Count != right.Count) return false;
+        // index the previous adjuncts by id for O(n) lookup
         var leftById = left.ToDictionary(j => j.GetRequiredValue<string>(AssetProperties.Id));
         return right.All(j =>
             leftById.TryGetValue(j.GetRequiredValue<string>(AssetProperties.Id), out var match)
