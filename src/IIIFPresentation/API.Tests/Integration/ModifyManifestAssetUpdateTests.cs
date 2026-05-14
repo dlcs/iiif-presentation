@@ -2954,4 +2954,58 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .And.Contain("https://example.org/profile/b");
         errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
     }
+
+    [Fact]
+    public async Task UpdateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdOneHasNullAdjunctsOtherHasEmptyAdjuncts()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var batchId = TestIdentifiers.BatchId();
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
+            batchId: batchId, ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        var payload = $$"""
+                        {
+                            "type": "Manifest",
+                            "slug": "{{slug}}",
+                            "parent": "http://localhost/{{Customer}}/collections/root",
+                            "paintedResources": [
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg"
+                                    }
+                                },
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg",
+                                        "adjuncts": []
+                                    }
+                                }
+                            ]
+                        }
+                        """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        var assetKey = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+        errorResponse!.Detail.Should()
+            .StartWith($"Asset {assetKey} is specified multiple times with different adjuncts - diff: ");
+        errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
+    }
 }

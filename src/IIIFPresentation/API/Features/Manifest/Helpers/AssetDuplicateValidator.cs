@@ -80,6 +80,9 @@ public static class AssetDuplicateValidator
     // Relies on AdjunctValidator having already enforced non-empty ids upstream.
     private static bool AdjunctsEqual(List<JObject>? previous, List<JObject>? current)
     {
+        // makes sure [] and null isn't allowed
+        if (previous is null != current is null) return false;
+        
         var left = previous ?? [];
         var right = current ?? [];
         if (left.Count != right.Count) return false;
