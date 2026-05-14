@@ -18,37 +18,33 @@ namespace Services.Manifests;
 public interface IManifestMerger
 {
     /// <summary>
-    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
-    /// instructions.
-    /// CanvasPaintings may be updated as part of processing
+    /// Build final manifest by projecting canvas paintings from the named query manifest, then applying any
+    /// manifest-level adjuncts from the stub canvas.
     /// </summary>
     /// <param name="baseManifest">Initial manifest to project content resources onto</param>
     /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
     /// <param name="canvasPaintings">
     /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
-    /// <returns>Populated manifest</returns>
-    Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
-        List<CanvasPainting>? canvasPaintings);
-
-    /// <summary>
-    /// Apply manifest-level adjuncts from the stub canvas in the NQ manifest to the base manifest.
-    /// The stub canvas is identified by AssetId {customerId}/0/Manifest_{manifestId}.
-    /// </summary>
-    /// <param name="baseManifest">Manifest to apply adjuncts onto</param>
-    /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, searched for the stub canvas</param>
     /// <param name="customerId">Customer id, used to construct the stub AssetId</param>
     /// <param name="manifestId">Internal manifest id, used to construct the stub AssetId</param>
-    /// <returns>The base manifest with adjuncts applied in-place</returns>
-    Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
-        string manifestId);
+    /// <returns>Fully merged manifest</returns>
+    Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId);
 }
 
 public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
     ILogger<ManifestMerger> logger) : IManifestMerger
 {
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
-    
+
+    public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId)
+    {
+        var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
+        return ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId);
+    }
+
     /// <summary>
     /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the
     /// provided baseManifest.
@@ -60,17 +56,16 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
     /// <returns>Populated manifest</returns>
-    public Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
+    private Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings)
     {
-        ValidateManifests(baseManifest, namedQueryManifest);
-
         if (canvasPaintings.IsNullOrEmpty())
         {
             logger.LogInformation("No canvas paintings found for manifest {ManifestId}", baseManifest.Id);
             return baseManifest;
         }
 
+        ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
         SetManifestContext(baseManifest, namedQueryManifest!);
@@ -78,7 +73,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         return baseManifest;
     }
     
-    public Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
+    private Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
         string manifestId)
     {
         if (namedQueryManifest?.Items.IsNullOrEmpty() != false) return baseManifest;

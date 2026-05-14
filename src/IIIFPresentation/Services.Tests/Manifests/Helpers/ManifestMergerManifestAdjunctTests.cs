@@ -19,7 +19,7 @@ namespace Services.Tests.Manifests.Helpers;
 
 public class ManifestMergerManifestAdjunctTests
 {
-    private readonly ManifestMerger sut;
+    private readonly IManifestMerger sut;
     private const int CustomerId = 1;
     private const string ManifestId = "test-manifest";
     private static readonly AssetId StubAssetId = new(CustomerId, 0, $"Manifest_{ManifestId}");
@@ -46,7 +46,7 @@ public class ManifestMergerManifestAdjunctTests
     {
         var baseManifest = new Manifest { Id = "base" };
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, null, null, CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -60,7 +60,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = null };
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -72,7 +72,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = [] };
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -87,7 +87,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(otherAssetId, c => c.WithImage())
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -102,7 +102,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -116,7 +116,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctRendering(renderingId))
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.Rendering.Should().ContainSingle(r => r.Id == renderingId);
     }
@@ -130,7 +130,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctAnnotation(annotationId))
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.Annotations.Should().ContainSingle(a => a.Id == annotationId);
     }
@@ -148,7 +148,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -167,7 +167,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(newId))
             .Build();
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.SeeAlso.Should().HaveCount(2);
         result.SeeAlso.Should().Contain(s => s.Id == existingId);
@@ -192,7 +192,7 @@ public class ManifestMergerManifestAdjunctTests
             ]
         };
 
-        var result = sut.ApplyManifestLevelAdjuncts(baseManifest, nqManifest, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }

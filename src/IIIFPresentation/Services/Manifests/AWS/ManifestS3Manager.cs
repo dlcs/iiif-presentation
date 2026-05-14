@@ -60,13 +60,12 @@ public class ManifestS3Manager(
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
                 cancellationToken);
 
-        var mergedManifest = manifestMerger.ProcessCanvasPaintings(
+        var mergedManifest = manifestMerger.MergeManifest(
             manifest,
             namedQueryManifest,
-            dbManifest.CanvasPaintings);
-
-        mergedManifest = manifestMerger.ApplyManifestLevelAdjuncts(mergedManifest, namedQueryManifest,
-            dbManifest.CustomerId, dbManifest.Id);
+            dbManifest.CanvasPaintings,
+            dbManifest.CustomerId,
+            dbManifest.Id);
 
         await SaveManifestInStorage(mergedManifest, dbManifest, false, cancellationToken);
         
