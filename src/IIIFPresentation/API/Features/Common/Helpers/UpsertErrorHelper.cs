@@ -130,6 +130,18 @@ public static class UpsertErrorHelper
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The {field} has a customer id that does not match the customer id found on the calling URL",
             ModifyCollectionType.CustomerIdDoesNotMatchCaller, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetAdjunctsDoNotMatch<TCollection>(string assetId, string diff)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            $"Asset {assetId} is specified multiple times with different adjuncts - diff: {diff}",
+            ModifyCollectionType.AssetsAdjunctsDoNotMatch, WriteResult.BadRequest);
+
+    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetsDataDoesNotMatch<TCollection>(string assetId, string diff)
+        where TCollection : JsonLdBase
+        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+            $"Asset {assetId} is specified multiple times, but has conflicting data - diff: {diff}",
+            ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
     
     private static string CollectionType(bool isStorageCollection)
     {

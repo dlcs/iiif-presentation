@@ -28,5 +28,6 @@ public enum ModifyCollectionType
     AssetError = 24,
     AssetsDoNotMatch = 25,
     CustomerIdDoesNotMatchCaller = 26,
+    AssetsAdjunctsDoNotMatch = 27,
     Unknown = 1000
 }

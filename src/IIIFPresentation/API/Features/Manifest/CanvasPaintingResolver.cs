@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using API.Features.Common.Helpers;
 using API.Features.Manifest.Exceptions;
+using API.Features.Manifest.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core.Exceptions;
 using Core.Helpers;
@@ -253,6 +254,9 @@ public class CanvasPaintingResolver(
             var paintedResourceCanvasPaintings = (await manifestPaintedResourceParser
                 .ParseToCanvasPainting(presentationManifest, customerId)).ToList();
 
+            var duplicateError = AssetDuplicateValidator.ValidateDuplicates(paintedResourceCanvasPaintings, presentationManifest.PaintedResources);
+            if (duplicateError != null) return new ManifestParseResult(duplicateError);
+
             var itemsCanvasPaintings =
                 manifestItemsParser
                     .ParseToCanvasPainting(presentationManifest, paintedResourceCanvasPaintings, customerId).ToList();
@@ -312,7 +316,6 @@ public class CanvasPaintingResolver(
             return new ManifestParseResult(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message));
         }
     }
-
 
     private class ManifestParseResult(
         PresUpdateResult? error = null,
