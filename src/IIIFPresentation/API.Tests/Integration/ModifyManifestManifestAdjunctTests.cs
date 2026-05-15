@@ -1,11 +1,12 @@
 using System.Net;
+using Amazon.S3;
 using Services.Manifests.Helpers;
-using API.Features.Manifest;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using DLCS.API;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.Manifest;
@@ -17,6 +18,7 @@ using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Batch = DLCS.Models.Batch;
+using CanvasPainting = Models.Database.CanvasPainting;
 
 namespace API.Tests.Integration;
 
@@ -26,6 +28,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
 {
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
+    private readonly IAmazonS3 amazonS3;
     private const int Customer = 1;
     private const int NewlyCreatedSpace = 999;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
@@ -34,6 +37,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
     public ModifyManifestManifestAdjunctTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
+        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
 
         Fake.ClearRecordedCalls(DLCSApiClient);
 
@@ -478,6 +482,80 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
             .MustNotHaveHappened();
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, true, A<CancellationToken>._))
             .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task UpdateManifest_WithTrackedAssets_ReturnsMergedAdjunctsFromStubCanvasInResponse()
+    {
+        // Arrange - existing manifest with an already-ingested canvas painting
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        const string seeAlsoId = "https://example.com/mets.xml";
+        const string renderingId = "https://example.com/document.pdf";
+        const string annotationId = "https://example.com/annotations/1";
+        var stubAssetId = new AssetId(Customer, 0, $"Manifest_{id}");
+
+        var canvasPainting = new CanvasPainting
+        {
+            Id = "cp1",
+            CanvasOrder = 1,
+            ChoiceOrder = 1,
+            AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
+            canvasPaintings: new List<CanvasPainting> { canvasPainting }, batchId: TestIdentifiers.BatchId(),
+            ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        // NQ manifest includes the canvas AND stub canvas carrying all three manifest-level adjunct types
+        A.CallTo(() => DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .ReturnsLazily(() => ManifestTestCreator.New()
+                .WithCanvas(new AssetId(Customer, NewlyCreatedSpace, assetId), c => c.WithImage())
+                .WithCanvas(stubAssetId, c => c.WithImage()
+                    .WithAdjunctSeeAlso(seeAlsoId)
+                    .WithAdjunctRendering(renderingId)
+                    .WithAdjunctAnnotation(annotationId))
+                .Build());
+
+        // PUT with same tracked asset and no adjuncts → canBeBuiltUpfront = true (no new batches)
+        var payload = $$"""
+            {
+                "type": "Manifest",
+                "slug": "{{slug}}",
+                "parent": "http://localhost/{{Customer}}/collections/root",
+                "paintedResources": [
+                    {
+                        "canvasPainting": { "canvasOrder": 1 },
+                        "asset": { "id": "{{assetId}}", "mediaType": "image/jpg" }
+                    }
+                ]
+            }
+            """;
+
+        var request = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+            payload, dbContext.GetETag(testManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
+            "manifest-level seeAlso from stub canvas must appear in the write response");
+        responseManifest.Rendering.Should().ContainSingle(r => r.Id == renderingId,
+            "manifest-level rendering from stub canvas must appear in the write response");
+        responseManifest.Annotations.Should().ContainSingle(a => a.Id == annotationId,
+            "manifest-level annotations from stub canvas must appear in the write response");
+
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName, $"{Customer}/manifests/{id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
+            "manifest-level seeAlso from stub canvas must be persisted to S3");
+        s3Manifest.Rendering.Should().ContainSingle(r => r.Id == renderingId,
+            "manifest-level rendering from stub canvas must be persisted to S3");
+        s3Manifest.Annotations.Should().ContainSingle(a => a.Id == annotationId,
+            "manifest-level annotations from stub canvas must be persisted to S3");
     }
 
     [Fact]

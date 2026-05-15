@@ -1,5 +1,4 @@
 using System.Data;
-using System.Diagnostics;
 using API.Converters;
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
@@ -10,6 +9,7 @@ using Core;
 using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
+using IIIF.Serialisation;
 using IIIF.Presentation.V3;
 using Models.API.General;
 using Models.API.Manifest;
@@ -291,8 +291,7 @@ public class ManifestWriteService(
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-        request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
-            dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        await SaveToS3(dbManifest, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
             hasAssets, dlcsInteractionResult, writeResult, cancellationToken);
     }
@@ -407,8 +406,7 @@ public class ManifestWriteService(
     /// This is only relevant for painted resources
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    /// <returns>A list of canvases to be returned to the caller</returns>
-    private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest();
@@ -416,7 +414,7 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront && hasAssets)
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
-            request.PresentationManifest.Items = manifest.Items;
+            MergeManifest(manifest, request.PresentationManifest);
         }
         else
         {
@@ -424,8 +422,8 @@ public class ManifestWriteService(
             // happens in the background handler
             if (hasAssets)
             {
-                var canvasPaintings =  dbManifest.CanvasPaintings;
-                
+                var canvasPaintings = dbManifest.CanvasPaintings;
+
                 if (canvasPaintings is not null)
                 {
                     iiifManifest.Items =
@@ -434,13 +432,20 @@ public class ManifestWriteService(
                 }
             }
 
+            request.PresentationManifest.Items = iiifManifest.Items;
             await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, hasAssets,
                 cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
-        return iiifManifest.Items;
+    private static void MergeManifest(IIIF.Presentation.V3.Manifest source, PresentationManifest dest)
+    {
+        dest.Items = source.Items;
+        dest.SeeAlso = source.SeeAlso;
+        dest.Rendering = source.Rendering;
+        dest.Annotations = source.Annotations;
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 ﻿using Core.Exceptions;
 using DLCS;
+using Models.DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
@@ -1275,5 +1276,75 @@ public class ManifestMergerTests
 
         // Assert
         action.Should().Throw<PresentationException>().WithMessage("Recursive depth '3' of painting choice deeper than can be handled");
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AppliesManifestLevelAdjuncts_FromStubCanvas()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var customerId = assetId.Customer;
+        var manifestId = "test-manifest";
+        var stubAssetId = new AssetId(customerId, 0, $"Manifest_{manifestId}");
+        const string seeAlsoId = "https://example.com/mets.xml";
+        const string renderingId = "https://example.com/document.pdf";
+        const string annotationId = "https://example.com/annotations/1";
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+        var baseManifest = new Manifest();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(stubAssetId, c => c.WithImage()
+                .WithAdjunctSeeAlso(seeAlsoId)
+                .WithAdjunctRendering(renderingId)
+                .WithAdjunctAnnotation(annotationId))
+            .Build();
+
+        // Act
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(1, "stub canvas must not appear in manifest items");
+        mergedManifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
+        mergedManifest.Rendering.Should().ContainSingle(r => r.Id == renderingId);
+        mergedManifest.Annotations.Should().ContainSingle(a => a.Id == annotationId);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_ManifestLevelAdjuncts_DoNotOverwriteExistingValues()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var customerId = assetId.Customer;
+        var manifestId = "test-manifest";
+        var stubAssetId = new AssetId(customerId, 0, $"Manifest_{manifestId}");
+        const string existingSeeAlsoId = "https://example.com/existing.xml";
+        const string stubSeeAlsoId = "https://example.com/stub.xml";
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Base manifest already has a user-set SeeAlso (e.g. from a prior write)
+        var baseManifest = new Manifest
+        {
+            SeeAlso = [new ExternalResource("SeeAlso") { Id = existingSeeAlsoId }]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(stubAssetId, c => c.WithImage()
+                .WithAdjunctSeeAlso(existingSeeAlsoId)
+                .WithAdjunctSeeAlso(stubSeeAlsoId))
+            .Build();
+
+        // Act
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId);
+
+        // Assert: existing value preserved, stub-only value added, no duplicates
+        mergedManifest.SeeAlso.Should().HaveCount(2, "existing value kept once, new stub value added");
+        mergedManifest.SeeAlso.Should().Contain(s => s.Id == existingSeeAlsoId,
+            "existing seeAlso must not be removed");
+        mergedManifest.SeeAlso.Should().Contain(s => s.Id == stubSeeAlsoId,
+            "stub seeAlso must be added");
     }
 }

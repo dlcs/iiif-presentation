@@ -239,6 +239,8 @@ public class BatchCompletionMessageHandlerTests
         const int space = 2;
         var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
         const string seeAlsoId = "https://example.com/mets.xml";
+        const string renderingId = "https://example.com/document.pdf";
+        const string annotationId = "https://example.com/annotations/1";
         var assetId = new AssetId(CustomerId, space, identifier);
         var stubAssetId = new AssetId(CustomerId, 0, $"Manifest_{manifestId}");
 
@@ -254,7 +256,10 @@ public class BatchCompletionMessageHandlerTests
 
         var nqManifest = ManifestTestCreator.New()
             .WithCanvas(assetId, c => c.WithImage())
-            .WithCanvas(stubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
+            .WithCanvas(stubAssetId, c => c.WithImage()
+                .WithAdjunctSeeAlso(seeAlsoId)
+                .WithAdjunctRendering(renderingId)
+                .WithAdjunctAnnotation(annotationId))
             .Build();
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
@@ -277,6 +282,10 @@ public class BatchCompletionMessageHandlerTests
         savedManifest.Items.Should().HaveCount(1, "stub canvas must not appear in manifest items");
         savedManifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
             "manifest-level seeAlso applied from stub canvas");
+        savedManifest.Rendering.Should().ContainSingle(r => r.Id == renderingId,
+            "manifest-level rendering applied from stub canvas");
+        savedManifest.Annotations.Should().ContainSingle(a => a.Id == annotationId,
+            "manifest-level annotations applied from stub canvas");
     }
 
     [Fact]
