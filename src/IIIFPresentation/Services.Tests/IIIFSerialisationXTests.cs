@@ -24,7 +24,8 @@ public class IIIFSerialisationXTests
                      "flatId": "flat-1",
                      "paintedResources": [],
                      "space": "space-1",
-                     "ingesting": null
+                     "ingesting": null,
+                     "adjuncts": []
                    }
                    """;
 
@@ -42,6 +43,7 @@ public class IIIFSerialisationXTests
         result.AdditionalProperties.Should().NotContainKey("paintedResources");
         result.AdditionalProperties.Should().NotContainKey("space");
         result.AdditionalProperties.Should().NotContainKey("ingesting");
+        result.AdditionalProperties.Should().NotContainKey("adjuncts");
     }
 
     [Fact]
@@ -190,7 +192,7 @@ public class IIIFSerialisationXTests
 
     [Fact]
     public void ToManifest_PresentationPropertyKeys_CoversAllPresentationManifestProperties()
-        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(13);
+        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(14);
 
     [Fact]
     public void ToCollection_PresentationPropertyKeys_CoversAllPresentationCollectionProperties()

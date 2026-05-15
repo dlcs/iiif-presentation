@@ -13,7 +13,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     public static readonly string[] PresentationPropertyKeys =
     [
         "slug", "publicId", "parent", "created", "modified",
-        "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "ingesting",
+        "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "adjuncts", "ingesting",
         "fullPath", "currentlyIngesting"
     ];
 
