@@ -1,6 +1,5 @@
 using System.Net;
 using Amazon.S3;
-using Services.Manifests.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using DLCS.API;
@@ -14,6 +13,7 @@ using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;

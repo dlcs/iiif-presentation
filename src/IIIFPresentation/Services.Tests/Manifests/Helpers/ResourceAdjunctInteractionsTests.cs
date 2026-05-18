@@ -1,4 +1,4 @@
-using Services.Manifests.Helpers;
+﻿using Services.Manifests.Helpers;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;

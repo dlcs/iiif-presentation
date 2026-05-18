@@ -1285,7 +1285,7 @@ public class ManifestMergerTests
         var assetId = TestIdentifiers.AssetId();
         var customerId = assetId.Customer;
         var manifestId = "test-manifest";
-        var stubAssetId = new AssetId(customerId, 0, $"Manifest_{manifestId}");
+        var stubAssetId = new AssetId(customerId, ResourceAdjunctInteractions.StubAssetSpace, $"Manifest_{manifestId}");
         const string seeAlsoId = "https://example.com/mets.xml";
         const string renderingId = "https://example.com/document.pdf";
         const string annotationId = "https://example.com/annotations/1";
@@ -1318,7 +1318,7 @@ public class ManifestMergerTests
         var assetId = TestIdentifiers.AssetId();
         var customerId = assetId.Customer;
         var manifestId = "test-manifest";
-        var stubAssetId = new AssetId(customerId, 0, $"Manifest_{manifestId}");
+        var stubAssetId = new AssetId(customerId, ResourceAdjunctInteractions.StubAssetSpace, $"Manifest_{manifestId}");
         const string existingSeeAlsoId = "https://example.com/existing.xml";
         const string stubSeeAlsoId = "https://example.com/stub.xml";
 

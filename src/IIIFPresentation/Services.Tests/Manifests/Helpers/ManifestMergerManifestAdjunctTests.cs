@@ -1,4 +1,4 @@
-using DLCS;
+﻿using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -22,7 +22,7 @@ public class ManifestMergerManifestAdjunctTests
     private readonly IManifestMerger sut;
     private const int CustomerId = 1;
     private const string ManifestId = "test-manifest";
-    private static readonly AssetId StubAssetId = new(CustomerId, 0, $"Manifest_{ManifestId}");
+    private static readonly AssetId StubAssetId = new(CustomerId, ResourceAdjunctInteractions.StubAssetSpace, $"Manifest_{ManifestId}");
 
     public ManifestMergerManifestAdjunctTests()
     {
@@ -42,7 +42,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNullNQManifest()
+    public void MergeManifest_ReturnsUnchanged_IfNullNQManifest()
     {
         var baseManifest = new Manifest { Id = "base" };
 
@@ -55,7 +55,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNQManifestHasNullItems()
+    public void MergeManifest_ReturnsUnchanged_IfNQManifestHasNullItems()
     {
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = null };
@@ -67,7 +67,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNQManifestHasNoItems()
+    public void MergeManifest_ReturnsUnchanged_IfNQManifestHasNoItems()
     {
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = [] };
@@ -79,7 +79,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_ReturnsUnchanged_IfNoStubCanvasInNQ()
+    public void MergeManifest_ReturnsUnchanged_IfNoStubCanvasInNQ()
     {
         var baseManifest = new Manifest { Id = "base" };
         var otherAssetId = new AssetId(CustomerId, 1, "some-other-asset");
@@ -94,7 +94,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_SetsSeeAlso_FromStubCanvas()
+    public void MergeManifest_SetsSeeAlso_FromStubCanvas()
     {
         var baseManifest = new Manifest { Id = "base" };
         var seeAlsoId = "https://example.com/mets.xml";
@@ -108,7 +108,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_SetsRendering_FromStubCanvas()
+    public void MergeManifest_SetsRendering_FromStubCanvas()
     {
         var baseManifest = new Manifest { Id = "base" };
         var renderingId = "https://example.com/pdf";
@@ -122,7 +122,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_SetsAnnotations_FromStubCanvas()
+    public void MergeManifest_SetsAnnotations_FromStubCanvas()
     {
         var baseManifest = new Manifest { Id = "base" };
         var annotationId = "https://example.com/annotations/1";
@@ -136,7 +136,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_DeduplicatesById_WhenPropertyAlreadyExists()
+    public void MergeManifest_DeduplicatesById_WhenPropertyAlreadyExists()
     {
         var seeAlsoId = "https://example.com/mets.xml";
         var baseManifest = new Manifest
@@ -154,7 +154,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_AppendsNewProperties_WhenDifferentIdAlreadyExists()
+    public void MergeManifest_AppendsNewProperties_WhenDifferentIdAlreadyExists()
     {
         var existingId = "https://example.com/existing.xml";
         var newId = "https://example.com/new.xml";
@@ -175,7 +175,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void ApplyManifestLevelAdjuncts_SkipsUnparseableCanvas_AndStillFindsStub()
+    public void MergeManifest_SkipsUnparseableCanvas_AndStillFindsStub()
     {
         var baseManifest = new Manifest { Id = "base" };
         var seeAlsoId = "https://example.com/mets.xml";

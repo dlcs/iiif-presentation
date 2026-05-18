@@ -391,14 +391,14 @@ public class ManifestWriteService(
     }
 
     /// <summary>
-    /// Saves a manifest into S3
+    /// Saves a manifest into S3.
     /// </summary>
     /// <param name="dbManifest">The manifest record</param>
     /// <param name="request">The request made by the caller</param>
     /// <param name="hasAssets">
     /// Whether there are any assets identified in the request
     ///
-    /// TThis is relevant for both painted resources and assets from items
+    /// This is relevant for both painted resources and assets from items
     /// </param>
     /// <param name="canBeBuiltUpfront">
     /// Whether there's assets, but they're all tracked by the DLCS
@@ -414,7 +414,7 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront && hasAssets)
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
-            MergeManifest(manifest, request.PresentationManifest);
+            MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
         {
@@ -440,12 +440,16 @@ public class ManifestWriteService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static void MergeManifest(IIIF.Presentation.V3.Manifest source, PresentationManifest dest)
+    /// <summary>
+    /// Stamps the merged IIIF fields (Items, SeeAlso, Rendering, Annotations) from the stored manifest back onto
+    /// <paramref name="presentationManifest"/> so the API response reflects what ManifestMerger produced.
+    /// </summary>
+    private static void MergeManifestFields(IIIF.Presentation.V3.Manifest iiifManifest, PresentationManifest presentationManifest)
     {
-        dest.Items = source.Items;
-        dest.SeeAlso = source.SeeAlso;
-        dest.Rendering = source.Rendering;
-        dest.Annotations = source.Annotations;
+        presentationManifest.Items = iiifManifest.Items;
+        presentationManifest.SeeAlso = iiifManifest.SeeAlso;
+        presentationManifest.Rendering = iiifManifest.Rendering;
+        presentationManifest.Annotations = iiifManifest.Annotations;
     }
 
     /// <summary>

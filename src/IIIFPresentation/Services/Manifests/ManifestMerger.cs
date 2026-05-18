@@ -76,7 +76,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private Manifest ApplyManifestLevelAdjuncts(Manifest baseManifest, Manifest? namedQueryManifest, int customerId,
         string manifestId)
     {
-        if (namedQueryManifest?.Items.IsNullOrEmpty() != false) return baseManifest;
+        if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return baseManifest;
 
         var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
 
