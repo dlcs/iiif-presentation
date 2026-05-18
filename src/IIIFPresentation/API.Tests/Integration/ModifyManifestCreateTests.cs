@@ -708,6 +708,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         s3Manifest.Id.Should().EndWith(id);
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+        s3Manifest.AdditionalProperties?.Keys.Should()
+            .NotIntersectWith(PresentationManifest.PresentationPropertyKeys);
     }
 
     [Fact]

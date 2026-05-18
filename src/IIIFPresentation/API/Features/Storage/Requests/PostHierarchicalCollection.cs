@@ -43,7 +43,7 @@ public class PostHierarchicalCollectionHandler(
     public async Task<ModifyEntityResult<Collection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
-        var convertResult = request.RawRequestBody.ConvertCollectionToIIIF<Collection>(logger);
+        var convertResult = request.RawRequestBody.ConvertCollectionToIIIF(logger);
         if (convertResult.Error) return UpsertErrorHelper.CannotValidateIIIF<Collection>();
         var collectionFromBody = convertResult.ConvertedIIIF!;
         

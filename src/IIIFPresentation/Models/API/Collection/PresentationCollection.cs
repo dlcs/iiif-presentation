@@ -3,6 +3,16 @@ namespace Models.API.Collection;
 
 public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresentation
 {
+    /// <summary>
+    /// A collection of properties that are not part of the IIIF Presentation API spec and are custom to the
+    /// IIIF-Presentation.
+    /// </summary>
+    public static readonly string[] PresentationPropertyKeys =
+    [
+        "slug", "publicId", "flatId", "parent", "itemsOrder", "totalItems",
+        "created", "modified", "createdBy", "modifiedBy", "tags", "totals", "view"
+    ];
+
     public string? PublicId { get; set; }
     public string? FlatId { get; set; }
     

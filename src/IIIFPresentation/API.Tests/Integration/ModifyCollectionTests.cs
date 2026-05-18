@@ -2429,6 +2429,8 @@ $$"""
 
         var collection = @"{
    ""type"": ""Collection"",
+   ""slug"": ""should-be-stripped"",
+   ""parent"": ""should-also-be-stripped"",
    ""behavior"": [
        ""public-iiif"", ""auto-advance""
    ],
@@ -2498,5 +2500,7 @@ $$"""
         s3Manifest.Id.Should().EndWith(fromDatabase.Id, "Stored Id is flat path");
         (s3Manifest.Context as string).Should()
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
+        s3Manifest.AdditionalProperties?.Keys.Should()
+            .NotIntersectWith(PresentationCollection.PresentationPropertyKeys);
     }
 }
