@@ -1069,6 +1069,72 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      }
 
      [Fact]
+     public async Task CreateManifest_SendsAdjunctOnceTooDlcs_WhenSameAssetAppearsMultipleTimesWithIdenticalAdjuncts()
+     {
+         // Regression: same asset on multiple canvas paintings caused one AdjunctInteraction per painting,
+         // so the flat adjunct list sent to DLCS contained duplicates and DLCS rejected the batch.
+         var (assetId, slug) = TestIdentifiers.SlugResource();
+         var batchId = TestIdentifiers.BatchId();
+
+         var manifest = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "adjunct-1",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "adjunct-1",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var adjunctBatchId = TestIdentifiers.BatchId();
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, true, A<CancellationToken>._))
+             .Returns(Task.FromResult(new List<Batch> { new() { ResourceId = adjunctBatchId.ToString(), Submitted = DateTime.Now } }));
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+         // Adjunct must be sent exactly once — deduplication by AssetId prevents sending it once per canvas painting
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                 A<List<JObject>>.That.Matches(list => list.Count == 1 && list[0][AdjunctProperties.Id]!.Value<string>() == "adjunct-1"),
+                 true, A<CancellationToken>._))
+             .MustHaveHappenedOnceExactly();
+     }
+
+     [Fact]
      public async Task CreateManifest_Accepted_WhenMultipleAssetsWithSameAssetIdHaveIdenticalAdjunctsInDifferentOrder()
      {
          // Arrange
