@@ -46,7 +46,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        
+
         // Always return Space 999 when call to create space
         A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
@@ -1073,7 +1073,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
      {
          // Regression: same asset on multiple canvas paintings caused one AdjunctInteraction per painting,
          // so the flat adjunct list sent to DLCS contained duplicates and DLCS rejected the batch.
-         var (assetId, slug) = TestIdentifiers.SlugResource();
+         var (assetId, _, slug, adjunctId) = TestIdentifiers.SlugResourceAssetAdjunct();
          var batchId = TestIdentifiers.BatchId();
 
          var manifest = $$"""
@@ -1090,7 +1090,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "mediaType": "image/jpg",
                                           "adjuncts": [
                                               {
-                                                  "id": "adjunct-1",
+                                                  "id": "{{adjunctId}}",
                                                   "profile": "https://example.org/profile/a"
                                               }
                                           ]
@@ -1104,7 +1104,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                           "mediaType": "image/jpg",
                                           "adjuncts": [
                                               {
-                                                  "id": "adjunct-1",
+                                                  "id": "{{adjunctId}}",
                                                   "profile": "https://example.org/profile/a"
                                               }
                                           ]
@@ -1129,7 +1129,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
          // Adjunct must be sent exactly once — deduplication by AssetId prevents sending it once per canvas painting
          A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-                 A<List<JObject>>.That.Matches(list => list.Count == 1 && list[0][AdjunctProperties.Id]!.Value<string>() == "adjunct-1"),
+                 A<List<JObject>>.That.Matches(list => list.Count == 1 && list[0][AdjunctProperties.Id]!.Value<string>() == adjunctId),
                  true, A<CancellationToken>._))
              .MustHaveHappenedOnceExactly();
      }
