@@ -264,9 +264,12 @@ public class CanvasPaintingResolver(
             var res = canvasPaintingMerger.CombinePaintedResources(itemsCanvasPaintings,
                 paintedResourceCanvasPaintings, presentationManifest.Items);
 
+            // DistinctBy AssetId is safe here: AssetDuplicateValidator has already rejected any case where
+            // the same asset appears more than once with differing adjuncts, so duplicates are always identical.
             var adjunctInteractions = paintedResourceCanvasPaintings
                 .Where(cp => cp.AdjunctInteraction != null)
                 .Select(cp => cp.AdjunctInteraction!)
+                .DistinctBy(a => a.AssetId)
                 .ToList();
 
             var manifestAdjunctInteraction =

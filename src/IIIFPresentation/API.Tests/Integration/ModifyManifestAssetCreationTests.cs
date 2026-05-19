@@ -46,7 +46,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-        
+
         // Always return Space 999 when call to create space
         A.CallTo(() => DLCSApiClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
@@ -1066,6 +1066,72 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
 
          // Assert — duplicate de-duped, request accepted
          response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+     }
+
+     [Fact]
+     public async Task CreateManifest_SendsAdjunctOnceTooDlcs_WhenSameAssetAppearsMultipleTimesWithIdenticalAdjuncts()
+     {
+         // Regression: same asset on multiple canvas paintings caused one AdjunctInteraction per painting,
+         // so the flat adjunct list sent to DLCS contained duplicates and DLCS rejected the batch.
+         var (assetId, _, slug, adjunctId) = TestIdentifiers.SlugResourceAssetAdjunct();
+         var batchId = TestIdentifiers.BatchId();
+
+         var manifest = $$"""
+                          {
+                              "type": "Manifest",
+                              "slug": "{{slug}}",
+                              "parent": "http://localhost/{{Customer}}/collections/root",
+                              "paintedResources": [
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "{{adjunctId}}",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  },
+                                  {
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "space": {{NewlyCreatedSpace}},
+                                          "batch": "{{batchId}}",
+                                          "mediaType": "image/jpg",
+                                          "adjuncts": [
+                                              {
+                                                  "id": "{{adjunctId}}",
+                                                  "profile": "https://example.org/profile/a"
+                                              }
+                                          ]
+                                      }
+                                  }
+                              ]
+                          }
+                          """;
+
+         var adjunctBatchId = TestIdentifiers.BatchId();
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, true, A<CancellationToken>._))
+             .Returns(Task.FromResult(new List<Batch> { new() { ResourceId = adjunctBatchId.ToString(), Submitted = DateTime.Now } }));
+
+         var requestMessage =
+             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest);
+
+         // Act
+         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+         // Assert
+         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+         // Adjunct must be sent exactly once — deduplication by AssetId prevents sending it once per canvas painting
+         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                 A<List<JObject>>.That.Matches(list => list.Count == 1 && list[0][AdjunctProperties.Id]!.Value<string>() == adjunctId),
+                 true, A<CancellationToken>._))
+             .MustHaveHappenedOnceExactly();
      }
 
      [Fact]
