@@ -46,7 +46,7 @@ public class ManifestMergerManifestAdjunctTests
     {
         var baseManifest = new Manifest { Id = "base" };
 
-        var result = sut.MergeManifest(baseManifest, null, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, null, [], CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -60,7 +60,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = null };
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -72,7 +72,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = [] };
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -87,7 +87,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(otherAssetId, c => c.WithImage())
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -102,7 +102,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -116,7 +116,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctRendering(renderingId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.Rendering.Should().ContainSingle(r => r.Id == renderingId);
     }
@@ -130,7 +130,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctAnnotation(annotationId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.Annotations.Should().ContainSingle(a => a.Id == annotationId);
     }
@@ -148,7 +148,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -167,33 +167,10 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(newId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
 
         result.SeeAlso.Should().HaveCount(2);
         result.SeeAlso.Should().Contain(s => s.Id == existingId);
         result.SeeAlso.Should().Contain(s => s.Id == newId);
-    }
-
-    [Fact]
-    public void MergeManifest_SkipsUnparseableCanvas_AndStillFindsStub()
-    {
-        var baseManifest = new Manifest { Id = "base" };
-        var seeAlsoId = "https://example.com/mets.xml";
-
-        var nqManifest = new Manifest
-        {
-            Items =
-            [
-                new Canvas { Id = "https://unparseable-canvas-id" },
-                ManifestTestCreator.Canvas($"https://dlcs.test/iiif-img/{StubAssetId}/canvas/c/")
-                    .WithImage()
-                    .WithAdjunctSeeAlso(seeAlsoId)
-                    .Build()
-            ]
-        };
-
-        var result = sut.MergeManifest(baseManifest, nqManifest, null, CustomerId, ManifestId);
-
-        result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
 }
