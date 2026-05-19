@@ -41,7 +41,7 @@ public class QueueMessageTests
         };
 
         // Act
-        var queueMessage = new QueueMessage(body, attributeValues, messageId);
+        var queueMessage = new QueueMessage(body, attributeValues, [], messageId);
 
         // Assert
         queueMessage.Body.Should().Be(body);
@@ -63,7 +63,7 @@ public class QueueMessageTests
         var attributeValues = new Dictionary<string, MessageAttributeValue>();
 
         // Act
-        var queueMessage = new QueueMessage(body, attributeValues, messageId);
+        var queueMessage = new QueueMessage(body, attributeValues, [], messageId);
 
         // Assert
         queueMessage.Body.Should().Be(body);
@@ -85,7 +85,7 @@ public class QueueMessageTests
         };
 
         // Act
-        var queueMessage = new QueueMessage(body, attributeValues, messageId);
+        var queueMessage = new QueueMessage(body, attributeValues, [], messageId);
 
         // Assert
         queueMessage.Attributes.Keys.Should().ContainInOrder("Z_Attr", "A_Attr", "M_Attr");
@@ -104,10 +104,56 @@ public class QueueMessageTests
         };
 
         // Act
-        var queueMessage = new QueueMessage(body, attributeValues, messageId);
+        var queueMessage = new QueueMessage(body, attributeValues, [], messageId);
 
         // Assert
         queueMessage.Attributes.Should().Contain("Attr1", "Value1");
         queueMessage.Attributes["AttrWithNullValue"].Should().BeNull();
+    }
+
+    [Fact]
+    public void Constructor_WithMessageAttributeValues_SetsApproximateReceiveCount()
+    {
+        // Arrange
+        const string body = "Test message body";
+        const string messageId = "test-message-id";
+        var systemAttributes = new Dictionary<string, string>
+        {
+            { "ApproximateReceiveCount", "3" }
+        };
+
+        // Act
+        var queueMessage = new QueueMessage(body, [], systemAttributes, messageId);
+
+        // Assert
+        queueMessage.ApproximateReceiveCount.Should().Be(3);
+    }
+
+    [Fact]
+    public void Constructor_WithMessageAttributeValues_ApproximateReceiveCountDefaultsToZero_WhenNotPresent()
+    {
+        // Arrange
+        const string body = "Test message body";
+        const string messageId = "test-message-id";
+
+        // Act
+        var queueMessage = new QueueMessage(body, [], [], messageId);
+
+        // Assert
+        queueMessage.ApproximateReceiveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Constructor_WithStringAttributes_ApproximateReceiveCountDefaultsToZero()
+    {
+        // Arrange
+        const string body = "Test message body";
+        const string messageId = "test-message-id";
+
+        // Act
+        var queueMessage = new QueueMessage(body, new Dictionary<string, string>(), messageId);
+
+        // Assert
+        queueMessage.ApproximateReceiveCount.Should().Be(0);
     }
 }

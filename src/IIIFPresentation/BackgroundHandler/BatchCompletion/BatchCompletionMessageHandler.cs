@@ -26,8 +26,7 @@ public class BatchCompletionMessageHandler(
                 
                 customerIdProvider.SetCustomerId(batchCompletionMessage.Customer);
                 
-                await TryUpdateManifest(batchCompletionMessage, cancellationToken);
-                return true;
+                return await TryUpdateManifest(batchCompletionMessage, message.ApproximateReceiveCount, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -38,7 +37,7 @@ public class BatchCompletionMessageHandler(
         return false;
     }
 
-    private async Task TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, CancellationToken cancellationToken)
+    private async Task<bool> TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, int approximateReceiveCount, CancellationToken cancellationToken)
     {
         // Load batch the incoming message is referring to
         var batch = await dbContext.Batches.Include(b => b.Manifest)
@@ -46,12 +45,19 @@ public class BatchCompletionMessageHandler(
             .SingleOrDefaultAsync(
                 b => b.Id == batchCompletionMessage.Id && b.DeliverableType == batchCompletionMessage.DeliverableType,
                 cancellationToken);
-        
-        // batch isn't tracked by presentation, so nothing to do
-        if (batch == null) return;
+
+        // batch isn't tracked by presentation - allow a few retries in case of a timing issue
+        if (batch == null)
+        {
+            var discard = approximateReceiveCount >= 2;
+            logger.LogTrace(
+                "Batch {BatchId} not found in presentation. ApproximateReceiveCount:{Count}. {Action}",
+                batchCompletionMessage.Id, approximateReceiveCount, discard ? "Discarding" : "Will retry");
+            return discard;
+        }
 
         var sw = Stopwatch.StartNew();
-        
+
         // Other batches haven't completed, so can't populate Manifest until all are complete
         if (await dbContext.Batches.AnyAsync(b => b.ManifestId == batch.ManifestId &&
                                                   b.Status != BatchStatus.Completed &&
@@ -76,14 +82,14 @@ public class BatchCompletionMessageHandler(
                     logger.LogInformation(
                         "Batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId} already completed",
                         batch.Id, batch.CustomerId, batch.ManifestId);
-                    return;
+                    return true;
                 }
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error updating completing batch {BatchId} for manifest {ManifestId}", batch.Id,
                     batch.ManifestId);
-                throw;
+                return false;
             }
         }
 
@@ -91,6 +97,7 @@ public class BatchCompletionMessageHandler(
         logger.LogInformation(
             "Updating batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}. Completed in {Elapsed}ms",
             batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
+        return true;
     }
     
     private static BatchCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)

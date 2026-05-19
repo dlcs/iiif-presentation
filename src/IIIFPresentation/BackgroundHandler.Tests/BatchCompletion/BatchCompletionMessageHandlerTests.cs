@@ -86,11 +86,29 @@ public class BatchCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
     }
 
-    [Fact]
-    public async Task HandleMessage_DoesNotUpdateAnything_WhenBatchNotTracked()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task HandleMessage_ReturnsFalse_WhenBatchNotTracked_AndBelowRetryThreshold(int approximateReceiveCount)
     {
-        // Arrange
-        var message = QueueHelper.CreateQueueMessage(572246, CustomerId);
+        // Arrange - batch unknown, message should be retried
+        var message = QueueHelper.CreateQueueMessage(572246, CustomerId, approximateReceiveCount: approximateReceiveCount);
+
+        // Act and Assert
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
+        A.CallTo(() =>
+                dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(10)]
+    public async Task HandleMessage_ReturnsTrue_WhenBatchNotTracked_AndAboveRetryThreshold(int approximateReceiveCount)
+    {
+        // Arrange - batch unknown but already retried enough, discard the message
+        var message = QueueHelper.CreateQueueMessage(572246, CustomerId, approximateReceiveCount: approximateReceiveCount);
 
         // Act and Assert
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
@@ -396,8 +414,8 @@ public class BatchCompletionMessageHandlerTests
         // Act
         var result = await sut.HandleMessage(message, CancellationToken.None);
 
-        // Assert - message is handled successfully (true) but batch is NOT retrieved/updated due to type mismatch
-        result.Should().BeTrue("Message processed successfully");
+        // Assert - batch not found (type mismatch), so message is retried (false) on first receive
+        result.Should().BeFalse("Batch not found due to type mismatch; message will be retried");
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         var batch = dbContext.Batches.Single(b => b.Id == batchId);

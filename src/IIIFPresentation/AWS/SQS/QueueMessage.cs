@@ -17,11 +17,15 @@ public class QueueMessage
     /// <remarks>
     /// This only maps StringValues from attributes, it won't handle other types (BinaryValue or MemoryStream)
     /// </remarks>
-    public QueueMessage(string body, Dictionary<string, MessageAttributeValue> attributes, string messageId)
+    public QueueMessage(string body, Dictionary<string, MessageAttributeValue> attributes,
+        Dictionary<string, string> messageAttributes, string messageId)
     {
         Body = body;
         Attributes = attributes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.StringValue);
         MessageId = messageId;
+        ApproximateReceiveCount = messageAttributes.TryGetValue(QueueAttributes.ApproximateReceiveCount, out var count)
+            ? int.Parse(count)
+            : 0;
     }
 
     public string Body { get; }
@@ -29,4 +33,6 @@ public class QueueMessage
     public Dictionary<string, string> Attributes { get; }
 
     public string MessageId { get; }
+
+    public int ApproximateReceiveCount { get; }
 }
