@@ -90,7 +90,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
@@ -138,7 +138,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
 
         responseManifest!.Adjuncts.Should().HaveCount(1);
@@ -170,7 +170,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
@@ -182,6 +182,41 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         dbManifest.Batches.Should().HaveCount(2);
         dbManifest.Batches.Should().Contain(b => b.DeliverableType == DeliverableType.Asset);
         dbManifest.Batches.Should().Contain(b => b.DeliverableType == DeliverableType.Adjunct);
+    }
+
+    [Fact]
+    public async Task CreateManifest_WithManifestAdjuncts_WritesManifestToStagingLocation()
+    {
+        // Arrange
+        var (slug, _) = TestIdentifiers.SlugResource();
+
+        var payload = $$"""
+            {
+                "type": "Manifest",
+                "slug": "{{slug}}",
+                "parent": "http://localhost/{{Customer}}/collections/root",
+                "adjuncts": [
+                    { "id": "mets.xml", "mediaType": "text/xml" }
+                ]
+            }
+            """;
+
+        var request = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/manifests", payload);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var manifestId = responseManifest!.Id!.Split('/').Last();
+
+        // Manifest must be in staging (not final) so the background handler can pick it up
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"staging/{Customer}/manifests/{manifestId}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(manifestId);
     }
 
     [Fact]
@@ -208,7 +243,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
         var manifestId = responseManifest!.Id!.Split('/').Last();
 
@@ -305,7 +340,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Stub asset created
         A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
@@ -369,7 +404,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
         var response = await httpClient.AsCustomer().SendAsync(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Old adjunct deleted
         A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
@@ -605,7 +640,7 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
 
         var postResponse = await httpClient.AsCustomer().SendAsync(
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", postPayload));
-        postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        postResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var manifestId = (await postResponse.ReadAsPresentationResponseAsync<PresentationManifest>())!.Id!.Split('/').Last();
 
         // Mock DLCS to return the manifest-level adjunct asset with adjuncts for the manifest-scoped lookup

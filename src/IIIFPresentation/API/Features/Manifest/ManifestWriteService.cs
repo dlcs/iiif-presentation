@@ -9,8 +9,6 @@ using Core;
 using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
-using IIIF.Serialisation;
-using IIIF.Presentation.V3;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -293,17 +291,17 @@ public class ManifestWriteService(
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         await SaveToS3(dbManifest, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
-            hasAssets, dlcsInteractionResult, writeResult, cancellationToken);
+            dlcsInteractionResult, writeResult, cancellationToken);
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
-        int customerId, DbManifest dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult,
+        int customerId, DbManifest dbManifest, DlcsInteractionResult dlcsInteractionResult,
         WriteResult writeResult, CancellationToken cancellationToken)
     {
         return PresUpdateResult.Success(
             presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
                 await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
-            hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
+            !dlcsInteractionResult.CanBeBuiltUpfront
                 ? WriteResult.Accepted
                 : writeResult,
             dbManifest?.Etag);
@@ -403,7 +401,7 @@ public class ManifestWriteService(
     /// <param name="canBeBuiltUpfront">
     /// Whether there's assets, but they're all tracked by the DLCS
     ///
-    /// This is only relevant for painted resources
+    /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
@@ -433,7 +431,7 @@ public class ManifestWriteService(
             }
 
             request.PresentationManifest.Items = iiifManifest.Items;
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, hasAssets,
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, !canBeBuiltUpfront,
                 cancellationToken);
         }
 

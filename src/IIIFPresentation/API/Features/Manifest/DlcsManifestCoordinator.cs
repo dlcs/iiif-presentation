@@ -32,7 +32,7 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
 
-    public static readonly DlcsInteractionResult NoInteraction = new(null, null);
+    public static readonly DlcsInteractionResult NoInteraction = new(null, null, true);
 
     public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
 }
@@ -157,7 +157,7 @@ public class DlcsManifestCoordinator(
                 // you wanted a space, and there are no assets, so no further work required
                 if (assets.Count == 0)
                 {
-                    return new DlcsInteractionResult(null, spaceId);
+                    return new DlcsInteractionResult(null, spaceId, true);
                 }
                 
                 createdSpace = true;
