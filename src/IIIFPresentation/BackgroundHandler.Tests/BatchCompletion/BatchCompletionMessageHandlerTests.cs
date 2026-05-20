@@ -4,6 +4,7 @@ using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Settings;
 using DLCS;
 using DLCS.API;
 using FakeItEasy;
@@ -68,7 +69,7 @@ public class BatchCompletionMessageHandlerTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger, new TestOptionsMonitor<BehaviourSettings>(new BehaviourSettings()),
             new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
 

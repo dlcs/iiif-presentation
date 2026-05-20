@@ -2,6 +2,7 @@
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Settings;
 using Core.Web;
 using DLCS;
 using DLCS.API;
@@ -90,6 +91,7 @@ public class BatchCompletionPathRewriteTests
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
 
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new TestOptionsMonitor<BehaviourSettings>(new BehaviourSettings()),
             new NullLogger<ManifestS3Manager>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,

@@ -105,10 +105,10 @@ public class IIIFS3Service(
             dbResource.GetResourceBucketKey(fromStaging ? BucketLocationType.Staging : BucketLocationType.Default));
         var deleteTask = bucketWriter.DeleteFromBucket(item);
         
-        if (dbResource.Created >= behaviour.CurrentValue.StoresPayloadsSince)
+        if (behaviour.CurrentValue.ShouldHaveStoredOriginal(dbResource.Created))
         {
             var originalItem =  new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
-                dbResource.GetResourceBucketKey(BucketLocationType.Original));
+                dbResource.GetResourceBucketKey(fromStaging ? BucketLocationType.OriginalStaging : BucketLocationType.Original));
             await bucketWriter.DeleteFromBucket(originalItem);
         }
         

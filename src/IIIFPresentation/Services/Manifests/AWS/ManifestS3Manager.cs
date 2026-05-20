@@ -1,9 +1,11 @@
 ﻿using AWS.Helpers;
 using Core.Helpers;
+using Core.Settings;
 using Core.Streams;
 using DLCS.API;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Repository.Paths;
 
 namespace Services.Manifests.AWS;
@@ -16,6 +18,7 @@ public class ManifestS3Manager(
     IPathGenerator pathGenerator,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
     IManifestMerger manifestMerger,
+    IOptionsMonitor<BehaviourSettings> behaviour,
     ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
@@ -38,10 +41,14 @@ public class ManifestS3Manager(
         manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location");
 
         // Future improvement would be to perform a copy without reading
-        var stagedOriginalStream = await iiifS3.ReadStreamFromS3(dbManifest, BucketLocationType.OriginalStaging, cancellationToken);
-        var stagedOriginal = stagedOriginalStream == null
-            ? null
-            : await stagedOriginalStream.ReadStreamAsStringAsync(cancellationToken);
+        string? stagedOriginal = null;
+        if (behaviour.CurrentValue.ShouldHaveStoredOriginal(dbManifest.Created))
+        {
+            var stagedOriginalStream =
+                await iiifS3.ReadStreamFromS3(dbManifest, BucketLocationType.OriginalStaging, cancellationToken);
+            if (!stagedOriginalStream.IsNull())
+                stagedOriginal = await stagedOriginalStream.ReadStreamAsStringAsync(cancellationToken);
+        }
         
         await UpsertManifest(manifest!, dbManifest, stagedOriginal, cancellationToken);
 
