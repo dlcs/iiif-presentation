@@ -200,7 +200,7 @@ public class BatchCompletionMessageHandlerTests
         const int space = 2;
         var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
@@ -314,7 +314,7 @@ public class BatchCompletionMessageHandlerTests
         var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         const int space = 3;
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => (IIIFManifest?)null);
 
         var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(identifier, batchId: batchId);
@@ -352,7 +352,7 @@ public class BatchCompletionMessageHandlerTests
         var batchId = TestIdentifiers.BatchId();
         var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier

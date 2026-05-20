@@ -1,5 +1,6 @@
 ﻿using AWS.Helpers;
 using Core.Helpers;
+using Core.Streams;
 using DLCS.API;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Logging;
@@ -19,11 +20,11 @@ public class ManifestS3Manager(
 {
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
         Models.Database.Collections.Manifest dbManifest,
-        CancellationToken cancellationToken)
+        string? originalPayload, CancellationToken cancellationToken)
     {
         logger.LogInformation("Creating manifest {Manifest} in S3", dbManifest.Id);
 
-        var mergedManifest = await UpsertManifest(manifest, dbManifest, cancellationToken);
+        var mergedManifest = await UpsertManifest(manifest, dbManifest, originalPayload, cancellationToken);
 
         return mergedManifest;
     }
@@ -33,19 +34,33 @@ public class ManifestS3Manager(
     {
         logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
 
-        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
+        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
         manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location");
 
-        await UpsertManifest(manifest!, dbManifest, cancellationToken);
+        // Future improvement would be to perform a copy without reading
+        var stagedOriginalStream = await iiifS3.ReadStreamFromS3(dbManifest, BucketLocationType.OriginalStaging, cancellationToken);
+        var stagedOriginal = stagedOriginalStream == null
+            ? null
+            : await stagedOriginalStream.ReadStreamAsStringAsync(cancellationToken);
+        
+        await UpsertManifest(manifest!, dbManifest, stagedOriginal, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
     }
     
-    public async Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, bool saveToStaging,
-        CancellationToken cancellationToken)
+    public async Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload, bool saveToStaging, CancellationToken cancellationToken)
     {
-        await iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+        var saveIiif = iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             saveToStaging, cancellationToken);
+
+        if (originalPayload != null)
+        {
+            var location = saveToStaging ? BucketLocationType.OriginalStaging : BucketLocationType.Original;
+            await iiifS3.SaveToS3(dbManifest, location, originalPayload, cancellationToken);
+        }
+
+        await saveIiif;
         
         if (!saveToStaging)
         {
@@ -54,7 +69,7 @@ public class ManifestS3Manager(
     }
     
     private async Task<Manifest> UpsertManifest(Manifest manifest, Models.Database.Collections.Manifest dbManifest, 
-        CancellationToken cancellationToken)
+        string? originalPayload, CancellationToken cancellationToken)
     {
         var namedQueryManifest =
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
@@ -67,7 +82,7 @@ public class ManifestS3Manager(
             dbManifest.CustomerId,
             dbManifest.Id);
 
-        await SaveManifestInStorage(mergedManifest, dbManifest, false, cancellationToken);
+        await SaveManifestInStorage(mergedManifest, dbManifest,originalPayload, false, cancellationToken);
         
         return mergedManifest;
     }
@@ -85,11 +100,13 @@ public interface IManifestStorageManager
     /// Upserts a manifest that requires setting items to the final location directly
     /// </summary>
     public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload,
         CancellationToken cancellationToken);
 
     /// <summary>
     /// Saves a manifest that does not require further processing
     /// </summary>
     public Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload,
         bool saveToStaging, CancellationToken cancellationToken);
 }

@@ -59,14 +59,14 @@ public class ManifestReadService(
         PresentationManifest? manifest = null;
         if (dbManifest.IsIngesting())
         {
-            manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, true, cancellationToken);
+            manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
             if (manifest == null)
                 logger.LogError("Manifest {DbManifestId} IsIngesting but can't read from staging", dbManifest.Id);
         }
 
         // if is not ingesting read from "real" location
         // or if not found in "staging", an error was logged and we fall back to "real"
-        manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
+        manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, BucketLocationType.Default, cancellationToken);
 
         dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 

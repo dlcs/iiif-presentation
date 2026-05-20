@@ -7,6 +7,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core;
 using Core.Auth;
+using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
 using Models.API.General;
@@ -408,9 +409,16 @@ public class ManifestWriteService(
     {
         var iiifManifest = request.RawRequestBody.ToManifest();
         
+        // When paintedResources were provided the JSON saved to S3 differs substantially from the original payload,
+        // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
+        var orignalToStore = request.PresentationManifest.PaintedResources.IsNullOrEmpty()
+            ? null
+            : request.RawRequestBody;
+        
         if (canBeBuiltUpfront && hasAssets)
         {
-            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
+                orignalToStore, cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
@@ -430,7 +438,7 @@ public class ManifestWriteService(
             }
 
             request.PresentationManifest.Items = iiifManifest.Items;
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, !canBeBuiltUpfront,
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, orignalToStore, !canBeBuiltUpfront,
                 cancellationToken);
         }
 

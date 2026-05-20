@@ -104,7 +104,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {
             Id = identifier
@@ -148,7 +148,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
@@ -192,7 +192,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
