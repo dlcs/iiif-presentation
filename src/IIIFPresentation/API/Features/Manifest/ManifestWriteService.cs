@@ -175,7 +175,8 @@ public class ManifestWriteService(
                     dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
 
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, WriteResult.Created,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Created : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
     }
@@ -205,7 +206,8 @@ public class ManifestWriteService(
                 dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, WriteResult.Updated,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Updated : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
     }
@@ -291,25 +293,22 @@ public class ManifestWriteService(
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         await SaveToS3(dbManifest, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
-            dlcsInteractionResult, writeResult, cancellationToken);
+            writeResult, cancellationToken);
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
-        int customerId, DbManifest dbManifest, DlcsInteractionResult dlcsInteractionResult,
-        WriteResult writeResult, CancellationToken cancellationToken)
+        int customerId, DbManifest dbManifest, WriteResult writeResult, CancellationToken cancellationToken)
     {
         return PresUpdateResult.Success(
             presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
                 await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
-            !dlcsInteractionResult.CanBeBuiltUpfront
-                ? WriteResult.Accepted
-                : writeResult,
+            writeResult,
             dbManifest?.Etag);
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, int? spaceId, 
-        List<Models.Database.CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
+        List<CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
     {
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
