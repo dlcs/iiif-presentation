@@ -4,17 +4,18 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Services.Manifests.Model;
 
-namespace API.Features.Common.Helpers;
+namespace Services.Manifests.Helpers;
 
 /// <summary>
 /// Generates adjunct interactions for resource level adjuncts
 /// </summary>
 public static class ResourceAdjunctInteractions
 {
+    /// <summary>Space 0 is reserved by DLCS/Protagonist for adjunct-only stub assets.</summary>
     public const int StubAssetSpace = 0;
-    
+
     /// <summary>
-    /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the resources's internal id.
+    /// The <see cref="AssetId"/> for the manifest-level stub asset in space 0, given the resource's internal id.
     /// </summary>
     public static AssetId GetResourceStubAssetId(ResourceBase resource, int customerId, string resourceId) =>
         new(customerId, StubAssetSpace, $"{resource.Type}_{resourceId}");

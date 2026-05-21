@@ -1,9 +1,9 @@
-using API.Features.Common.Helpers;
+﻿using Services.Manifests.Helpers;
 using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 
-namespace API.Tests.Features.Common.Helpers;
+namespace Services.Tests.Manifests.Helpers;
 
 public class ResourceAdjunctInteractionsTests
 {

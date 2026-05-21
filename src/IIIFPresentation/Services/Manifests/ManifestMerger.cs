@@ -18,25 +18,36 @@ namespace Services.Manifests;
 public interface IManifestMerger
 {
     /// <summary>
-    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
-    /// instructions.
-    /// CanvasPaintings may be updated as part of processing
+    /// Build final manifest by projecting canvas paintings from the named query manifest, then applying any
+    /// manifest-level adjuncts from the stub canvas.
     /// </summary>
     /// <param name="baseManifest">Initial manifest to project content resources onto</param>
     /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
     /// <param name="canvasPaintings">
     /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
-    /// <returns>Populated manifest</returns>
-    Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
-        List<CanvasPainting>? canvasPaintings);
+    /// <param name="customerId">Customer id, used to construct the stub AssetId</param>
+    /// <param name="manifestId">Internal manifest id, used to construct the stub AssetId</param>
+    /// <returns>Fully merged manifest</returns>
+    Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId);
 }
 
 public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
     ILogger<ManifestMerger> logger) : IManifestMerger
 {
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
-    
+
+    /// <inheritdoc />
+    public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId)
+    {
+        var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
+        if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
+        ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId);
+        return merged;
+    }
+
     /// <summary>
     /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the
     /// provided baseManifest.
@@ -48,17 +59,16 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
     /// <returns>Populated manifest</returns>
-    public Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
+    private Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings)
     {
-        ValidateManifests(baseManifest, namedQueryManifest);
-
         if (canvasPaintings.IsNullOrEmpty())
         {
             logger.LogInformation("No canvas paintings found for manifest {ManifestId}", baseManifest.Id);
             return baseManifest;
         }
 
+        ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
         SetManifestContext(baseManifest, namedQueryManifest!);
@@ -66,6 +76,29 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         return baseManifest;
     }
     
+    /// <summary>
+    /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
+    /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
+    /// <c>Manifest_{manifestId}</c> that carries no binary content but hosts adjuncts.
+    /// </summary>
+    private void ApplyManifestLevelAdjuncts(StructureBase baseManifest, Manifest namedQueryManifest, int customerId,
+        string manifestId)
+    {
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
+
+        // CanvasLookups is initialised by ProcessCanvasPaintings, but only when canvasPaintings is non-empty.
+        // A manifest can have adjuncts but no canvas paintings (e.g. no assets yet), so initialise here if needed.
+        if (!canvasLookups.IsInitialised) canvasLookups.InitialiseNqLookup(namedQueryManifest);
+
+        var stubCanvas = canvasLookups.GetStubCanvas(baseManifest, manifestId);
+
+        if (stubCanvas != null)
+        {
+            logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
+            SetAssetDerivedProperties(baseManifest, stubCanvas, stubAssetId.ToString());
+        }
+    }
+
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
@@ -496,10 +529,19 @@ internal class CanvasLookups(IPathRewriteParser pathRewriteParser, ILogger logge
     /// </summary>
     private Dictionary<AssetId, Canvas> namedQueryCanvasesLookup = new();
     
+    public bool IsInitialised { get; private set; }
+
     public void Initialise(Manifest namedQueryManifest, Manifest baseManifest, List<CanvasPainting> canvasPaintings)
     {
         canvasesLookup = BuildIdToCanvasesLookup(baseManifest, canvasPaintings);
+        InitialiseNqLookup(namedQueryManifest);
+    }
+
+    /// <summary>Partial initialisation for when no canvas paintings are present — only NQ lookup is needed.</summary>
+    public void InitialiseNqLookup(Manifest namedQueryManifest)
+    {
         namedQueryCanvasesLookup = BuildAssetIdToCanvasLookup(namedQueryManifest);
+        IsInitialised = true;
     }
 
     private Dictionary<string, Canvas> BuildIdToCanvasesLookup(Manifest baseManifest, List<CanvasPainting> canvasPaintings)
@@ -535,6 +577,13 @@ internal class CanvasLookups(IPathRewriteParser pathRewriteParser, ILogger logge
     }
 
     public Canvas? GetCanvasForAsset(AssetId assetId) => namedQueryCanvasesLookup.GetValueOrDefault(assetId);
+
+    public Canvas? GetStubCanvas(StructureBase resource, string resourceId)
+    {
+        var customerId = namedQueryCanvasesLookup.Keys.FirstOrDefault()?.Customer ?? 0;
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(resource, customerId, resourceId);
+        return namedQueryCanvasesLookup.GetValueOrDefault(stubAssetId);
+    }
 
     private string ResolveCanvasId(string canvasId, int customerId)
         => pathRewriteParser.ParsePathWithRewrites(canvasId, customerId).Resource ?? canvasId;

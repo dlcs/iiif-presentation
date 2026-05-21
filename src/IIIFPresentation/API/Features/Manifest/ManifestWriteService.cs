@@ -1,5 +1,4 @@
 using System.Data;
-using System.Diagnostics;
 using API.Converters;
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
@@ -10,7 +9,6 @@ using Core;
 using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
-using IIIF.Presentation.V3;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -177,7 +175,8 @@ public class ManifestWriteService(
                     dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
 
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, WriteResult.Created,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Created : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
     }
@@ -207,7 +206,8 @@ public class ManifestWriteService(
                 dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, WriteResult.Updated,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Updated : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
     }
@@ -291,28 +291,24 @@ public class ManifestWriteService(
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-        request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
-            dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        await SaveToS3(dbManifest, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
-            hasAssets, dlcsInteractionResult, writeResult, cancellationToken);
+            writeResult, cancellationToken);
     }
 
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
-        int customerId, DbManifest dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult,
-        WriteResult writeResult, CancellationToken cancellationToken)
+        int customerId, DbManifest dbManifest, WriteResult writeResult, CancellationToken cancellationToken)
     {
         return PresUpdateResult.Success(
             presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
                 await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
-            hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
-                ? WriteResult.Accepted
-                : writeResult,
+            writeResult,
             dbManifest?.Etag);
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, int? spaceId, 
-        List<Models.Database.CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
+        List<CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
     {
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
@@ -392,23 +388,22 @@ public class ManifestWriteService(
     }
 
     /// <summary>
-    /// Saves a manifest into S3
+    /// Saves a manifest into S3.
     /// </summary>
     /// <param name="dbManifest">The manifest record</param>
     /// <param name="request">The request made by the caller</param>
     /// <param name="hasAssets">
     /// Whether there are any assets identified in the request
     ///
-    /// TThis is relevant for both painted resources and assets from items
+    /// This is relevant for both painted resources and assets from items
     /// </param>
     /// <param name="canBeBuiltUpfront">
     /// Whether there's assets, but they're all tracked by the DLCS
     ///
-    /// This is only relevant for painted resources
+    /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    /// <returns>A list of canvases to be returned to the caller</returns>
-    private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
         bool canBeBuiltUpfront, CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest();
@@ -416,7 +411,7 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront && hasAssets)
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
-            request.PresentationManifest.Items = manifest.Items;
+            MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
         {
@@ -424,8 +419,8 @@ public class ManifestWriteService(
             // happens in the background handler
             if (hasAssets)
             {
-                var canvasPaintings =  dbManifest.CanvasPaintings;
-                
+                var canvasPaintings = dbManifest.CanvasPaintings;
+
                 if (canvasPaintings is not null)
                 {
                     iiifManifest.Items =
@@ -434,13 +429,24 @@ public class ManifestWriteService(
                 }
             }
 
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, hasAssets,
+            request.PresentationManifest.Items = iiifManifest.Items;
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, !canBeBuiltUpfront,
                 cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
-        return iiifManifest.Items;
+    /// <summary>
+    /// Stamps the merged IIIF fields (Items, SeeAlso, Rendering, Annotations) from the stored manifest back onto
+    /// <paramref name="presentationManifest"/> so the API response reflects what ManifestMerger produced.
+    /// </summary>
+    private static void MergeManifestFields(IIIF.Presentation.V3.Manifest iiifManifest, PresentationManifest presentationManifest)
+    {
+        presentationManifest.Items = iiifManifest.Items;
+        presentationManifest.SeeAlso = iiifManifest.SeeAlso;
+        presentationManifest.Rendering = iiifManifest.Rendering;
+        presentationManifest.Annotations = iiifManifest.Annotations;
     }
 
     /// <summary>

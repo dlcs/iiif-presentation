@@ -3,14 +3,14 @@
 using System.Net;
 using Amazon.S3;
 using API.Converters;
-using API.Features.Common.Helpers;
-using API.Features.Manifest;
+using Services.Manifests.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
@@ -538,5 +538,42 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // "asset" back-reference to stub is not exposed in the API response
         manifest.Adjuncts[0].ContainsKey("asset").Should().BeFalse();
         manifest.Adjuncts[0]["id"].Value<string>().Should().Be("mets.xml");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsManifestLevelIiifProperties()
+    {
+        // Arrange - put a manifest in S3 with manifest-level seeAlso and rendering,
+        // as produced by ApplyManifestLevelAdjuncts during batch completion
+        var (_, id) = TestIdentifiers.SlugResource();
+        await dbContext.Manifests.AddTestManifest(id);
+        await dbContext.SaveChangesAsync();
+
+        const string seeAlsoId = "https://example.com/mets.xml";
+        const string renderingId = "https://example.com/document.pdf";
+
+        var storedManifest = new Manifest
+        {
+            SeeAlso = [new ExternalResource("Dataset") { Id = seeAlsoId }],
+            Rendering = [new ExternalResource("Text") { Id = renderingId }]
+        };
+
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = storedManifest.AsJson(),
+        });
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        manifest!.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
+        manifest.Rendering.Should().ContainSingle(r => r.Id == renderingId);
     }
 }
