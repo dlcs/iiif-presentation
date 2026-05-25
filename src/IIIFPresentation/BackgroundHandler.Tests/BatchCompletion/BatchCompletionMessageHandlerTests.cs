@@ -193,15 +193,14 @@ public class BatchCompletionMessageHandlerTests
     
     [Theory]
     [InlineData(DeliverableType.Asset, true)]
-    [InlineData(DeliverableType.Asset, true)]
+    [InlineData(DeliverableType.Asset, false)]
     [InlineData(DeliverableType.Adjunct, false)]
     public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType, bool storeOriginal)
     {
         // Arrange
-        var uniqueName = $"{nameof(HandleMessage_SavesResultingManifest_ToS3)}{storeOriginal.ToString()}";
         var batchId = TestIdentifiers.BatchId();
-        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(uniqueName);
-        var manifestId = TestIdentifiers.IdWithSuffix(suffix: deliverableType.ToString());
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(nameof(HandleMessage_SavesResultingManifest_ToS3) + storeOriginal);
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType.ToString()}{storeOriginal.ToString()}");
         const int space = 2;
         var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
 
@@ -213,7 +212,7 @@ public class BatchCompletionMessageHandlerTests
                         A<CancellationToken>._))
                 .ReturnsLazily(() =>
                 {
-                    var data = Encoding.UTF8.GetBytes(uniqueName);
+                    var data = Encoding.UTF8.GetBytes(manifestId);
                     return new MemoryStream(data);
                 });
         }
@@ -297,7 +296,10 @@ public class BatchCompletionMessageHandlerTests
         var assetId = new AssetId(CustomerId, space, identifier);
         var stubAssetId = new AssetId(CustomerId, 0, $"Manifest_{manifestId}");
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest { Id = identifier });
 
         var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);

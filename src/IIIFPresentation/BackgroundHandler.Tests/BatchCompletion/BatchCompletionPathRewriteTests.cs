@@ -108,6 +108,9 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {

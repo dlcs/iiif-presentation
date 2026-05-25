@@ -625,7 +625,7 @@ public class ManifestWriteServiceTests
         // UpsertManifestInStorage returns a manifest carrying both user-set and stub values for all
         // three adjunct types, as ManifestMerger would produce after applying ApplyManifestLevelAdjuncts
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 SeeAlso =
@@ -708,7 +708,7 @@ public class ManifestWriteServiceTests
         // ManifestMerger preserves the base manifest's empty lists when the stub canvas has no adjuncts,
         // so UpsertManifestInStorage returns empty (not null) for each adjunct type
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest { SeeAlso = [], Rendering = [], Annotations = [] });
 
         A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
