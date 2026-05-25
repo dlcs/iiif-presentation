@@ -35,6 +35,8 @@ public class BatchCompletionPathRewriteTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly PathSettings backgroundHandlerSettings;
+    // Testing as pre-store-originals, set a future date to disable this behaviour
+    private readonly BehaviourSettings behaviour = new(){StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1)};
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -91,7 +93,7 @@ public class BatchCompletionPathRewriteTests
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
 
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
-            new TestOptionsMonitor<BehaviourSettings>(new BehaviourSettings()),
+            new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
