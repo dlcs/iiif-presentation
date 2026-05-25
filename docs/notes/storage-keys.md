@@ -7,11 +7,13 @@ IIIF-Presentation makes use of S3 to store manifests and collections. These keys
 
 See `BucketHelperX` for code that generates keys.
 
-| Name             | Format                                                | Example                            | Description                                                                                         |
-| ---------------- | ----------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Manifest         | `{Storage}/{Customer}/manifests/{Manifest-Id}`        | `iiif-p/1/manifests/abc123`        | IIIF manifests, whether saved as-is or generated                                                    |
-| Staged Manifest* | `{Storage}/staged/{Customer}/manifests/{Manifest-Id}` | `iiif-p/staged/1/manifests/abc123` | In-flight generated IIIF manifests. Will contain in-complete `"items"` that will be populated later |
-| IIIF Collections | `{Storage}/{Customer}/collections/{Collection-Id}`    | `iiif-p/1/collections/abc123`      | IIIF Collections                                                                                    |
+| Name                     | Format                                                          | Example                                      | Description                                                                                        |
+|--------------------------|-----------------------------------------------------------------|----------------------------------------------|----------------------------------------------------------------------------------------------------|
+| Manifest                 | `{Storage}/{Customer}/manifests/{Manifest-Id}`                  | `iiif-p/1/manifests/abc123`                  | IIIF manifests, whether saved as-is or generated                                                   |
+| Staged Manifest          | `{Storage}/staging/{Customer}/manifests/{Manifest-Id}`          | `iiif-p/staging/1/manifests/abc123`          | In-flight generated IIIF manifests. Will contain in-complete `"items"` that will be populated later |
+| Orignal Manifest Payload | `{Storage}/original/{Customer}/manifests/{Manifest-Id}`         | `iiif-p/original/1/manifests/abc123`         | Stores the original payload if the it'd have been modified by processing                           |
+| Orignal Manifest Payload | `{Storage}/original-staging/{Customer}/manifests/{Manifest-Id}` | `iiif-p/original-staging/1/manifests/abc123` | Stores the payload in the update scenario that requires background handler
+| IIIF Collections         | `{Storage}/{Customer}/collections/{Collection-Id}`              | `iiif-p/1/collections/abc123`                | IIIF Collections                                                                                   |
 
 * `*` indicates that this is a proposed key and not currently used. `/staged/` key will allow easy clean-up of 'stale' in-flight manifests using prefix lifecycle rules.
 
