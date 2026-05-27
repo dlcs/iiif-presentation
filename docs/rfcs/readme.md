@@ -6,3 +6,4 @@
 4. [Etag Changes](0004-etag-changes.md)
 5. [Mixed Manifests](0005-mixed-manifests.md)
 6. [Adjuncts](0006-adjuncts.md)
+7. [Text Services](0007-text-services.md)
