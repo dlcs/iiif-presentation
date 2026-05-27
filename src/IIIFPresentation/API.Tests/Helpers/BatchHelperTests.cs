@@ -29,7 +29,7 @@ public class BatchHelperTests
         var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified),
             Finished = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified),
             Count = 10,
@@ -57,7 +57,7 @@ public class BatchHelperTests
         var finished = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = submitted,
             Finished = finished
         };
@@ -89,7 +89,7 @@ public class BatchHelperTests
         var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = null
         };
@@ -114,7 +114,7 @@ public class BatchHelperTests
         var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = null
         };
@@ -139,7 +139,7 @@ public class BatchHelperTests
         var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = DateTime.UtcNow
         };
@@ -159,26 +159,26 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
-        var id1 = TestIdentifiers.BatchId();
-        var id2 = TestIdentifiers.BatchId();
-        var id3 = TestIdentifiers.BatchId();
+        var idOne = TestIdentifiers.BatchId();
+        var idTwo = TestIdentifiers.BatchId();
+        var idThree = TestIdentifiers.BatchId();
         var batches = new List<Batch>
         {
             new()
             {
-                ResourceId = id1.ToString(),
+                ResourceId = $"http://dlcs.example.com/batches/{idOne}",
                 Submitted = DateTime.UtcNow,
                 Finished = null
             },
             new()
             {
-                ResourceId = id2.ToString(),
+                ResourceId = $"http://dlcs.example.com/batches/{idTwo}",
                 Submitted = DateTime.UtcNow,
                 Finished = DateTime.UtcNow
             },
             new()
             {
-                ResourceId = id3.ToString(),
+                ResourceId = $"http://dlcs.example.com/batches/{idThree}",
                 Submitted = DateTime.UtcNow,
                 Finished = null
             }
@@ -188,9 +188,9 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatches = dbContext.Batches.Local.Where(b => b.Id == id1 || b.Id == id2 || b.Id == id3).ToList();
+        var trackedBatches = dbContext.Batches.Local.Where(b => b.Id == idOne || b.Id == idTwo || b.Id == idThree).ToList();
         trackedBatches.Should().HaveCount(3);
-        trackedBatches.Select(b => b.Id).Should().ContainInOrder(id1, id2, id3);
+        trackedBatches.Select(b => b.Id).Should().ContainInOrder(idOne, idTwo, idThree);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public class BatchHelperTests
         var unspecifiedTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = unspecifiedTime,
             Finished = null
         };
@@ -243,7 +243,7 @@ public class BatchHelperTests
         var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = DateTime.UtcNow
         };
@@ -268,7 +268,7 @@ public class BatchHelperTests
         var unspecifiedTime = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = batchId.ToString(),
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = unspecifiedTime
         };
