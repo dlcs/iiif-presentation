@@ -290,8 +290,7 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
-        var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-        await SaveToS3(dbManifest, request, hasAssets, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
             writeResult, cancellationToken);
     }
@@ -392,23 +391,20 @@ public class ManifestWriteService(
     /// </summary>
     /// <param name="dbManifest">The manifest record</param>
     /// <param name="request">The request made by the caller</param>
-    /// <param name="hasAssets">
-    /// Whether there are any assets identified in the request
-    ///
-    /// This is relevant for both painted resources and assets from items
-    /// </param>
     /// <param name="canBeBuiltUpfront">
     /// Whether there's assets, but they're all tracked by the DLCS
     ///
     /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
-        bool canBeBuiltUpfront, CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
+        CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest();
-        
-        if (canBeBuiltUpfront && hasAssets)
+        var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
+        var hasAdjuncts = request.PresentationManifest.Adjuncts != null;
+
+        if (canBeBuiltUpfront && (hasAssets || hasAdjuncts))
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);

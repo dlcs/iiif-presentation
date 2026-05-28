@@ -2,6 +2,7 @@ using API.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Models.Database.General;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Integration;
 using Batch = DLCS.Models.Batch;
 
@@ -25,9 +26,10 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/456",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified),
             Finished = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified),
             Count = 10,
@@ -40,7 +42,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.SingleOrDefault(b => b.Id == 456);
+        var trackedBatch = dbContext.Batches.Local.SingleOrDefault(b => b.Id == batchId);
         trackedBatch.Should().NotBeNull();
     }
 
@@ -50,11 +52,12 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var submitted = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
         var finished = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/789",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = submitted,
             Finished = finished
         };
@@ -64,7 +67,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 789);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.CustomerId.Should().Be(customerId);
         trackedBatch.ManifestId.Should().Be(manifestId);
         trackedBatch.Submitted.Should().Be(submitted.ToUniversalTime());
@@ -83,9 +86,10 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/101",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = null
         };
@@ -95,7 +99,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 101);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.Status.Should().Be(BatchStatus.Ingesting);
         trackedBatch.Processed.Should().BeNull();
         trackedBatch.Finished.Should().BeNull();
@@ -107,9 +111,10 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/202",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = null
         };
@@ -119,7 +124,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 202);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.Processed.Should().BeNull();
     }
 
@@ -131,9 +136,10 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/303",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = DateTime.UtcNow
         };
@@ -143,7 +149,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 303);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.DeliverableType.Should().Be(deliverableType);
     }
 
@@ -153,23 +159,26 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var idOne = TestIdentifiers.BatchId();
+        var idTwo = TestIdentifiers.BatchId();
+        var idThree = TestIdentifiers.BatchId();
         var batches = new List<Batch>
         {
             new()
             {
-                ResourceId = "http://dlcs.example.com/batches/111",
+                ResourceId = $"http://dlcs.example.com/batches/{idOne}",
                 Submitted = DateTime.UtcNow,
                 Finished = null
             },
             new()
             {
-                ResourceId = "http://dlcs.example.com/batches/222",
+                ResourceId = $"http://dlcs.example.com/batches/{idTwo}",
                 Submitted = DateTime.UtcNow,
                 Finished = DateTime.UtcNow
             },
             new()
             {
-                ResourceId = "http://dlcs.example.com/batches/333",
+                ResourceId = $"http://dlcs.example.com/batches/{idThree}",
                 Submitted = DateTime.UtcNow,
                 Finished = null
             }
@@ -179,9 +188,9 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatches = dbContext.Batches.Local.Where(b => b.Id is 111 or 222 or 333).ToList();
+        var trackedBatches = dbContext.Batches.Local.Where(b => b.Id == idOne || b.Id == idTwo || b.Id == idThree).ToList();
         trackedBatches.Should().HaveCount(3);
-        trackedBatches.Select(b => b.Id).Should().ContainInOrder(111, 222, 333);
+        trackedBatches.Select(b => b.Id).Should().ContainInOrder(idOne, idTwo, idThree);
     }
 
     [Fact]
@@ -206,10 +215,11 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var unspecifiedTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/606",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = unspecifiedTime,
             Finished = null
         };
@@ -219,7 +229,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 606);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.Submitted.Kind.Should().Be(DateTimeKind.Utc);
         trackedBatch.Submitted.Should().Be(unspecifiedTime.ToUniversalTime());
     }
@@ -230,9 +240,10 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/707",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = DateTime.UtcNow
         };
@@ -242,7 +253,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 707);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.Processed.Should().NotBeNull();
         trackedBatch.Processed!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(3));
     }
@@ -253,10 +264,11 @@ public class BatchHelperTests
         // Arrange
         var customerId = PresentationContextFixture.CustomerId;
         var manifestId = "test-manifest";
+        var batchId = TestIdentifiers.BatchId();
         var unspecifiedTime = new DateTime(2024, 1, 1, 13, 0, 0, DateTimeKind.Unspecified);
         var batch = new Batch
         {
-            ResourceId = "http://dlcs.example.com/batches/808",
+            ResourceId = $"http://dlcs.example.com/batches/{batchId}",
             Submitted = DateTime.UtcNow,
             Finished = unspecifiedTime
         };
@@ -266,7 +278,7 @@ public class BatchHelperTests
         await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, DeliverableType.Asset);
 
         // Assert
-        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == 808);
+        var trackedBatch = dbContext.Batches.Local.Single(b => b.Id == batchId);
         trackedBatch.Finished.Should().NotBeNull();
         trackedBatch.Finished!.Value.Kind.Should().Be(DateTimeKind.Utc);
         trackedBatch.Finished.Should().Be(unspecifiedTime.ToUniversalTime());
