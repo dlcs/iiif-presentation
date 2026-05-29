@@ -21,8 +21,7 @@ public static class StreamX
             stream,
             Encoding.UTF8,
             detectEncodingFromByteOrderMarks: true,
-            bufferSize: 1024,
-            leaveOpen: true);
+            bufferSize: 1024);
 
         return await reader.ReadToEndAsync(cancellationToken);
     }

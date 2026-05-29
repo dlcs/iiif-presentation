@@ -26,10 +26,10 @@ public interface IIIIFS3Service
 
     public Task DeleteIIIFFromS3(IHierarchyResource dbResource, bool fromStaging = false);
 
-    Task SaveToS3(IHierarchyResource dbResource, BucketLocationType locationType,
+    public Task SaveToS3(IHierarchyResource dbResource, BucketLocationType locationType,
         string iiifJson, CancellationToken cancellationToken);
 
-    Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource,
+    public Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource,
         BucketLocationType locationType, CancellationToken cancellationToken);
 }
 
@@ -55,8 +55,7 @@ public class IIIFS3Service(
         CancellationToken cancellationToken) where T : ResourceBase, new()
     {
         var stream = await ReadStreamFromS3(bucketKey, cancellationToken);
-        if (stream == null)
-            return null;
+        if (stream == null) return null;
         
         return await stream.ToPresentation<T>(logger: logger);
     }

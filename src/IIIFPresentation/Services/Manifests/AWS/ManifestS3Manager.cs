@@ -47,7 +47,9 @@ public class ManifestS3Manager(
             var stagedOriginalStream =
                 await iiifS3.ReadStreamFromS3(dbManifest, BucketLocationType.OriginalStaging, cancellationToken);
             if (!stagedOriginalStream.IsNull())
+            {
                 stagedOriginal = await stagedOriginalStream.ReadStreamAsStringAsync(cancellationToken);
+            }
         }
         
         await UpsertManifest(manifest!, dbManifest, stagedOriginal, cancellationToken);
