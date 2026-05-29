@@ -594,6 +594,62 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
     }
 
     [Fact]
+    public async Task CreateManifest_WithOnlyManifestAdjuncts_WhenBatchesCompleteUpfront_WritesSeeAlsoToS3()
+    {
+        // Arrange
+        var (slug, _) = TestIdentifiers.SlugResource();
+        const string seeAlsoId = "https://example.com/mets.xml";
+
+        // Override: batches complete immediately (Finished is set) → canBeBuiltUpfront = true
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
+            .ReturnsLazily(_ => Task.FromResult(new List<Batch>
+            {
+                new() { ResourceId = TestIdentifiers.BatchId().ToString(), Submitted = DateTime.Now, Finished = DateTime.Now }
+            }));
+
+        // NQ manifest carries only the stub canvas with a seeAlso adjunct
+        A.CallTo(() => DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .ReturnsLazily((int _, string manifestId, CancellationToken _) =>
+            {
+                var stubAssetId = new AssetId(Customer, 0, $"Manifest_{manifestId}");
+                return ManifestTestCreator.New()
+                    .WithCanvas(stubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
+                    .Build();
+            });
+
+        var payload = $$"""
+            {
+                "type": "Manifest",
+                "slug": "{{slug}}",
+                "parent": "http://localhost/{{Customer}}/collections/root",
+                "adjuncts": [
+                    { "id": "mets.xml", "mediaType": "text/xml", "iiifLink": "seeAlso" }
+                ]
+            }
+            """;
+
+        var request = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/manifests", payload);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var manifestId = responseManifest!.Id!.Split('/').Last();
+
+        responseManifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
+            "manifest-level seeAlso from stub canvas must appear in the write response");
+
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"{Customer}/manifests/{manifestId}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId,
+            "manifest-level seeAlso from stub canvas must be persisted to real S3 location");
+    }
+
+    [Fact]
     public async Task CreateManifest_WithInvalidAdjunctId_Returns400()
     {
         // Arrange
