@@ -646,7 +646,7 @@ public class ManifestWriteServiceTests
                 ]
             });
 
-        const string stubManifestAdjunctId = "https://example.com/manifest-adjunct.xml";
+        const string stubManifestAdjunctId = "manifest-adjunct.xml";
         var stubAssetName = $"Manifest_{resourceId}";
         A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
@@ -776,7 +776,7 @@ public class ManifestWriteServiceTests
                 A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
-        const string existingAdjunctId = "https://example.com/existing-adjunct.xml";
+        const string existingAdjunctId = "existing-adjunct.xml";
         var stubAssetName = $"Manifest_{resourceId}";
         A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
             .Returns(Task.FromResult<IList<JObject>>(
