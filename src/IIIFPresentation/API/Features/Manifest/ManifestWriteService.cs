@@ -300,7 +300,7 @@ public class ManifestWriteService(
     {
         var assets = await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
 
-        if (presentationManifest.Adjuncts == null && assets != null)
+        if (assets != null)
         {
             presentationManifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
         }

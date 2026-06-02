@@ -872,7 +872,7 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.Error.Should().BeNull();
-        result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) on the request is preserved as-is, not replaced by stub asset lookup");
+        result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
                 A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
