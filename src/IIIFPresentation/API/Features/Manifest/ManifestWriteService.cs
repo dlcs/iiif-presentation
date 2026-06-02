@@ -298,9 +298,15 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
         int customerId, DbManifest dbManifest, WriteResult writeResult, CancellationToken cancellationToken)
     {
+        var assets = await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
+
+        if (assets != null)
+        {
+            presentationManifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
+        }
+
         return PresUpdateResult.Success(
-            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
-                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
+            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets),
             writeResult,
             dbManifest?.Etag);
     }
@@ -402,7 +408,8 @@ public class ManifestWriteService(
     {
         var iiifManifest = request.RawRequestBody.ToManifest();
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-        var hasAdjuncts = request.PresentationManifest.Adjuncts != null;
+        var hasAdjuncts = request.PresentationManifest.Adjuncts != null
+            || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
 
         if (canBeBuiltUpfront && (hasAssets || hasAdjuncts))
         {

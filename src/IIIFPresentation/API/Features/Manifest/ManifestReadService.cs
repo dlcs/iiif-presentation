@@ -78,7 +78,7 @@ public class ManifestReadService(
 
         // If the DLCS lookup failed, assets will be null (error already logged in DlcsManifestCoordinator).
         // Return the manifest without manifest-level adjuncts rather than failing the GET.
-        if (assets != null) SetManifestLevelAdjuncts(manifest, assets, customerId, dbManifest.Id);
+        if (assets != null) manifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
 
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
             m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
@@ -93,14 +93,4 @@ public class ManifestReadService(
         return FetchEntityResult<PresentationManifest>.Success(manifest, etag);
     }
 
-    private static void SetManifestLevelAdjuncts(PresentationManifest manifest,
-        Dictionary<string, JObject> assets, int customerId, string manifestId)
-    {
-        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
-        var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
-        if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
-        {
-            manifest.Adjuncts = adjunctsArray.OfType<JObject>().ToList();
-        }
-    }
 }

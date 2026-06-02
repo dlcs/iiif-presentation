@@ -471,6 +471,8 @@ public class ModifyManifestManifestAdjunctTests : IClassFixture<PresentationAppF
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.Adjuncts.Should().BeNull("clearing adjuncts returns no adjuncts property, not an empty array");
 
         // Existing adjunct deleted
         A.CallTo(() => DLCSApiClient.DeleteAdjuncts(Customer,
