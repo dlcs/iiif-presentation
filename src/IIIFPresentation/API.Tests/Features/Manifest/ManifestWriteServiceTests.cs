@@ -174,8 +174,36 @@ public class ManifestWriteServiceTests
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
             .First(x => x.Id == ingestedManifest.Entity.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
+
+        // Saved to staging with an original payload stored - must not attempt to delete any original payload
+        A.CallTo(() => manifestStorageManager.DeleteOriginalPayload(
+            A<Models.Database.Collections.Manifest>._)).MustNotHaveHappened();
     }
-    
+
+    [Fact]
+    public async Task Create_DeletesStaleOriginalPayload_WhenSavedDirectlyWithoutExternalContent()
+    {
+        // Arrange - a plain manifest with no assets or adjuncts is built upfront and saved directly to S3
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items = [new Canvas { Id = "https://base/0/canvases/canvas-1" }]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var ingestedManifest = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        ingestedManifest.Should().NotBeNull();
+        ingestedManifest.Error.Should().BeNull();
+        A.CallTo(() => manifestStorageManager.DeleteOriginalPayload(
+            A<Models.Database.Collections.Manifest>._)).MustHaveHappenedOnceExactly();
+    }
+
     [Fact]
     public async Task Create_RecognizesDlcsAsset_WhenMixedItemsAndAssets()
     {

@@ -420,8 +420,6 @@ public class ManifestWriteService(
         }
         else
         {
-            // The Manifest can't be built upfront OR it can be built upfront and there are no assets or adjuncts
-            
             // There are assets that aren't tracked by the DLCS, so set provisional canvases while further processing
             // happens in the background handler
             if (hasAssets)
@@ -434,8 +432,15 @@ public class ManifestWriteService(
             }
             
             request.PresentationManifest.Items = iiifManifest.Items;
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore, !canBeBuiltUpfront,
-                cancellationToken);
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
+                !canBeBuiltUpfront, cancellationToken);
+
+            // Direct save (built upfront, no external content) with nothing to store as original:
+            // remove any stale original payload left by a previous version of this manifest.
+            if (originalToStore is null)
+            {
+                await manifestStorageManager.DeleteOriginalPayload(dbManifest);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

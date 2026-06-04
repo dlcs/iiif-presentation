@@ -29,6 +29,8 @@ public interface IIIIFS3Service
     public Task SaveToS3(IHierarchyResource dbResource, BucketLocationType locationType,
         string iiifJson, CancellationToken cancellationToken);
 
+    public Task DeleteFromS3(IHierarchyResource dbResource, BucketLocationType locationType);
+
     public Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource,
         BucketLocationType locationType, CancellationToken cancellationToken);
 }
@@ -91,6 +93,16 @@ public class IIIFS3Service(
         var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
             dbResource.GetResourceBucketKey(locationType));
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
+    }
+
+    /// <summary>
+    /// Delete a single resource from S3 at the specified location
+    /// </summary>
+    public Task DeleteFromS3(IHierarchyResource dbResource, BucketLocationType locationType)
+    {
+        var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
+            dbResource.GetResourceBucketKey(locationType));
+        return bucketWriter.DeleteFromBucket(item);
     }
 
     /// <summary>
