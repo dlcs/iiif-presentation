@@ -66,6 +66,7 @@ public class ManifestS3Manager(
         if (originalPayload != null)
         {
             var location = saveToStaging ? BucketLocationType.OriginalStaging : BucketLocationType.Original;
+            logger.LogDebug("Saving original payload to {Location}", location);
             await iiifS3.SaveToS3(dbManifest, location, originalPayload, cancellationToken);
         }
 

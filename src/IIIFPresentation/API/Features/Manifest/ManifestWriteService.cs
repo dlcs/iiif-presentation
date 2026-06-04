@@ -401,42 +401,40 @@ public class ManifestWriteService(
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
         CancellationToken cancellationToken)
     {
-        var iiifManifest = request.RawRequestBody.ToManifest();
-
-        // When paintedResources were provided the JSON saved to S3 differs substantially from the original payload,
-        // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
-        var orignalToStore = request.PresentationManifest.PaintedResources.IsNullOrEmpty()
-            ? null
-            : request.RawRequestBody;
-        
-
+        var iiifManifest = request.RawRequestBody.ToManifest()!;
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         var hasAdjuncts = request.PresentationManifest.Adjuncts != null;
 
-        if (canBeBuiltUpfront && (hasAssets || hasAdjuncts))
+        // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
+        // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
+        var requiresExternalContent = hasAssets || hasAdjuncts;
+
+        var originalToStore = requiresExternalContent ? request.RawRequestBody : null;
+
+        if (canBeBuiltUpfront && requiresExternalContent)
         {
+            logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
-                orignalToStore, cancellationToken);
+                originalToStore, cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
         {
+            // The Manifest can't be built upfront OR it can be built upfront and there are no assets or adjuncts
+            
             // There are assets that aren't tracked by the DLCS, so set provisional canvases while further processing
             // happens in the background handler
             if (hasAssets)
             {
-                var canvasPaintings = dbManifest.CanvasPaintings;
+                logger.LogDebug("Manifest {Manifest} receiving ProvisionalCanvases", dbManifest.Id);
+                var canvasPaintings = dbManifest.CanvasPaintings.ThrowIfNull(nameof(dbManifest.CanvasPaintings));
 
-                if (canvasPaintings is not null)
-                {
-                    iiifManifest.Items =
-                        canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items,
-                            pathRewriteParser);
-                }
+                iiifManifest.Items = canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator,
+                    iiifManifest.Items, pathRewriteParser);
             }
-
+            
             request.PresentationManifest.Items = iiifManifest.Items;
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, orignalToStore, !canBeBuiltUpfront,
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore, !canBeBuiltUpfront,
                 cancellationToken);
         }
 
