@@ -10,4 +10,10 @@ public static class DbUpdateExceptionX
                exception.InnerException.Message.Contains(
                    "duplicate key value violates unique constraint \"ix_hierarchy_customer_id_slug_parent\"");
     }
+
+    public static bool IsManifestPrimaryKeyViolation(this DbUpdateException exception)
+    {
+        return exception.InnerException?.Message.Contains(
+            "duplicate key value violates unique constraint \"pk_manifests\"") == true;
+    }
 }

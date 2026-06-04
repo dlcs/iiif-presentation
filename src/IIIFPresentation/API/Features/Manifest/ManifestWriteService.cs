@@ -13,6 +13,7 @@ using DLCS.Exceptions;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Models.Database.Collections;
 using Models.DLCS;
 using Models.Database.General;
 using Repository;
@@ -114,6 +115,13 @@ public class ManifestWriteService(
                 logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
                     request.ManifestId, request.CustomerId);
                 return await CreateInternal(request, request.ManifestId, cancellationToken);
+            }
+
+            if (existingManifest.IsIngesting())
+            {
+                logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is currently ingesting, rejecting write",
+                    request.ManifestId, request.CustomerId);
+                return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
             }
 
             return await UpdateInternal(request, existingManifest, cancellationToken);

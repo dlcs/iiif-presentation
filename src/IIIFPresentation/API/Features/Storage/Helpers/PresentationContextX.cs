@@ -44,6 +44,13 @@ public static class PresentationContextX
                     ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
             }
 
+            if (ex.IsManifestPrimaryKeyViolation())
+            {
+                return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+                    "The manifest is currently being created",
+                    ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
+            }
+
             return ModifyEntityResult<T, ModifyCollectionType>.Failure(
                 $"The {resourceType} could not be created", ModifyCollectionType.Unknown);
         }

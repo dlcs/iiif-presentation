@@ -137,6 +137,12 @@ public static class UpsertErrorHelper
             $"Asset {assetId} is specified multiple times with different adjuncts - diff: {diff}",
             ModifyCollectionType.AssetsAdjunctsDoNotMatch, WriteResult.BadRequest);
 
+    public static ModifyEntityResult<T, ModifyCollectionType> ManifestCurrentlyIngesting<T>()
+        where T : JsonLdBase
+        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            "The manifest is currently being ingested and cannot be modified",
+            ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
+
     public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetsDataDoesNotMatch<TCollection>(string assetId, string diff)
         where TCollection : JsonLdBase
         => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
