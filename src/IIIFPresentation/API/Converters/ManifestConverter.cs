@@ -74,6 +74,21 @@ public static class ManifestConverter
     }
 
     /// <summary>
+    /// Populates <see cref="PresentationManifest.Adjuncts"/> from the manifest-level stub asset in <paramref name="assets"/>.
+    /// No-op if the stub asset is not present or carries no adjuncts.
+    /// </summary>
+    public static void SetManifestLevelAdjuncts(this PresentationManifest manifest,
+        Dictionary<string, JObject> assets, int customerId, string manifestId)
+    {
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
+        var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
+        if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
+        {
+            manifest.Adjuncts = adjunctsArray.OfType<JObject>().ToList();
+        }
+    }
+
+    /// <summary>
     /// Generate <see cref="Canvas"/> items from provided <see cref="CanvasPainting"/> collection. These can be either
     /// provisional canvases that have the structure of the final canvases without the full content-resource details, or completed canvases
     /// </summary>
