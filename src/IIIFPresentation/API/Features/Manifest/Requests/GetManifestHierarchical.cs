@@ -27,17 +27,17 @@ public class GetManifestHierarchicalHandler(
     public async Task<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
     {
-        var flatId = request.Hierarchy.ManifestId ??
+        var manifest = request.Hierarchy.Manifest ??
                      throw new InvalidOperationException(
                          "The differentiation of requests should prevent this from happening.");
 
-        if (!request.Hierarchy.Manifest!.LastProcessed.HasValue)
+        if (!manifest.LastProcessed.HasValue)
         {
             return null;
         }
 
         var objectFromS3 = await bucketReader.GetObjectFromBucket(
-            new(settings.S3.StorageBucket, BucketHelperX.GetManifestBucketKey(request.Hierarchy.CustomerId, flatId)),
+            new(settings.S3.StorageBucket, manifest.GetResourceBucketKey()),
             cancellationToken);
 
         if (objectFromS3.Stream.IsNull()) return null;
