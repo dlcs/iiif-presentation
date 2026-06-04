@@ -801,7 +801,7 @@ public class ManifestWriteServiceTests
         await presentationContext.SaveChangesAsync();
 
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
         const string existingAdjunctId = "existing-adjunct.xml";
@@ -833,7 +833,7 @@ public class ManifestWriteServiceTests
             .Which.Value<string>("id").Should().Be(existingAdjunctId,
                 "existing adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -862,7 +862,7 @@ public class ManifestWriteServiceTests
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -887,7 +887,7 @@ public class ManifestWriteServiceTests
             ]));
 
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
         var manifest = new PresentationManifest { Slug = slug, Adjuncts = [] };
@@ -902,7 +902,7 @@ public class ManifestWriteServiceTests
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
