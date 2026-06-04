@@ -116,12 +116,14 @@ sequenceDiagram
 
     U->>PA: POST/PUT Manifest
     PA->>PR: Ingest Adjunct/Assets
+    note right of PA: Save Manifest<br>(with provisional canvases)
+    PA->>S3: Save Manifest to staging storage
     PR-->>PA: Batch Id(s)
     PA-->>U: HTTP 202
     PR->>PBH: Batch Completed
     note left of PBH: Via message broker
-    note right of PBH: Save Manifest<br>(without Text services)
-    PBH->>S3: Save Manifest to staging storage
+    note right of PBH: Save Manifest<br>- with asset + adjunct resources<br>- without Text services
+    PBH->>S3: Save Manifest to staging storage (overwrite)
     PBH->>TS: POST /textBuilder<br> {"sourceUri": manifest_staging_uri, "id": full_path}
     PBH->>PBH: Record job
     S3-->>TS: Read manifest
@@ -133,6 +135,11 @@ sequenceDiagram
     PBH->>PBH: Add search-services etc
     PBH->>S3: Save Manifest to storage
 ```
+
+> [!NOTE]
+> The above is a change to processing as the staged Manifest is overwritten.
+> 
+> This ensures any GETs with `X-IIIF-CS-Show-Extras` would see that the Manifest has been updated but not yet finished.
 
 #### Without IIIF-CS work
 
