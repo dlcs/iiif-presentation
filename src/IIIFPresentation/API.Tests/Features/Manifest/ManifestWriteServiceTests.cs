@@ -1020,7 +1020,7 @@ public class ManifestWriteServiceTests
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         // Hold the lock externally to simulate another in-flight request
-        using var heldLock = manifestLocker.LockOrNull($"{Customer}:{resourceId}", 0);
+        using var heldLock = manifestLocker.LockOrNull($"M:{Customer}:{resourceId}", 0);
 
         var manifest = new PresentationManifest { Slug = slug };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false);
