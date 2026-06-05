@@ -10,6 +10,9 @@ public class BehaviourSettings
     /// </summary>
     public DateTimeOffset? StoresPayloadsSince { get; set; }
 
+    /// <summary>
+    /// Returns true if the "Store payload" functionality was available at specified date.
+    /// </summary>
     public bool ShouldHaveStoredOriginal(DateTime created)
         => !StoresPayloadsSince.HasValue || created >= StoresPayloadsSince;
 }
