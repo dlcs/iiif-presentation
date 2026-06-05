@@ -18,7 +18,6 @@ using Services.Manifests.Helpers;
 namespace API.Features.Storage.Requests;
 
 public class GetCollection(
-    int customerId,
     string id,
     IImmutableSet<Guid> eTags,
     int page,
@@ -26,8 +25,6 @@ public class GetCollection(
     string? orderBy = null,
     bool descending = false) : IRequest<FetchEntityResult<PresentationCollection>>
 {
-    public int CustomerId { get; } = customerId;
-
     public string Id { get; } = id;
 
     public IImmutableSet<Guid> IfNoneMatch { get; } = eTags;
@@ -94,7 +91,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         }
 
         var s3Collection =
-            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection.GetResourceBucketKey(),
+            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection, BucketLocationType.Default,
                 cancellationToken);
 
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();

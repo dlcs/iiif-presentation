@@ -15,24 +15,39 @@ namespace AWS.Helpers;
 
 public interface IIIIFS3Service
 {
+    /// <summary>
+    /// Read IIIF resource from S3
+    /// </summary>
     public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource, BucketLocationType locationType,
         CancellationToken cancellationToken) where T : ResourceBase, new();
 
-    public Task<T?> ReadIIIFFromS3<T>(string bucketKey, CancellationToken cancellationToken)
-        where T : ResourceBase, new();
-
+    /// <summary>
+    /// Write IIIF resource to S3 - ensuring @context and Id set. Saved valud is iiifResource.AsJson()
+    /// </summary>
     public Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
         bool saveToStaging, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Delete IIIF resource from S3
+    /// </summary>
     public Task DeleteIIIFFromS3(IHierarchyResource dbResource, bool fromStaging = false);
 
+    /// <summary>
+    /// Write provided iiifJson string to S3
+    /// </summary>
     public Task SaveToS3(IHierarchyResource dbResource, BucketLocationType locationType,
         string iiifJson, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Delete a single resource from S3 at the specified location
+    /// </summary>
     public Task DeleteFromS3(IHierarchyResource dbResource, BucketLocationType locationType);
 
-    public Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource,
-        BucketLocationType locationType, CancellationToken cancellationToken);
+    /// <summary>
+    /// Read IIIF resource from S3 as stream
+    /// </summary>
+    public Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource, BucketLocationType locationType,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -45,39 +60,29 @@ public class IIIFS3Service(
     IOptionsMonitor<AWSSettings> options,
     IOptionsMonitor<BehaviourSettings> behaviour) : IIIIFS3Service
 {
-    public Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
-       BucketLocationType locationType, CancellationToken cancellationToken) where T : ResourceBase, new() =>
-        ReadIIIFFromS3<T>(dbResource.GetResourceBucketKey(locationType), cancellationToken);
-    
+    public async Task<T?> ReadIIIFFromS3<T>(IHierarchyResource dbResource,
+        BucketLocationType locationType, CancellationToken cancellationToken) where T : ResourceBase, new()
+    {
+        var bucketKey = dbResource.GetResourceBucketKey(locationType);
+        var stream = await ReadStreamFromS3(bucketKey, cancellationToken);
+        if (stream == null) return null;
+
+        return await stream.ToPresentation<T>(logger: logger);
+    }
+
     public Task<Stream?> ReadStreamFromS3(IHierarchyResource dbResource,
         BucketLocationType locationType, CancellationToken cancellationToken) =>
         ReadStreamFromS3(dbResource.GetResourceBucketKey(locationType), cancellationToken);
 
-    public async Task<T?> ReadIIIFFromS3<T>(string bucketKey,
-        CancellationToken cancellationToken) where T : ResourceBase, new()
-    {
-        var stream = await ReadStreamFromS3(bucketKey, cancellationToken);
-        if (stream == null) return null;
-        
-        return await stream.ToPresentation<T>(logger: logger);
-    }
-    
-    public async Task<Stream?> ReadStreamFromS3(string bucketKey,
+    private async Task<Stream?> ReadStreamFromS3(string bucketKey,
         CancellationToken cancellationToken)
     {
         var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket, bucketKey);
-        var objectFromBucket = await bucketReader.GetObjectFromBucket(item
-            , cancellationToken);
+        var objectFromBucket = await bucketReader.GetObjectFromBucket(item, cancellationToken);
 
-        if (objectFromBucket.Stream.IsNull())
-            return null;
-
-        return objectFromBucket.Stream;
+        return objectFromBucket.Stream.IsNull() ? null : objectFromBucket.Stream;
     }
     
-    /// <summary>
-    /// Write IIIF resource to S3 - ensuring @context and Id set
-    /// </summary>
     public async Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
         bool saveToStaging, CancellationToken cancellationToken)
     {
@@ -89,43 +94,37 @@ public class IIIFS3Service(
 
      public async Task SaveToS3(IHierarchyResource dbResource, BucketLocationType locationType,
         string iiifJson, CancellationToken cancellationToken)
-    {
-        var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
-            dbResource.GetResourceBucketKey(locationType));
+     {
+         var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
+             dbResource.GetResourceBucketKey(locationType));
         await bucketWriter.WriteToBucket(item, iiifJson, "application/json", cancellationToken);
     }
-
-    /// <summary>
-    /// Delete a single resource from S3 at the specified location
-    /// </summary>
+     
     public Task DeleteFromS3(IHierarchyResource dbResource, BucketLocationType locationType)
     {
         var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
             dbResource.GetResourceBucketKey(locationType));
         return bucketWriter.DeleteFromBucket(item);
     }
-
-    /// <summary>
-    /// Delete IIIF resource from S3
-    /// </summary>
+    
     public async Task DeleteIIIFFromS3(IHierarchyResource dbResource, bool fromStaging = false)
     {
         logger.LogDebug("Deleting resource {Customer}:{ResourceId} file from S3{StagingIndicator}",
             dbResource.CustomerId, dbResource.Id, fromStaging ? "[staging]" : string.Empty);
         var item = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
             dbResource.GetResourceBucketKey(fromStaging ? BucketLocationType.Staging : BucketLocationType.Default));
-        var deleteTask = bucketWriter.DeleteFromBucket(item);
-        
+        var deleteTasks = new List<Task>(2) { bucketWriter.DeleteFromBucket(item) };
+
         if (behaviour.CurrentValue.ShouldHaveStoredOriginal(dbResource.Created))
         {
             var originalItem = new ObjectInBucket(options.CurrentValue.S3.StorageBucket,
                 dbResource.GetResourceBucketKey(fromStaging
                     ? BucketLocationType.OriginalStaging
                     : BucketLocationType.Original));
-            await bucketWriter.DeleteFromBucket(originalItem);
+            deleteTasks.Add(bucketWriter.DeleteFromBucket(originalItem));
         }
         
-        await deleteTask;
+        await Task.WhenAll(deleteTasks);
     }
 
     private static void EnsureIIIFValid(ResourceBase iiifResource, string flatId)
