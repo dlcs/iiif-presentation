@@ -195,6 +195,7 @@ public class BatchCompletionMessageHandlerTests
     [InlineData(DeliverableType.Asset, true)]
     [InlineData(DeliverableType.Asset, false)]
     [InlineData(DeliverableType.Adjunct, false)]
+    [InlineData(DeliverableType.Adjunct, true)]
     public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType, bool storeOriginal)
     {
         // Arrange
