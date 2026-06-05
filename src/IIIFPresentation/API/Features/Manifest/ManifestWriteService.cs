@@ -10,6 +10,7 @@ using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
+using AsyncKeyedLock;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -95,6 +96,7 @@ public class ManifestWriteService(
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
     IPathRewriteParser pathRewriteParser,
+    AsyncKeyedLocker<string> manifestLocker,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -102,6 +104,14 @@ public class ManifestWriteService(
     /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
+        using var manifestLock = manifestLocker.LockOrNull($"{request.CustomerId}:{request.ManifestId}", 0);
+        if (manifestLock == null)
+        {
+            logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is already being processed, rejecting write",
+                request.ManifestId, request.CustomerId);
+            return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
+        }
+
         try
         {
             var existingManifest =

@@ -1,6 +1,7 @@
 ﻿using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure.IdGenerator;
+using AsyncKeyedLock;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
@@ -50,6 +51,7 @@ public class ManifestWriteServiceTests
     private readonly DlcsSettings dlcsSettings;
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
+    private readonly AsyncKeyedLocker<string> manifestLocker;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -110,9 +112,11 @@ public class ManifestWriteServiceTests
             PathRules = PathRewriteOptions.Default
         })));
 
+        manifestLocker = new AsyncKeyedLocker<string>();
+
         sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
+            manifestStorageManager, pathRewriteParser, manifestLocker, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
@@ -1007,6 +1011,26 @@ public class ManifestWriteServiceTests
         // Assert
         result.WriteResult.Should().Be(WriteResult.Conflict);
         result.Error.Should().Contain("currently being ingested");
+    }
+
+    [Fact]
+    public async Task Upsert_ReturnsConflict_WhenManifestIsAlreadyBeingProcessed()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        // Hold the lock externally to simulate another in-flight request
+        using var heldLock = manifestLocker.LockOrNull($"{Customer}:{resourceId}", 0);
+
+        var manifest = new PresentationManifest { Slug = slug };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Conflict);
+        result.Error.Should().Contain("currently being");
     }
 
     [Fact]
