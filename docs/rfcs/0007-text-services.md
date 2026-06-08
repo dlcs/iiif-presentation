@@ -99,6 +99,24 @@ If text-services fails due to an error we should make the Manifest public but re
 
 ## TextService Interaction
 
+### Job Identity
+
+All text-services jobs will have format as `{customer}/{manifest-id}`, where:
+* `{customer}` is the customers numeric identifier to scope any further identifiers to this customer.
+* `{manifest-id}` is the Manifest's _internal_ identifier. This ensures the any generated sources relate to the specified Manifest, regardless of it's location in the hierarchy.
+
+Using `{customer}/{hierarchy-slug}` (e.g. `99/19th-century/fiction/1984`) would read nicer than `{customer}/{manifest-id}` (e.g. `99/asfdh09234532`) but would mean that any 
+hierarcy moves would break existing text-service links or require a lot of additional work to drop/create jobs.
+
+#### Paths
+
+Text-Services support [alternative paths](https://github.com/dlcs/text-services/blob/main/instructions/alternative-paths.md) via `X-Forwarded-Host` and `X-Forwarded-Path` headers.
+
+When the background-handler is constructing final payloads it should always call the canonical `/text-augmented/v3` URL and provide these headers manually, rather than going via any proxy rewrites.
+
+* `X-Forwarded-Host` will be `CustomerOrchestratorUri` if configured, falling back to default.
+* `X-Forwarded-Path` will be require an additional `PathRules` setting.
+
 ### Ingest Pipeline
 
 #### Manifest requires IIIF-CS work
@@ -240,3 +258,4 @@ This is currently modeled as a flags enum in text-services which may not be the 
 
 * If text indexing is requested but no text-bearing sources were found, should we record this anywhere? Something on the Manifest that can be surfaced in `X-IIIF-CS-Show-Extras` view? This is not necessarily an "error" but could be useful to record.
 * Is the behaviour described in [Updates](#updates) correct when a Manifest with text-services is updated without a `"pipeline"` property? 
+* All text-services jobs will have format as `{customer}/{manifest-id}` - do we need another level of 'scope' to this to avoid accidentally overwriting job from elsewhere? e.g. `/iiif-presentation/{customer}/{manifest-id}` or `/{customer}/manifest/{manifest-id}`
