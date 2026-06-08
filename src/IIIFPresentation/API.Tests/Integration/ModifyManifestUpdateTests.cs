@@ -15,6 +15,7 @@ using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -529,7 +530,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(batchId: 800, ingested: true, canvasPaintings:
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: true, canvasPaintings:
             [
                 new Models.Database.CanvasPainting
                 {
