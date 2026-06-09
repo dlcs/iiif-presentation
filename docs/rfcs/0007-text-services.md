@@ -40,7 +40,7 @@ When sending a Manifest to IIIF-Presentation we will support a new `"pipeline"` 
 {
     "pipeline": {
         "text": {
-            "index": true
+            "action": "Index"
         }
     }
 }
@@ -49,7 +49,9 @@ When sending a Manifest to IIIF-Presentation we will support a new `"pipeline"` 
 Where:
 * `"pipeline"` is the top level containing property for indicating that there is some further processing to be done to the Manifest as a whole.
 * `"text"` indicates the type of pipeline. At this time this is the only accepted value.
-* `"index": true` signifies that we want to index any text associated with this Manifest.
+* `"action"` accepts a list of possible actions to take for this pipeline.
+* `"Index"` signifies that we want to index any text associated with this Manifest.
+  * This will be extended in the future, see below.
 
 Other properties will be added to the `"text"` property in the future, to give greater control of what is processed (e.g. "content-search only" or "content-search and a PDF, using X as a cover-page").
 
@@ -74,7 +76,10 @@ The IIIF Manifest will serve as the input to text-services. This will be a full,
 
 We need to have the processed Manifest available as the source for text indexing but it won't have been made public yet, therefore IIIF-Presentation will need to store a version of the Manifest that can be used as input. We already have the concept of a "staged" Manifest. Currently, this is interim storage between API receipt and background-handler completion. If text indexing is required, the "staged" Manifest will either be the payload as received, or the Manifest generated from IIIF-CS NamedQuery.
 
-We will need some way to share the non-public resource with text-services. As we are using S3 for storage this can be done via IAM/bucket permissions or a presigned URL. There is nothing private in the Manifest, it's non-public because it hasn't been fully processed yet, not because the content is sensitive. If no `"pipeline"` property is provided then this is where processing would stop.
+We will need some way to share the non-public resource with text-services. As we are using S3 for storage this can be done via IAM/bucket permissions. There is nothing private in the Manifest, it's non-public because it hasn't been fully processed yet, not because the content is sensitive. If no `"pipeline"` property is provided then this is where processing would stop.
+
+> [!IMPORTANT]
+> We could share the S3 uri via a presigned URL but due to their timed nature this would be prohibitive for reingest scenarios.
 
 ### Alternative
 
@@ -101,11 +106,12 @@ If text-services fails due to an error we should make the Manifest public but re
 
 ### Job Identity
 
-All text-services jobs will have format as `{customer}/{manifest-id}`, where:
+All text-services jobs will have format as `{customer}/iiif/{manifest-id}`, where:
 * `{customer}` is the customers numeric identifier to scope any further identifiers to this customer.
+* `iiif` is a hardcoded path slug to scope the request to IIIF Presentation service.
 * `{manifest-id}` is the Manifest's _internal_ identifier. This ensures the any generated sources relate to the specified Manifest, regardless of it's location in the hierarchy.
 
-Using `{customer}/{hierarchy-slug}` (e.g. `99/19th-century/fiction/1984`) would read nicer than `{customer}/{manifest-id}` (e.g. `99/asfdh09234532`) but would mean that any 
+Using `{customer}/iiif/{hierarchy-slug}` (e.g. `99/iiif/19th-century/fiction/1984`) would read nicer than `{customer}/iiif/{manifest-id}` (e.g. `99/iiif/asfdh09234532`) but would mean that any 
 hierarcy moves would break existing text-service links or require a lot of additional work to drop/create jobs.
 
 #### Paths
@@ -135,14 +141,14 @@ sequenceDiagram
     U->>PA: POST/PUT Manifest
     PA->>PR: Ingest Adjunct/Assets
     note right of PA: Save Manifest<br>(with provisional canvases)
-    PA->>S3: Save Manifest to staging storage
     PR-->>PA: Batch Id(s)
+    PA->>S3: Save Manifest to staging storage
     PA-->>U: HTTP 202
     PR->>PBH: Batch Completed
     note left of PBH: Via message broker
     note right of PBH: Save Manifest<br>- with asset + adjunct resources<br>- without Text services
     PBH->>S3: Save Manifest to staging storage (overwrite)
-    PBH->>TS: POST /textBuilder<br> {"sourceUri": manifest_staging_uri, "id": full_path}
+    PBH->>TS: POST /textBuilder<br> {"sourceUri": manifest_staging_s3uri, "id": id}
     PBH->>PBH: Record job
     S3-->>TS: Read manifest
     TS->>TS: Process
@@ -174,7 +180,7 @@ sequenceDiagram
     U->>PA: POST/PUT Manifest
     note left of S3: Save Manifest<br>(without Text services)
     PA->>S3: Save Manifest to staging storage
-    PA->>TS: POST /textBuilder<br> {"sourceUri": manifest_staging_uri, "id": full_path}
+    PA->>TS: POST /textBuilder<br> {"sourceUri": manifest_staging_s3uri, "id": id}
     PA->>PA: Record job
     note left of PA: API doesn't wait for text-service to complete
     PA-->>U: HTTP 202
@@ -192,7 +198,6 @@ sequenceDiagram
 > This means that 202|Accepted can be returned for Manifests that don't have assets or adjuncts.
 
 Some points to note related to the above 2 diagrams
-* The `full_path` posted to the `/textBuilder` will be either the canonical or rewritten Manifest public path, depending on configuration. This will form the route for all text resources.
 * The job creation follows the same semantics as current resources that require additional work. IIIF-Presentation will return a 202 without an eTag to prevent any changes until the current operation is finished.
 
 ### Request Manifest
@@ -214,15 +219,29 @@ sequenceDiagram
     TS-->>U: search response
 ```
 
+### Errors / Warnings
+
+Internally we will track all pipeline interactions. These will record any `"errors"` that resulted from text-processing service, and also `"warnings"`. Warnings will be recorded if text indexing was requested but couldn't be fulfilled.
+
+GET requests with `X-IIIF-CS-Show-Extras` and auth will be able to view these in `"pipelineHistory"` property.
+
 ## Updates
 
-If a Manifest that contains search-services is re-submitted without `pipeline.text.index: true` then the updated Manifest won't contain any generated services. They will persist in text-services and won't be deleted but they will no longer be advertised on the Manifest.
+If a Manifest that contains search-services is re-submitted without `pipeline.text.action: "Index"` then the updated Manifest won't contain any generated services. They will persist in text-services and won't be deleted but they will no longer be advertised on the Manifest.
 
 This follows current practice of treating every Manifest payload as a full update; we don't diff against the previous Manifest. Each payload is taken in isolation.
 
 ## Enhancements
 
-Below are future enhancements.
+Below are future enhancements that can be considered in the future.
+
+### Actions
+
+Overall we will need to allow further `"actions"` (these names are not set in stone and only indicative):
+* `Index` - initially what we support. This will signal that the content is to be indexed/reprocessed by text builder.
+* `Reuse` - reuse already generated text services
+* `Remove` - do not output text derivatives on Manifest and delete from underlying storage.
+* `Exclude` - do not advertise text derivatives on Manifest but leave in underlying storage.
 
 ### Coverpages
 
@@ -234,7 +253,7 @@ A possible way to do this would be to accept a "coverpage" property as part of t
 {
     "pipeline": {
         "text": {
-            "index": true,
+            "actions": "Index",
             // a single URL
             "coverpageUrl": "https://cov.er/abc123.pdf",
             // text or HTML
@@ -253,9 +272,3 @@ In order to support inclusion of coverpage we would need to create text-services
 Text-services allow consumer to specify which services/derivatives should be generated. A future implementation could be allow the consumer to control what is produced and exposed.
 
 This is currently modeled as a flags enum in text-services which may not be the best option to expose for consumers. We can assess the best approach when implementing.
-
-## Open Questions
-
-* If text indexing is requested but no text-bearing sources were found, should we record this anywhere? Something on the Manifest that can be surfaced in `X-IIIF-CS-Show-Extras` view? This is not necessarily an "error" but could be useful to record.
-* Is the behaviour described in [Updates](#updates) correct when a Manifest with text-services is updated without a `"pipeline"` property? 
-* All text-services jobs will have format as `{customer}/{manifest-id}` - do we need another level of 'scope' to this to avoid accidentally overwriting job from elsewhere? e.g. `/iiif-presentation/{customer}/{manifest-id}` or `/{customer}/manifest/{manifest-id}`
