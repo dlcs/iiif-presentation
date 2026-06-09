@@ -38,11 +38,14 @@ When sending a Manifest to IIIF-Presentation we will support a new `"pipeline"` 
 
 ```json
 {
-    "pipeline": {
-        "text": {
-            "action": "Index"
+    "pipeline": [
+        {
+            "name": "text",
+            "config": {
+                "action": "Index"
+            }
         }
-    }
+    ]
 }
 ```
 
@@ -227,7 +230,7 @@ GET requests with `X-IIIF-CS-Show-Extras` and auth will be able to view these in
 
 ## Updates
 
-If a Manifest that contains search-services is re-submitted without `pipeline.text.action: "Index"` then the updated Manifest won't contain any generated services. They will persist in text-services and won't be deleted but they will no longer be advertised on the Manifest.
+If a Manifest that contains search-services is re-submitted without recognised `pipeline[*]` then the updated Manifest won't contain any generated services. They will persist in text-services and won't be deleted but they will no longer be advertised on the Manifest.
 
 This follows current practice of treating every Manifest payload as a full update; we don't diff against the previous Manifest. Each payload is taken in isolation.
 
@@ -251,15 +254,18 @@ A possible way to do this would be to accept a "coverpage" property as part of t
 
 ```jsonc
 {
-    "pipeline": {
-        "text": {
-            "actions": "Index",
-            // a single URL
-            "coverpageUrl": "https://cov.er/abc123.pdf",
-            // text or HTML
-            "coverpageText": "This is a coverpage. There are many like it but this one is mine"
+    "pipeline": [
+        {
+            "name": "text",
+            "config": {
+                "action": "Index",
+                // a single URL
+                "coverpageUrl": "https://cov.er/abc123.pdf",
+                // text or HTML
+                "coverpageText": "This is a coverpage. There are many like it but this one is mine"
+            }
         }
-    }
+    ]
 }
 ```
 
