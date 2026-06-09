@@ -6,7 +6,6 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Stubbery;

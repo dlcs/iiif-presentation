@@ -389,7 +389,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var id = TestIdentifiers.IdWithSuffix(suffix: "_ingestingAssets");
 
         // Arrange and Act
-        var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: 1);
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId());
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, PaintedResource),
@@ -447,7 +447,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting);
-        await dbContext.Manifests.AddTestManifest(id, batchId: 2);
+        await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId());
 
         await amazonS3.PutObjectAsync(new()
         {
@@ -472,7 +472,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore);
 
-        await dbContext.Manifests.AddTestManifest(id, batchId: 3, ingested: true);
+        await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId(), ingested: true);
 
         await amazonS3.PutObjectAsync(new()
         {
