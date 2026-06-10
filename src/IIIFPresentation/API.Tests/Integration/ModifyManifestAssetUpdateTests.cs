@@ -2703,7 +2703,7 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             ]);
         
         var dbManifest =
-            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: false, canvasPaintings:
+            (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId(), ingested: true, canvasPaintings:
             [
                 new CanvasPainting
                 {

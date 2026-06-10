@@ -9,10 +9,12 @@ using Core;
 using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
+using API.Infrastructure;
 using DLCS.Exceptions;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Models.Database.Collections;
 using Models.DLCS;
 using Models.Database.General;
 using Repository;
@@ -94,6 +96,7 @@ public class ManifestWriteService(
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
     IPathRewriteParser pathRewriteParser,
+    ILockManager manifestLockManager,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -101,6 +104,14 @@ public class ManifestWriteService(
     /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
+        using var manifestLock = manifestLockManager.TryAcquire($"M:{request.CustomerId}:{request.ManifestId}");
+        if (manifestLock == null)
+        {
+            logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is already being processed, rejecting write",
+                request.ManifestId, request.CustomerId);
+            return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
+        }
+
         try
         {
             var existingManifest =
@@ -114,6 +125,13 @@ public class ManifestWriteService(
                 logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
                     request.ManifestId, request.CustomerId);
                 return await CreateInternal(request, request.ManifestId, cancellationToken);
+            }
+
+            if (existingManifest.IsIngesting())
+            {
+                logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is currently ingesting, rejecting write",
+                    request.ManifestId, request.CustomerId);
+                return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
             }
 
             return await UpdateInternal(request, existingManifest, cancellationToken);

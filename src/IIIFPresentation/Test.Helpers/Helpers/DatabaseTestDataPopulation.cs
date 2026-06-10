@@ -56,7 +56,7 @@ public static class DatabaseTestDataPopulation
     }
 
     public static ValueTask<EntityEntry<Batch>> AddTestBatch(this DbSet<Batch> batches, int id, Manifest manifest,
-        DeliverableType deliverableType = DeliverableType.Asset)
+        DeliverableType deliverableType = DeliverableType.Asset, BatchStatus status = BatchStatus.Ingesting)
     {
         manifest.Batches ??= [];
         var batch = new Batch
@@ -64,7 +64,7 @@ public static class DatabaseTestDataPopulation
             Id = id,
             CustomerId = manifest.CustomerId,
             ManifestId = manifest.Id,
-            Status = BatchStatus.Ingesting,
+            Status = status,
             DeliverableType = deliverableType
         };
         manifest.Batches.Add(batch);

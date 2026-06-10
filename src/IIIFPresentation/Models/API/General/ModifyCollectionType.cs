@@ -29,5 +29,6 @@ public enum ModifyCollectionType
     AssetsDoNotMatch = 25,
     CustomerIdDoesNotMatchCaller = 26,
     AssetsAdjunctsDoNotMatch = 27,
+    ManifestCurrentlyIngesting = 28,
     Unknown = 1000
 }

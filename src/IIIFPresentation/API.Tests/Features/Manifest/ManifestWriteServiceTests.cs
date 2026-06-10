@@ -1,5 +1,6 @@
 ﻿using API.Features.Manifest;
 using API.Helpers;
+using API.Infrastructure;
 using API.Infrastructure.IdGenerator;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
+using DbBatchStatus = Models.Database.General.BatchStatus;
 using DbDeliverableType = Models.Database.General.DeliverableType;
 using Newtonsoft.Json.Linq;
 using Repository;
@@ -49,6 +51,7 @@ public class ManifestWriteServiceTests
     private readonly DlcsSettings dlcsSettings;
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
+    private readonly LockManager manifestLockManager;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -109,9 +112,11 @@ public class ManifestWriteServiceTests
             PathRules = PathRewriteOptions.Default
         })));
 
+        manifestLockManager = new LockManager();
+
         sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, pathRewriteParser, new NullLogger<ManifestWriteService>());
+            manifestStorageManager, pathRewriteParser, manifestLockManager, new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
@@ -797,7 +802,7 @@ public class ManifestWriteServiceTests
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
-        await presentationContext.Batches.AddTestBatch(9991, dbManifest.Entity, DbDeliverableType.Adjunct);
+        await presentationContext.Batches.AddTestBatch(9991, dbManifest.Entity, DbDeliverableType.Adjunct, DbBatchStatus.Completed);
         await presentationContext.SaveChangesAsync();
 
         A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
@@ -965,6 +970,69 @@ public class ManifestWriteServiceTests
         ingestedManifest.WriteResult.Should().Be(WriteResult.BadRequest);
     }
     
+    [Fact]
+    public async Task Upsert_ReturnsConflict_WhenManifestHasIngestingAssetBatch()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug, batchId: TestIdentifiers.BatchId());
+        await presentationContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest { Slug = slug };
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Conflict);
+        result.Error.Should().Contain("currently being ingested");
+    }
+
+    [Fact]
+    public async Task Upsert_ReturnsConflict_WhenManifestHasIngestingAdjunctBatch()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
+        await presentationContext.Batches.AddTestBatch(TestIdentifiers.BatchId(), dbManifest.Entity, DbDeliverableType.Adjunct);
+        await presentationContext.SaveChangesAsync();
+
+        var manifest = new PresentationManifest { Slug = slug };
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Conflict);
+        result.Error.Should().Contain("currently being ingested");
+    }
+
+    [Fact]
+    public async Task Upsert_ReturnsConflict_WhenManifestIsAlreadyBeingProcessed()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        // Hold the lock externally to simulate another in-flight request
+        using var heldLock = manifestLockManager.TryAcquire($"M:{Customer}:{resourceId}");
+
+        var manifest = new PresentationManifest { Slug = slug };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Conflict);
+        result.Error.Should().Contain("currently being");
+    }
+
     [Fact]
     public async Task Create_ErrorCreatingManifest_WhenCannotFindAssetFromItemsInDlcs()
     {
