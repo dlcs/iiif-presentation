@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using API.Auth;
-using AsyncKeyedLock;
 using API.Features.Common.Helpers;
 using API.Features.Manifest;
 using API.Helpers;
@@ -68,7 +67,7 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
-    .AddSingleton(new AsyncKeyedLocker<string>())
+    .AddSingleton<IManifestLockManager, ManifestLockManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
     .AddScoped<IManagedAssetResultFinder, ManagedAssetResultFinder>()
     .AddScoped<DlcsManifestCoordinator>()
