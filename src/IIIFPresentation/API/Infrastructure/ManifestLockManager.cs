@@ -19,14 +19,14 @@ public interface IManifestLockManager
 /// </summary>
 public sealed class ManifestLockManager : IManifestLockManager
 {
-    private readonly ConcurrentDictionary<string, Entry> entries = new();
+    private readonly ConcurrentDictionary<string, KeyLock> entries = new();
 
     public IDisposable? TryAcquire(string key)
     {
         // Retry if the entry we latched was concurrently evicted before we could increment its ref count.
         while (true)
         {
-            var entry = entries.GetOrAdd(key, _ => new Entry());
+            var entry = entries.GetOrAdd(key, _ => new KeyLock());
             Interlocked.Increment(ref entry.RefCount);
 
             // Verify the entry we incremented is still the live one for this key.
@@ -53,18 +53,18 @@ public sealed class ManifestLockManager : IManifestLockManager
         }
     }
 
-    private void Decrement(string key, Entry entry)
+    private void Decrement(string key, KeyLock entry)
     {
         // KeyValuePair overload ensures we only remove the entry we own, not a replacement inserted by a new caller.
         // Disposal is safe here: RefCount==0 means no thread is inside Wait(0) or holding the semaphore.
         if (Interlocked.Decrement(ref entry.RefCount) == 0
-            && entries.TryRemove(new KeyValuePair<string, Entry>(key, entry)))
+            && entries.TryRemove(new KeyValuePair<string, KeyLock>(key, entry)))
         {
             entry.Semaphore.Dispose();
         }
     }
 
-    private sealed class Entry
+    private sealed class KeyLock
     {
         public readonly SemaphoreSlim Semaphore = new(1, 1);
         public int RefCount;
