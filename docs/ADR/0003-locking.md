@@ -54,7 +54,7 @@ This functionality was decided to not be required for now as all production inst
 
 - Focused only on the current needs of the project
 - Can be extended to support REDIS etc. in the future
-- flexible for needed future modifications
+- Flexible for needed future modifications
 - Must be maintained by the team (albeit minor)
 
 ### REDIS
