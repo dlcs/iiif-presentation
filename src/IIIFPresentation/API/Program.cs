@@ -9,6 +9,7 @@ using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
 using API.Paths;
 using API.Settings;
+using Core.Settings;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -45,6 +46,8 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddOptions<ApiSettings>()
+    .BindConfiguration(string.Empty);
+builder.Services.AddOptions<BehaviourSettings>()
     .BindConfiguration(string.Empty);
 builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));

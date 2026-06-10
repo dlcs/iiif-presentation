@@ -7,6 +7,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
 using Core;
 using Core.Auth;
+using Core.Helpers;
 using Core.IIIF;
 using DLCS.Exceptions;
 using Models.API.General;
@@ -406,14 +407,22 @@ public class ManifestWriteService(
     private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
         CancellationToken cancellationToken)
     {
-        var iiifManifest = request.RawRequestBody.ToManifest();
+        var iiifManifest = request.RawRequestBody.ToManifest()!;
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         var hasAdjuncts = request.PresentationManifest.Adjuncts != null
             || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
 
-        if (canBeBuiltUpfront && (hasAssets || hasAdjuncts))
+        // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
+        // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
+        var requiresExternalContent = hasAssets || hasAdjuncts;
+
+        var originalToStore = requiresExternalContent ? request.RawRequestBody : null;
+
+        if (canBeBuiltUpfront && requiresExternalContent)
         {
-            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
+            logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
+            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
+                originalToStore, cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
@@ -422,19 +431,23 @@ public class ManifestWriteService(
             // happens in the background handler
             if (hasAssets)
             {
-                var canvasPaintings = dbManifest.CanvasPaintings;
+                logger.LogDebug("Manifest {Manifest} receiving ProvisionalCanvases", dbManifest.Id);
+                var canvasPaintings = dbManifest.CanvasPaintings.ThrowIfNull(nameof(dbManifest.CanvasPaintings));
 
-                if (canvasPaintings is not null)
-                {
-                    iiifManifest.Items =
-                        canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator, iiifManifest.Items,
-                            pathRewriteParser);
-                }
+                iiifManifest.Items = canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator,
+                    iiifManifest.Items, pathRewriteParser);
             }
-
+            
             request.PresentationManifest.Items = iiifManifest.Items;
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, !canBeBuiltUpfront,
-                cancellationToken);
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
+                !canBeBuiltUpfront, cancellationToken);
+
+            // Direct save (built upfront, no external content) with nothing to store as original:
+            // remove any stale original payload left by a previous version of this manifest.
+            if (originalToStore is null)
+            {
+                await manifestStorageManager.DeleteOriginalPayload(dbManifest);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

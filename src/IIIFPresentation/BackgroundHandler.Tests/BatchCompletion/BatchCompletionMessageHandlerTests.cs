@@ -1,9 +1,11 @@
-﻿using AWS.Helpers;
+﻿using System.Text;
+using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Settings;
 using DLCS;
 using DLCS.API;
 using FakeItEasy;
@@ -38,6 +40,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
+    private readonly BehaviourSettings behaviour = new();
     private readonly PathSettings pathSettings;
     private const int CustomerId = 1;
     private const int AlternativeCustomer = 10;
@@ -68,7 +71,7 @@ public class BatchCompletionMessageHandlerTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger, new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
 
@@ -187,20 +190,40 @@ public class BatchCompletionMessageHandlerTests
         batch.Status.Should().Be(BatchStatus.Completed);
         batch.Processed.Should().Be(processedDate, "Process date hasn't changed");
     }
-
+    
     [Theory]
-    [InlineData(DeliverableType.Asset)]
-    [InlineData(DeliverableType.Adjunct)]
-    public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType)
+    [InlineData(DeliverableType.Asset, true)]
+    [InlineData(DeliverableType.Asset, false)]
+    [InlineData(DeliverableType.Adjunct, false)]
+    [InlineData(DeliverableType.Adjunct, true)]
+    public async Task HandleMessage_SavesResultingManifest_ToS3(DeliverableType deliverableType, bool storeOriginal)
     {
         // Arrange
         var batchId = TestIdentifiers.BatchId();
-        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
-        var manifestId = TestIdentifiers.IdWithSuffix(suffix: deliverableType.ToString());
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(nameof(HandleMessage_SavesResultingManifest_ToS3) + storeOriginal);
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType.ToString()}{storeOriginal.ToString()}");
         const int space = 2;
         var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        if (storeOriginal)
+        {
+            // Testing with stored original, setup mock for reading original-staging
+            A.CallTo(() =>
+                    iiifS3.ReadStreamFromS3(A<IHierarchyResource>._, BucketLocationType.OriginalStaging,
+                        A<CancellationToken>._))
+                .ReturnsLazily(() =>
+                {
+                    var data = Encoding.UTF8.GetBytes(manifestId);
+                    return new MemoryStream(data);
+                });
+        }
+        else
+        {
+            // Testing as pre-store-originals, set a future date to disable this behaviour
+            behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        }
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
@@ -232,6 +255,18 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
                 flatId, false, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
+        
+        if (storeOriginal)
+        {
+            A.CallTo(() => iiifS3.SaveToS3(A<IHierarchyResource>._, BucketLocationType.Original, A<string>._,  A<CancellationToken>._))
+                .MustHaveHappened(1, Times.Exactly);
+        }
+        else
+        {
+            A.CallTo(() => iiifS3.SaveToS3(A<IHierarchyResource>._, BucketLocationType.Original, A<string>._,  A<CancellationToken>._))
+                .MustNotHaveHappened();
+        }
+        
         var savedManifest = (IIIFManifest)resourceBase!;
         var expectedCanvasId = $"https://localhost:5000/1/canvases/{canvasPaintingId}";
         var firstCanvas = savedManifest.Items![0];
@@ -262,7 +297,10 @@ public class BatchCompletionMessageHandlerTests
         var assetId = new AssetId(CustomerId, space, identifier);
         var stubAssetId = new AssetId(CustomerId, 0, $"Manifest_{manifestId}");
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest { Id = identifier });
 
         var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
@@ -313,8 +351,8 @@ public class BatchCompletionMessageHandlerTests
         var batchId = TestIdentifiers.BatchId();
         var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
         const int space = 3;
-
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => (IIIFManifest?)null);
 
         var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(identifier, batchId: batchId);
@@ -345,6 +383,9 @@ public class BatchCompletionMessageHandlerTests
         const int space = 2;
         var assetId = new AssetId(CustomerId, space, identifier);
         
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
         var otherCustomerManifest = await dbContext.Manifests.AddTestManifest(batchId: initialBatchId, customer: AlternativeCustomer, ingested: false);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(otherCustomerManifest.Entity, id: canvasPaintingId, assetId: assetId,
             canvasOrder: 1, ingesting: true);
@@ -352,7 +393,7 @@ public class BatchCompletionMessageHandlerTests
         var batchId = TestIdentifiers.BatchId();
         var flatId = $"https://localhost:5000/1/manifests/{identifier}";
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier

@@ -1,8 +1,11 @@
 ﻿using AWS.Helpers;
 using Core.Helpers;
+using Core.Settings;
+using Core.Streams;
 using DLCS.API;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Repository.Paths;
 
 namespace Services.Manifests.AWS;
@@ -15,46 +18,75 @@ public class ManifestS3Manager(
     IPathGenerator pathGenerator,
     IDlcsOrchestratorClient dlcsOrchestratorClient,
     IManifestMerger manifestMerger,
+    IOptionsMonitor<BehaviourSettings> behaviour,
     ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
-        Models.Database.Collections.Manifest dbManifest,
-        CancellationToken cancellationToken)
+        Models.Database.Collections.Manifest dbManifest, string? originalPayload, CancellationToken cancellationToken)
     {
         logger.LogInformation("Creating manifest {Manifest} in S3", dbManifest.Id);
 
-        var mergedManifest = await UpsertManifest(manifest, dbManifest, cancellationToken);
+        var mergedManifest = await UpsertManifest(manifest, dbManifest, originalPayload, cancellationToken);
 
         return mergedManifest;
     }
-    
+
     public async Task UpsertManifestFromStagingInStorage(Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating manifest {Manifest} in S3", dbManifest.Id);
 
-        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, true, cancellationToken);
+        var manifest = await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
         manifest.ThrowIfNull(nameof(manifest), "Manifest was not found in staging location");
 
-        await UpsertManifest(manifest!, dbManifest, cancellationToken);
+        // Future improvement would be to perform a copy without reading
+        string? stagedOriginal = null;
+        if (behaviour.CurrentValue.ShouldHaveStoredOriginal(dbManifest.Created))
+        {
+            var stagedOriginalStream =
+                await iiifS3.ReadStreamFromS3(dbManifest, BucketLocationType.OriginalStaging, cancellationToken);
+            if (!stagedOriginalStream.IsNull())
+            {
+                stagedOriginal = await stagedOriginalStream.ReadStreamAsStringAsync(cancellationToken);
+            }
+        }
+
+        await UpsertManifest(manifest!, dbManifest, stagedOriginal, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
     }
-    
-    public async Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest, bool saveToStaging,
-        CancellationToken cancellationToken)
+
+    public async Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload, bool saveToStaging, CancellationToken cancellationToken)
     {
-        await iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
+        var saveIiif = iiifS3.SaveIIIFToS3(manifest, dbManifest, pathGenerator.GenerateFlatManifestId(dbManifest),
             saveToStaging, cancellationToken);
-        
+
+        if (originalPayload != null)
+        {
+            var location = saveToStaging ? BucketLocationType.OriginalStaging : BucketLocationType.Original;
+            logger.LogDebug("Saving {ManifestId} original payload to {Location}", manifest.Id, location);
+            await iiifS3.SaveToS3(dbManifest, location, originalPayload, cancellationToken);
+        }
+
+        await saveIiif;
+
         if (!saveToStaging)
         {
             dbManifest.LastProcessed = DateTime.UtcNow;
         }
     }
-    
-    private async Task<Manifest> UpsertManifest(Manifest manifest, Models.Database.Collections.Manifest dbManifest, 
-        CancellationToken cancellationToken)
+
+    public async Task DeleteOriginalPayload(Models.Database.Collections.Manifest dbManifest)
+    {
+        if (!behaviour.CurrentValue.ShouldHaveStoredOriginal(dbManifest.Created)) return;
+
+        logger.LogDebug("Deleting any stale original payload for manifest {ManifestId}", dbManifest.Id);
+        await iiifS3.DeleteFromS3(dbManifest, BucketLocationType.Original);
+    }
+
+    private async Task<Manifest> UpsertManifest(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload, CancellationToken cancellationToken)
     {
         var namedQueryManifest =
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
@@ -67,8 +99,8 @@ public class ManifestS3Manager(
             dbManifest.CustomerId,
             dbManifest.Id);
 
-        await SaveManifestInStorage(mergedManifest, dbManifest, false, cancellationToken);
-        
+        await SaveManifestInStorage(mergedManifest, dbManifest, originalPayload, false, cancellationToken);
+
         return mergedManifest;
     }
 }
@@ -76,20 +108,25 @@ public class ManifestS3Manager(
 public interface IManifestStorageManager
 {
     /// <summary>
-    /// Upserts a final manifest that requires setting items from the staging environment
+    /// Upserts a final manifest that requires external content, merged with Manifest from the staging storage.
     /// </summary>
     public Task UpsertManifestFromStagingInStorage(Models.Database.Collections.Manifest dbManifest,
         CancellationToken cancellationToken);
-    
-    /// <summary>
-    /// Upserts a manifest that requires setting items to the final location directly
-    /// </summary>
-    public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
-        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Saves a manifest that does not require further processing
+    /// Upserts a manifest that requires external content, merged with Manifest provided.
+    /// </summary>
+    public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
+        string? originalPayload, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Upserts provided manifest directly to storage
     /// </summary>
     public Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
-        bool saveToStaging, CancellationToken cancellationToken);
+        string? originalPayload, bool saveToStaging, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes any stored original payload for a manifest (e.g. a stale one left by a prior version).
+    /// </summary>
+    public Task DeleteOriginalPayload(Models.Database.Collections.Manifest dbManifest);
 }

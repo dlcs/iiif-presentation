@@ -2,6 +2,7 @@
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Settings;
 using Core.Web;
 using DLCS;
 using DLCS.API;
@@ -34,6 +35,8 @@ public class BatchCompletionPathRewriteTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly PathSettings backgroundHandlerSettings;
+    // Testing as pre-store-originals, set a future date to disable this behaviour
+    private readonly BehaviourSettings behaviour = new(){StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1)};
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -90,6 +93,7 @@ public class BatchCompletionPathRewriteTests
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
 
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+            new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
@@ -104,7 +108,10 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {
             Id = identifier
@@ -148,7 +155,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
@@ -192,7 +199,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
