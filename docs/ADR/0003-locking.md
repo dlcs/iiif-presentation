@@ -32,7 +32,7 @@ Final decision was to write an implementation of a locking library so that it is
 
 The specific implementation of locking can be found in the `ManifestLockManager` class.
 
-It was decided to roll out own due to the bug report.  While the bug didn't affect the current use-case and there was a workaround, the potential of adding a library with a known bug could have caused issues in the future if used in that specific case.  By contrast, REDIs was decided not to be used as it provides an additional burden of supporting infrastructure for something that isn't used yet.
+It was decided to roll our own due to the bug report.  While the bug didn't affect the current use-case and there was a workaround, the potential of adding a library with a known bug could have caused issues in the future if used in that specific case.  By contrast, REDIS was decided not to be used as it provides an additional burden of supporting infrastructure for something that isn't used yet.
 
 ### Limitations
 

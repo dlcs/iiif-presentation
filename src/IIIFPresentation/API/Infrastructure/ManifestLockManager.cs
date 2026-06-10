@@ -7,7 +7,7 @@ namespace API.Infrastructure;
 /// <c>null</c> immediately if the key is already locked. The returned <see cref="IDisposable"/>
 /// releases the lock on disposal.
 /// </summary>
-public interface IManifestLockManager
+public interface ILockManager
 {
     IDisposable? TryAcquire(string key);
 }
@@ -17,7 +17,7 @@ public interface IManifestLockManager
 /// are removed once no thread holds or is waiting on a given key, keeping memory bounded to the set
 /// of currently-active keys.
 /// </summary>
-public sealed class ManifestLockManager : IManifestLockManager
+public sealed class LockManager : ILockManager
 {
     private readonly ConcurrentDictionary<string, KeyLock> entries = new();
 

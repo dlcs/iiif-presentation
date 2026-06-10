@@ -1,11 +1,10 @@
 using API.Infrastructure;
-using FluentAssertions;
 
 namespace API.Tests.Infrastructure;
 
-public class ManifestLockManagerTests
+public class LockManagerTests
 {
-    private readonly ManifestLockManager sut = new();
+    private readonly LockManager sut = new();
 
     [Fact]
     public void TryAcquire_ReturnsHandle_WhenKeyFree()

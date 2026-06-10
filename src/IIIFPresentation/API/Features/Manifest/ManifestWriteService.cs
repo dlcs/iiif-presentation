@@ -96,7 +96,7 @@ public class ManifestWriteService(
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
     IPathRewriteParser pathRewriteParser,
-    IManifestLockManager manifestLockManager,
+    ILockManager manifestLockManager,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>

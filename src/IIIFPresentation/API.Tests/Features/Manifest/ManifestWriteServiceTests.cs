@@ -51,7 +51,7 @@ public class ManifestWriteServiceTests
     private readonly DlcsSettings dlcsSettings;
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
-    private readonly ManifestLockManager manifestLockManager;
+    private readonly LockManager manifestLockManager;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -112,7 +112,7 @@ public class ManifestWriteServiceTests
             PathRules = PathRewriteOptions.Default
         })));
 
-        manifestLockManager = new ManifestLockManager();
+        manifestLockManager = new LockManager();
 
         sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
@@ -998,7 +998,7 @@ public class ManifestWriteServiceTests
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
-        await presentationContext.Batches.AddTestBatch(9982, dbManifest.Entity, DbDeliverableType.Adjunct);
+        await presentationContext.Batches.AddTestBatch(TestIdentifiers.BatchId(), dbManifest.Entity, DbDeliverableType.Adjunct);
         await presentationContext.SaveChangesAsync();
 
         var manifest = new PresentationManifest { Slug = slug };

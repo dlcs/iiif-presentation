@@ -67,7 +67,7 @@ builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
-    .AddSingleton<IManifestLockManager, ManifestLockManager>()
+    .AddSingleton<ILockManager, LockManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
     .AddScoped<IManagedAssetResultFinder, ManagedAssetResultFinder>()
     .AddScoped<DlcsManifestCoordinator>()
