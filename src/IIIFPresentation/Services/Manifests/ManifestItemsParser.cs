@@ -26,6 +26,7 @@ public class ManifestItemsParser(
     IPresentationPathGenerator presentationPathGenerator,
     PaintableAssetIdentifier paintableAssetIdentifier,
     IOptions<PathSettings> options,
+    CanvasHelper canvasHelper,
     ILogger<ManifestItemsParser> logger)
 {
     private readonly PathSettings settings = options.Value;
@@ -206,7 +207,7 @@ public class ManifestItemsParser(
 
         if (!Uri.TryCreate(currentCanvas.Id, UriKind.Absolute, out var canvasId))
         {
-            currentCanvas.Id = CanvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
+            currentCanvas.Id = canvasHelper.CheckForProhibitedCharacters(currentCanvas.Id, logger, false);
             
             if (currentCanvas.Id != null && !paintedResourceCanvasPaintings.ContainsId(currentCanvas.Id))
             {
@@ -222,7 +223,7 @@ public class ManifestItemsParser(
                 pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
 
             var checkedCanvasId =
-                CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
+                canvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger, false);
             
             if (paintedResourceCanvasPaintings.ContainsId(checkedCanvasId))
             {

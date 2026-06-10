@@ -241,11 +241,12 @@ namespace Repository.Migrations
             modelBuilder.Entity("Models.Database.General.Batch", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("DeliverableType")
+                        .HasColumnType("text")
+                        .HasColumnName("deliverable_type");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")
@@ -273,7 +274,7 @@ namespace Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted");
 
-                    b.HasKey("Id")
+                    b.HasKey("Id", "DeliverableType")
                         .HasName("pk_batches");
 
                     b.HasIndex("ManifestId", "CustomerId")

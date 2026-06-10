@@ -40,6 +40,17 @@ public class Batch : ICustomerEntity
     public required string ManifestId { get; set; }
     
     public Manifest? Manifest { get; set; }
+
+    /// <summary>
+    /// Whether this batch contains assets or adjuncts
+    /// </summary>
+    public DeliverableType DeliverableType { get; set; } = DeliverableType.Asset;
+}
+
+public enum DeliverableType
+{
+    Asset = 0,
+    Adjunct = 1
 }
 
 public enum BatchStatus

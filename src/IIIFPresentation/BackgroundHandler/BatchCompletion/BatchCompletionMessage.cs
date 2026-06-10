@@ -1,70 +1,57 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using AWS.SQS;
+using Models.Database.General;
 
 namespace BackgroundHandler.BatchCompletion;
 
-public class BatchCompletionMessage
-{
-    [JsonRequired]
-    public int Id { get; set; }
-    
-    [JsonRequired]
-    public int Customer { get; set; }
-    
-    [JsonRequired]
-    public required int Count { get; set; }
-    
-    [JsonRequired]
-    public int Completed { get; set; }
-    
-    [JsonRequired]
-    public int Errors { get; set; }
-    
-    [JsonRequired]
-    public bool Superseded { get; set; }
-    
-    [JsonRequired]
-    public DateTime Submitted { get; set; }
-    
-    [JsonRequired]
-    public DateTime Finished { get; set; }
-}
-
 /// <summary>
-/// Uses a non-standard version of the batch completion message that was used initially - this can be removed once
-/// protagonist has been updated to use the version specified above everywhere and just the <see cref="BatchCompletionMessage"/>
-/// used
+/// Represents a batch completion message from IIIF CloudServices.
 /// </summary>
-public class OldBatchCompletionMessage
+[method: JsonConstructor]
+public class BatchCompletionMessage(
+    int id,
+    int customer,
+    int count,
+    int completed,
+    int errors,
+    DateTime submitted,
+    DateTime finished)
 {
-    public int Id { get; set; }
-    
-    public int CustomerId { get; set; }
-    
-    public required int Total { get; set; }
-    
-    public int Success { get; set; }
-    
-    public int Errors { get; set; }
-    
-    public bool Superseded { get; set; }
-    
-    public DateTime Started { get; set; }
-    
-    public DateTime Finished { get; set; }
-}
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
-public static class BatchCompletionMessageX
-{
-    public static BatchCompletionMessage ConvertBatchCompletionMessage(
-        this OldBatchCompletionMessage batchCompletionMessage) => new()
+    public int Id { get; } = id;
+
+    public int Customer { get; } = customer;
+
+    public int Count { get; } = count;
+
+    public int Completed { get; } = completed;
+
+    public int Errors { get; } = errors;
+
+    public DateTime Submitted { get; } = submitted;
+
+    public DateTime Finished { get; } = finished;
+
+    public DeliverableType DeliverableType { get; private set; }
+
+    public static BatchCompletionMessage FromQueueMessage(QueueMessage message)
     {
-        Id = batchCompletionMessage.Id,
-        Customer = batchCompletionMessage.CustomerId,
-        Count = batchCompletionMessage.Total,
-        Completed = batchCompletionMessage.Success,
-        Errors = batchCompletionMessage.Errors,
-        Superseded = batchCompletionMessage.Superseded,
-        Submitted = batchCompletionMessage.Started,
-        Finished = batchCompletionMessage.Finished
-    };
+        var batchCompletionMessage =
+            JsonSerializer.Deserialize<BatchCompletionMessage>(message.Body, JsonSerializerOptions)
+            ?? throw new JsonException("Deserialized BatchCompletionMessage was null");
+
+        if (message.Attributes.TryGetValue("Type", out var type) &&
+            type.Equals("AdjunctBatch", StringComparison.OrdinalIgnoreCase))
+        {
+            batchCompletionMessage.DeliverableType = DeliverableType.Adjunct;
+        }
+        else
+        {
+            batchCompletionMessage.DeliverableType = DeliverableType.Asset;
+        }
+
+        return batchCompletionMessage;
+    }
 }

@@ -9,33 +9,31 @@ using Core.Helpers;
 using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
-using JsonDiffPatchDotNet;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.Database.General;
 using Models.DLCS;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using Batch = Models.Database.General.Batch;
 using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
-public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, bool onlySpace = false, 
+public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, 
     List<AssetId>? ingestedAssets = null)
 {
     public EntityResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
     public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
-    
-    public bool OnlySpace { get; } = onlySpace;
 
     public List<AssetId>? IngestedAssets { get; } = ingestedAssets;
-    
-    public static readonly DlcsInteractionResult NoInteraction = new(null, null);
-        
+
+    public static readonly DlcsInteractionResult NoInteraction = new(null, null, true);
+
     public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
 }
 
@@ -69,7 +67,7 @@ public class DlcsManifestCoordinator(
             return null;
         }
     }
-    
+
     /// <summary>
     /// Carry out any required interactions with DLCS for given <see cref="WriteManifestRequest"/>, this can include
     /// creating a space and/or creating DLCS batches
@@ -79,21 +77,23 @@ public class DlcsManifestCoordinator(
     /// <param name="previousManifestAssetIds">every asset id in the previous manifest</param>
     /// <param name="dbManifest">The current manifest in the database</param>
     /// <param name="itemCanvasPaintingsWithAssets">canvas paintings from items that contain asset ids</param>
+    /// <param name="adjunctInteractions">The adjuncts to add to the database</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>Any errors encountered and new Manifest SpaceId if created</returns>
     public async Task<DlcsInteractionResult> HandleDlcsInteractions(WriteManifestRequest request,
         string manifestId,
-        List<AssetId>? previousManifestAssetIds = null,
-        Models.Database.Collections.Manifest? dbManifest = null,
-        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets = null,
-        CancellationToken cancellationToken = default)
+        List<AssetId>? previousManifestAssetIds,
+        Models.Database.Collections.Manifest? dbManifest,
+        List<InterimCanvasPainting>? itemCanvasPaintingsWithAssets,
+        List<AdjunctInteraction>? adjunctInteractions,
+        CancellationToken cancellationToken)
     {
         var errorFromItems = await HandleItemsDlcsInteractions(request, manifestId, previousManifestAssetIds,
             itemCanvasPaintingsWithAssets, cancellationToken);
         if (errorFromItems != null) return errorFromItems;
 
         return await HandlePaintedResourceDlcsInteractions(request, manifestId,
-            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
+            itemCanvasPaintingsWithAssets?.GetAssetIds() ?? [], adjunctInteractions ?? [], previousManifestAssetIds, dbManifest?.SpaceId,
             cancellationToken);
     }
 
@@ -105,8 +105,7 @@ public class DlcsManifestCoordinator(
             var assetsToUpdateWithManifestId = await knownAssetChecker.CheckAssetsFromItemsExist(itemCanvasPaintingsWithAssets, request.CustomerId, existingAssetIds,
                 cancellationToken);
             
-            await UpdateAssetsWithManifestId(request, manifestId,
-                assetsToUpdateWithManifestId, cancellationToken);
+            await UpdateAssetsWithManifestId(request, manifestId, assetsToUpdateWithManifestId, cancellationToken);
         }
         catch (PresentationException presentationException)
         {
@@ -120,15 +119,16 @@ public class DlcsManifestCoordinator(
 
     private async Task<DlcsInteractionResult> HandlePaintedResourceDlcsInteractions(
         WriteManifestRequest request,
-        string manifestId, 
+        string manifestId,
         List<AssetId> assetsFromItems,
-        List<AssetId>? previousManifestAssetIds = null,
-        int? manifestSpaceId = null,
-        CancellationToken cancellationToken = default)
+        List<AdjunctInteraction> adjunctInteractions,
+        List<AssetId>? previousManifestAssetIds,
+        int? manifestSpaceId,
+        CancellationToken cancellationToken)
     {
         var assets = GetAssetJObjectList(request.PresentationManifest.PaintedResources);
 
-        if (!request.CreateSpace && assets.Count <= 0 && previousManifestAssetIds.IsNullOrEmpty())
+        if (!HasItems(request, assets, previousManifestAssetIds, adjunctInteractions))
         {
             logger.LogDebug("No assets or space required, DLCS integrations not required");
             return DlcsInteractionResult.NoInteraction;
@@ -157,35 +157,39 @@ public class DlcsManifestCoordinator(
                 // you wanted a space, and there are no assets, so no further work required
                 if (assets.Count == 0)
                 {
-                    return new DlcsInteractionResult(null, spaceId, onlySpace: true);
+                    return new DlcsInteractionResult(null, spaceId, true);
                 }
                 
                 createdSpace = true;
             }
 
             SpaceHelper.UpdateAssets(assetsWithoutSpaces, spaceId.Value);
-            
+
+            if (adjunctInteractions.Count > 0)
+            {
+                SpaceHelper.UpdateAdjuncts(adjunctInteractions, spaceId.Value);
+            }
         }
 
-        return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, assetsFromItems, spaceId,
+        return await UpdateDlcsWithAssets(request, manifestId, previousManifestAssetIds, assets, adjunctInteractions, assetsFromItems, spaceId,
             createdSpace, cancellationToken);
     }
 
-    private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId, 
-        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated, 
+    private async Task<DlcsInteractionResult> UpdateDlcsWithAssets(WriteManifestRequest request, string manifestId,
+        List<AssetId>? previousManifestAssetIds, List<JObject> assets, List<AdjunctInteraction> adjunctInteractions, List<AssetId> assetsFromItems, int? spaceId, bool spaceCreated,
         CancellationToken cancellationToken)
     {
         List<DlcsInteractionRequest> dlcsInteractionRequests;
-        
+
         try
         {
             dlcsInteractionRequests = await knownAssetChecker.FindAssetsThatRequireAdditionalWork(
                 request.PresentationManifest, previousManifestAssetIds, spaceId, spaceCreated, request.CustomerId,
-                cancellationToken);
+                adjunctInteractions, cancellationToken);
         }
         catch (AssetIdException assetIdException)
         {
-            logger.LogError(assetIdException, "Error parsing  DLCS asset that requires more work for manifest {ManifestId}", manifestId);
+            logger.LogError(assetIdException, "Error parsing DLCS asset that requires more work for manifest {ManifestId}", manifestId);
 
             var error = $"Error parsing the asset id from an attached asset - {assetIdException.Message}";
 
@@ -199,22 +203,126 @@ public class DlcsManifestCoordinator(
         }
 
         var assetsToIngest = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).ToList();
-        // create batches for assets
-        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest.ToList(), cancellationToken);
-        
-        if (batchError != null)  return new DlcsInteractionResult(batchError, spaceId);
-        
+
+        // Enrich adjunct state before batching so missing stub assets can be co-ingested in a single call
+        if (adjunctInteractions.Count > 0)
+        {
+            await EnrichExistingAdjunctIds(request, adjunctInteractions, cancellationToken);
+            assetsToIngest.AddRange(BuildMissingStubAssetRequests(request.CustomerId, manifestId, adjunctInteractions, request.PresentationManifest));
+        }
+
+        // create batches for assets (including any new stub assets)
+        var collectedBatches = new List<Batch>();
+        var batchError = await CreateBatches(request.CustomerId, manifestId, assetsToIngest, collectedBatches,
+            cancellationToken);
+        if (batchError != null) return new DlcsInteractionResult(batchError, spaceId);
+
         // then update existing assets in another manifest with the current manifest id
         await UpdateAssetsWithManifestId(request, manifestId,
             dlcsInteractionRequests.Where(d => d.Patch).Select(d => d.AssetId).ToList(), cancellationToken);
 
         await RemoveUnusedAssets(previousManifestAssetIds, manifestId, request.CustomerId, assets, assetsFromItems, cancellationToken);
 
-        var ingestedAssets = dlcsInteractionRequests.Where(d => d.Ingest != IngestType.NoIngest).Select(d => d.AssetId)
+        // finally ingest adjuncts
+        var adjunctErrors = await HandleAdjunctInteractions(request, manifestId, adjunctInteractions, spaceId,
+            collectedBatches, cancellationToken);
+        if (adjunctErrors != null) return adjunctErrors;
+
+        var ingestedAssets = dlcsInteractionRequests
+            .Where(d => d.Ingest != IngestType.NoIngest)
+            .Select(d => d.AssetId)
             .ToList();
-        var canBeBuiltUpfront = dlcsInteractionRequests.Count == 0 || 
-                                (dlcsInteractionRequests.All(d => d.Ingest == IngestType.NoIngest) && assets.Count > 0);
-        return new DlcsInteractionResult(batchError, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
+        
+        // All-of-empty is true, so no batches submitted ⇒ canBeBuiltUpfront
+        var canBeBuiltUpfront = collectedBatches.All(b => b.Status == BatchStatus.Completed);
+        return new DlcsInteractionResult(null, spaceId, canBeBuiltUpfront, ingestedAssets: ingestedAssets);
+    }
+
+    private async Task<DlcsInteractionResult?> HandleAdjunctInteractions(WriteManifestRequest request, string manifestId, List<AdjunctInteraction> adjunctInteractions,
+        int? spaceId, List<Batch> collectedBatches, CancellationToken cancellationToken)
+    {
+        if (adjunctInteractions.Count > 0)
+        {
+            // remove any adjuncts in IIIF-CS that are no longer in the manifest
+            await DeleteUnusedAdjuncts(request.CustomerId, adjunctInteractions, cancellationToken);
+
+            var adjunctList = adjunctInteractions.SelectMany(a => a.Adjuncts).ToList();
+
+            if (adjunctList.Count > 0)
+            {
+                var errorFromAdjuncts = await IngestDeliverables(request.CustomerId, manifestId, adjunctList,
+                    DeliverableType.Adjunct, collectedBatches, cancellationToken);
+                if (errorFromAdjuncts != null) return new DlcsInteractionResult(errorFromAdjuncts, spaceId);
+            }
+        }
+
+        return null;
+    }
+
+    private static List<DlcsInteractionRequest> BuildMissingStubAssetRequests(int customerId, string manifestId,
+        List<AdjunctInteraction> adjunctInteractions, PresentationManifest manifest)
+    {
+        var expectedStubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
+        var result = new List<DlcsInteractionRequest>();
+
+        foreach (var interaction in adjunctInteractions.Where(a => a.AssetId == expectedStubAssetId && a.ExistingAdjunctIds == null))
+        {
+            result.Add(new DlcsInteractionRequest(
+                new JObject
+                {
+                    [AssetProperties.Id] = interaction.AssetId.Asset,
+                    [AssetProperties.Space] = interaction.AssetId.Space
+                },
+                IngestType.ManifestId,
+                patch: false,
+                interaction.AssetId));
+
+            // Stub asset is being created now; it has no pre-existing adjuncts to diff against
+            interaction.ExistingAdjunctIds = [];
+        }
+
+        return result;
+    }
+
+    private async Task EnrichExistingAdjunctIds(WriteManifestRequest request, List<AdjunctInteraction> adjunctInteractions,
+        CancellationToken cancellationToken)
+    {
+        var adjunctsWithoutExistingIds = adjunctInteractions.Where(a => a.ExistingAdjunctIds == null).ToList();
+        if (adjunctsWithoutExistingIds.Count > 0)
+        {
+            var dlcsAssets = await dlcsApiClient.GetCustomerImages(request.CustomerId,
+                adjunctsWithoutExistingIds.Select(a => a.AssetId.ToString()).ToList(), cancellationToken);
+
+            foreach (var dlcsAsset in dlcsAssets)
+            {
+                var assetId = dlcsAsset.GetAssetId(request.CustomerId);
+                dlcsAsset.SetExistingAdjunctIds(adjunctsWithoutExistingIds, assetId);
+            }
+        }
+    }
+
+    private async Task DeleteUnusedAdjuncts(int customerId, List<AdjunctInteraction> adjuncts, CancellationToken cancellationToken)
+    {
+        var bulkDelete = new List<AdjunctAssetIdentifier>();
+
+        foreach (var adjunctInteraction in adjuncts)
+        {
+            if (adjunctInteraction.ExistingAdjunctIds is not { Count: > 0 }) continue;
+
+            var currentIds = adjunctInteraction.Adjuncts
+                .Select(a => a[AdjunctProperties.Id]?.Value<string>())
+                .Where(id => id != null);
+            
+            var adjunctsToDelete = adjunctInteraction.ExistingAdjunctIds
+                .Except(currentIds)
+                .ToList();
+
+            if (adjunctsToDelete.Count > 0)
+                bulkDelete.Add(new AdjunctAssetIdentifier { Id = adjunctInteraction.AssetId, Adjunct = adjunctsToDelete });
+        }
+
+        if (bulkDelete.Count > 0)
+            await dlcsApiClient.DeleteAdjuncts(customerId, bulkDelete, cancellationToken);
     }
 
     private async Task UpdateAssetsWithManifestId(WriteManifestRequest request, string manifestId,
@@ -249,6 +357,10 @@ public class DlcsManifestCoordinator(
             assetsToRemove.Select(cp => cp.ToString()).ToList(), OperationType.Remove,
     [dbManifestId], cancellationToken);
 
+    private static bool HasItems(WriteManifestRequest request, List<JObject> assets,
+        List<AssetId>? previousManifestAssetIds, List<AdjunctInteraction> adjunctInteractions) =>
+        request.CreateSpace || assets.Count > 0 || !previousManifestAssetIds.IsNullOrEmpty() || adjunctInteractions.Count > 0;
+
     private static List<JObject> GetAssetJObjectList(List<PaintedResource>? paintedResources) =>
         paintedResources?
             .Select(p => p.Asset)
@@ -264,8 +376,8 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId, 
-        List<DlcsInteractionRequest> dlcsInteractionRequests, CancellationToken cancellationToken)
+    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId,
+        List<DlcsInteractionRequest> dlcsInteractionRequests, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         if (dlcsInteractionRequests.Count == 0) return null;
 
@@ -288,34 +400,28 @@ public class DlcsManifestCoordinator(
                     break;
             }
 
-            // If can add, move to next one
-            if (assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset)) continue;
-            
-            // else already specified
-            logger.LogDebug("Asset {AssetId} has been specified multiple times, validating they match", dlcsInteractionRequest.AssetId);
-            var assetInDictionary = assets[dlcsInteractionRequest.AssetId];
-
-            // if specified with the same data, we can ignore and continue
-            if (JToken.DeepEquals(assetInDictionary, dlcsInteractionRequest.Asset)) continue;
-            
-            // else report failure with details
-            var jsonDiffPatch = new JsonDiffPatch();
-            var diff = jsonDiffPatch.Diff(assetInDictionary, dlcsInteractionRequest.Asset);
-                    
-            return EntityResult.Failure(
-                $"Asset {dlcsInteractionRequest.AssetId} is specified multiple times, but has conflicting data - diff: {JsonConvert.SerializeObject(diff)}",
-                ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
+            // Deduplicate — conflicting data is already validated earlier in the pipeline
+            assets.TryAdd(dlcsInteractionRequest.AssetId, dlcsInteractionRequest.Asset);
         }
         
         // `assets` now contain all the assets that should be ingested by DLCS
-        
+        return await IngestDeliverables(customerId, manifestId, assets.Values.ToList(), DeliverableType.Asset,
+            collectedBatches, cancellationToken);
+    }
+
+    private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId,
+        List<JObject> deliverables, DeliverableType deliverableType, List<Batch> collectedBatches, CancellationToken cancellationToken)
+    {
         try
         {
-            var batches = await dlcsApiClient.IngestAssets(customerId,
-                assets.Values.ToList(),
-                cancellationToken);
+            var batches = await dlcsApiClient.IngestDeliverables(customerId,
+                deliverables,
+                deliverableType == DeliverableType.Adjunct,
+                cancellationToken: cancellationToken);
 
-            await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, cancellationToken);
+            var dbBatches = await batches.AddBatchesToDatabase(customerId, manifestId, dbContext, deliverableType,
+                cancellationToken);
+            collectedBatches.AddRange(dbBatches);
             return null;
         }
         catch (DlcsException exception)
@@ -327,7 +433,7 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private WriteResult ErrorStatusCodeToWriteResult(HttpStatusCode statusCode)
+    private static WriteResult ErrorStatusCodeToWriteResult(HttpStatusCode statusCode)
     {
         return statusCode switch
         {

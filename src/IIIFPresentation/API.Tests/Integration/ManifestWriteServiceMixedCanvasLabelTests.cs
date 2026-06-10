@@ -35,13 +35,13 @@ public class ModifyManifestMixedCanvasLabelTests : IClassFixture<PresentationApp
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         // Echo back "batch" value set in first Asset
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch>
                 {
                     new()
                     {
-                        ResourceId = x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(),
+                        ResourceId = x.Arguments[1].As<List<JObject>>().First().GetValue("batch").ToString(),
                         Submitted = DateTime.Now
                     }
                 }));

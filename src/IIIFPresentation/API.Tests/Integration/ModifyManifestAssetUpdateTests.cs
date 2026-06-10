@@ -49,11 +49,11 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         
         // Echo back "batch" value set in first Asset
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer, A<List<JObject>>._, A<CancellationToken>._))
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments.Get<List<JObject>>("images").First().GetValue("batch").ToString(), 
+                    ResourceId =  x.Arguments.Get<List<JObject>>("deliverables").First().GetValue("batch").ToString(), 
                     Submitted = DateTime.Now
                 }}));
         
@@ -498,9 +498,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, batchId: TestIdentifiers.BatchId(), ingested: true);
         await dbContext.SaveChangesAsync();
         
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == assetId),
-            A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
+            A<bool>._, A<CancellationToken>._)).Throws(new DlcsException("DLCS exception", HttpStatusCode.BadRequest));
         
         var payload = $$"""
                          {
@@ -2007,9 +2007,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         newAssetManifestSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/{NewlyCreatedSpace}/{assetId}_3"));
         newAssetAssetSpace.AssetId.Should().Be(AssetId.FromString($"{Customer}/3/{assetId}_3"));
         
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
             A<List<JObject>>.That.Matches(o => o.First().GetValue("id").ToString() == "returnNothing"),
-            A<CancellationToken>._)).MustNotHaveHappened();
+            A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
         
         dbManifest.Batches.Should().HaveCount(2);
         dbManifest.Batches.Single(b => b.Id == batchId).Should().NotBeNull("Assets not found, so batch created");
@@ -2455,9 +2455,9 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        A.CallTo(() => DLCSApiClient.IngestAssets(Customer,
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
                 A<List<JObject>>.That.Matches(o =>
-                    o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<CancellationToken>._))
+                    o.First().GetValue("manifests").ToList().First().ToString() == "ignored"), A<bool>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
     
@@ -2885,5 +2885,127 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         // space added using the new space
         canvasPainting.AssetId!.ToString().Should()
             .Be($"{Customer}/{finalSpace}/{assetId}", "asset id updated to point at new space");
+    }
+
+    [Fact]
+    public async Task UpdateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdHaveDifferentAdjuncts()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var batchId = TestIdentifiers.BatchId();
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
+            batchId: batchId, ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        var payload = $$"""
+                        {
+                            "type": "Manifest",
+                            "slug": "{{slug}}",
+                            "parent": "http://localhost/{{Customer}}/collections/root",
+                            "paintedResources": [
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg",
+                                        "adjuncts": [
+                                            {
+                                                "id": "adjunct-1",
+                                                "profile": "https://example.org/profile/a"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg",
+                                        "adjuncts": [
+                                            {
+                                                "id": "adjunct-1",
+                                                "profile": "https://example.org/profile/b"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                        """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        var assetKey = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+        errorResponse!.Detail.Should()
+            .StartWith($"Asset {assetKey} is specified multiple times with different adjuncts - diff: ")
+            .And.Contain("profile")
+            .And.Contain("https://example.org/profile/a")
+            .And.Contain("https://example.org/profile/b");
+        errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
+    }
+
+    [Fact]
+    public async Task UpdateManifest_BadRequest_WhenMultipleAssetsWithSameAssetIdOneHasNullAdjunctsOtherHasEmptyAdjuncts()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        var batchId = TestIdentifiers.BatchId();
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug,
+            batchId: batchId, ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        var payload = $$"""
+                        {
+                            "type": "Manifest",
+                            "slug": "{{slug}}",
+                            "parent": "http://localhost/{{Customer}}/collections/root",
+                            "paintedResources": [
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg"
+                                    }
+                                },
+                                {
+                                    "asset": {
+                                        "id": "{{assetId}}",
+                                        "space": {{NewlyCreatedSpace}},
+                                        "batch": "{{batchId}}",
+                                        "mediaType": "image/jpg",
+                                        "adjuncts": []
+                                    }
+                                }
+                            ]
+                        }
+                        """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+        var assetKey = $"{Customer}/{NewlyCreatedSpace}/{assetId}";
+        errorResponse!.Detail.Should()
+            .StartWith($"Asset {assetKey} is specified multiple times with different adjuncts - diff: ");
+        errorResponse.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/AssetsAdjunctsDoNotMatch");
     }
 }

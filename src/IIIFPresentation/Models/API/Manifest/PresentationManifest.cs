@@ -6,6 +6,17 @@ namespace Models.API.Manifest;
 
 public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
 {
+    /// <summary>
+    /// A collection of properties that are not part of the IIIF Presentation API spec and are custom to the
+    /// IIIF-Presentation.
+    /// </summary>
+    public static readonly string[] PresentationPropertyKeys =
+    [
+        "slug", "publicId", "parent", "created", "modified",
+        "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "adjuncts", "ingesting",
+        "fullPath", "currentlyIngesting"
+    ];
+
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
     [JsonProperty(Order = 7)] public string? PublicId { get; set; }
     [JsonProperty(Order = 8)] public string? Parent { get; set; }
@@ -22,11 +33,16 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     public List<PaintedResource>? PaintedResources { get; set; }
 
     [JsonProperty(Order = 13)] public string? Space { get; set; }
-    
+
+    /// <summary>
+    /// Manifest-level adjuncts to be associated with this manifest via a stub asset.
+    /// </summary>
+    [JsonProperty(Order = 14)] public List<JObject>? Adjuncts { get; set; }
+
     /// <summary>
     /// Contains details of the ingestion progress
     /// </summary>
-    [JsonProperty(Order = 14)] public IngestingAssets? Ingesting { get; set; }
+    [JsonProperty(Order = 15)] public IngestingAssets? Ingesting { get; set; }
 
     [JsonIgnore] public string? FullPath { get; set; }
     

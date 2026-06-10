@@ -1,18 +1,23 @@
 using API.Features.Storage.Validators;
-using API.Infrastructure.Validation;
-using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 
 namespace API.Features.Manifest.Validators;
 
 public class PresentationManifestValidator : AbstractValidator<PresentationManifest>
 {
-    public PresentationManifestValidator(IOptions<ApiSettings> options)
+    private readonly ServicesSettings servicesSettings;
+
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
     {
+        servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
+        When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
         RuleFor(c => c).SetValidator(new PresentationValidator());
         
         RuleFor(m => m.Items)
@@ -24,6 +29,9 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
     {
+        When(m => m.PaintedResources?.Any(pr => pr.Asset?[AssetProperties.Adjuncts] != null) == true,
+            AdjunctsValidation);
+        
         RuleForEach(m => m.PaintedResources)
             .Must(pr => pr.CanvasPainting?.CanvasOrder != null)
             .When(m => m.PaintedResources != null && m.PaintedResources.Any(pr => pr.CanvasPainting is { CanvasOrder: not null }))
@@ -74,4 +82,27 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .WithMessage(
                 "'static_width' and 'static_height' have to be both set or both absent within a 'canvasPainting'");
      }
+    
+    // Validation rules for manifest-level adjuncts
+    private void ManifestAdjunctsValidation()
+    {
+        RuleForEach(m => m.Adjuncts)
+            .Must(a => !a.ContainsKey(AssetProperties.Asset))
+            .WithMessage("Manifest-level adjuncts must not include an 'asset' property; it is set by the system");
+
+        RuleForEach(m => m.Adjuncts)
+            .SetValidator(new AdjunctValidator(servicesSettings));
+    }
+
+    // Validation rules specific to Adjuncts only
+    private void AdjunctsValidation()
+    {
+        RuleForEach(m => m.PaintedResources)
+            .Where(pr => pr.Asset?[AssetProperties.Adjuncts] is JArray)
+            .ChildRules(pr =>
+            {
+                pr.RuleFor(r => r.Asset![AssetProperties.Adjuncts]!.ToObject<List<JObject>>())
+                    .ForEach(adjunct => adjunct.SetValidator(new AdjunctValidator(servicesSettings)));
+            });
+    }
 }

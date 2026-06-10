@@ -6,6 +6,7 @@ using DLCS.Exceptions;
 using DLCS.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Stubbery;
 
@@ -67,7 +68,7 @@ public class DlcsApiClientTests
         
         Func<Task> action = () => sut.CreateSpace(customerId, "hi", CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
-            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
     
     [Fact]
@@ -88,7 +89,7 @@ public class DlcsApiClientTests
     }
     
     [Fact]
-    public async Task IngestAssets_ReturnsListOfSingleBatch_IfIngested()
+    public async Task IngestDeliverables_ReturnsListOfSingleBatch_IfIngested()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
@@ -101,13 +102,13 @@ public class DlcsApiClientTests
         
         dynamic jsonObject = new JObject();
         jsonObject.someObject = "someValue";
-        var batches = await sut.IngestAssets(customerId, new List<JObject>() { jsonObject }, CancellationToken.None);
+        var batches = await sut.IngestDeliverables(customerId, new List<JObject>() { jsonObject }, cancellationToken: CancellationToken.None);
 
         batches.Should().BeEquivalentTo(expected);
     }
     
     [Fact]
-    public async Task IngestAssets_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
+    public async Task IngestDeliverables_ReturnsListOfMultipleBatch_IfIngestedWithSplit()
     {
         using var stub = new ApiStub();
         const int customerId = 5;
@@ -128,8 +129,8 @@ public class DlcsApiClientTests
         dynamic secondJsonObject = new JObject();
         secondJsonObject.someObject = "someValue";
 
-        var batches = await sut.IngestAssets(customerId, new List<JObject> { jsonObject, secondJsonObject },
-            CancellationToken.None);
+        var batches = await sut.IngestDeliverables(customerId, new List<JObject> { jsonObject, secondJsonObject },
+            cancellationToken: CancellationToken.None);
 
         batches.Should().BeEquivalentTo(expected);
     }
@@ -138,7 +139,7 @@ public class DlcsApiClientTests
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.Conflict)]
     [InlineData(HttpStatusCode.BadRequest)]
-    public async Task IngestAssets_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    public async Task IngestDeliverables_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
     {
         using var stub = new ApiStub();
         const int customerId = 4;
@@ -146,10 +147,33 @@ public class DlcsApiClientTests
             .IfBody(body => body.Contains("\"someString\""))
             .StatusCode((int)httpStatusCode);
         var sut = GetClient(stub);
-        
-        Func<Task> action = () => sut.IngestAssets(customerId, new List<string> {"someString"}, CancellationToken.None);
+
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someString";
+        Func<Task> action = () => sut.IngestDeliverables(customerId, [jsonObject],
+            cancellationToken: CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
             .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
+    }
+
+    [Fact]
+    public async Task IngestDeliverables_PostsToAdjunctQueue_WhenAdjunctQueueTrue()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        stub.Post($"/customers/{customerId}/adjunctQueue",
+                (_, _) => "{ \"@id\": \"customers/26/queue/batches/1234\" }")
+            .IfBody(body => body.Contains("{\"someObject\":\"someValue\"}"))
+            .StatusCode(201);
+        var sut = GetClient(stub);
+        var expected = new List<Batch> { new() { ResourceId = "customers/26/queue/batches/1234" } }; 
+        
+        dynamic jsonObject = new JObject();
+        jsonObject.someObject = "someValue";
+        var batches = await sut.IngestDeliverables(customerId, [jsonObject],
+            adjunctQueue: true, cancellationToken: CancellationToken.None);
+
+        batches.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
@@ -300,7 +324,7 @@ public class DlcsApiClientTests
 
         Func<Task> action = () => sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
-            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
     
     [Fact]
@@ -373,7 +397,7 @@ public class DlcsApiClientTests
 
         Func<Task> action = () => sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
         await action.Should().ThrowAsync<DlcsException>()
-            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);;
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
     }
     
     [Fact]
@@ -529,7 +553,176 @@ public class DlcsApiClientTests
     }
 
 
-    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1)
+    [Fact]
+    public async Task DeleteAdjuncts_SerializesIdAsString_NotObject()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedBody = string.Empty;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((request, _) =>
+            {
+                capturedBody = request.Body.ReadAsStringAsync().Result;
+                return string.Empty;
+            }).StatusCode(204);
+
+        var sut = GetClient(stub);
+
+        await sut.DeleteAdjuncts(customerId,
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
+            CancellationToken.None);
+
+        capturedBody.Should().Contain($"\"{customerId}/1/asset1\"");
+        capturedBody.Should().NotContain("\"customer\"");
+    }
+
+    [Fact]
+    public async Task DeleteAdjuncts_MakesSingleRequest_WhenTotalAdjunctCountWithinLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return string.Empty;
+            }).StatusCode(204);
+
+        var sut = GetClient(stub, maxImageListSize: 5);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["c"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DeleteAdjuncts_MakesMultipleRequests_WhenTotalAdjunctCountExceedsLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return string.Empty;
+            }).StatusCode(204);
+
+        // Two items each with 3 adjuncts (total 6) exceeds limit of 5 → 2 requests
+        var sut = GetClient(stub, maxImageListSize: 5);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c"] },
+            new() { Id = new AssetId(customerId, 1, "asset2"), Adjunct = ["d", "e", "f"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task DeleteAdjuncts_Throws_IfDownstreamNon200_WithReturnedError(HttpStatusCode httpStatusCode)
+    {
+        using var stub = new ApiStub();
+        const int customerId = 4;
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) => "{\"description\":\"I am broken\"}")
+            .StatusCode((int)httpStatusCode);
+        var sut = GetClient(stub);
+
+        Func<Task> action = () => sut.DeleteAdjuncts(customerId,
+            [new AdjunctAssetIdentifier { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a"] }],
+            CancellationToken.None);
+
+        await action.Should().ThrowAsync<DlcsException>()
+            .Where(e => e.Message == "I am broken" && e.StatusCode == httpStatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteAdjuncts_SplitsItem_WhenSingleItemExceedsLimit()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var callCount = 0;
+
+        stub.Request(HttpMethod.Post).IfRoute($"/customers/{customerId}/deleteAdjuncts")
+            .Response((_, _) =>
+            {
+                callCount++;
+                return string.Empty;
+            }).StatusCode(204);
+
+        // 4 adjuncts with a limit of 3 → split into [a,b,c] and [d] → 2 requests
+        var sut = GetClient(stub, maxImageListSize: 3);
+
+        var adjuncts = new List<AdjunctAssetIdentifier>
+        {
+            new() { Id = new AssetId(customerId, 1, "asset1"), Adjunct = ["a", "b", "c", "d"] }
+        };
+
+        await sut.DeleteAdjuncts(customerId, adjuncts, CancellationToken.None);
+
+        callCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetCustomerImages_IncludesAdjunctsQueryParam_WhenCalledByAssetIds()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedQuery = string.Empty;
+
+        stub.Post($"/customers/{customerId}/allImages",
+                (req, _) =>
+                {
+                    capturedQuery = req.QueryString.Value ?? string.Empty;
+                    return """{ "@id": "customers/5/allImages", "member": [] }""";
+                })
+            .StatusCode(200);
+
+        var sut = GetClient(stub);
+        await sut.GetCustomerImages(customerId, ["someString"], CancellationToken.None);
+
+        capturedQuery.Should().Contain("include=adjuncts");
+    }
+
+    [Fact]
+    public async Task GetCustomerImages_IncludesAdjunctsQueryParam_WhenCalledByManifestId()
+    {
+        using var stub = new ApiStub();
+        const int customerId = 5;
+        var capturedQuery = string.Empty;
+
+        stub.Get($"/customers/{customerId}/allImages",
+                (req, _) =>
+                {
+                    capturedQuery = req.QueryString.Value ?? string.Empty;
+                    return """{ "@id": "customers/5/allImages", "member": [] }""";
+                })
+            .StatusCode(200);
+
+        var sut = GetClient(stub);
+        await sut.GetCustomerImages(customerId, "someManifest", CancellationToken.None);
+
+        capturedQuery.Should().Contain("include=adjuncts");
+    }
+
+    private static DlcsApiClient GetClient(ApiStub stub, int maxBatchSize = 1, int maxImageListSize = 500)
     {
         stub.EnsureStarted();
 
@@ -537,11 +730,15 @@ public class DlcsApiClientTests
         {
             BaseAddress = new Uri(stub.Address)
         };
+        // Stubbery doesn't support HTTP/1.1 keep-alive across multiple requests; force connection-close
+        // so each request gets a fresh connection and avoids ResponseEnded on the second call
+        httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
         var options = Options.Create(new DlcsSettings()
         {
             ApiUri = new Uri("https://localhost"),
-            MaxBatchSize = maxBatchSize
+            MaxBatchSize = maxBatchSize,
+            MaxImageListSize = maxImageListSize
         });
 
         return new DlcsApiClient(httpClient, options, new NullLogger<DlcsApiClient>());

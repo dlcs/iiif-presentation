@@ -90,6 +90,8 @@ public class SqsListener
             QueueUrl = queueUrl,
             WaitTimeSeconds = options.SQS.WaitTimeSecs,
             MaxNumberOfMessages = options.SQS.MaxNumberOfMessages,
+            MessageAttributeNames = [".*"], // Include all custom message attributes
+            MessageSystemAttributeNames = [QueueAttributes.ApproximateReceiveCount], // Include the number of times received
         }, cancellationToken);
 
     private async Task<bool> HandleMessage<T>(string queueUrl, Message message, CancellationToken cancellationToken)
@@ -97,7 +99,8 @@ public class SqsListener
     {
         try
         {
-            var queueMessage = new QueueMessage(GetJsonPayload(message), message.Attributes, message.MessageId);
+            var queueMessage = new QueueMessage(GetJsonPayload(message), message.MessageAttributes, message.Attributes,
+                message.MessageId);
 
             // create a new scope to avoid issues with Scoped dependencies
             using var listenerScope = serviceScopeFactory.CreateScope();

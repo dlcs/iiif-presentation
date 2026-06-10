@@ -3,12 +3,14 @@
 using System.Net;
 using Amazon.S3;
 using API.Converters;
+using Services.Manifests.Helpers;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
 using Core.Web;
 using DLCS.API;
 using FakeItEasy;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using IIIF.Serialisation;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,7 +39,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private readonly PresentationContext dbContext;
 
     private readonly IAmazonS3 amazonS3;
-    private readonly IDlcsApiClient dlcsApiClient;
+    private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
     private readonly IAmazonS3 s3;
     private readonly JObject sampleAsset;
     private const string PaintedResource = "foo-paintedResource";
@@ -48,13 +50,11 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     {
         s3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         dbContext = storageFixture.DbFixture.DbContext;
-        dlcsApiClient = A.Fake<IDlcsApiClient>();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-            services => services.AddSingleton(dlcsApiClient));
+            services => services.AddSingleton(DLCSApiClient));
 
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
-
         storageFixture.DbFixture.CleanUp();
 
         sampleAsset = JObject.Parse(
@@ -96,12 +96,12 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             """
         );
         
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
                 A<string>.That.Matches(l => l.EndsWith("_returnsPainted")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [sampleAsset]);
         
-        A.CallTo(() => dlcsApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
                 A<string>.That.Matches(l => l.EndsWith("_ingestingAssets")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
@@ -389,7 +389,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var id = TestIdentifiers.IdWithSuffix(suffix: "_ingestingAssets");
 
         // Arrange and Act
-        var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: 1);
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId());
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity,
             createdDate: DateTime.UtcNow.AddDays(-1),
             assetId: new AssetId(1, 2, PaintedResource),
@@ -447,7 +447,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     {
         // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting);
-        await dbContext.Manifests.AddTestManifest(id, batchId: 2);
+        await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId());
 
         await amazonS3.PutObjectAsync(new()
         {
@@ -472,7 +472,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange
         var id = nameof(Get_IiifManifest_Hierarchical_ReturnsOkWhenIngestingButHasIngestedBefore);
 
-        await dbContext.Manifests.AddTestManifest(id, batchId: 3, ingested: true);
+        await dbContext.Manifests.AddTestManifest(id, batchId: TestIdentifiers.BatchId(), ingested: true);
 
         await amazonS3.PutObjectAsync(new()
         {
@@ -496,5 +496,84 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         manifest!.Type.Should().Be("Manifest");
         manifest.Id.Should().Be($"http://localhost/1/sm_{id}", "requested by hierarchical URI");
         manifest.Items.Should().HaveCount(3, "the test content contains 3 children");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_WithStubAsset_StripsAssetPropertyFromAdjuncts()
+    {
+        // Arrange
+        var (_, id) = TestIdentifiers.SlugResource();
+        await dbContext.Manifests.AddTestManifest(id);
+        await dbContext.SaveChangesAsync();
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson,
+        });
+
+        var manifestAdjunctId = ResourceAdjunctInteractions.GetResourceStubAssetId(new PresentationManifest(), PresentationContextFixture.CustomerId, id).Asset;
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId, id, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>(
+            [
+                JObject.Parse($$"""
+                    {
+                        "@id": "https://localhost/customers/1/spaces/0/images/{{manifestAdjunctId}}",
+                        "id": "{{manifestAdjunctId}}",
+                        "space": 0,
+                        "adjuncts": [{ "id": "mets.xml", "asset": "1/0/{{manifestAdjunctId}}" }]
+                    }
+                    """)
+            ]));
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        manifest.Adjuncts.Should().HaveCount(1);
+        // "asset" back-reference to stub is not exposed in the API response
+        manifest.Adjuncts[0].ContainsKey("asset").Should().BeFalse();
+        manifest.Adjuncts[0]["id"].Value<string>().Should().Be("mets.xml");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsManifestLevelIiifProperties()
+    {
+        // Arrange - put a manifest in S3 with manifest-level seeAlso and rendering,
+        // as produced by ApplyManifestLevelAdjuncts during batch completion
+        var (_, id) = TestIdentifiers.SlugResource();
+        await dbContext.Manifests.AddTestManifest(id);
+        await dbContext.SaveChangesAsync();
+
+        const string seeAlsoId = "https://example.com/mets.xml";
+        const string renderingId = "https://example.com/document.pdf";
+
+        var storedManifest = new Manifest
+        {
+            SeeAlso = [new ExternalResource("Dataset") { Id = seeAlsoId }],
+            Rendering = [new ExternalResource("Text") { Id = renderingId }]
+        };
+
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = storedManifest.AsJson(),
+        });
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        manifest!.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
+        manifest.Rendering.Should().ContainSingle(r => r.Id == renderingId);
     }
 }

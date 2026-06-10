@@ -1,8 +1,9 @@
 ﻿using API.Features.Storage.Models;
 using Core.IIIF;
 using IIIF;
-using IIIF.Serialisation;
+using IIIF.Presentation.V3;
 using Models.API;
+using Services;
 
 namespace API.Features.Storage.Helpers;
 
@@ -16,17 +17,17 @@ public static class RequestBodyX
     /// <returns>
     /// A response showing whether there were errors in the conversion, and the converted collection
     /// </returns>
-    public static TryConvertIIIFResult<T> ConvertCollectionToIIIF<T>(this string requestBody, ILogger logger) where T : JsonLdBase
+    public static TryConvertIIIFResult<Collection> ConvertCollectionToIIIF(this string requestBody, ILogger logger)
     {
         try
         {
-            var collection = requestBody.FromJson<T>();
-            return TryConvertIIIFResult<T>.Success(collection);
+            var collection = requestBody.ToCollection();
+            return TryConvertIIIFResult<Collection>.Success(collection!);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while attempting to validate the collection as IIIF");
-            return TryConvertIIIFResult<T>.Failure();
+            return TryConvertIIIFResult<Collection>.Failure();
         }
     }
 
@@ -34,7 +35,7 @@ public static class RequestBodyX
     /// Attempts to deserialize a <see cref="IPresentation"/> resource.
     ///
     /// As this populates an <see cref="IPresentation"/> resource it needs to be instantiated prior to population, which
-    /// leads to this method being more forgiving than <see cref="ConvertCollectionToIIIF{T}"/>
+    /// leads to this method being more forgiving than <see cref="ConvertCollectionToIIIF"/>
     /// </summary>
     /// <param name="requestBody">The raw request body to convert</param>
     /// <param name="logger"></param>

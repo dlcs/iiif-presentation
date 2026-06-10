@@ -1,24 +1,17 @@
 ﻿using API.Features.Manifest.Validators;
-using API.Settings;
-using AWS.Settings;
-using DLCS;
+using Services.Manifests.Settings;
 using FluentValidation.TestHelper;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 
 namespace API.Tests.Features.Manifest.Validators;
 
 public class PresentationManifestValidatorTests
 {
-    private readonly PresentationManifestValidator sut = new(Options.Create(new ApiSettings()
-    {
-        AWS = new AWSSettings(),
-        DLCS = new DlcsSettings
-        {
-            ApiUri = new Uri("https://localhost")
-        }
-    }));
+    private readonly PresentationManifestValidator sut = new(Options.Create(new ServicesSettings()));
 
     [Theory]
     [InlineData(null)]
@@ -495,7 +488,7 @@ public class PresentationManifestValidatorTests
     {
         var manifest = new PresentationManifest
         {
-            Items = 
+            Items =
             [
                 new Canvas
                 {
@@ -507,9 +500,182 @@ public class PresentationManifestValidatorTests
                 }
             ]
         };
-        
+
         var result = sut.TestValidate(manifest);
         result.ShouldHaveValidationErrorFor(m => m.Items)
             .WithErrorMessage("The id in 'items' contains duplicates, which is not allowed");
+    }
+
+    [Fact]
+    public void PaintedResource_Manifest_NoError_WhenValidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1/1/asset",
+                        [AssetProperties.Adjuncts] = new JArray
+                        {
+                            new JObject
+                            {
+                                [AdjunctProperties.Id] = "my-adjunct",
+                                ["property"] = "https://example.com"
+                            }
+                        }
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void PaintedResource_Manifest_Error_WhenInvalidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = new JObject
+                    {
+                        ["id"] = "1/1/asset",
+                        [AssetProperties.Adjuncts] = new JArray
+                        {
+                            new JObject
+                            {
+                                ["property"] = "https://example.com"
+                            }
+                        }
+                    }
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage == "Adjunct 'id' must not be empty");
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenValidAdjunct()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = "manifest-adjunct",
+                    ["mediaType"] = "text/xml"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenAdjunctsNull()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts = null
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_NoError_WhenAdjunctsEmpty()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts = []
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_Error_WhenAdjunctHasNoId()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    ["mediaType"] = "text/xml"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage == "Adjunct 'id' must not be empty");
+    }
+
+    [Theory]
+    [InlineData("foo/bar")]
+    [InlineData("foo\\bar")]
+    public void ManifestAdjuncts_Error_WhenAdjunctIdHasProhibitedCharacters(string adjunctId)
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = adjunctId
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage.StartsWith("Adjunct 'id' contains a prohibited character"));
+    }
+
+    [Fact]
+    public void ManifestAdjuncts_Error_WhenAdjunctHasAssetProperty()
+    {
+        var manifest = new PresentationManifest
+        {
+            Slug = "test",
+            Parent = "https://example.com/root",
+            Adjuncts =
+            [
+                new JObject
+                {
+                    [AdjunctProperties.Id] = "mets.xml",
+                    [AssetProperties.Asset] = "1/0/Manifest_some-id"
+                }
+            ]
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains("'asset'"));
     }
 }

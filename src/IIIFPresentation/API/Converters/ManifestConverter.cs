@@ -62,10 +62,30 @@ public static class ManifestConverter
             iiifManifest.PaintedResources = enumeratedCanvasPaintings.GetPaintedResources(pathGenerator, assets);
         }
         
+        if (!iiifManifest.Adjuncts.IsNullOrEmpty())
+        {
+            foreach (var adjunct in iiifManifest.Adjuncts!) adjunct.Remove(AssetProperties.Asset);
+        }
+
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
-        
+
         return iiifManifest;
+    }
+
+    /// <summary>
+    /// Populates <see cref="PresentationManifest.Adjuncts"/> from the manifest-level stub asset in <paramref name="assets"/>.
+    /// No-op if the stub asset is not present or carries no adjuncts.
+    /// </summary>
+    public static void SetManifestLevelAdjuncts(this PresentationManifest manifest,
+        Dictionary<string, JObject> assets, int customerId, string manifestId)
+    {
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(manifest, customerId, manifestId);
+        var stubAsset = assets.Values.FirstOrDefault(a => a[AssetProperties.Id]?.Value<string>() == stubAssetId.Asset);
+        if (stubAsset?[AssetProperties.Adjuncts] is JArray adjunctsArray)
+        {
+            manifest.Adjuncts = adjunctsArray.OfType<JObject>().ToList();
+        }
     }
 
     /// <summary>

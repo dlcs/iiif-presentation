@@ -1,3 +1,4 @@
+using System.Collections;
 using Newtonsoft.Json.Linq;
 
 namespace Core.Helpers;
@@ -27,7 +28,18 @@ public static class JObjectX
     public static T? TryGetValue<T>(this JObject jObject, string property)
     {
         jObject.TryGetValue(property, out var value);
-
+        
         return value == null ? default : value.Value<T>();
+    }
+    
+    /// <summary>
+    /// Try and get specified property value from jObject. This will throw a <see cref="FormatException"/> if the value
+    /// is not of the specified type
+    /// </summary>
+    public static IEnumerable<T>? TryGetCollectionValue<T>(this JObject jObject, string property)
+    {
+        jObject.TryGetValue(property, out var value);
+
+        return value?.ToObject<IEnumerable<T>>();
     }
 }

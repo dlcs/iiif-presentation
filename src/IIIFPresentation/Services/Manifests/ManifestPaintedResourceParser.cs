@@ -24,12 +24,13 @@ public class ManifestPaintedResourceParser(
     IPresentationPathGenerator presentationPathGenerator,
     IOptions<PathSettings> options,
     PresentationContext dbContext,
+    CanvasHelper canvasHelper,
     ILogger<ManifestPaintedResourceParser> logger)
 {
     private readonly PathSettings settings = options.Value;
     
     public async Task<IEnumerable<InterimCanvasPainting>> ParseToCanvasPainting(PresentationManifest presentationManifest,
-        int customerId, string? existingManifestId = null)
+        int customerId)
     {
         if (presentationManifest.PaintedResources.IsNullOrEmpty()) return [];
 
@@ -37,7 +38,7 @@ public class ManifestPaintedResourceParser(
         var canvasPaintings = new List<InterimCanvasPainting>();
 
         using var logScope = logger.BeginScope("Manifest {ManifestId}", presentationManifest.Id);
-        
+
         var count = 0;
         foreach (var paintedResource in paintedResources)
         {
@@ -57,7 +58,7 @@ public class ManifestPaintedResourceParser(
             canvasPaintings.Add(cp);
         }
 
-        await CheckInterimCanvasIds(canvasPaintings, customerId, existingManifestId);
+        await CheckInterimCanvasIds(canvasPaintings, customerId, presentationManifest.Id);
 
         return canvasPaintings;
     }
@@ -97,25 +98,26 @@ public class ManifestPaintedResourceParser(
     {
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
-        var (space, assetId) =
-            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)));
+        var assetDetails =
+            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)), customerId);
 
-        if (space < 0)
+        if (assetDetails.Space < 0)
         {
             throw new AssetException(
-                $"The space for asset '{assetId}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{space}' and cannot be negative",
-                assetId);
+                $"The space for asset '{assetDetails.Id}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{assetDetails.Space}' and cannot be negative",
+                assetDetails.Id);
         }
-        
-        logger.LogTrace("Processing canvas painting for asset {AssetId}", assetId);
+
+        logger.LogTrace("Processing canvas painting for asset {AssetId}", assetDetails.Id);
         var cp = new InterimCanvasPainting
         {
             Id = specifiedCanvasId!, // might be null, but is `null!` in prop initializer
             Label = payloadCanvasPainting?.Label,
             CanvasLabel = payloadCanvasPainting?.CanvasLabel,
             CanvasOrder = canvasOrder,
-            SuspectedAssetId = assetId,
-            SuspectedSpace = space,
+            SuspectedAssetId = assetDetails.Id,
+            SuspectedSpace = assetDetails.Space,
+            AdjunctInteraction = assetDetails.AdjunctInteraction,
             ChoiceOrder = payloadCanvasPainting?.ChoiceOrder,
             Ingesting = payloadCanvasPainting?.Ingesting ?? false,
             StaticWidth = payloadCanvasPainting?.StaticWidth,
@@ -149,7 +151,7 @@ public class ManifestPaintedResourceParser(
 
         if (!Uri.TryCreate(canvasPainting.CanvasId, UriKind.Absolute, out var canvasId))
         {
-            CanvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId, logger);
+            canvasHelper.CheckForProhibitedCharacters(canvasPainting.CanvasId, logger);
             return canvasPainting.CanvasId;
         }
 
@@ -160,7 +162,7 @@ public class ManifestPaintedResourceParser(
         }
         
         var parsedCanvasId = pathRewriteParser.ParsePathWithRewrites(canvasId.Host, canvasId.AbsolutePath, customerId);
-        CanvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
+        canvasHelper.CheckParsedCanvasIdForErrors(parsedCanvasId, canvasId.AbsolutePath, logger);
         
         if (customerId != parsedCanvasId.Customer)
         {
@@ -171,11 +173,51 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
 
-    private static (int? space, string id) GetCanvasPaintingDetailsForAsset(JObject asset)
+    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset, int customerId)
     {
         // Read props from Asset - id must be there. If not, throw an exception
-        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var adjuncts = asset.TryGetCollectionValue<JObject>(AssetProperties.Adjuncts);
+        asset.Remove(AssetProperties.Adjuncts);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
-        return (space, id);
+        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        return new AssetDetails
+        {
+            Space = space,
+            AdjunctInteraction = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
+            Id = id
+        };
+    }
+
+    private static AdjunctInteraction HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)
+    {
+        var resolvedSpace = space ?? SpaceHelper.DefaultSpaceForLaterPopulation;
+        var key = new AssetId(customerId, resolvedSpace, assetId);
+        var keyString = key.ToString();
+        var hydratedAdjuncts = adjuncts.Select(a =>
+        {
+            var adjunctAsset = a[AssetProperties.Asset]?.ToString();
+            if (adjunctAsset == null)
+            {
+                a[AssetProperties.Asset] = keyString;
+            }
+            else if (adjunctAsset != keyString)
+            {
+                throw new AssetException(
+                    $"Adjunct asset '{adjunctAsset}' does not match parent asset '{keyString}'",
+                    adjunctAsset);
+            }
+            return a;
+        }).ToList();
+        return new AdjunctInteraction { AssetId = key, Adjuncts = hydratedAdjuncts };
+    }
+    
+    /// <summary>
+    /// Parsed details extracted from an asset <see cref="JObject"/> within a <see cref="PaintedResource"/>
+    /// </summary>
+    private class AssetDetails
+    {
+        public int? Space { get; init; }
+        public AdjunctInteraction? AdjunctInteraction { get; init; }
+        public required string Id { get; init; }
     }
 }

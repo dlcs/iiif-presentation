@@ -4,10 +4,10 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using AWS.Helpers;
-using DLCS.API;
 using Models.API.Manifest;
 using Models.Database.Collections;
-using Models.Database.General;
+using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
@@ -68,7 +68,6 @@ public class ManifestReadService(
         // or if not found in "staging", an error was logged and we fall back to "real"
         manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
 
-
         dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
 
         if (manifest == null)
@@ -76,6 +75,11 @@ public class ManifestReadService(
                 "Unable to read and deserialize manifest from storage");
 
         var assets = await getAssets;
+
+        // If the DLCS lookup failed, assets will be null (error already logged in DlcsManifestCoordinator).
+        // Return the manifest without manifest-level adjuncts rather than failing the GET.
+        if (assets != null) manifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
+
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
             m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
 
@@ -88,4 +92,5 @@ public class ManifestReadService(
 
         return FetchEntityResult<PresentationManifest>.Success(manifest, etag);
     }
+
 }

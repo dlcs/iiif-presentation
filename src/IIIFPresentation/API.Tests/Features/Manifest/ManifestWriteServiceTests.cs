@@ -3,7 +3,6 @@ using API.Helpers;
 using API.Infrastructure.IdGenerator;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
-using AWS.Helpers;
 using AWS.Settings;
 using Core;
 using DLCS;
@@ -21,6 +20,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
+using DbDeliverableType = Models.Database.General.DeliverableType;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -33,6 +33,8 @@ using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Test.Helpers.Settings;
+using DbCanvasPainting = Models.Database.CanvasPainting;
+using IIIFManifest = IIIF.Presentation.V3.Manifest;
 
 namespace API.Tests.Features.Manifest;
 
@@ -46,6 +48,7 @@ public class ManifestWriteServiceTests
     private const int NewlyCreatedSpace = 500;
     private readonly DlcsSettings dlcsSettings;
     private readonly IDlcsApiClient dlcsClient;
+    private readonly IManifestStorageManager manifestStorageManager;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -60,7 +63,6 @@ public class ManifestWriteServiceTests
         var idGenerator = new SqidsGenerator(sqidsEncoder, new NullLogger<SqidsGenerator>());
         
         var identityManager = new IdentityManager(idGenerator, presentationContext, new NullLogger<IdentityManager>());
-        var iiifS3Service = A.Fake<IIIIFS3Service>();
         
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
@@ -69,13 +71,15 @@ public class ManifestWriteServiceTests
 
         var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://base") };
 
+        var canvasHelper = new CanvasHelper(Options.Create(new ServicesSettings()));
+
         var manifestItemsParser = new ManifestItemsParser(pathRewriteParser, presentationGenerator,
             new PaintableAssetIdentifier(OptionsHelpers.GetOptionsMonitor(dlcsSettings),
-                new NullLogger<PaintableAssetIdentifier>()), Options.Create(pathSettings), 
+                new NullLogger<PaintableAssetIdentifier>()), Options.Create(pathSettings), canvasHelper,
             new NullLogger<ManifestItemsParser>());
-        
+
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            Options.Create(pathSettings), presentationContext, new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), presentationContext, canvasHelper, new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
@@ -97,7 +101,7 @@ public class ManifestWriteServiceTests
 
         var parentSlugParser = A.Fake<IParentSlugParser>();
 
-        var manifestStorageManager = A.Fake<IManifestStorageManager>();
+        manifestStorageManager = A.Fake<IManifestStorageManager>();
         var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(dlcsSettings),
             new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
         {
@@ -437,7 +441,7 @@ public class ManifestWriteServiceTests
         // Arrange
         dynamic asset = new JObject();
 
-        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        var (slug, resourceId,  assetId) = TestIdentifiers.SlugResourceAsset();
 
         asset.id = assetId;
 
@@ -491,7 +495,11 @@ public class ManifestWriteServiceTests
         // Arrange
         dynamic asset = new JObject();
 
-        var (slug, resourceId,  assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        // Setup a fake batch with resource ID, this is unfinished so means it's sync complete
+        A.CallTo(() => dlcsClient.IngestDeliverables(Customer, A<List<JObject>>._, false, A<CancellationToken>._))
+            .Returns([new Batch { Finished = null, ResourceId = "12345" }]);
+
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
 
         asset.id = assetId;
         
@@ -525,10 +533,10 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
-        var paintedResource = ingestedManifest.Entity.PaintedResources.First();
-        paintedResource.CanvasPainting.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
+        ingestedManifest.Entity!.PaintedResources.Should().HaveCount(1);
+        ingestedManifest.Entity.Items!.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
+        var paintedResource = ingestedManifest.Entity.PaintedResources!.First();
+        paintedResource.CanvasPainting!.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
         paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
     }
     
@@ -587,6 +595,289 @@ public class ManifestWriteServiceTests
         ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
     }
     
+    [Fact]
+    public async Task Upsert_MergesStubAdjuncts_WithUserSetValues_WhenCanBeBuiltUpfront()
+    {
+        // Arrange - manifest with a tracked asset so canBeBuiltUpfront = true (no new batches needed)
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+        const string userSeeAlsoId = "https://example.com/user-see-also.xml";
+        const string stubSeeAlsoId = "https://example.com/stub-see-also.xml";
+        const string userRenderingId = "https://example.com/user-rendering.pdf";
+        const string stubRenderingId = "https://example.com/stub-rendering.pdf";
+        const string userAnnotationId = "https://example.com/user-annotations";
+        const string stubAnnotationId = "https://example.com/stub-annotations";
+
+        dynamic asset = new JObject();
+        asset.id = assetId;
+
+        var canvasPainting = new DbCanvasPainting
+        {
+            Id = "cp1",
+            CustomerId = Customer,
+            CanvasOrder = 1,
+            ChoiceOrder = 1,
+            AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
+        };
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug,
+            canvasPaintings: [canvasPainting], spaceId: NewlyCreatedSpace);
+        await presentationContext.SaveChangesAsync();
+
+        // UpsertManifestInStorage returns a manifest carrying both user-set and stub values for all
+        // three adjunct types, as ManifestMerger would produce after applying ApplyManifestLevelAdjuncts
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest
+            {
+                SeeAlso =
+                [
+                    new ExternalResource("SeeAlso") { Id = userSeeAlsoId },
+                    new ExternalResource("SeeAlso") { Id = stubSeeAlsoId }
+                ],
+                Rendering =
+                [
+                    new ExternalResource("Rendering") { Id = userRenderingId },
+                    new ExternalResource("Rendering") { Id = stubRenderingId }
+                ],
+                Annotations =
+                [
+                    new AnnotationPage { Id = userAnnotationId },
+                    new AnnotationPage { Id = stubAnnotationId }
+                ]
+            });
+
+        const string stubManifestAdjunctId = "manifest-adjunct.xml";
+        var stubAssetName = $"Manifest_{resourceId}";
+        A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>(
+            [
+                JObject.Parse($$"""
+                {
+                    "@id": "https://localhost/customers/{{Customer}}/spaces/0/images/{{stubAssetName}}",
+                    "id": "{{stubAssetName}}",
+                    "space": 0,
+                    "adjuncts": [{ "id": "{{stubManifestAdjunctId}}", "mediaType": "text/xml" }]
+                }
+                """)
+            ]));
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            SeeAlso = [new ExternalResource("SeeAlso") { Id = userSeeAlsoId }],
+            Rendering = [new ExternalResource("Rendering") { Id = userRenderingId }],
+            Annotations = [new AnnotationPage { Id = userAnnotationId }],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting { CanvasOrder = 1 }
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.Error.Should().BeNull();
+        result.Entity.SeeAlso.Should()
+            .Contain(s => s.Id == userSeeAlsoId, "user-set seeAlso must not be lost when stub canvas adjuncts are merged").And
+            .Contain(s => s.Id == stubSeeAlsoId, "stub canvas seeAlso must be added alongside user-set values");
+        result.Entity.Rendering.Should()
+            .Contain(r => r.Id == userRenderingId, "user-set rendering must not be lost when stub canvas adjuncts are merged").And
+            .Contain(r => r.Id == stubRenderingId, "stub canvas rendering must be added alongside user-set values");
+        result.Entity.Annotations.Should()
+            .Contain(a => a.Id == userAnnotationId, "user-set annotations must not be lost when stub canvas adjuncts are merged").And
+            .Contain(a => a.Id == stubAnnotationId, "stub canvas annotations must be added alongside user-set values");
+        result.Entity.Adjuncts.Should().ContainSingle()
+            .Which.Value<string>("id").Should().Be(stubManifestAdjunctId,
+                "manifest-level adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
+    }
+
+    [Fact]
+    public async Task Upsert_PreservesEmptyAdjuncts_WhenStubCanvasHasNoAdjuncts()
+    {
+        // Arrange - manifest with a tracked asset so canBeBuiltUpfront = true
+        var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        dynamic asset = new JObject();
+        asset.id = assetId;
+
+        var canvasPainting = new DbCanvasPainting
+        {
+            Id = "cp1",
+            CustomerId = Customer,
+            CanvasOrder = 1,
+            ChoiceOrder = 1,
+            AssetId = new AssetId(Customer, NewlyCreatedSpace, assetId)
+        };
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug,
+            canvasPaintings: [canvasPainting], spaceId: NewlyCreatedSpace);
+        await presentationContext.SaveChangesAsync();
+
+        // ManifestMerger preserves the base manifest's empty lists when the stub canvas has no adjuncts,
+        // so UpsertManifestInStorage returns empty (not null) for each adjunct type
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { SeeAlso = [], Rendering = [], Annotations = [] });
+
+        A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>([]));
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            SeeAlso = [],
+            Rendering = [],
+            Annotations = [],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting { CanvasOrder = 1 }
+                }
+            ]
+        };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert: empty lists from the base manifest are passed through unchanged
+        result.Error.Should().BeNull();
+        result.Entity.SeeAlso.Should().BeEmpty();
+        result.Entity.Rendering.Should().BeEmpty();
+        result.Entity.Annotations.Should().BeEmpty();
+        result.Entity.Adjuncts.Should().BeNull("no stub asset carries adjuncts so Adjuncts should not be populated");
+    }
+
+    [Fact]
+    public async Task Upsert_CallsUpsertManifestInStorage_WhenAdjunctsNull_AndExistingAdjunctBatch()
+    {
+        // Arrange - no painted resources, adjuncts = null ("no change"), but the manifest has a previously
+        // ingested adjunct batch. ManifestMerger must run to bake the existing DLCS adjunct properties
+        // (SeeAlso/Rendering/Annotations) back into the S3 manifest.
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
+        await presentationContext.Batches.AddTestBatch(9991, dbManifest.Entity, DbDeliverableType.Adjunct);
+        await presentationContext.SaveChangesAsync();
+
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest());
+
+        const string existingAdjunctId = "existing-adjunct.xml";
+        var stubAssetName = $"Manifest_{resourceId}";
+        A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>(
+            [
+                JObject.Parse($$"""
+                {
+                    "@id": "https://localhost/customers/{{Customer}}/spaces/0/images/{{stubAssetName}}",
+                    "id": "{{stubAssetName}}",
+                    "space": 0,
+                    "adjuncts": [{ "id": "{{existingAdjunctId}}", "mediaType": "text/xml" }]
+                }
+                """)
+            ]));
+
+        var manifest = new PresentationManifest { Slug = slug, Adjuncts = null };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.Error.Should().BeNull();
+        result.Entity.Adjuncts.Should().ContainSingle()
+            .Which.Value<string>("id").Should().Be(existingAdjunctId,
+                "existing adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
+    public async Task Upsert_CallsSaveManifestInStorage_WhenAdjunctsNull_AndNoPriorDlcsContent()
+    {
+        // Arrange - items-only manifest: no painted resources, no adjuncts, no prior DLCS batches.
+        // ManifestMerger must NOT be called — doing so would make an unnecessary DLCS NQ call.
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
+        await presentationContext.SaveChangesAsync();
+
+        A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>([]));
+
+        var manifest = new PresentationManifest { Slug = slug, Adjuncts = null };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.Error.Should().BeNull();
+        result.Entity.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task Upsert_CallsUpsertManifestInStorage_WhenAdjunctsEmpty_AndNoAssets()
+    {
+        // Arrange - no painted resources, adjuncts = [] (explicit clear) and stub asset already in DLCS.
+        // canBeBuiltUpfront = true (stub exists, no new batch needed) so ManifestMerger must be called.
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
+        await presentationContext.SaveChangesAsync();
+
+        // Return the existing stub when DLCS is queried for it, simulating the stub already existing
+        var stubAssetName = $"Manifest_{resourceId}";
+        var stubAssetId = $"{Customer}/0/{stubAssetName}";
+        A.CallTo(() => dlcsClient.GetCustomerImages(Customer,
+                A<IList<string>>.That.Matches(l => l.Contains(stubAssetId)), A<CancellationToken>._))
+            .Returns(Task.FromResult<IList<JObject>>(
+            [
+                JObject.Parse($$"""{ "id": "{{stubAssetName}}", "space": 0 }""")
+            ]));
+
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest());
+
+        var manifest = new PresentationManifest { Slug = slug, Adjuncts = [] };
+
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(request, CancellationToken.None);
+
+        // Assert
+        result.Error.Should().BeNull();
+        result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
+        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
+                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
     [Fact]
     public async Task Upsert_ErrorCreatingManifest_WhenErrorWithPaintableAsset()
     {

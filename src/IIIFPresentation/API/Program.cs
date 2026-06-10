@@ -21,6 +21,7 @@ using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
+using Services.Manifests.Settings;
 
 const string corsPolicyName = "CorsPolicy";
 
@@ -69,6 +70,7 @@ builder.Services
     .AddScoped<IManifestRead, ManifestReadService>()
     .AddScoped<CanvasPaintingResolver>()
     .AddSingleton<ManifestItemsParser>()
+    .AddSingleton<CanvasHelper>()
     .AddSingleton<PaintableAssetIdentifier>()
     .AddScoped<ManifestPaintedResourceParser>()
     .AddSingleton<IPathGenerator, HttpRequestBasedPathGenerator>()
@@ -76,12 +78,13 @@ builder.Services
     .AddSingleton<IPresentationPathGenerator, HostnameDrivenPresentationPathGenerator>()
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()
-    .AddSingleton<IManifestMerger, ManifestMerger>()
+    .AddScoped<IManifestMerger, ManifestMerger>()
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
-    .AddSingleton<IManifestStorageManager, ManifestS3Manager>()
+    .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
+    .AddScoped<ServicesSettings>()
     .AddHttpContextAccessor()
     .AddScoped<ICustomerIdProvider, HttpContextCustomerIdProvider>()
     .AddOutgoingHeaders();
@@ -129,6 +132,7 @@ app
 app.MapControllers();
 
 app.MapHealthChecks("/health");
+app.AddVersionEndpoint();
 
 app.Run();
 

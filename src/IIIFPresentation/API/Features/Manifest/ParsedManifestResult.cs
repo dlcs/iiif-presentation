@@ -6,21 +6,23 @@ using Services.Manifests.Model;
 namespace API.Features.Manifest;
 
 /// <summary>
-/// Records class containing details of canvas paintings that require further processing
+/// Records class containing details of various things that require further processing, such as canvas paintings
+/// and adjunct interactions
 /// </summary>
-public class CanvasPaintingRecords
+public class ParsedManifestResult
 {
-    public static CanvasPaintingRecords Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
+    public static ParsedManifestResult Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
         new()
         {
             Error = updateResult
         };
     
-    public static CanvasPaintingRecords Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets) =>
+    public static ParsedManifestResult Success(List<InterimCanvasPainting>? canvasPaintingsToAdd, List<InterimCanvasPainting>? itemsWithAssets, List<AdjunctInteraction>? adjunctInteractions) =>
         new()
         {
             CanvasPaintingsToAdd = canvasPaintingsToAdd,
-            CanvasPaintingsThatContainItemsWithAssets = itemsWithAssets
+            CanvasPaintingsThatContainItemsWithAssets = itemsWithAssets,
+            AdjunctInteractions = adjunctInteractions
         };
     
     /// <summary>
@@ -39,4 +41,9 @@ public class CanvasPaintingRecords
     /// </summary>
     /// <remarks>This can contain modified records if the item has been identified as an update</remarks>
     public List<InterimCanvasPainting>? CanvasPaintingsThatContainItemsWithAssets { get; private init; }
+    
+    /// <summary>
+    /// Details of all adjunct interactions that are needed to work out if adjuncts are new or a replacement.
+    /// </summary>
+    public List<AdjunctInteraction>? AdjunctInteractions { get; private init; }
 }

@@ -16,7 +16,7 @@ namespace Services.Tests.Manifests.Helpers;
 
 public class ManifestMergerMixedContentTests
 {
-    private readonly ManifestMerger sut;
+    private readonly IManifestMerger sut;
 
     public ManifestMergerMixedContentTests()
     {
@@ -49,7 +49,7 @@ public class ManifestMergerMixedContentTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
 
         // Act
-        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1);
@@ -126,7 +126,7 @@ public class ManifestMergerMixedContentTests
         canvasPaintings[4].Label = null;
 
         // Act
-        var mergedManifest = sut.ProcessCanvasPaintings(blankManifest, namedQueryManifest, canvasPaintings);
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
 
         // Assert
         mergedManifest.Items.Should().HaveCount(3, "5 canvas paintings but 3 unique Ids");

@@ -1,25 +1,23 @@
 using System.Data;
-using System.Diagnostics;
 using API.Converters;
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
-using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.IIIF;
 using DLCS.Exceptions;
-using IIIF.Presentation.V3;
-using IIIF.Serialisation;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
+using Models.DLCS;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
+using Services;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
@@ -159,44 +157,27 @@ public class ManifestWriteService(
     {
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
         {
-            // retrieve and validate the canvas paintings on the request
-            var createdCanvasPaintingRecords =
-                await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
-                    cancellationToken);
-            if (createdCanvasPaintingRecords.Error != null) return createdCanvasPaintingRecords.Error;
-
-            // retrieve and validate the parent and slug on the request
-            var parsedParentSlugResult =
-                await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, null, cancellationToken); 
-            if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
-            var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
-
-            // Ensure we have a manifestId
+            // Generate manifest ID before canvas painting resolution so it's available for stub asset naming
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
             if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
 
-            // Carry out any DLCS interactions (for paintedResources with _assets_) 
-            var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
-                itemCanvasPaintingsWithAssets: createdCanvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets,
-                cancellationToken: cancellationToken);
-            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
+            request.PresentationManifest.Id = manifestId;
+            var resolved = await ResolveCanvasPaintingsAndParentSlug(request, manifestId, cancellationToken: cancellationToken);
+            if (resolved.Error != null) return resolved.Error;
 
-            // convert and update the canvas paintings from the interim object, to the database format
-            var canvasPaintings = UpdateCanvasPaintingsAfterDlcsInteractions([],
-                createdCanvasPaintingRecords.CanvasPaintingsToAdd, dlcsInteractionResult);
+            // Carry out any DLCS interactions and update canvas paintings
+            var dlcsResult = await HandleDlcsInteractions(request, manifestId, resolved.ParsedManifestResult!,
+                cancellationToken: cancellationToken);
+            if (dlcsResult.Error != null) return dlcsResult.Error;
 
             var (error, dbManifest) =
-                await CreateDatabaseRecord(request, parsedParentSlug, manifestId, dlcsInteractionResult.SpaceId, 
-                    canvasPaintings, cancellationToken);
+                await CreateDatabaseRecord(request, resolved.ParsedParentSlug!, dlcsResult.InteractionResult!.SpaceId,
+                    dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
-            Debug.Assert(dbManifest != null);
 
-            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
-                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
-
-            return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
-                hasAssets, dlcsInteractionResult, WriteResult.Created, cancellationToken);
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Created : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+                cancellationToken);
         }
     }
 
@@ -213,48 +194,53 @@ public class ManifestWriteService(
         {
             var existingAssetIds = existingManifest.CanvasPaintings?.Where(cp => cp.AssetId != null)
                 .Select(cp => cp.AssetId!).ToList();
-            // retrieve, update and validate canvas paintings using the request
-            var updatedCanvasPaintingRecords = await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId,
-                request.PresentationManifest, existingManifest, cancellationToken);
-            if (updatedCanvasPaintingRecords.Error != null) return updatedCanvasPaintingRecords.Error;
+            request.PresentationManifest.Id = request.ManifestId;
+            var resolved = await ResolveCanvasPaintingsAndParentSlug(request, request.ManifestId, existingManifest, cancellationToken);
+            if (resolved.Error != null) return resolved.Error;
 
-            // retrieve + validate the parent and slug from the request
-            var parsedParentSlugResult = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId,
-                request.ManifestId, cancellationToken);
-            if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
-            var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
+            // Carry out any DLCS interactions and update canvas paintings
+            var dlcsResult = await HandleDlcsInteractions(request, existingManifest.Id, resolved.ParsedManifestResult!, existingAssetIds, existingManifest, cancellationToken);
+            if (dlcsResult.Error != null) return dlcsResult.Error;
 
-            // Carry out any DLCS interactions (for paintedResources with _assets_) 
-            var dlcsInteractionResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request,
-                existingManifest.Id, existingAssetIds, existingManifest,
-                updatedCanvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, cancellationToken);
-            if (dlcsInteractionResult.Error != null) return dlcsInteractionResult.Error;
-
-            UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(existingManifest, updatedCanvasPaintingRecords, dlcsInteractionResult);
-
-            var (error, dbManifest) = await UpdateDatabaseRecord(request, parsedParentSlug!, existingManifest,
-                dlcsInteractionResult.SpaceId, cancellationToken);
+            var (error, dbManifest) = await UpdateDatabaseRecord(request, resolved.ParsedParentSlug!, existingManifest,
+                dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
-            Debug.Assert(dbManifest != null);
 
-            var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
-            request.PresentationManifest.Items = await SaveToS3(dbManifest, request, hasAssets,
-                dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
-
-            return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
-                hasAssets, dlcsInteractionResult, WriteResult.Updated, cancellationToken);
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Updated : WriteResult.Accepted;
+            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+                cancellationToken);
         }
     }
 
+    private async Task<DlcsHandleResult> HandleDlcsInteractions(WriteManifestRequest request, string manifestId,
+        ParsedManifestResult canvasPaintingRecords, List<AssetId>? existingAssetIds = null, DbManifest? existingManifest = null, 
+        CancellationToken cancellationToken = default)
+    {
+        var dlcsResult = await dlcsManifestCoordinator.HandleDlcsInteractions(request, manifestId,
+            existingAssetIds, existingManifest,
+            canvasPaintingRecords.CanvasPaintingsThatContainItemsWithAssets, canvasPaintingRecords.AdjunctInteractions, cancellationToken);
+        if (dlcsResult.Error != null) return DlcsHandleResult.Failure(dlcsResult.Error);
+
+        if (existingManifest == null)
+        {
+            return DlcsHandleResult.Success(dlcsResult, UpdateCanvasPaintingsAfterDlcsInteractions([],
+                canvasPaintingRecords.CanvasPaintingsToAdd, dlcsResult));
+        }
+
+        UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(existingManifest, canvasPaintingRecords, dlcsResult);
+        return DlcsHandleResult.Success(dlcsResult, existingManifest.CanvasPaintings!);
+
+    }
+
     private void UpdateCanvasPaintingsAfterDlcsInteractionsForUpdate(DbManifest existingManifest, 
-        CanvasPaintingRecords updatedCanvasPaintingRecords, DlcsInteractionResult dlcsInteractionResult)
+        ParsedManifestResult updatedParsedManifestResult, DlcsInteractionResult dlcsInteractionResult)
     {
         existingManifest.CanvasPaintings ??= [];
         
         SpaceHelper.UpdateCanvasPaintings(existingManifest.CanvasPaintings, dlcsInteractionResult.SpaceId);
 
         UpdateCanvasPaintingsAfterDlcsInteractions(existingManifest.CanvasPaintings,
-            updatedCanvasPaintingRecords.CanvasPaintingsToAdd, dlcsInteractionResult);
+            updatedParsedManifestResult.CanvasPaintingsToAdd, dlcsInteractionResult);
     }
 
     private List<CanvasPainting> UpdateCanvasPaintingsAfterDlcsInteractions(List<CanvasPainting> initialCanvasPaintings,
@@ -268,27 +254,71 @@ public class ManifestWriteService(
         return initialCanvasPaintings;
     }
 
-    private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
-        int customerId, DbManifest dbManifest, bool hasAssets, DlcsInteractionResult dlcsInteractionResult,
-        WriteResult writeResult, CancellationToken cancellationToken)
+    private async Task<ResolvedManifestData> ResolveCanvasPaintingsAndParentSlug(WriteManifestRequest request,
+        string manifestId, DbManifest? existingManifest = null, CancellationToken cancellationToken = default)
     {
+        var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, cancellationToken);
+        if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
+
+        var (slugError, parsedParentSlug) = await ParseParentSlug(request, manifestId, cancellationToken);
+        if (slugError != null) return ResolvedManifestData.Failure(slugError);
+
+        return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);
+    }
+
+    private async Task<(PresUpdateResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
+        WriteManifestRequest request, DbManifest? existingManifest, CancellationToken cancellationToken)
+    {
+        var isCreate = existingManifest == null;
+
+        var result = isCreate
+            ? await canvasPaintingResolver.GenerateCanvasPaintings(request.CustomerId, request.PresentationManifest,
+                cancellationToken)
+            : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
+                existingManifest!, cancellationToken);
+        return result.Error != null ? (result.Error, null) : (null, result);
+    }
+
+    private async Task<(PresUpdateResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
+        WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
+    {
+        var result = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, manifestId,
+            cancellationToken);
+        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
+    }
+
+    private async Task<PresUpdateResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
+        DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
+    {
+        await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
+            writeResult, cancellationToken);
+    }
+
+    private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
+        int customerId, DbManifest dbManifest, WriteResult writeResult, CancellationToken cancellationToken)
+    {
+        var assets = await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
+
+        if (assets != null)
+        {
+            presentationManifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
+        }
+
         return PresUpdateResult.Success(
-            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator,
-                await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken)),
-            hasAssets && !dlcsInteractionResult.CanBeBuiltUpfront
-                ? WriteResult.Accepted
-                : writeResult,
+            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets),
+            writeResult,
             dbManifest?.Etag);
     }
 
     private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
-        ParsedParentSlug parsedParentSlug, string manifestId, int? spaceId, 
-        List<Models.Database.CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
+        ParsedParentSlug parsedParentSlug, int? spaceId, 
+        List<CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
     {
         var timeStamp = DateTime.UtcNow;
         var dbManifest = new DbManifest
         {
-            Id = manifestId,
+            Id = request.PresentationManifest.Id!,
             CustomerId = request.CustomerId,
             Created = timeStamp,
             Modified = timeStamp,
@@ -363,31 +393,28 @@ public class ManifestWriteService(
     }
 
     /// <summary>
-    /// Saves a manifest into S3
+    /// Saves a manifest into S3.
     /// </summary>
     /// <param name="dbManifest">The manifest record</param>
     /// <param name="request">The request made by the caller</param>
-    /// <param name="hasAssets">
-    /// Whether there are any assets identified in the request
-    ///
-    /// TThis is relevant for both painted resources and assets from items
-    /// </param>
     /// <param name="canBeBuiltUpfront">
     /// Whether there's assets, but they're all tracked by the DLCS
     ///
-    /// This is only relevant for painted resources
+    /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    /// <returns>A list of canvases to be returned to the caller</returns>
-    private async Task<List<Canvas>?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool hasAssets,
-        bool canBeBuiltUpfront, CancellationToken cancellationToken)
+    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
+        CancellationToken cancellationToken)
     {
-        var iiifManifest = request.RawRequestBody.FromJson<IIIF.Presentation.V3.Manifest>();
-        
-        if (canBeBuiltUpfront && hasAssets)
+        var iiifManifest = request.RawRequestBody.ToManifest();
+        var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
+        var hasAdjuncts = request.PresentationManifest.Adjuncts != null
+            || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
+
+        if (canBeBuiltUpfront && (hasAssets || hasAdjuncts))
         {
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest, cancellationToken);
-            request.PresentationManifest.Items = manifest.Items;
+            MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
         {
@@ -395,8 +422,8 @@ public class ManifestWriteService(
             // happens in the background handler
             if (hasAssets)
             {
-                var canvasPaintings =  dbManifest.CanvasPaintings;
-                
+                var canvasPaintings = dbManifest.CanvasPaintings;
+
                 if (canvasPaintings is not null)
                 {
                     iiifManifest.Items =
@@ -405,12 +432,71 @@ public class ManifestWriteService(
                 }
             }
 
-            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, hasAssets,
+            request.PresentationManifest.Items = iiifManifest.Items;
+            await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, !canBeBuiltUpfront,
                 cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        
-        return iiifManifest.Items;
+    }
+
+    /// <summary>
+    /// Stamps the merged IIIF fields (Items, SeeAlso, Rendering, Annotations) from the stored manifest back onto
+    /// <paramref name="presentationManifest"/> so the API response reflects what ManifestMerger produced.
+    /// </summary>
+    private static void MergeManifestFields(IIIF.Presentation.V3.Manifest iiifManifest, PresentationManifest presentationManifest)
+    {
+        presentationManifest.Items = iiifManifest.Items;
+        presentationManifest.SeeAlso = iiifManifest.SeeAlso;
+        presentationManifest.Rendering = iiifManifest.Rendering;
+        presentationManifest.Annotations = iiifManifest.Annotations;
+    }
+
+    /// <summary>
+    /// Contains results of a manifest that has been parsed into the format iiif-presentation understands
+    /// </summary>
+    private class ResolvedManifestData
+    {
+        /// <summary>
+        /// If canvas painting resolution or slug parsing failed.
+        /// </summary>
+        public PresUpdateResult? Error { get; private init; }
+        /// <summary>
+        /// Canvas paintings resolved from the request
+        /// </summary>
+        public ParsedManifestResult? ParsedManifestResult { get; private init; }
+        /// <summary>
+        /// Parsed parent and slug from the request hierarchy path.
+        /// </summary>
+        public ParsedParentSlug? ParsedParentSlug { get; private init; }
+
+        public static ResolvedManifestData Failure(PresUpdateResult error) => new() { Error = error };
+
+        public static ResolvedManifestData Success(ParsedManifestResult records, ParsedParentSlug slug) =>
+            new() { ParsedManifestResult = records, ParsedParentSlug = slug };
+    }
+
+    /// <summary>
+    /// Contains results following DLCS interactions
+    /// </summary>
+    private class DlcsHandleResult
+    {
+        /// <summary>
+        /// If the DLCS interaction or canvas painting update failed.
+        /// </summary>
+        public PresUpdateResult? Error { get; private init; }
+        /// <summary>
+        /// Result of the DLCS interaction, including space ID and ingested asset IDs.
+        /// </summary>
+        public DlcsInteractionResult? InteractionResult { get; private init; }
+        /// <summary>
+        /// Final canvas paintings to persist, updated with DLCS space and ingest state.
+        /// </summary>
+        public List<CanvasPainting> CanvasPaintings { get; private init; } = [];
+
+        public static DlcsHandleResult Failure(PresUpdateResult error) => new() { Error = error };
+
+        public static DlcsHandleResult Success(DlcsInteractionResult interactionResult, List<CanvasPainting> canvasPaintings) =>
+            new() { InteractionResult = interactionResult, CanvasPaintings = canvasPaintings };
     }
 }

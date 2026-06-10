@@ -18,23 +18,36 @@ namespace Services.Manifests;
 public interface IManifestMerger
 {
     /// <summary>
-    /// Build final Manifest using results of NamedQuery manifest for content resources and CanvasPaintings for
-    /// instructions.
-    /// CanvasPaintings may be updated as part of processing
+    /// Build final manifest by projecting canvas paintings from the named query manifest, then applying any
+    /// manifest-level adjuncts from the stub canvas.
     /// </summary>
     /// <param name="baseManifest">Initial manifest to project content resources onto</param>
     /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
     /// <param name="canvasPaintings">
-    /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
+    /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
-    /// <returns>Populated manifest</returns>
-    Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
-        List<CanvasPainting>? canvasPaintings);
+    /// <param name="customerId">Customer id, used to construct the stub AssetId</param>
+    /// <param name="manifestId">Internal manifest id, used to construct the stub AssetId</param>
+    /// <returns>Fully merged manifest</returns>
+    Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId);
 }
 
 public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
     ILogger<ManifestMerger> logger) : IManifestMerger
 {
+    private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
+
+    /// <inheritdoc />
+    public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId)
+    {
+        var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
+        if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
+        ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId);
+        return merged;
+    }
+
     /// <summary>
     /// Process specified <see cref="CanvasPainting"/> objects to project contents from namedQueryManifest onto the
     /// provided baseManifest.
@@ -43,27 +56,49 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <param name="baseManifest">Initial manifest to project content resources onto</param>
     /// <param name="namedQueryManifest">NamedQuery manifest from DLCS, containing content resources</param>
     /// <param name="canvasPaintings">
-    /// <see cref="CanvasPainting"/> records with instructions for how to populated final manifest
+    /// <see cref="CanvasPainting"/> records with instructions for how to populate final manifest
     /// </param>
     /// <returns>Populated manifest</returns>
-    public Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
+    private Manifest ProcessCanvasPaintings(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings)
     {
-        ValidateManifests(baseManifest, namedQueryManifest);
-
         if (canvasPaintings.IsNullOrEmpty())
         {
             logger.LogInformation("No canvas paintings found for manifest {ManifestId}", baseManifest.Id);
             return baseManifest;
         }
 
-        var canvasDictionary = BuildAssetIdToCanvasLookup(namedQueryManifest!);
-        BuildItems(baseManifest, canvasPaintings, canvasDictionary);
+        ValidateManifests(baseManifest, namedQueryManifest);
+        canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
+        BuildItems(baseManifest, canvasPaintings);
         SetManifestContext(baseManifest, namedQueryManifest!);
 
         return baseManifest;
     }
     
+    /// <summary>
+    /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
+    /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
+    /// <c>Manifest_{manifestId}</c> that carries no binary content but hosts adjuncts.
+    /// </summary>
+    private void ApplyManifestLevelAdjuncts(StructureBase baseManifest, Manifest namedQueryManifest, int customerId,
+        string manifestId)
+    {
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
+
+        // CanvasLookups is initialised by ProcessCanvasPaintings, but only when canvasPaintings is non-empty.
+        // A manifest can have adjuncts but no canvas paintings (e.g. no assets yet), so initialise here if needed.
+        if (!canvasLookups.IsInitialised) canvasLookups.InitialiseNqLookup(namedQueryManifest);
+
+        var stubCanvas = canvasLookups.GetStubCanvas(baseManifest, manifestId);
+
+        if (stubCanvas != null)
+        {
+            logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
+            SetAssetDerivedProperties(baseManifest, stubCanvas, stubAssetId.ToString());
+        }
+    }
+
     private void ValidateManifests(Manifest baseManifest, Manifest? namedQueryManifest)
     {
         // Ensure NQ has items or we can't do anything
@@ -74,27 +109,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             throw new ArgumentNullException("namedQueryManifest.Items");
         }
     }
-
-    private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
-    {
-        try
-        {
-            return namedQueryManifest
-                .Items!
-                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
-            throw;
-        }
-    }
     
     /// <summary>
-    /// Merges a generated DLCS manifest with the current manifest in S3
+    /// Merges a generated named-query manifest with the current manifest in S3
     /// </summary>
-    private void BuildItems(Manifest baseManifest, List<CanvasPainting> canvasPaintings, 
-        Dictionary<AssetId, Canvas> canvasDictionary)
+    private void BuildItems(Manifest baseManifest, List<CanvasPainting> canvasPaintings)
     {
         // Get the canvasPaintings in the order we want to process them (Canvas => Choice) but group by CanvasId as
         // canvases with differing orders can share an id
@@ -104,46 +123,36 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         
         logger.LogDebug("Processing {CanvasCount} canvases on Manifest {ManifestId}", canvasGrouping.Count,
             baseManifest.Id);
-
-        var items = new List<Canvas>();
         
-        // dictionary where the key will either be the canvasOriginalId OR the canvasPainting id which is used
-        // to provide a fast match between the canvas and the canvasPainting record
-        var manifestCanvasDictionary = baseManifest.Items?.ToDictionary(
-            // customer id must be the same across all canvas paintings
-            key => pathRewriteParser.ParsePathWithRewrites(key.Id, canvasPaintings.First().CustomerId).Resource ??
-                   key.Id!,
-            val => val) ?? new Dictionary<string, Canvas>();
+        var finalCanvases = new List<Canvas>(canvasGrouping.Count);
         
         // Each grouping provides an 'instruction' on how to paint the CanvasPaintings onto canvas.
-        // All canvasPaintings in single grouping will be on single canvas
+        // All canvasPaintings in a single grouping will be on a single canvas
         foreach (var canvasInstruction in canvasGrouping)
         {
             var singleItemCanvas = canvasInstruction.Count() == 1;
             logger.LogTrace("Processing {CanvasId}. SingleItem: {SingleItemCanvas}", canvasInstruction.Key,
                 singleItemCanvas);
 
-            var canvas = GenerateCanvas(canvasDictionary, canvasInstruction, manifestCanvasDictionary, singleItemCanvas);
+            var canvas = GenerateCanvas(canvasInstruction, singleItemCanvas);
 
-            items.Add(canvas);
+            finalCanvases.Add(canvas);
         }
         
-        baseManifest.Items = items;
+        baseManifest.Items = finalCanvases;
     }
 
-    private Canvas GenerateCanvas(Dictionary<AssetId, Canvas> canvasDictionary,
-        IGrouping<string, CanvasPainting> canvasInstruction, Dictionary<string, Canvas> manifestCanvasDictionary, bool singleItemCanvas)
+    private Canvas GenerateCanvas(IGrouping<string, CanvasPainting> canvasInstruction, bool singleItemCanvas)
     {
         // Instruction is grouped by canvasId, so any can be used to generate canvas level ids
         var firstCanvasPaintingInCanvas = canvasInstruction.First();
-        
+
         if (firstCanvasPaintingInCanvas.CanvasOriginalId != null)
         {
-            return manifestCanvasDictionary.Values.First(i =>
-                i.Id! == firstCanvasPaintingInCanvas.CanvasOriginalId.ToString());
+            return canvasLookups.GetCanvasWithCanvasOriginalId(firstCanvasPaintingInCanvas);
         }
-        
-        var canvas = GetWorkingCanvas(manifestCanvasDictionary, firstCanvasPaintingInCanvas);
+
+        var canvas = GetWorkingCanvas(firstCanvasPaintingInCanvas);
 
         // Instantiate a new AnnotationPage - this is what we'll populate with PaintingAnnotations below
         var annoPage = new AnnotationPage
@@ -162,20 +171,19 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 canvasOrderCount);
 
             var isChoice = canvasOrderCount > 1;
-            
+
             var currentPaintingAnno = new PaintingAnnotation
             {
-                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First()) 
+                Id = pathGenerator.GeneratePaintingAnnotationId(canvasOrderGroup.First())
             };
 
             if (!isChoice)
             {
-                ProcessNonChoice(canvasDictionary, canvasOrderGroup.Single(), canvas, currentPaintingAnno,
-                    singleItemCanvas);
+                ProcessNonChoice(canvasOrderGroup.Single(), canvas, currentPaintingAnno, singleItemCanvas);
             }
             else
             {
-                ProcessChoice(canvasDictionary, canvasOrderGroup, canvas, currentPaintingAnno);
+                ProcessChoice(canvasOrderGroup, canvas, currentPaintingAnno);
             }
 
             annoPage.Items!.Add(currentPaintingAnno);
@@ -186,17 +194,19 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             logger.LogTrace("Canvas has no label, attempting to set to first non-null Label");
             canvas.Label = canvasInstruction.FirstOrDefault(ci => ci.Label != null)?.Label;
         }
-        
+
         canvas.Items = [annoPage];
         return canvas;
     }
 
-    private Canvas GetWorkingCanvas(Dictionary<string, Canvas> manifestCanvasDictionary, CanvasPainting firstCanvasPaintingInCanvas)
+    private Canvas GetWorkingCanvas(CanvasPainting firstCanvasPaintingInCanvas)
     {
-        // At this stage we will be populating the paintingAnnotation with content from NQ manifest. 
+        // At this stage we will be populating the painting Annotation with content from NQ manifest. 
         // Check to see if we can use an existing Canvas, falling back to creating a new one
         var canvasId = pathGenerator.GenerateCanvasId(firstCanvasPaintingInCanvas);
-        if (!manifestCanvasDictionary.TryGetValue(firstCanvasPaintingInCanvas.Id, out var canvas))
+        var canvas = canvasLookups.TryGetMatchingId(firstCanvasPaintingInCanvas);
+        
+        if (canvas == null)
         {
             logger.LogDebug("Couldn't find a canvas for the id {CanvasPaintingId}. Creating a new one", firstCanvasPaintingInCanvas.Id);
             canvas = new Canvas { Id = canvasId };
@@ -215,10 +225,10 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         return canvas;
     }
 
-    private void ProcessNonChoice(Dictionary<AssetId, Canvas> canvasDictionary, CanvasPainting canvasPainting,
-        Canvas canvas, PaintingAnnotation currentPaintingAnno, bool singleItemCanvas)
+    private void ProcessNonChoice(CanvasPainting canvasPainting, Canvas canvas, PaintingAnnotation currentPaintingAnno, bool singleItemCanvas)
     {
-        if (!canvasDictionary.TryGetValue(canvasPainting.AssetId!, out var namedQueryCanvas))
+        var namedQueryCanvas = canvasLookups.GetCanvasForAsset(canvasPainting.AssetId!);
+        if (namedQueryCanvas == null)
         {
             logger.LogWarning(
                 "Could not find NQ canvas for Asset {AssetId} from CanvasPainting {CanvasPaintingId}",
@@ -251,13 +261,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         currentPaintingAnno.Body = body;
     }
 
-    private void ProcessChoice(Dictionary<AssetId, Canvas> canvasDictionary,
-        IGrouping<int, CanvasPainting> canvasOrderGroup, Canvas canvas, PaintingAnnotation currentPaintingAnno)
+    private void ProcessChoice(IGrouping<int, CanvasPainting> canvasOrderGroup, Canvas canvas, PaintingAnnotation currentPaintingAnno)
     {
         var paintingChoice = new PaintingChoice { Items = [] };
         foreach (var canvasPaintingChoice in canvasOrderGroup)
         {
-            if (!canvasDictionary.TryGetValue(canvasPaintingChoice.AssetId!, out var namedQueryCanvas))
+            var namedQueryCanvas = canvasLookups.GetCanvasForAsset(canvasPaintingChoice.AssetId!);
+            if (namedQueryCanvas == null)
             {
                 logger.LogWarning(
                     "Could not find NQ canvas for Asset {AssetId} from CanvasPainting {CanvasPaintingId}",
@@ -269,7 +279,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             HandleCanvasPainting(canvasPaintingChoice, canvas, namedQueryCanvas, body);
 
             // We might have 1 or more IPaintable elements (e.g. if NQ resource is already a choice, flatten it)
-
             var paintables = GetPaintablesForChoice(body);
             if (canvasPaintingChoice.Label != null)
             {
@@ -308,14 +317,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private void HandleCanvasPainting(CanvasPainting canvasPainting, Canvas workingCanvas, Canvas namedQueryCanvas,
         IPaintable body)
     {
-        // Renderings are accumulated
-        if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
-        {
-            logger.LogTrace("NQ Canvas for AssetId {AssetId} has rendering", canvasPainting.AssetId);
-            workingCanvas.Rendering ??= [];
-            workingCanvas.Rendering.AddRange(namedQueryCanvas.Rendering);
-        }
-
         // Any custom behaviours are added but only unique values
         if (!namedQueryCanvas.Behavior.IsNullOrEmpty())
         {
@@ -347,7 +348,40 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             workingCanvas.Width = namedQueryCanvas.Width;
         }
         
+        SetAssetDerivedProperties(workingCanvas, namedQueryCanvas, canvasPainting.AssetId!.ToString());
+        
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
+    }
+
+    /// <summary>
+    /// Populate general properties that are derived from assets - these are generally from adjuncts but "rendering"
+    /// may reference assets on the file-delivery channel.
+    /// </summary>
+    private void SetAssetDerivedProperties(StructureBase structureBase, Canvas namedQueryCanvas, string identifier)
+    {
+        if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
+            structureBase.Annotations ??= [];
+            structureBase.Annotations.AddDistinctById(namedQueryCanvas.Annotations);
+        }
+
+        if (!namedQueryCanvas.SeeAlso.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", identifier);
+            structureBase.SeeAlso ??= [];
+            structureBase.SeeAlso.AddDistinctById(namedQueryCanvas.SeeAlso);
+        }
+
+        // NOTE: These can be assets, or file delivery-channel. We only want to add file d-c renderings to Canvases but
+        // the restrictions on 'stub' assets will mean that the .Rendering property will only ever have file d-c for
+        // Canvas level. Protagonist will prevent stub assets being anything other than 'none' d-c. 
+        if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
+        {
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", identifier);
+            structureBase.Rendering ??= [];
+            structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
+        }
     }
 
     /// <summary>
@@ -473,4 +507,87 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             _ => paintable
         };
     }
+}
+
+/// <summary>
+/// Manages various <see cref="Canvas"/> lookups and exposes operations for looking up values
+/// </summary>
+internal class CanvasLookups(IPathRewriteParser pathRewriteParser, ILogger logger)
+{
+    /// <summary>
+    /// Dictionary where the key will be a value that we can use to do a fast match between the canvas and
+    /// the canvasPainting record.
+    ///
+    /// Currently this will either be:
+    /// - The canvasPainting.Id if we could parse it, OR 
+    /// - The id of the incoming Canvas if we cannot (this will match with stored CanvasOriginalId)
+    /// </summary>
+    private Dictionary<string, Canvas> canvasesLookup = new();
+    
+    /// <summary>
+    /// Lookup of NQ Canvases by AssetId
+    /// </summary>
+    private Dictionary<AssetId, Canvas> namedQueryCanvasesLookup = new();
+    
+    public bool IsInitialised { get; private set; }
+
+    public void Initialise(Manifest namedQueryManifest, Manifest baseManifest, List<CanvasPainting> canvasPaintings)
+    {
+        canvasesLookup = BuildIdToCanvasesLookup(baseManifest, canvasPaintings);
+        InitialiseNqLookup(namedQueryManifest);
+    }
+
+    /// <summary>Partial initialisation for when no canvas paintings are present — only NQ lookup is needed.</summary>
+    public void InitialiseNqLookup(Manifest namedQueryManifest)
+    {
+        namedQueryCanvasesLookup = BuildAssetIdToCanvasLookup(namedQueryManifest);
+        IsInitialised = true;
+    }
+
+    private Dictionary<string, Canvas> BuildIdToCanvasesLookup(Manifest baseManifest, List<CanvasPainting> canvasPaintings)
+    {
+        // CustomerId is the same across all canvas paintings so we can just take the first
+        var customerId = canvasPaintings.First().CustomerId;
+        return baseManifest.Items?.ToDictionary(
+            key => ResolveCanvasId(key.Id!, customerId),
+            val => val) ?? new Dictionary<string, Canvas>();
+    }
+
+    private Dictionary<AssetId, Canvas> BuildAssetIdToCanvasLookup(Manifest namedQueryManifest)
+    {
+        try
+        {
+            return namedQueryManifest
+                .Items!
+                .ToDictionary(canvas => canvas.GetAssetIdFromNamedQueryCanvasId(), canvas => canvas);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error building Asset:Canvas lookup for {ManifestId}", namedQueryManifest?.Id);
+            throw;
+        }
+    }
+
+    public Canvas GetCanvasWithCanvasOriginalId(CanvasPainting cp)
+    {
+        var canvasOriginalId = cp.CanvasOriginalId.ThrowIfNull(nameof(cp.CanvasOriginalId)).ToString();
+        
+        var canvasWithMatchingOriginalId = ResolveCanvasId(canvasOriginalId, cp.CustomerId);
+        return canvasesLookup[canvasWithMatchingOriginalId];
+    }
+
+    public Canvas? GetCanvasForAsset(AssetId assetId) => namedQueryCanvasesLookup.GetValueOrDefault(assetId);
+
+    public Canvas? GetStubCanvas(StructureBase resource, string resourceId)
+    {
+        var customerId = namedQueryCanvasesLookup.Keys.FirstOrDefault()?.Customer ?? 0;
+        var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(resource, customerId, resourceId);
+        return namedQueryCanvasesLookup.GetValueOrDefault(stubAssetId);
+    }
+
+    private string ResolveCanvasId(string canvasId, int customerId)
+        => pathRewriteParser.ParsePathWithRewrites(canvasId, customerId).Resource ?? canvasId;
+
+    public Canvas? TryGetMatchingId(CanvasPainting canvasPainting)
+        => canvasesLookup.GetValueOrDefault(canvasPainting.Id);
 }
