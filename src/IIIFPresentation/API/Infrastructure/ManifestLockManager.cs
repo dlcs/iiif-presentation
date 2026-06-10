@@ -23,6 +23,7 @@ public sealed class ManifestLockManager : IManifestLockManager
 
     public IDisposable? TryAcquire(string key)
     {
+        // Retry if the entry we latched was concurrently evicted before we could increment its ref count.
         while (true)
         {
             var entry = entries.GetOrAdd(key, _ => new Entry());
@@ -36,6 +37,8 @@ public sealed class ManifestLockManager : IManifestLockManager
                 continue;
             }
 
+            // The semaphore (initialised 1,1) is the actual mutex; the dictionary only tracks entry lifetime.
+            // Wait(0) = non-blocking: returns true if acquired, false if already held by another caller.
             if (!entry.Semaphore.Wait(0))
             {
                 Decrement(key, entry);
@@ -52,6 +55,8 @@ public sealed class ManifestLockManager : IManifestLockManager
 
     private void Decrement(string key, Entry entry)
     {
+        // KeyValuePair overload ensures we only remove the entry we own, not a replacement inserted by a new caller.
+        // Disposal is safe here: RefCount==0 means no thread is inside Wait(0) or holding the semaphore.
         if (Interlocked.Decrement(ref entry.RefCount) == 0
             && entries.TryRemove(new KeyValuePair<string, Entry>(key, entry)))
         {
