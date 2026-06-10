@@ -45,7 +45,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Update_Conflict_IfManifestIsCurrentlyIngesting()
     {
         // Arrange
-        var dbManifest = (await dbContext.Manifests.AddTestManifest(batchId: 999)).Entity;
+        var dbManifest = (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId())).Entity;
         await dbContext.SaveChangesAsync();
         var manifest = dbManifest.ToPresentationManifest();
 

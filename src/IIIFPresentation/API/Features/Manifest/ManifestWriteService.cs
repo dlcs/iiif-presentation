@@ -104,7 +104,7 @@ public class ManifestWriteService(
     /// </summary>
     public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
-        using var manifestLock = manifestLockManager.TryAcquire($"{request.CustomerId}:{request.ManifestId}");
+        using var manifestLock = manifestLockManager.TryAcquire($"M:{request.CustomerId}:{request.ManifestId}");
         if (manifestLock == null)
         {
             logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is already being processed, rejecting write",

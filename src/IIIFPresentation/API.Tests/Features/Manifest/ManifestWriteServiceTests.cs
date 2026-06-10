@@ -976,7 +976,7 @@ public class ManifestWriteServiceTests
         // Arrange
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
-        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug, batchId: 9981);
+        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug, batchId: TestIdentifiers.BatchId());
         await presentationContext.SaveChangesAsync();
 
         var manifest = new PresentationManifest { Slug = slug };
@@ -1020,7 +1020,7 @@ public class ManifestWriteServiceTests
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         // Hold the lock externally to simulate another in-flight request
-        using var heldLock = manifestLockManager.TryAcquire($"{Customer}:{resourceId}");
+        using var heldLock = manifestLockManager.TryAcquire($"M:{Customer}:{resourceId}");
 
         var manifest = new PresentationManifest { Slug = slug };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false);

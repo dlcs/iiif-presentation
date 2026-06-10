@@ -52,9 +52,10 @@ public sealed class ManifestLockManager : IManifestLockManager
 
     private void Decrement(string key, Entry entry)
     {
-        if (Interlocked.Decrement(ref entry.RefCount) == 0)
+        if (Interlocked.Decrement(ref entry.RefCount) == 0
+            && entries.TryRemove(new KeyValuePair<string, Entry>(key, entry)))
         {
-            entries.TryRemove(new KeyValuePair<string, Entry>(key, entry));
+            entry.Semaphore.Dispose();
         }
     }
 

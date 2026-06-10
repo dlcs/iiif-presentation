@@ -88,21 +88,24 @@ public class ManifestLockManagerTests
     [Fact]
     public async Task TryAcquire_OnlyOneSucceeds_UnderConcurrentAccess()
     {
-        // Arrange
-        var acquiredCount = 0;
-        var handles = new IDisposable?[20];
-
-        // Act
-        await Parallel.ForEachAsync(Enumerable.Range(0, 20), async (i, _) =>
+        for (var round = 0; round < 5; round++)
         {
-            await Task.Yield();
-            handles[i] = sut.TryAcquire("shared-key");
-            if (handles[i] != null) Interlocked.Increment(ref acquiredCount);
-        });
+            // Arrange
+            var acquiredCount = 0;
+            var handles = new IDisposable?[20];
 
-        // Assert
-        acquiredCount.Should().Be(1);
+            // Act
+            await Parallel.ForEachAsync(Enumerable.Range(0, 20), async (i, _) =>
+            {
+                await Task.Yield();
+                handles[i] = sut.TryAcquire("shared-key");
+                if (handles[i] != null) Interlocked.Increment(ref acquiredCount);
+            });
 
-        foreach (var handle in handles) handle?.Dispose();
+            // Assert
+            acquiredCount.Should().Be(1, $"round {round}");
+
+            foreach (var handle in handles) handle?.Dispose();
+        }
     }
 }
