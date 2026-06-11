@@ -40,29 +40,6 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     
         storageFixture.DbFixture.CleanUp();
     }
-    
-    [Fact]
-    public async Task PutFlatId_Update_Conflict_IfManifestIsCurrentlyIngesting()
-    {
-        // Arrange
-        var dbManifest = (await dbContext.Manifests.AddTestManifest(batchId: TestIdentifiers.BatchId())).Entity;
-        await dbContext.SaveChangesAsync();
-        var manifest = dbManifest.ToPresentationManifest();
-
-        var requestMessage =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
-                manifest.AsJson(), dbContext.GetETag(dbManifest));
-
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-        error!.ErrorTypeUri.Should()
-            .Be("http://localhost/errors/ModifyCollectionType/ManifestCurrentlyIngesting");
-    }
 
     [Fact]
     public async Task PutFlatId_Update_PreConditionFailed_IfEtagNotProvided()

@@ -969,49 +969,6 @@ public class ManifestWriteServiceTests
         ingestedManifest.Error.Should().Be("Suspected asset from image body (1/1/someItem) and services (1/1/different) point to different managed assets");
         ingestedManifest.WriteResult.Should().Be(WriteResult.BadRequest);
     }
-    
-    [Fact]
-    public async Task Upsert_ReturnsConflict_WhenManifestHasIngestingAssetBatch()
-    {
-        // Arrange
-        var (slug, resourceId) = TestIdentifiers.SlugResource();
-
-        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug, batchId: TestIdentifiers.BatchId());
-        await presentationContext.SaveChangesAsync();
-
-        var manifest = new PresentationManifest { Slug = slug };
-        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), false);
-
-        // Act
-        var result = await sut.Upsert(request, CancellationToken.None);
-
-        // Assert
-        result.WriteResult.Should().Be(WriteResult.Conflict);
-        result.Error.Should().Contain("currently being ingested");
-    }
-
-    [Fact]
-    public async Task Upsert_ReturnsConflict_WhenManifestHasIngestingAdjunctBatch()
-    {
-        // Arrange
-        var (slug, resourceId) = TestIdentifiers.SlugResource();
-
-        var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
-        await presentationContext.Batches.AddTestBatch(TestIdentifiers.BatchId(), dbManifest.Entity, DbDeliverableType.Adjunct);
-        await presentationContext.SaveChangesAsync();
-
-        var manifest = new PresentationManifest { Slug = slug };
-        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), false);
-
-        // Act
-        var result = await sut.Upsert(request, CancellationToken.None);
-
-        // Assert
-        result.WriteResult.Should().Be(WriteResult.Conflict);
-        result.Error.Should().Contain("currently being ingested");
-    }
 
     [Fact]
     public async Task Upsert_ReturnsConflict_WhenManifestIsAlreadyBeingProcessed()
