@@ -8,12 +8,7 @@
 
 When a manifest is ingested through the API there's the possibility of same manifest being "double-submitted" by a caller.  This causes major issues with processing as it can mean batches are double-submitted that means manifests are unable to be processed by the background handler.  [This has occasionally been seen in the live environment](https://github.com/dlcs/iiif-presentation/issues/507).  As such, some way of locking manifests from being processed twice needs to be implemented.
 
-There are a couple of scenarios where this issue can occur:
-
-1. Concurrent requests through the API (essentially execute a second call with the same values while waiting for the first to complete)
-2. Resending the same request while the manifest is waiting for processing in the background handler, but a response has been received from the API for the first request
-
-The second is fairly easy to solve by essentially checking if the manifest is still ingesting, and if it is respond with a `409 Conflict` response instead of accepting the manifest.  However, the first is more complex as it requires a solution to lock a manifest from being processed after the first attempt has been made.
+This occurs due to concurrent duplicate requests through the API (essentially executing a second call with the same values while waiting for the first to complete)
 
 ## Decision drivers
 
