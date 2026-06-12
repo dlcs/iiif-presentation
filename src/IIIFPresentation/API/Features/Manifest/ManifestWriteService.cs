@@ -127,13 +127,6 @@ public class ManifestWriteService(
                 return await CreateInternal(request, request.ManifestId, cancellationToken);
             }
 
-            if (existingManifest.IsIngesting())
-            {
-                logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is currently ingesting, rejecting write",
-                    request.ManifestId, request.CustomerId);
-                return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
-            }
-
             return await UpdateInternal(request, existingManifest, cancellationToken);
         }
         catch (DlcsException ex)
