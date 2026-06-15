@@ -18,9 +18,10 @@ namespace Repository.Migrations
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    manifest_id = table.Column<string>(type: "text", nullable: false),
+                    resource_id = table.Column<string>(type: "text", nullable: false),
+                    resource_type = table.Column<string>(type: "text", nullable: false),
+                    job_type = table.Column<string>(type: "text", nullable: false),
                     customer_id = table.Column<int>(type: "integer", nullable: false),
-                    text_job_id = table.Column<string>(type: "text", nullable: false),
                     status = table.Column<string>(type: "text", nullable: false),
                     error = table.Column<string>(type: "text", nullable: true),
                     created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
@@ -29,18 +30,7 @@ namespace Repository.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_pipeline_jobs", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_pipeline_jobs_manifests_manifest_id_customer_id",
-                        columns: x => new { x.manifest_id, x.customer_id },
-                        principalTable: "manifests",
-                        principalColumns: new[] { "id", "customer_id" },
-                        onDelete: ReferentialAction.Cascade);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_pipeline_jobs_manifest_id_customer_id",
-                table: "pipeline_jobs",
-                columns: new[] { "manifest_id", "customer_id" });
         }
 
         /// <inheritdoc />

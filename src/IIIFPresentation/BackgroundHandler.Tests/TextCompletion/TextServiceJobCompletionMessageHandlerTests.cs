@@ -108,7 +108,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
-        var job = dbContext.PipelineJobs.Single(p => p.TextJobId == jobId);
+        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Status.Should().Be(PipelineJobStatus.Failed);
         job.Error.Should().Be("OCR timed out");
 
@@ -137,7 +137,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
-        var job = dbContext.PipelineJobs.Single(p => p.TextJobId == jobId);
+        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Status.Should().Be(PipelineJobStatus.Completed);
         job.Error.Should().BeNull();
 
@@ -280,7 +280,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, "Completed"), CancellationToken.None);
 
-        var job = dbContext.PipelineJobs.Single(p => p.TextJobId == jobId);
+        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
     }
 
@@ -296,7 +296,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, "Failed", errors: "OCR error"), CancellationToken.None);
 
-        var job = dbContext.PipelineJobs.Single(p => p.TextJobId == jobId);
+        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
     }
 
@@ -306,9 +306,11 @@ public class TextServiceJobCompletionMessageHandlerTests
         var manifest = manifestEntry.Entity;
         await dbContext.PipelineJobs.AddAsync(new PipelineJob
         {
-            ManifestId = manifest.Id,
+            ResourceId = manifest.Id,
+            ResourceType = ResourceType.IIIFManifest,
+            JobType = PipelineJobType.TextService,
             CustomerId = manifest.CustomerId,
-            TextJobId = jobId,
+
             Status = PipelineJobStatus.Queued,
             Created = DateTime.UtcNow
         });

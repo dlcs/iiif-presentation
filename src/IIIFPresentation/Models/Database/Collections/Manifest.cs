@@ -48,6 +48,7 @@ public class Manifest : IHierarchyResource
     
     public List<Batch>? Batches { get; set; }
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public List<PipelineJob>? PipelineJobs { get; set; }
     
     /// <summary>

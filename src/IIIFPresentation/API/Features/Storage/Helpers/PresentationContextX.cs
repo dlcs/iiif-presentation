@@ -69,7 +69,7 @@ public static class PresentationContextX
     /// <param name="withBatches">Whether the Batches records should be included</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
-    public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext,
+    public static async Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext,
         string manifestId, bool tracked = false, bool withCanvasPaintings = true, bool withBatches = false,
         bool withPipelineJobs = false, CancellationToken cancellationToken = default)
     {
@@ -85,12 +85,16 @@ public static class PresentationContextX
             dbContextManifests = dbContextManifests.Include(m => m.Batches);
         }
 
-        if (withPipelineJobs)
+        var manifest = await dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
+
+        if (withPipelineJobs && manifest != null)
         {
-            dbContextManifests = dbContextManifests.Include(m => m.PipelineJobs);
+            manifest.PipelineJobs = await dbContext.PipelineJobs
+                .Where(p => p.ResourceId == manifest.Id && p.ResourceType == ResourceType.IIIFManifest)
+                .ToListAsync(cancellationToken);
         }
 
-        return dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
+        return manifest;
     }
     
     /// <summary>

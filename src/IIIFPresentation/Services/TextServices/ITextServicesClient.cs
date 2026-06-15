@@ -1,4 +1,5 @@
 using IIIF.Presentation.V3;
+using Models.Database.General;
 
 namespace Services.TextServices;
 
@@ -7,9 +8,10 @@ public interface ITextServicesClient
     /// <summary>
     /// Create a new text-builder job, or reprocess an existing one.
     /// </summary>
-    /// <param name="jobId">Job identifier in format "{customerId}/iiif/{manifestId}"</param>
-    /// <param name="sourceS3Uri">S3 URI of the staged manifest, e.g. "s3://bucket/staging/..."</param>
-    Task<bool> CreateOrUpdateJob(string jobId, string sourceS3Uri, CancellationToken cancellationToken = default);
+    /// <param name="job">The pipeline job to submit</param>
+    /// <param name="bucket">S3 bucket containing the staged manifest</param>
+    /// <param name="resourceKey">S3 key of the staged manifest</param>
+    Task<bool> CreateOrUpdateJob(PipelineJob job, string bucket, string resourceKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieve the text-augmented manifest for a completed job.

@@ -1160,14 +1160,14 @@ public class ManifestWriteServiceTests
         var result = await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         var flatId = result.Entity.FlatId;
-        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
-        pipelineJob.TextJobId.Should().Be($"{Customer}/iiif/{flatId}");
+        pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
     }
 
     [Fact]
@@ -1186,7 +1186,7 @@ public class ManifestWriteServiceTests
         await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -1228,7 +1228,7 @@ public class ManifestWriteServiceTests
         var flatId = firstResult.Entity.FlatId;
 
         // Manually mark the job as completed (simulating a prior run)
-        var existingJob = presentationContext.PipelineJobs.First(p => p.ManifestId == flatId);
+        var existingJob = presentationContext.PipelineJobs.First(p => p.ResourceId == flatId);
         presentationContext.Entry(existingJob).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
 
         // Second create (update path) — use the existing slug/manifest with pipeline again
@@ -1245,10 +1245,10 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.WriteResult.Should().Be(WriteResult.Accepted);
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly();
 
-        var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
+        var jobs = presentationContext.PipelineJobs.Where(p => p.ResourceId == flatId).ToList();
         jobs.Should().HaveCount(1, "resubmit should reset existing job, not create a second one");
         jobs[0].Status.Should().Be(PipelineJobStatus.Queued);
     }

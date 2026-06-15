@@ -163,17 +163,23 @@ public class PresentationContext : DbContext
         {
             entity.HasKey(p => p.Id);
 
-            entity
-                .HasOne(p => p.Manifest)
-                .WithMany(m => m.PipelineJobs)
-                .HasForeignKey(p => new { p.ManifestId, p.CustomerId })
-                .OnDelete(DeleteBehavior.Cascade);
-
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasConversion(
                     s => s.ToString(),
                     s => s.GetEnumFromString<PipelineJobStatus>(true));
+
+            entity.Property(e => e.ResourceType)
+                .IsRequired()
+                .HasConversion(
+                    r => r.ToString(),
+                    r => r.GetEnumFromString<ResourceType>(true));
+
+            entity.Property(e => e.JobType)
+                .IsRequired()
+                .HasConversion(
+                    j => j.ToString(),
+                    j => j.GetEnumFromString<PipelineJobType>(true));
 
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
         });

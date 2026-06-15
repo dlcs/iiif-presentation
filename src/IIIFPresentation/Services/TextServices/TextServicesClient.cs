@@ -7,6 +7,7 @@ using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Models.Database.General;
 
 namespace Services.TextServices;
 
@@ -23,16 +24,18 @@ public class TextServicesClient(
     // Search=1, Autocomplete=2, TextAugmented=16
     private const int InitialServices = 19;
 
-    public async Task<bool> CreateOrUpdateJob(string jobId, string sourceS3Uri,
+    public async Task<bool> CreateOrUpdateJob(PipelineJob job, string bucket, string resourceKey,
         CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
+        var jobId = job.GetJobId();
         if (settings.BuilderApiUri == null)
         {
             logger.LogWarning("TextServices BuilderApiUri is not configured; skipping job creation for {JobId}", jobId);
             return false;
         }
 
+        var sourceS3Uri = $"s3://{bucket}/{resourceKey}";
         var request = new { id = jobId, sourceUri = sourceS3Uri, services = InitialServices };
         var content = new StringContent(JsonSerializer.Serialize(request, JsonOptions), Encoding.UTF8, "application/json");
 

@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20260612164039_AddPipelineJob")]
+    [Migration("20260615144249_AddPipelineJob")]
     partial class AddPipelineJob
     {
         /// <inheritdoc />
@@ -381,26 +381,28 @@ namespace Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("finished");
 
-                    b.Property<string>("ManifestId")
+                    b.Property<string>("JobType")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("manifest_id");
+                        .HasColumnName("job_type");
+
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("resource_id");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("resource_type");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");
 
-                    b.Property<string>("TextJobId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("text_job_id");
-
                     b.HasKey("Id")
                         .HasName("pk_pipeline_jobs");
-
-                    b.HasIndex("ManifestId", "CustomerId")
-                        .HasDatabaseName("ix_pipeline_jobs_manifest_id_customer_id");
 
                     b.ToTable("pipeline_jobs", (string)null);
                 });
@@ -456,18 +458,6 @@ namespace Repository.Migrations
                     b.Navigation("ParentCollection");
                 });
 
-            modelBuilder.Entity("Models.Database.General.PipelineJob", b =>
-                {
-                    b.HasOne("Models.Database.Collections.Manifest", "Manifest")
-                        .WithMany("PipelineJobs")
-                        .HasForeignKey("ManifestId", "CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_pipeline_jobs_manifests_manifest_id_customer_id");
-
-                    b.Navigation("Manifest");
-                });
-
             modelBuilder.Entity("Models.Database.Collections.Collection", b =>
                 {
                     b.Navigation("Children");
@@ -482,8 +472,6 @@ namespace Repository.Migrations
                     b.Navigation("CanvasPaintings");
 
                     b.Navigation("Hierarchy");
-
-                    b.Navigation("PipelineJobs");
                 });
 #pragma warning restore 612, 618
         }

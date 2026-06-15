@@ -44,10 +44,10 @@ public class TextServiceJobCompletionMessageHandler(
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
+        var resourceId = ExtractResourceIdFromJobId(completionMessage.JobId);
         var pipelineJob = await dbContext.PipelineJobs
-            .Include(p => p.Manifest)
-            .ThenInclude(m => m!.CanvasPaintings)
-            .SingleOrDefaultAsync(p => p.TextJobId == completionMessage.JobId, cancellationToken);
+            .SingleOrDefaultAsync(p => p.ResourceId == resourceId && p.JobType == PipelineJobType.TextService,
+                cancellationToken);
 
         if (pipelineJob == null)
         {
@@ -59,11 +59,21 @@ public class TextServiceJobCompletionMessageHandler(
         }
 
         var sw = Stopwatch.StartNew();
-        var dbManifest = pipelineJob.Manifest!;
+        var dbManifest = await dbContext.Manifests
+            .Include(m => m.CanvasPaintings)
+            .SingleOrDefaultAsync(m => m.Id == pipelineJob.ResourceId && m.CustomerId == pipelineJob.CustomerId,
+                cancellationToken);
+
+        if (dbManifest == null)
+        {
+            logger.LogError("Manifest {ResourceId} for pipeline job {JobId} not found",
+                pipelineJob.ResourceId, completionMessage.JobId);
+            return false;
+        }
 
         logger.LogInformation(
             "Completing text pipeline for job:{JobId}, customer:{CustomerId}, manifest:{ManifestId}",
-            completionMessage.JobId, pipelineJob.CustomerId, pipelineJob.ManifestId);
+            completionMessage.JobId, pipelineJob.CustomerId, pipelineJob.ResourceId);
 
         try
         {
@@ -104,7 +114,7 @@ public class TextServiceJobCompletionMessageHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
             "Text pipeline completed for job:{JobId}, manifest:{ManifestId}. Elapsed:{Elapsed}ms",
-            completionMessage.JobId, pipelineJob.ManifestId, sw.ElapsedMilliseconds);
+            completionMessage.JobId, pipelineJob.ResourceId, sw.ElapsedMilliseconds);
         return true;
     }
 
@@ -151,9 +161,18 @@ public class TextServiceJobCompletionMessageHandler(
 
     private static int ExtractCustomerIdFromJobId(string jobId)
     {
-        // jobId format: "{customerId}/iiif/{manifestId}"
+        // jobId format: "{customerId}/iiif/{resourceId}"
         var firstSlash = jobId.IndexOf('/');
         return firstSlash > 0 && int.TryParse(jobId[..firstSlash], out var customerId) ? customerId : 0;
+    }
+
+    private static string ExtractResourceIdFromJobId(string jobId)
+    {
+        // jobId format: "{customerId}/iiif/{resourceId}"
+        var firstSlash = jobId.IndexOf('/');
+        if (firstSlash < 0) return string.Empty;
+        var secondSlash = jobId.IndexOf('/', firstSlash + 1);
+        return secondSlash > 0 && secondSlash < jobId.Length - 1 ? jobId[(secondSlash + 1)..] : string.Empty;
     }
 
     private static TextServiceJobCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)
