@@ -119,6 +119,8 @@ public class ManifestWriteServiceTests
         manifestLockManager = new LockManager();
 
         textServicesClient = A.Fake<ITextServicesClient>();
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(true);
         sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, pathRewriteParser, manifestLockManager, textServicesClient,
@@ -1168,6 +1170,31 @@ public class ManifestWriteServiceTests
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
         pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
+    }
+
+    [Fact]
+    public async Task Create_SetsPipelineJobToFailed_WhenTextServiceSubmissionFails()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(false);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        var flatId = result.Entity.FlatId;
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
+        pipelineJob.Should().NotBeNull();
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Failed);
+        pipelineJob.Error.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

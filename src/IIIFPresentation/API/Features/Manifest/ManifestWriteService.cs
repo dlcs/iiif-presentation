@@ -13,11 +13,11 @@ using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
-using Models.Database.Collections;
 using Models.DLCS;
 using Models.Database.General;
 using Repository;
@@ -483,9 +483,9 @@ public class ManifestWriteService(
 
     private async Task SubmitTextPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
     {
-        var existing = dbContext.PipelineJobs
-            .FirstOrDefault(p => p.ResourceId == dbManifest.Id && p.ResourceType == ResourceType.IIIFManifest
-                                  && p.CustomerId == dbManifest.CustomerId);
+        var existing = await dbContext.PipelineJobs
+            .FirstOrDefaultAsync(p => p.ResourceId == dbManifest.Id && p.ResourceType == ResourceType.IIIFManifest
+                                      && p.CustomerId == dbManifest.CustomerId, cancellationToken);
 
         var job = existing ?? new PipelineJob
         {
@@ -496,15 +496,23 @@ public class ManifestWriteService(
             Created = DateTime.UtcNow
         };
 
-        await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
+        var submitted = await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
             dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken);
 
-        job.Status = PipelineJobStatus.Queued;
-        job.Error = null;
-        job.Finished = null;
+        if (submitted)
+        {
+            job.Status = PipelineJobStatus.Queued;
+            job.Error = null;
+            job.Finished = null;
+        }
+        else
+        {
+            job.Status = PipelineJobStatus.Failed;
+            job.Error = "Failed to submit job to text-services builder";
+            job.Finished = DateTime.UtcNow;
+        }
 
-        if (existing == null)
-            await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
+        if (existing == null) await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
     }
 
     /// <summary>

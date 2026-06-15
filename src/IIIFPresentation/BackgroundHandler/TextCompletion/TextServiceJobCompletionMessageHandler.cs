@@ -29,7 +29,15 @@ public class TextServiceJobCompletionMessageHandler(
             try
             {
                 var completionMessage = DeserializeMessage(message, logger);
-                customerIdProvider.SetCustomerId(ExtractCustomerIdFromJobId(completionMessage.JobId));
+                var customerId = ExtractCustomerIdFromJobId(completionMessage.JobId);
+                if (customerId == null)
+                {
+                    logger.LogWarning("Could not parse customer id from job id {JobId}; discarding message",
+                        completionMessage.JobId);
+                    return true;
+                }
+
+                customerIdProvider.SetCustomerId(customerId.Value);
                 return await TryCompleteManifest(completionMessage, message.ApproximateReceiveCount, cancellationToken);
             }
             catch (Exception ex)
@@ -159,11 +167,11 @@ public class TextServiceJobCompletionMessageHandler(
         }
     }
 
-    private static int ExtractCustomerIdFromJobId(string jobId)
+    private static int? ExtractCustomerIdFromJobId(string jobId)
     {
         // jobId format: "{customerId}/iiif/{resourceId}"
         var firstSlash = jobId.IndexOf('/');
-        return firstSlash > 0 && int.TryParse(jobId[..firstSlash], out var customerId) ? customerId : 0;
+        return firstSlash > 0 && int.TryParse(jobId[..firstSlash], out var customerId) ? customerId : null;
     }
 
     private static string ExtractResourceIdFromJobId(string jobId)

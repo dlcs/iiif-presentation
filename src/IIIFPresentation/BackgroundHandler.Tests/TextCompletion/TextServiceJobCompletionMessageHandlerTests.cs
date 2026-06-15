@@ -54,6 +54,19 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     [Theory]
+    [InlineData("not-a-valid-id")]
+    [InlineData("noSlashAtAll")]
+    [InlineData("/iiif/resource")]
+    public async Task HandleMessage_ReturnsTrue_WhenJobIdCannotBeParsed(string malformedJobId)
+    {
+        var message = CreateMessage(malformedJobId, "Completed");
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     public async Task HandleMessage_ReturnsFalse_WhenPipelineJobNotFound_BelowRetryThreshold(int receiveCount)
