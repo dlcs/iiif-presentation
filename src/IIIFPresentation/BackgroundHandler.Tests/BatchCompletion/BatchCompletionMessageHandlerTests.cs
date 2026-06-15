@@ -47,7 +47,7 @@ public class BatchCompletionMessageHandlerTests
 
     public BatchCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
     {
-        // The context from dbFixture doesn't track changes so setup/assert
+        //  The context from dbFixture doesn't track changes so setup/assert
         dbContext = dbFixture.DbContext;
         dbFixture.CustomerIdProvider.SetCustomerId(CustomerId);
         

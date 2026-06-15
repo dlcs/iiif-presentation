@@ -1,6 +1,7 @@
 ﻿using AWS.Settings;
 using BackgroundHandler.Infrastructure;
 using BackgroundHandler.Settings;
+using Core.Settings;
 using DLCS;
 using Repository.Helpers;
 using Repository.Paths;
@@ -30,11 +31,15 @@ var aws = builder.Configuration.GetSection(AWSSettings.SettingsName).Get<AWSSett
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
+builder.Services.Configure<TextServicesSettings>(
+    builder.Configuration.GetSection(TextServicesSettings.SettingsName));
+
 builder.RegisterSharedServiceSettings();
     
 builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddDlcsOrchestratorClient(dlcs)
+    .AddTextServicesClient()
     .AddBackgroundServices(aws)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()

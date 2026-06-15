@@ -1885,4 +1885,26 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 A<CancellationToken>._))
             .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
     }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsAccepted_WithNoETag_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.Slug(),
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().NotContainKey(Microsoft.Net.Http.Headers.HeaderNames.ETag,
+            "202 responses must not include an ETag as the manifest is not yet finalised");
+    }
 }

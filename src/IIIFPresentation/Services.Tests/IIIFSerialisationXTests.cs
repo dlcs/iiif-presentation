@@ -192,7 +192,7 @@ public class IIIFSerialisationXTests
 
     [Fact]
     public void ToManifest_PresentationPropertyKeys_CoversAllPresentationManifestProperties()
-        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(14);
+        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(15);
 
     [Fact]
     public void ToCollection_PresentationPropertyKeys_CoversAllPresentationCollectionProperties()

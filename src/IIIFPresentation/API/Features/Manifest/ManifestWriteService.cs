@@ -5,12 +5,15 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
+using AWS.Helpers;
+using AWS.Settings;
 using Core;
 using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -24,6 +27,7 @@ using Services;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using Services.TextServices;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -97,6 +101,8 @@ public class ManifestWriteService(
     IManifestStorageManager manifestStorageManager,
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
+    ITextServicesClient textServicesClient,
+    IOptions<AWSSettings> awsOptions,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -187,7 +193,9 @@ public class ManifestWriteService(
                     dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Created : WriteResult.Accepted;
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasTextIndexPipeline()
+                ? WriteResult.Created
+                : WriteResult.Accepted;
             return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
@@ -218,7 +226,9 @@ public class ManifestWriteService(
                 dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Updated : WriteResult.Accepted;
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasTextIndexPipeline()
+                ? WriteResult.Updated
+                : WriteResult.Accepted;
             return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
         }
@@ -422,6 +432,7 @@ public class ManifestWriteService(
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         var hasAdjuncts = request.PresentationManifest.Adjuncts != null
             || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
+        var hasPipeline = request.PresentationManifest.HasTextIndexPipeline();
 
         // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
         // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
@@ -429,7 +440,10 @@ public class ManifestWriteService(
 
         var originalToStore = requiresExternalContent ? request.RawRequestBody : null;
 
-        if (canBeBuiltUpfront && requiresExternalContent)
+        // Pipeline forces staging even if we'd otherwise save directly to final
+        var saveToStaging = !canBeBuiltUpfront || hasPipeline;
+
+        if (canBeBuiltUpfront && requiresExternalContent && !hasPipeline)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
@@ -448,20 +462,53 @@ public class ManifestWriteService(
                 iiifManifest.Items = canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator,
                     iiifManifest.Items, pathRewriteParser);
             }
-            
+
             request.PresentationManifest.Items = iiifManifest.Items;
             await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
-                !canBeBuiltUpfront, cancellationToken);
+                saveToStaging, cancellationToken);
 
-            // Direct save (built upfront, no external content) with nothing to store as original:
-            // remove any stale original payload left by a previous version of this manifest.
-            if (originalToStore is null)
+            if (!saveToStaging && originalToStore is null)
             {
                 await manifestStorageManager.DeleteOriginalPayload(dbManifest);
             }
         }
 
+        if (hasPipeline)
+        {
+            await SubmitTextPipelineJob(dbManifest, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SubmitTextPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    {
+        var stagingKey = dbManifest.GetResourceBucketKey(BucketLocationType.Staging);
+        var s3Uri = $"s3://{awsOptions.Value.S3.StorageBucket}/{stagingKey}";
+        var jobId = $"{dbManifest.CustomerId}/iiif/{dbManifest.Id}";
+
+        await textServicesClient.CreateOrUpdateJob(jobId, s3Uri, cancellationToken);
+
+        var existing = dbContext.PipelineJobs
+            .FirstOrDefault(p => p.ManifestId == dbManifest.Id && p.CustomerId == dbManifest.CustomerId);
+
+        if (existing != null)
+        {
+            existing.Status = PipelineJobStatus.Queued;
+            existing.Error = null;
+            existing.Finished = null;
+        }
+        else
+        {
+            await dbContext.PipelineJobs.AddAsync(new PipelineJob
+            {
+                ManifestId = dbManifest.Id,
+                CustomerId = dbManifest.CustomerId,
+                TextJobId = jobId,
+                Status = PipelineJobStatus.Queued,
+                Created = DateTime.UtcNow
+            }, cancellationToken);
+        }
     }
 
     /// <summary>

@@ -1,8 +1,10 @@
-﻿using Core.Web;
+﻿using Core.Settings;
+using Core.Web;
 using DLCS;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Services.Manifests.Settings;
+using Services.TextServices;
 
 namespace Services;
 
@@ -15,5 +17,11 @@ public static class ServiceCollectionX
         var typedPathTemplateOptions = pathSettings.GetSection(TypedPathTemplateOptions.SettingsName);
         builder.Services.Configure<TypedPathTemplateOptions>(typedPathTemplateOptions);
         builder.Services.Configure<ServicesSettings>(builder.Configuration.GetSection(ServicesSettings.SettingsName));
+    }
+
+    public static IServiceCollection AddTextServicesClient(this IServiceCollection services)
+    {
+        services.AddHttpClient<ITextServicesClient, TextServicesClient>();
+        return services;
     }
 }

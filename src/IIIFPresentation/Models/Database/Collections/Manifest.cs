@@ -47,6 +47,8 @@ public class Manifest : IHierarchyResource
     public List<CanvasPainting>? CanvasPaintings { get; set; }
     
     public List<Batch>? Batches { get; set; }
+
+    public List<PipelineJob>? PipelineJobs { get; set; }
     
     /// <summary>
     /// A timestamp denoting when this batch was last processed into a user viewable format
@@ -63,7 +65,23 @@ public static class ManifestX
     /// </summary>
     public static string GetDefaultSpaceName(string manifestId)
         => $"For manifest {manifestId} - {DateTime.UtcNow.ToString("s", CultureInfo.InvariantCulture)}";
-    
+
+    /// <summary>
+    /// Whether the manifest has an active DLCS batch still ingesting assets.
+    /// </summary>
     public static bool IsIngesting(this Manifest? manifest)
         => manifest?.Batches?.Any(m => m.Status == BatchStatus.Ingesting) ?? false;
+
+    /// <summary>
+    /// Whether a text-services pipeline job is pending for this manifest.
+    /// </summary>
+    public static bool HasPendingPipelineJob(this Manifest? manifest)
+        => manifest?.PipelineJobs?.Any(p => p.Status == PipelineJobStatus.Queued) ?? false;
+
+    /// <summary>
+    /// Whether the manifest has any outstanding background work that must complete before it reaches its final state.
+    /// Covers both DLCS batch ingestion and text-services pipeline jobs.
+    /// </summary>
+    public static bool HasFurtherWork(this Manifest? manifest)
+        => manifest.IsIngesting() || manifest.HasPendingPipelineJob();
 }

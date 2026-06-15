@@ -23,6 +23,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using DbBatchStatus = Models.Database.General.BatchStatus;
 using DbDeliverableType = Models.Database.General.DeliverableType;
+using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -30,12 +31,14 @@ using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Services.TextServices;
 using Sqids;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Test.Helpers.Settings;
 using DbCanvasPainting = Models.Database.CanvasPainting;
+using DbManifest = Models.Database.Collections.Manifest;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
 
 namespace API.Tests.Features.Manifest;
@@ -52,6 +55,7 @@ public class ManifestWriteServiceTests
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
     private readonly LockManager manifestLockManager;
+    private readonly ITextServicesClient textServicesClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -114,9 +118,11 @@ public class ManifestWriteServiceTests
 
         manifestLockManager = new LockManager();
 
+        textServicesClient = A.Fake<ITextServicesClient>();
         sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, pathRewriteParser, manifestLockManager, new NullLogger<ManifestWriteService>());
+            manifestStorageManager, pathRewriteParser, manifestLockManager, textServicesClient,
+            Options.Create(new AWSSettings()), new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
@@ -530,7 +536,7 @@ public class ManifestWriteServiceTests
 
         // Setup a fake batch with resource ID, this is unfinished so means it's sync complete
         A.CallTo(() => dlcsClient.IngestDeliverables(Customer, A<List<JObject>>._, false, A<CancellationToken>._))
-            .Returns([new Batch { Finished = null, ResourceId = "12345" }]);
+            .Returns([new DLCS.Models.Batch { Finished = null, ResourceId = "12345" }]);
 
         var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
 
@@ -1117,5 +1123,133 @@ public class ManifestWriteServiceTests
         dbManifest.CanvasPaintings[1].Id.Should().Be( $"{canvasId}_2");
         dbManifest.CanvasPaintings[2].CanvasOriginalId.Should().Be( $"https://base/0/canvases/{canvasId}_3");
         dbManifest.CanvasPaintings[3].Id.Should().Be( $"{canvasId}_4");
+    }
+
+    [Fact]
+    public async Task Create_ReturnsAccepted_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+    }
+
+    [Fact]
+    public async Task Create_CallsTextServicesAndCreatesPipelineJob_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        var flatId = result.Entity.FlatId;
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull();
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
+        pipelineJob.TextJobId.Should().Be($"{Customer}/iiif/{flatId}");
+    }
+
+    [Fact]
+    public async Task Create_DoesNotCallTextServices_WhenManifestHasNoPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items = [new Canvas { Id = "https://base/0/canvases/canvas-1" }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task Create_SavesManifestToStaging_WhenPipelineIsSet()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
+                A<IIIFManifest>._, A<DbManifest>._, null, true, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
+    public async Task Create_ResetsPipelineJob_WhenJobAlreadyExistsForManifest()
+    {
+        // Arrange - simulate resubmit by seeding an existing completed PipelineJob
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        // First create
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var firstResult = await sut.Create(request, CancellationToken.None);
+        var flatId = firstResult.Entity.FlatId;
+
+        // Manually mark the job as completed (simulating a prior run)
+        var existingJob = presentationContext.PipelineJobs.First(p => p.ManifestId == flatId);
+        presentationContext.Entry(existingJob).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+
+        // Second create (update path) — use the existing slug/manifest with pipeline again
+        var updateManifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(updateRequest, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<string>._, A<string>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+
+        var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
+        jobs.Should().HaveCount(1, "resubmit should reset existing job, not create a second one");
+        jobs[0].Status.Should().Be(PipelineJobStatus.Queued);
     }
 }

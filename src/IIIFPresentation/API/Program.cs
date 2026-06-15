@@ -53,6 +53,7 @@ builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
+builder.Services.Configure<TextServicesSettings>(builder.Configuration.GetSection(TextServicesSettings.SettingsName));
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
@@ -61,6 +62,7 @@ builder.RegisterSharedServiceSettings();
 builder.Services
     .AddDlcsApiClient(dlcs)
     .AddDlcsOrchestratorClient(dlcs)
+    .AddTextServicesClient()
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);

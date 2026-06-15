@@ -38,6 +38,8 @@ public class PresentationContext : DbContext
     
     public virtual DbSet<Batch> Batches { get; set; }
 
+    public virtual DbSet<PipelineJob> PipelineJobs { get; set; }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder
@@ -155,6 +157,25 @@ public class PresentationContext : DbContext
                 .HasConversion(
                     d => d.ToString(),
                     d => d.GetEnumFromString<DeliverableType>(true));
+        });
+
+        modelBuilder.Entity<PipelineJob>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+
+            entity
+                .HasOne(p => p.Manifest)
+                .WithMany(m => m.PipelineJobs)
+                .HasForeignKey(p => new { p.ManifestId, p.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasConversion(
+                    s => s.ToString(),
+                    s => s.GetEnumFromString<PipelineJobStatus>(true));
+
+            entity.Property(p => p.Created).HasDefaultValueSql("now()");
         });
     }
     

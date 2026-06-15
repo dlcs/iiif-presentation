@@ -70,7 +70,8 @@ public static class PresentationContextX
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
     public static Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext,
-        string manifestId, bool tracked = false, bool withCanvasPaintings = true, bool withBatches = false, CancellationToken cancellationToken = default)
+        string manifestId, bool tracked = false, bool withCanvasPaintings = true, bool withBatches = false,
+        bool withPipelineJobs = false, CancellationToken cancellationToken = default)
     {
         IQueryable<DbManifest> dbContextManifests = dbContext.Manifests;
 
@@ -83,7 +84,12 @@ public static class PresentationContextX
         {
             dbContextManifests = dbContextManifests.Include(m => m.Batches);
         }
-        
+
+        if (withPipelineJobs)
+        {
+            dbContextManifests = dbContextManifests.Include(m => m.PipelineJobs);
+        }
+
         return dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
     }
     
