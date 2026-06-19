@@ -139,7 +139,7 @@ public class PipelineXTests
         {
             ResourceId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.Queued,
+            Status = PipelineJobStatus.Waiting,
             Config = null
         };
 

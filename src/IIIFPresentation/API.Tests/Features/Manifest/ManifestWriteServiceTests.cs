@@ -1168,10 +1168,10 @@ public class ManifestWriteServiceTests
         var flatId = result.Entity.FlatId;
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
         pipelineJob.Should().NotBeNull();
-        pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
         pipelineJob.Config!.Action.Should().Be("Index");
         pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
-        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Queued");
+        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
     }
 
     [Fact]
@@ -1276,6 +1276,6 @@ public class ManifestWriteServiceTests
 
         var jobs = presentationContext.PipelineJobs.Where(p => p.ResourceId == flatId).ToList();
         jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
-        jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Queued));
+        jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Waiting));
     }
 }

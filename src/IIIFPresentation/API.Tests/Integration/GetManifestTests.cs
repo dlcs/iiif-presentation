@@ -456,7 +456,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             JobType = PipelineJobType.TextService,
             CustomerId = 1,
 
-            Status = PipelineJobStatus.Queued,
+            Status = PipelineJobStatus.Waiting,
             Created = DateTime.UtcNow
         });
         await dbContext.SaveChangesAsync();
@@ -478,7 +478,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
         manifest.Should().NotBeNull();
         manifest!.Id.Should().Be($"http://localhost/1/manifests/{id}");
-        manifest.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Queued");
+        manifest.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
     }
 
     [Fact]

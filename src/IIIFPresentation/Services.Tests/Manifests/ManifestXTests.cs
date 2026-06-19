@@ -49,7 +49,7 @@ public class ManifestXTests
 
     [Fact]
     public void HasPendingPipelineJob_ReturnsTrue_WhenJobIsQueued()
-        => ManifestWithJobs(PipelineJobStatus.Queued).HasPendingPipelineJob().Should().BeTrue();
+        => ManifestWithJobs(PipelineJobStatus.Waiting).HasPendingPipelineJob().Should().BeTrue();
 
     [Fact]
     public void HasFurtherWork_ReturnsFalse_WhenNoIngestingBatchAndNoPendingJob()
@@ -69,7 +69,7 @@ public class ManifestXTests
 
     [Fact]
     public void HasFurtherWork_ReturnsTrue_WhenPipelineJobIsQueued()
-        => ManifestWithJobs(PipelineJobStatus.Queued).HasFurtherWork().Should().BeTrue();
+        => ManifestWithJobs(PipelineJobStatus.Waiting).HasFurtherWork().Should().BeTrue();
 
     [Fact]
     public void HasFurtherWork_ReturnsFalse_WhenBatchCompletedAndJobCompleted()

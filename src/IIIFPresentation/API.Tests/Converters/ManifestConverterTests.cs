@@ -326,7 +326,7 @@ public class ManifestConverterTests
                 {
                     ResourceId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
-                    Status = PipelineJobStatus.Queued,
+                    Status = PipelineJobStatus.Waiting,
                     Created = DateTime.UtcNow
                 }
             ]
@@ -336,7 +336,7 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
-        result.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Queued");
+        result.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
     }
 
     [Fact]
@@ -363,7 +363,7 @@ public class ManifestConverterTests
                 {
                     ResourceId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
-                    Status = PipelineJobStatus.Queued,
+                    Status = PipelineJobStatus.Waiting,
                     Created = newer
                 }
             ]
@@ -373,7 +373,7 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
-        result.Pipeline.Should().ContainSingle(p => p.Status == "Queued", "only the most recently created job per type should appear");
+        result.Pipeline.Should().ContainSingle(p => p.Status == "Waiting", "only the most recently created job per type should appear");
     }
 
     [Fact]

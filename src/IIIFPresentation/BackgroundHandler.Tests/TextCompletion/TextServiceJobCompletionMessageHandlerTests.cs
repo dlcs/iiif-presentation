@@ -59,7 +59,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     [InlineData("/iiif/resource")]
     public async Task HandleMessage_ReturnsTrue_WhenJobIdCannotBeParsed(string malformedJobId)
     {
-        var message = CreateMessage(malformedJobId, "Completed");
+        var message = CreateMessage(malformedJobId, PipelineJobStatus.Completed);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
@@ -71,7 +71,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     [InlineData(1)]
     public async Task HandleMessage_ReturnsFalse_WhenPipelineJobNotFound_BelowRetryThreshold(int receiveCount)
     {
-        var message = CreateMessage("1/iiif/unknown-manifest", "Completed", receiveCount);
+        var message = CreateMessage("1/iiif/unknown-manifest", PipelineJobStatus.Completed, receiveCount);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
@@ -83,7 +83,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     [InlineData(5)]
     public async Task HandleMessage_ReturnsTrue_WhenPipelineJobNotFound_AboveRetryThreshold(int receiveCount)
     {
-        var message = CreateMessage("1/iiif/unknown-manifest-discard", "Completed", receiveCount);
+        var message = CreateMessage("1/iiif/unknown-manifest-discard", PipelineJobStatus.Completed, receiveCount);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
@@ -100,7 +100,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
-        var message = CreateMessage(jobId, "Completed");
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(A<IIIFManifest>._, A<DbManifest>._, A<string?>._, A<bool>._, A<CancellationToken>._))
@@ -117,7 +117,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
 
-        var message = CreateMessage(jobId, "Failed", errors: "OCR timed out");
+        var message = CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR timed out");
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
@@ -146,7 +146,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
-        var message = CreateMessage(jobId, "Completed");
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
@@ -186,7 +186,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             .Invokes((IIIFManifest m, DbManifest _, string? _, bool _, CancellationToken _) => savedManifest = m)
             .Returns(Task.CompletedTask);
 
-        var message = CreateMessage(jobId, "Completed");
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
@@ -223,7 +223,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             .Invokes((IIIFManifest m, DbManifest _, string? _, bool _, CancellationToken _) => savedManifest = m)
             .Returns(Task.CompletedTask);
 
-        var message = CreateMessage(jobId, "Completed");
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed);
 
         await sut.HandleMessage(message, CancellationToken.None);
 
@@ -250,7 +250,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns(augmentedManifest);
 
-        await sut.HandleMessage(CreateMessage(jobId, "Completed"), CancellationToken.None);
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
         stagedManifest.Context.Should().Be(searchContext);
     }
@@ -274,7 +274,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns(augmentedManifest);
 
-        await sut.HandleMessage(CreateMessage(jobId, "Completed"), CancellationToken.None);
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
         stagedManifest.Context.Should().BeNull();
     }
@@ -291,7 +291,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
-        await sut.HandleMessage(CreateMessage(jobId, "Completed"), CancellationToken.None);
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
         var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
@@ -307,7 +307,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
 
-        await sut.HandleMessage(CreateMessage(jobId, "Failed", errors: "OCR error"), CancellationToken.None);
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR error"), CancellationToken.None);
 
         var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
@@ -330,10 +330,10 @@ public class TextServiceJobCompletionMessageHandlerTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static QueueMessage CreateMessage(string jobId, string status, int approximateReceiveCount = 0, string? errors = null)
+    private static QueueMessage CreateMessage(string jobId, PipelineJobStatus status, int approximateReceiveCount = 0, string? errors = null)
     {
         var errorsJson = errors == null ? "null" : $"\"{errors}\"";
-        var body = $$"""{"jobId":"{{jobId}}","status":"{{status}}","finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":100,"errors":{{errorsJson}}}""";
+        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":100,"errors":{{errorsJson}}}""";
         var systemAttributes = new Dictionary<string, string>
         {
             ["ApproximateReceiveCount"] = approximateReceiveCount.ToString()
