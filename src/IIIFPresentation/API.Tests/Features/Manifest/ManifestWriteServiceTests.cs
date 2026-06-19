@@ -1170,10 +1170,11 @@ public class ManifestWriteServiceTests
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
         pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
+        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Queued");
     }
 
     [Fact]
-    public async Task Create_SetsPipelineJobToFailed_WhenTextServiceSubmissionFails()
+    public async Task Create_ReturnsError_AndDoesNotPersistManifest_WhenTextServiceSubmissionFails()
     {
         // Arrange
         var (slug, resourceId) = TestIdentifiers.SlugResource();
@@ -1190,11 +1191,12 @@ public class ManifestWriteServiceTests
         var result = await sut.Create(request, CancellationToken.None);
 
         // Assert
-        var flatId = result.Entity.FlatId;
-        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
-        pipelineJob.Should().NotBeNull();
-        pipelineJob!.Status.Should().Be(PipelineJobStatus.Failed);
-        pipelineJob.Error.Should().NotBeNullOrEmpty();
+        result.IsSuccess.Should().BeFalse();
+        result.WriteResult.Should().Be(WriteResult.Error);
+
+        // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
+        presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();
+        presentationContext.PipelineJobs.Any(p => p.ResourceId == resourceId).Should().BeFalse();
     }
 
     [Fact]

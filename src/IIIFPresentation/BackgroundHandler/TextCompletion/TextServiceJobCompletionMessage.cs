@@ -4,13 +4,22 @@ using AWS.SQS;
 
 namespace BackgroundHandler.TextCompletion;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum TextServiceJobStatus
+{
+    Waiting = 0,
+    Running = 1,
+    Completed = 2,
+    Failed = 3
+}
+
 /// <summary>
 /// Represents a job-completion notification from text-services, matching JobCompletionNotification.
 /// </summary>
 [method: JsonConstructor]
 public class TextServiceJobCompletionMessage(
     string jobId,
-    string status,
+    TextServiceJobStatus status,
     DateTimeOffset? finished,
     int totalPages,
     int totalWordCount,
@@ -20,8 +29,7 @@ public class TextServiceJobCompletionMessage(
 
     public string JobId { get; } = jobId;
 
-    /// <summary>"Completed" or "Failed"</summary>
-    public string Status { get; } = status;
+    public TextServiceJobStatus Status { get; } = status;
 
     public DateTimeOffset? Finished { get; } = finished;
 
@@ -31,7 +39,7 @@ public class TextServiceJobCompletionMessage(
 
     public string? Errors { get; } = errors;
 
-    public bool IsCompleted => string.Equals(Status, "Completed", StringComparison.OrdinalIgnoreCase);
+    public bool IsCompleted => Status == TextServiceJobStatus.Completed;
 
     public static TextServiceJobCompletionMessage FromQueueMessage(QueueMessage message) =>
         JsonSerializer.Deserialize<TextServiceJobCompletionMessage>(message.Body, JsonSerializerOptions)

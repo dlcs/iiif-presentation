@@ -1,9 +1,14 @@
+using Models.Database.General;
+using Newtonsoft.Json;
+
 namespace Models.API.Manifest;
 
 public class PipelineItem
 {
     public string? Name { get; set; }
     public PipelineConfig? Config { get; set; }
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? Status { get; set; }
 }
 
 public class PipelineConfig
@@ -13,8 +18,18 @@ public class PipelineConfig
 
 public static class PipelineX
 {
+    public static bool HasPipelineJob(this PresentationManifest manifest) =>
+        manifest.Pipeline?.Count > 0;
+
     public static bool HasTextIndexPipeline(this PresentationManifest manifest) =>
         manifest.Pipeline?.Any(p =>
             string.Equals(p.Name, "text", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(p.Config?.Action, "Index", StringComparison.OrdinalIgnoreCase)) == true;
+
+    public static PipelineItem ToPipelineItem(this PipelineJob job) => new PipelineItem()
+    {
+        Name = job.JobType.ToString(),
+        Config = new PipelineConfig { Action = "Index" },
+        Status = job.Status.ToString()
+    };
 }

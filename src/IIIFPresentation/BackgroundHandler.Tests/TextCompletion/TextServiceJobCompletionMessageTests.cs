@@ -19,7 +19,7 @@ public class TextServiceJobCompletionMessageTests
         var result = TextServiceJobCompletionMessage.FromQueueMessage(ValidMessage());
 
         result.JobId.Should().Be("1/iiif/manifest-1");
-        result.Status.Should().Be("Completed");
+        result.Status.Should().Be(TextServiceJobStatus.Completed);
         result.Finished.Should().Be(new DateTimeOffset(2024, 6, 12, 10, 0, 0, TimeSpan.Zero));
         result.TotalPages.Should().Be(5);
         result.TotalWordCount.Should().Be(1200);
@@ -38,28 +38,21 @@ public class TextServiceJobCompletionMessageTests
         result.Errors.Should().Be("OCR failed on page 3");
     }
 
-    [Theory]
-    [InlineData("Completed")]
-    [InlineData("completed")]
-    [InlineData("COMPLETED")]
-    public void IsCompleted_ReturnsTrue_CaseInsensitive(string status)
+    [Fact]
+    public void IsCompleted_ReturnsTrue_WhenStatusIsCompleted()
     {
         var message = new QueueMessage(
-            $$"""{"jobId":"1/iiif/x","status":"{{status}}","finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
+            """{"jobId":"1/iiif/x","status":"Completed","finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
             new Dictionary<string, string>(), "msg");
 
         TextServiceJobCompletionMessage.FromQueueMessage(message).IsCompleted.Should().BeTrue();
     }
 
-    [Theory]
-    [InlineData("Failed")]
-    [InlineData("failed")]
-    [InlineData("FAILED")]
-    [InlineData("unknown")]
-    public void IsCompleted_ReturnsFalse_WhenStatusIsNotCompleted(string status)
+    [Fact]
+    public void IsCompleted_ReturnsFalse_WhenStatusIsFailed()
     {
         var message = new QueueMessage(
-            $$"""{"jobId":"1/iiif/x","status":"{{status}}","finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
+            """{"jobId":"1/iiif/x","status":"Failed","finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
             new Dictionary<string, string>(), "msg");
 
         TextServiceJobCompletionMessage.FromQueueMessage(message).IsCompleted.Should().BeFalse();

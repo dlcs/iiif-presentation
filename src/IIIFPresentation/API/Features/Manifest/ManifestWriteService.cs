@@ -188,16 +188,21 @@ public class ManifestWriteService(
                 cancellationToken: cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, resolved.ParsedParentSlug!, dlcsResult.InteractionResult!.SpaceId,
                     dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasTextIndexPipeline()
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasPipelineJob()
                 ? WriteResult.Created
                 : WriteResult.Accepted;
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+            var createResult = await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
+
+            if (createResult.IsSuccess) await transaction.CommitAsync(cancellationToken);
+            return createResult;
         }
     }
 
@@ -222,15 +227,20 @@ public class ManifestWriteService(
             var dlcsResult = await HandleDlcsInteractions(request, existingManifest.Id, resolved.ParsedManifestResult!, existingAssetIds, existingManifest, cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
+            await using var updateTx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
             var (error, dbManifest) = await UpdateDatabaseRecord(request, resolved.ParsedParentSlug!, existingManifest,
                 dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasTextIndexPipeline()
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasPipelineJob()
                 ? WriteResult.Updated
                 : WriteResult.Accepted;
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+            var updateResult = await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
+
+            if (updateResult.IsSuccess) await updateTx.CommitAsync(cancellationToken);
+            return updateResult;
         }
     }
 
@@ -312,7 +322,8 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
-        await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        var saveError = await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        if (saveError != null) return saveError;
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
             writeResult, cancellationToken);
     }
@@ -425,14 +436,14 @@ public class ManifestWriteService(
     /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
+    private async Task<PresUpdateResult?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
         CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest()!;
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         var hasAdjuncts = request.PresentationManifest.Adjuncts != null
             || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
-        var hasPipeline = request.PresentationManifest.HasTextIndexPipeline();
+        var hasPipeline = request.PresentationManifest.HasPipelineJob();
 
         // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
         // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
@@ -473,15 +484,20 @@ public class ManifestWriteService(
             }
         }
 
-        if (hasPipeline)
+        if (request.PresentationManifest.HasTextIndexPipeline())
         {
-            await SubmitTextPipelineJob(dbManifest, cancellationToken);
+            if (!await SubmitTextPipelineJob(dbManifest, cancellationToken))
+            {
+                return PresUpdateResult.Failure("Failed to submit text-services job",
+                    ModifyCollectionType.Unknown, WriteResult.Error);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        return null;
     }
 
-    private async Task SubmitTextPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
     {
         var existing = await dbContext.PipelineJobs
             .FirstOrDefaultAsync(p => p.ResourceId == dbManifest.Id && p.ResourceType == ResourceType.IIIFManifest
@@ -499,20 +515,20 @@ public class ManifestWriteService(
         var submitted = await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
             dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken);
 
-        if (submitted)
+        if (!submitted)
         {
-            job.Status = PipelineJobStatus.Queued;
-            job.Error = null;
-            job.Finished = null;
-        }
-        else
-        {
-            job.Status = PipelineJobStatus.Failed;
-            job.Error = "Failed to submit job to text-services builder";
-            job.Finished = DateTime.UtcNow;
+            logger.LogError("Failed to submit text-services job for manifest {ManifestId}", dbManifest.Id);
+            return false;
         }
 
+        job.Status = PipelineJobStatus.Queued;
+        job.Error = null;
+        job.Finished = null;
+
         if (existing == null) await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
+
+        dbManifest.PipelineJobs = [job];
+        return true;
     }
 
     /// <summary>
