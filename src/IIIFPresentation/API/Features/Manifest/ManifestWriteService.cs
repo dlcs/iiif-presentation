@@ -486,7 +486,12 @@ public class ManifestWriteService(
 
         if (request.PresentationManifest.HasTextIndexPipeline())
         {
-            if (!await SubmitTextPipelineJob(dbManifest, cancellationToken))
+            var pipelineConfig = request.PresentationManifest.Pipeline!
+                .First(p => string.Equals(p.Name, "text", StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(p.Config?.Action, "Index", StringComparison.OrdinalIgnoreCase))
+                .Config;
+
+            if (!await SubmitTextPipelineJob(dbManifest, pipelineConfig, cancellationToken))
             {
                 return PresUpdateResult.Failure("Failed to submit text-services job",
                     ModifyCollectionType.Unknown, WriteResult.Error);
@@ -497,7 +502,8 @@ public class ManifestWriteService(
         return null;
     }
 
-    private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, PipelineConfig? config,
+        CancellationToken cancellationToken)
     {
         var existing = await dbContext.PipelineJobs
             .FirstOrDefaultAsync(p => p.ResourceId == dbManifest.Id && p.ResourceType == ResourceType.IIIFManifest
@@ -522,6 +528,7 @@ public class ManifestWriteService(
         }
 
         job.Status = PipelineJobStatus.Queued;
+        job.Config = config;
         job.Error = null;
         job.Finished = null;
 

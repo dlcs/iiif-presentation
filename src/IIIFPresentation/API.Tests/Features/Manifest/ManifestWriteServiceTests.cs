@@ -1169,6 +1169,7 @@ public class ManifestWriteServiceTests
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Queued);
+        pipelineJob.Config!.Action.Should().Be("Index");
         pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
         result.Entity.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Queued");
     }

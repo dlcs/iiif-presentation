@@ -121,7 +121,8 @@ public class PipelineXTests
         {
             ResourceId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
-            Status = status
+            Status = status,
+            Config = new PipelineConfig { Action = "Index" }
         };
 
         var result = job.ToPipelineItem();
@@ -129,5 +130,21 @@ public class PipelineXTests
         result.Name.Should().Be("TextService");
         result.Config!.Action.Should().Be("Index");
         result.Status.Should().Be(expectedStatus);
+    }
+
+    [Fact]
+    public void ToPipelineItem_SetsNullConfig_WhenJobConfigIsNull()
+    {
+        var job = new PipelineJob
+        {
+            ResourceId = "id", CustomerId = 1,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.Queued,
+            Config = null
+        };
+
+        var result = job.ToPipelineItem();
+
+        result.Config.Should().BeNull();
     }
 }

@@ -182,9 +182,13 @@ public class PresentationContext : DbContext
                     j => j.GetEnumFromString<PipelineJobType>(true));
 
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
+
+            entity.Property(e => e.Config)
+                .HasConversion<PipelineConfigConverter>()
+                .HasColumnType("jsonb");
         });
     }
-    
+
     private void ApplyGlobalFilters(ModelBuilder builder)
     {
         // get the method GetCustomerId from this class

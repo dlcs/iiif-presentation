@@ -26,10 +26,10 @@ public static class PipelineX
             string.Equals(p.Name, "text", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(p.Config?.Action, "Index", StringComparison.OrdinalIgnoreCase)) == true;
 
-    public static PipelineItem ToPipelineItem(this PipelineJob job) => new PipelineItem()
+    public static PipelineItem ToPipelineItem(this PipelineJob job) => new ()
     {
         Name = job.JobType.ToString(),
-        Config = new PipelineConfig { Action = "Index" },
+        Config = job.Config,
         Status = job.Status.ToString()
     };
 }

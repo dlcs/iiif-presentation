@@ -22,6 +22,7 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Services.TextServices;
 using Batch = DLCS.Models.Batch;
 using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
@@ -36,6 +37,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
+    private static readonly ITextServicesClient TextServicesClient = A.Fake<ITextServicesClient>();
     private const int Customer = 1;
     private const int ExampleCustomer = 601;
     private const int InvalidSpaceCustomer = 34512;
@@ -49,10 +51,12 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => DLCSApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
             .ThrowsAsync(new DlcsException("Error creating DLCS space", HttpStatusCode.BadRequest));
+        A.CallTo(() => TextServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(true);
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
                 appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-                services => services.AddSingleton(DLCSApiClient)
+                services => services.AddSingleton(DLCSApiClient).AddSingleton(TextServicesClient)
             );
 
         storageFixture.DbFixture.CleanUp();

@@ -1,3 +1,5 @@
+using Models.API.Manifest;
+
 namespace Models.Database.General;
 
 public class PipelineJob : ICustomerEntity
@@ -19,6 +21,8 @@ public class PipelineJob : ICustomerEntity
     public DateTime Created { get; set; }
 
     public DateTime? Finished { get; set; }
+
+    public PipelineConfig? Config { get; set; }
 }
 
 public enum PipelineJobStatus
