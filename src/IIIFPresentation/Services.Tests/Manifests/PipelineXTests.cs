@@ -112,7 +112,7 @@ public class PipelineXTests
     }
 
     [Theory]
-    [InlineData(PipelineJobStatus.Queued, "Queued")]
+    [InlineData(PipelineJobStatus.Waiting, "Waiting")]
     [InlineData(PipelineJobStatus.Completed, "Completed")]
     [InlineData(PipelineJobStatus.Failed, "Failed")]
     public void ToPipelineItem_SetsStatusFromJob(PipelineJobStatus status, string expectedStatus)

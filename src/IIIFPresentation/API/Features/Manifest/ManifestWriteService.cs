@@ -505,16 +505,14 @@ public class ManifestWriteService(
     private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, PipelineConfig? config,
         CancellationToken cancellationToken)
     {
-        var existing = await dbContext.PipelineJobs
-            .FirstOrDefaultAsync(p => p.ResourceId == dbManifest.Id && p.ResourceType == ResourceType.IIIFManifest
-                                      && p.CustomerId == dbManifest.CustomerId, cancellationToken);
-
-        var job = existing ?? new PipelineJob
+        var job = new PipelineJob
         {
             ResourceId = dbManifest.Id,
             ResourceType = ResourceType.IIIFManifest,
             JobType = PipelineJobType.TextService,
             CustomerId = dbManifest.CustomerId,
+            Status = PipelineJobStatus.Waiting,
+            Config = config,
             Created = DateTime.UtcNow
         };
 
@@ -527,13 +525,7 @@ public class ManifestWriteService(
             return false;
         }
 
-        job.Status = PipelineJobStatus.Queued;
-        job.Config = config;
-        job.Error = null;
-        job.Finished = null;
-
-        if (existing == null) await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
-
+        await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
         dbManifest.PipelineJobs = [job];
         return true;
     }

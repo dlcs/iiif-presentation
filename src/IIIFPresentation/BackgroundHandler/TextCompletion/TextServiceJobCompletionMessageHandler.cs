@@ -54,8 +54,9 @@ public class TextServiceJobCompletionMessageHandler(
     {
         var resourceId = ExtractResourceIdFromJobId(completionMessage.JobId);
         var pipelineJob = await dbContext.PipelineJobs
-            .SingleOrDefaultAsync(p => p.ResourceId == resourceId && p.JobType == PipelineJobType.TextService,
-                cancellationToken);
+            .Where(p => p.ResourceId == resourceId && p.JobType == PipelineJobType.TextService)
+            .OrderByDescending(p => p.Created)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (pipelineJob == null)
         {

@@ -1242,9 +1242,9 @@ public class ManifestWriteServiceTests
     }
 
     [Fact]
-    public async Task Create_ResetsPipelineJob_WhenJobAlreadyExistsForManifest()
+    public async Task Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest()
     {
-        // Arrange - simulate resubmit by seeding an existing completed PipelineJob
+        // Arrange
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         // First create
@@ -1257,11 +1257,7 @@ public class ManifestWriteServiceTests
         var firstResult = await sut.Create(request, CancellationToken.None);
         var flatId = firstResult.Entity.FlatId;
 
-        // Manually mark the job as completed (simulating a prior run)
-        var existingJob = presentationContext.PipelineJobs.First(p => p.ResourceId == flatId);
-        presentationContext.Entry(existingJob).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
-
-        // Second create (update path) — use the existing slug/manifest with pipeline again
+        // Second create (update path) — resubmit the same manifest with pipeline
         var updateManifest = new PresentationManifest
         {
             Slug = slug,
@@ -1279,7 +1275,7 @@ public class ManifestWriteServiceTests
             .MustHaveHappenedTwiceExactly();
 
         var jobs = presentationContext.PipelineJobs.Where(p => p.ResourceId == flatId).ToList();
-        jobs.Should().HaveCount(1, "resubmit should reset existing job, not create a second one");
-        jobs[0].Status.Should().Be(PipelineJobStatus.Queued);
+        jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
+        jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Queued));
     }
 }

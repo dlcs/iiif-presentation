@@ -2,6 +2,7 @@ using System.Text.Json;
 using AWS.SQS;
 using BackgroundHandler.TextCompletion;
 using FluentAssertions;
+using Models.Database.General;
 
 namespace BackgroundHandler.Tests.TextCompletion;
 
@@ -19,7 +20,7 @@ public class TextServiceJobCompletionMessageTests
         var result = TextServiceJobCompletionMessage.FromQueueMessage(ValidMessage());
 
         result.JobId.Should().Be("1/iiif/manifest-1");
-        result.Status.Should().Be(TextServiceJobStatus.Completed);
+        result.Status.Should().Be(PipelineJobStatus.Completed);
         result.Finished.Should().Be(new DateTimeOffset(2024, 6, 12, 10, 0, 0, TimeSpan.Zero));
         result.TotalPages.Should().Be(5);
         result.TotalWordCount.Should().Be(1200);

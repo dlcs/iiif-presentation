@@ -77,7 +77,7 @@ public static class ManifestX
     /// Whether a text-services pipeline job is pending for this manifest.
     /// </summary>
     public static bool HasPendingPipelineJob(this Manifest? manifest)
-        => manifest?.PipelineJobs?.Any(p => p.Status == PipelineJobStatus.Queued) ?? false;
+        => manifest?.PipelineJobs?.Any(p => p.Status == PipelineJobStatus.Waiting) ?? false;
 
     /// <summary>
     /// Whether the manifest has any outstanding background work that must complete before it reaches its final state.

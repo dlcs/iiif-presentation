@@ -27,9 +27,10 @@ public class PipelineJob : ICustomerEntity
 
 public enum PipelineJobStatus
 {
-    Queued = 0,
-    Completed = 1,
-    Failed = 2
+    Waiting = 0,
+    Running = 1,
+    Completed = 2,
+    Failed = 3
 }
 
 public enum PipelineJobType

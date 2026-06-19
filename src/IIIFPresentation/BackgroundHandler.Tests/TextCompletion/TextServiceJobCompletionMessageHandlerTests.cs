@@ -324,7 +324,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             JobType = PipelineJobType.TextService,
             CustomerId = manifest.CustomerId,
 
-            Status = PipelineJobStatus.Queued,
+            Status = PipelineJobStatus.Waiting,
             Created = DateTime.UtcNow
         });
         await dbContext.SaveChangesAsync();
