@@ -484,22 +484,32 @@ public class ManifestWriteService(
             }
         }
 
-        if (request.PresentationManifest.HasTextIndexPipeline())
+        if (request.PresentationManifest.HasPipelineJob())
         {
-            var pipelineConfig = request.PresentationManifest.Pipeline!
-                .First(p => string.Equals(p.Name, "text", StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(p.Config?.Action, "Index", StringComparison.OrdinalIgnoreCase))
-                .Config;
-
-            if (!await SubmitTextPipelineJob(dbManifest, pipelineConfig, cancellationToken))
+            if (!await SubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken))
             {
-                return PresUpdateResult.Failure("Failed to submit text-services job",
+                return PresUpdateResult.Failure("Failed to submit pipeline job",
                     ModifyCollectionType.Unknown, WriteResult.Error);
             }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return null;
+    }
+
+    private async Task<bool> SubmitPipelineJobs(DbManifest dbManifest, List<PipelineItem> pipeline,
+        CancellationToken cancellationToken)
+    {
+        foreach (var pipelineItem in pipeline)
+        {
+            if (string.Equals(pipelineItem.Name, PipelineX.TextPipelineName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!await SubmitTextPipelineJob(dbManifest, pipelineItem.Config, cancellationToken))
+                    return false;
+            }
+        }
+
+        return false;
     }
 
     private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, PipelineConfig? config,
