@@ -504,8 +504,7 @@ public class ManifestWriteService(
         {
             if (string.Equals(pipelineItem.Name, PipelineX.TextPipelineName, StringComparison.OrdinalIgnoreCase))
             {
-                if (!await SubmitTextPipelineJob(dbManifest, pipelineItem.Config, cancellationToken))
-                    return false;
+                return await SubmitTextPipelineJob(dbManifest, pipelineItem.Config, cancellationToken);
             }
         }
 
