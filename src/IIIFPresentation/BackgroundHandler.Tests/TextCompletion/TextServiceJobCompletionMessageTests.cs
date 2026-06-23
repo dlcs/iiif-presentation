@@ -10,7 +10,7 @@ public class TextServiceJobCompletionMessageTests
 {
     private static QueueMessage ValidMessage() =>
         new(
-            """{"jobId":"1/iiif/manifest-1","status":2,"finished":"2024-06-12T10:00:00Z","totalPages":5,"totalWordCount":1200,"errors":null}""",
+            """{"jobId":"1/iiif/manifest-1","status":"Completed","finished":"2024-06-12T10:00:00Z","totalPages":5,"totalWordCount":1200}""",
             new Dictionary<string, string>(),
             "msg-1");
 
@@ -31,7 +31,7 @@ public class TextServiceJobCompletionMessageTests
     public void FromQueueMessage_DeserializesErrors_WhenPresent()
     {
         var message = new QueueMessage(
-            """{"jobId":"1/iiif/x","status":3,"finished":null,"totalPages":0,"totalWordCount":0,"errors":"OCR failed on page 3"}""",
+            """{"jobId":"1/iiif/x","status":"Failed","totalPages":0,"totalWordCount":0,"errors":"OCR failed on page 3"}""",
             new Dictionary<string, string>(), "msg-err");
 
         var result = TextServiceJobCompletionMessage.FromQueueMessage(message);
@@ -43,7 +43,7 @@ public class TextServiceJobCompletionMessageTests
     public void IsCompleted_ReturnsTrue_WhenStatusIsCompleted()
     {
         var message = new QueueMessage(
-            """{"jobId":"1/iiif/x","status":2,"finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
+            """{"jobId":"1/iiif/x","status":"Completed","totalPages":0,"totalWordCount":0}""",
             new Dictionary<string, string>(), "msg");
 
         TextServiceJobCompletionMessage.FromQueueMessage(message).IsCompleted.Should().BeTrue();
@@ -53,7 +53,7 @@ public class TextServiceJobCompletionMessageTests
     public void IsCompleted_ReturnsFalse_WhenStatusIsFailed()
     {
         var message = new QueueMessage(
-            """{"jobId":"1/iiif/x","status":3,"finished":null,"totalPages":0,"totalWordCount":0,"errors":null}""",
+            """{"jobId":"1/iiif/x","status":"Failed","totalPages":0,"totalWordCount":0}""",
             new Dictionary<string, string>(), "msg");
 
         TextServiceJobCompletionMessage.FromQueueMessage(message).IsCompleted.Should().BeFalse();

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AWS.SQS;
 using Models.Database.General;
 
@@ -15,7 +16,10 @@ public class TextServiceJobCompletionMessage(
     int totalWordCount,
     string? errors)
 {
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public string JobId { get; } = jobId;
 

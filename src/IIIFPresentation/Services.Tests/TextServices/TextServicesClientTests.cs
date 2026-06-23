@@ -84,6 +84,19 @@ public class TextServicesClientTests
     }
 
     [Fact]
+    public async Task CreateOrUpdateJob_SendsSearchAutocompleteTextAugmented_AsServicesField()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK);
+
+        await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest");
+
+        var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
+        var expected = (int)(JobServices.All);
+        body.Should().Contain($"\"services\":{expected}");
+    }
+
+    [Fact]
     public async Task GetTextAugmentedManifest_ReturnsNull_WhenSearchApiUriNotConfigured()
     {
         var sut = CreateSut(new TextServicesSettings { SearchApiUri = null });

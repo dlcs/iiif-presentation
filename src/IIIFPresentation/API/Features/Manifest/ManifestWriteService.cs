@@ -454,11 +454,11 @@ public class ManifestWriteService(
         // Pipeline forces staging even if we'd otherwise save directly to final
         var saveToStaging = !canBeBuiltUpfront || hasPipeline;
 
-        if (canBeBuiltUpfront && requiresExternalContent && !hasPipeline)
+        if (canBeBuiltUpfront && requiresExternalContent)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
-                originalToStore, cancellationToken);
+                originalToStore, saveToStaging, cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
@@ -488,6 +488,7 @@ public class ManifestWriteService(
         {
             if (!await SubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken))
             {
+                await manifestStorageManager.DeleteStagedManifest(dbManifest);
                 return PresUpdateResult.Failure("Failed to submit pipeline job",
                     ModifyCollectionType.Unknown, WriteResult.Error);
             }

@@ -22,13 +22,12 @@ public class ManifestS3Manager(
     ILogger<ManifestS3Manager> logger) : IManifestStorageManager
 {
     public async Task<Manifest> UpsertManifestInStorage(Manifest manifest,
-        Models.Database.Collections.Manifest dbManifest, string? originalPayload, CancellationToken cancellationToken)
+        Models.Database.Collections.Manifest dbManifest, string? originalPayload, bool saveToStaging,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("Creating manifest {Manifest} in S3", dbManifest.Id);
 
-        var mergedManifest = await UpsertManifest(manifest, dbManifest, originalPayload, cancellationToken);
-
-        return mergedManifest;
+        return await UpsertManifest(manifest, dbManifest, originalPayload, saveToStaging, cancellationToken);
     }
 
     public async Task UpsertManifestFromStagingInStorage(Models.Database.Collections.Manifest dbManifest,
@@ -51,7 +50,7 @@ public class ManifestS3Manager(
             }
         }
 
-        await UpsertManifest(manifest!, dbManifest, stagedOriginal, cancellationToken);
+        await UpsertManifest(manifest!, dbManifest, stagedOriginal, false, cancellationToken);
 
         await iiifS3.DeleteIIIFFromS3(dbManifest, true);
     }
@@ -77,6 +76,9 @@ public class ManifestS3Manager(
         }
     }
 
+    public Task DeleteStagedManifest(Models.Database.Collections.Manifest dbManifest) =>
+        iiifS3.DeleteIIIFFromS3(dbManifest, true);
+
     public async Task DeleteOriginalPayload(Models.Database.Collections.Manifest dbManifest)
     {
         if (!behaviour.CurrentValue.ShouldHaveStoredOriginal(dbManifest.Created)) return;
@@ -86,7 +88,7 @@ public class ManifestS3Manager(
     }
 
     private async Task<Manifest> UpsertManifest(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
-        string? originalPayload, CancellationToken cancellationToken)
+        string? originalPayload, bool saveToStaging, CancellationToken cancellationToken)
     {
         var namedQueryManifest =
             await dlcsOrchestratorClient.RetrieveAssetsForManifest(dbManifest.CustomerId, dbManifest.Id,
@@ -99,7 +101,7 @@ public class ManifestS3Manager(
             dbManifest.CustomerId,
             dbManifest.Id);
 
-        await SaveManifestInStorage(mergedManifest, dbManifest, originalPayload, false, cancellationToken);
+        await SaveManifestInStorage(mergedManifest, dbManifest, originalPayload, saveToStaging, cancellationToken);
 
         return mergedManifest;
     }
@@ -117,13 +119,18 @@ public interface IManifestStorageManager
     /// Upserts a manifest that requires external content, merged with Manifest provided.
     /// </summary>
     public Task<Manifest> UpsertManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
-        string? originalPayload, CancellationToken cancellationToken);
+        string? originalPayload, bool saveToStaging, CancellationToken cancellationToken);
 
     /// <summary>
     /// Upserts provided manifest directly to storage
     /// </summary>
     public Task SaveManifestInStorage(Manifest manifest, Models.Database.Collections.Manifest dbManifest,
         string? originalPayload, bool saveToStaging, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes the staged manifest and staged original payload from S3 (e.g. on pipeline submission failure).
+    /// </summary>
+    public Task DeleteStagedManifest(Models.Database.Collections.Manifest dbManifest);
 
     /// <summary>
     /// Removes any stored original payload for a manifest (e.g. a stale one left by a prior version).

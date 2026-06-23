@@ -21,9 +21,6 @@ public class TextServicesClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    // Search=1, Autocomplete=2, TextAugmented=16
-    private const int InitialServices = 19;
-
     public async Task<bool> CreateOrUpdateJob(PipelineJob job, string bucket, string resourceKey,
         CancellationToken cancellationToken = default)
     {
@@ -36,7 +33,7 @@ public class TextServicesClient(
         }
 
         var sourceS3Uri = $"s3://{bucket}/{resourceKey}";
-        var request = new { id = jobId, sourceUri = sourceS3Uri, services = InitialServices };
+        var request = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
         var content = new StringContent(JsonSerializer.Serialize(request, JsonOptions), Encoding.UTF8, "application/json");
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
