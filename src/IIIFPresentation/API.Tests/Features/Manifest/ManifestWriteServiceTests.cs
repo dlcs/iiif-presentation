@@ -1171,7 +1171,7 @@ public class ManifestWriteServiceTests
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
         pipelineJob.Config!.Action.Should().Be("Index");
         pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
-        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
+        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == PipelineX.TextPipelineName && p.Status == "Waiting");
     }
 
     [Fact]
@@ -1194,6 +1194,7 @@ public class ManifestWriteServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.WriteResult.Should().Be(WriteResult.Error);
+        result.Error.Should().Contain("pipeline job");
 
         // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
         presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();

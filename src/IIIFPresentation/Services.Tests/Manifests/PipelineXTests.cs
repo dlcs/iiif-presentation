@@ -49,7 +49,7 @@ public class PipelineXTests
 
         var result = job.ToPipelineItem();
 
-        result.Name.Should().Be("TextService");
+        result.Name.Should().Be(PipelineX.TextPipelineName);
         result.Config!.Action.Should().Be("Index");
         result.Status.Should().Be(expectedStatus);
     }

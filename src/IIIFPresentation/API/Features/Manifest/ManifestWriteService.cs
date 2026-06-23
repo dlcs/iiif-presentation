@@ -484,60 +484,63 @@ public class ManifestWriteService(
             }
         }
 
+        // Add any pipeline job entities to the context before SaveChangesAsync so they are
+        // persisted within the transaction. The external HTTP submission happens after, so that
+        // if it fails the uncommitted transaction is rolled back cleanly.
+        PipelineJob? pendingPipelineJob = null;
         if (request.PresentationManifest.HasPipelineJob())
         {
-            if (!await SubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken))
+            pendingPipelineJob = BuildPipelineJob(dbManifest, request.PresentationManifest.Pipeline!);
+            if (pendingPipelineJob == null)
             {
                 await manifestStorageManager.DeleteStagedManifest(dbManifest);
-                return PresUpdateResult.Failure("Failed to submit pipeline job",
+                return PresUpdateResult.Failure("No recognised pipeline type in request",
+                    ModifyCollectionType.Unknown, WriteResult.BadRequest);
+            }
+            await dbContext.PipelineJobs.AddAsync(pendingPipelineJob, cancellationToken);
+            dbManifest.PipelineJobs = [pendingPipelineJob];
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (pendingPipelineJob != null)
+        {
+            var submitted = await textServicesClient.CreateOrUpdateJob(pendingPipelineJob,
+                awsOptions.Value.S3.StorageBucket,
+                dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken);
+
+            if (!submitted)
+            {
+                logger.LogError("Failed to submit text-services job for manifest {ManifestId}", dbManifest.Id);
+                await manifestStorageManager.DeleteStagedManifest(dbManifest);
+                return PresUpdateResult.Failure(
+                    "Failed to submit text-services pipeline job",
                     ModifyCollectionType.Unknown, WriteResult.Error);
             }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
         return null;
     }
 
-    private async Task<bool> SubmitPipelineJobs(DbManifest dbManifest, List<PipelineItem> pipeline,
-        CancellationToken cancellationToken)
+    private PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
     {
         foreach (var pipelineItem in pipeline)
         {
             if (string.Equals(pipelineItem.Name, PipelineX.TextPipelineName, StringComparison.OrdinalIgnoreCase))
             {
-                return await SubmitTextPipelineJob(dbManifest, pipelineItem.Config, cancellationToken);
+                return new PipelineJob
+                {
+                    ResourceId = dbManifest.Id,
+                    ResourceType = ResourceType.IIIFManifest,
+                    JobType = PipelineJobType.TextService,
+                    CustomerId = dbManifest.CustomerId,
+                    Status = PipelineJobStatus.Waiting,
+                    Config = pipelineItem.Config,
+                    Created = DateTime.UtcNow
+                };
             }
         }
-
-        return false;
-    }
-
-    private async Task<bool> SubmitTextPipelineJob(DbManifest dbManifest, PipelineConfig? config,
-        CancellationToken cancellationToken)
-    {
-        var job = new PipelineJob
-        {
-            ResourceId = dbManifest.Id,
-            ResourceType = ResourceType.IIIFManifest,
-            JobType = PipelineJobType.TextService,
-            CustomerId = dbManifest.CustomerId,
-            Status = PipelineJobStatus.Waiting,
-            Config = config,
-            Created = DateTime.UtcNow
-        };
-
-        var submitted = await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
-            dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken);
-
-        if (!submitted)
-        {
-            logger.LogError("Failed to submit text-services job for manifest {ManifestId}", dbManifest.Id);
-            return false;
-        }
-
-        await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
-        dbManifest.PipelineJobs = [job];
-        return true;
+        return null;
     }
 
     /// <summary>

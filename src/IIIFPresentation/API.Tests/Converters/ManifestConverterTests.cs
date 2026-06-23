@@ -336,7 +336,7 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
-        result.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
+        result.Pipeline.Should().ContainSingle(p => p.Name == PipelineX.TextPipelineName && p.Status == "Waiting");
     }
 
     [Fact]

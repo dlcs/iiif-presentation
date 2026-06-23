@@ -25,7 +25,7 @@ public static class PipelineX
 
     public static PipelineItem ToPipelineItem(this PipelineJob job) => new ()
     {
-        Name = job.JobType.ToString(),
+        Name = TextPipelineName,
         Config = job.Config,
         Status = job.Status.ToString()
     };
