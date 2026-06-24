@@ -3,7 +3,7 @@ using Models.Database.General;
 
 namespace Services.Tests.Manifests;
 
-public class PipelineXTests
+public class PipelineHelperTests
 {
     [Fact]
     public void HasPipelineJob_ReturnsFalse_WhenPipelineIsNull()
@@ -49,7 +49,7 @@ public class PipelineXTests
 
         var result = job.ToPipelineItem();
 
-        result.Name.Should().Be(PipelineX.TextPipelineName);
+        result.Name.Should().Be(PipelineHelper.TextPipelineName);
         result.Config!.Action.Should().Be("Index");
         result.Status.Should().Be(expectedStatus);
     }

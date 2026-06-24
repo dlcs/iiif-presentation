@@ -16,7 +16,7 @@ public class PipelineConfig
     public string? Action { get; set; }
 }
 
-public static class PipelineX
+public static class PipelineHelper
 {
     public const string TextPipelineName = "text";
 

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
 using IIIF.Presentation.V3.Strings;
 using Models.Database.General;
 
@@ -48,7 +49,7 @@ public class Manifest : IHierarchyResource
     
     public List<Batch>? Batches { get; set; }
 
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [NotMapped]
     public List<PipelineJob>? PipelineJobs { get; set; }
     
     /// <summary>

@@ -53,6 +53,13 @@ public class TextServiceJobCompletionMessageHandler(
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
         var resourceId = ExtractResourceIdFromJobId(completionMessage.JobId);
+        if (resourceId == null)
+        {
+            logger.LogWarning("Could not parse resource id from job id {JobId}; discarding message",
+                completionMessage.JobId);
+            return true;
+        }
+
         var pipelineJob = await dbContext.PipelineJobs
             .Where(p => p.ResourceId == resourceId && p.JobType == PipelineJobType.TextService)
             .OrderByDescending(p => p.Created)
@@ -112,7 +119,11 @@ public class TextServiceJobCompletionMessageHandler(
 
             await manifestStorageManager.SaveManifestInStorage(stagedManifest, dbManifest, null,
                 saveToStaging: false, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
             await iiifS3.DeleteIIIFFromS3(dbManifest, true);
+            logger.LogInformation(
+                "Text pipeline completed for job:{JobId}, manifest:{ManifestId}. Elapsed:{Elapsed}ms",
+                completionMessage.JobId, pipelineJob.ResourceId, sw.ElapsedMilliseconds);
         }
         catch (Exception e)
         {
@@ -120,10 +131,6 @@ public class TextServiceJobCompletionMessageHandler(
             return false;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation(
-            "Text pipeline completed for job:{JobId}, manifest:{ManifestId}. Elapsed:{Elapsed}ms",
-            completionMessage.JobId, pipelineJob.ResourceId, sw.ElapsedMilliseconds);
         return true;
     }
 
@@ -139,10 +146,11 @@ public class TextServiceJobCompletionMessageHandler(
         }
 
         stagedManifest.Services ??= [];
-        var existingIds = new HashSet<string?>(stagedManifest.Services.Select(s => s.Id));
-        foreach (var service in augmented.Services)
+        var existingIds = new HashSet<string>(
+            stagedManifest.Services.Select(s => s.Id).Where(id => id != null)!);
+        foreach (var service in augmented.Services.Where(s => s.Id != null))
         {
-            if (existingIds.Add(service.Id))
+            if (existingIds.Add(service.Id!))
                 stagedManifest.Services.Add(service);
         }
 
@@ -175,13 +183,13 @@ public class TextServiceJobCompletionMessageHandler(
         return firstSlash > 0 && int.TryParse(jobId[..firstSlash], out var customerId) ? customerId : null;
     }
 
-    private static string ExtractResourceIdFromJobId(string jobId)
+    private static string? ExtractResourceIdFromJobId(string jobId)
     {
         // jobId format: "{customerId}/iiif/{resourceId}"
         var firstSlash = jobId.IndexOf('/');
-        if (firstSlash < 0) return string.Empty;
+        if (firstSlash < 0) return null;
         var secondSlash = jobId.IndexOf('/', firstSlash + 1);
-        return secondSlash > 0 && secondSlash < jobId.Length - 1 ? jobId[(secondSlash + 1)..] : string.Empty;
+        return secondSlash > 0 && secondSlash < jobId.Length - 1 ? jobId[(secondSlash + 1)..] : null;
     }
 
     private static TextServiceJobCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)

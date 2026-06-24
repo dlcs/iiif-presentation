@@ -42,7 +42,7 @@ public class TextServicesClient(
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             logger.LogDebug("Text-services job {JobId} already exists, reprocessing", jobId);
-            var putUri = new Uri(settings.BuilderApiUri, $"textbuilder/{Uri.EscapeDataString(jobId)}");
+            var putUri = new Uri(settings.BuilderApiUri, $"textbuilder/{jobId}");
             response = await httpClient.PutAsync(putUri, null, cancellationToken);
         }
 

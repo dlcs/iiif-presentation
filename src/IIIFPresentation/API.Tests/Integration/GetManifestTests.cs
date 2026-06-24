@@ -478,7 +478,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
         manifest.Should().NotBeNull();
         manifest!.Id.Should().Be($"http://localhost/1/manifests/{id}");
-        manifest.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Waiting");
+        manifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipelineName && p.Status == "Waiting");
     }
 
     [Fact]
@@ -516,7 +516,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Should().ContainKey(HeaderNames.ETag, "pipeline is complete so manifest is final");
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
-        manifest!.Pipeline.Should().ContainSingle(p => p.Name == "TextService" && p.Status == "Completed");
+        manifest!.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipelineName && p.Status == "Completed");
     }
 
     [Fact]

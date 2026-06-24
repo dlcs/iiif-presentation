@@ -484,39 +484,42 @@ public class ManifestWriteService(
             }
         }
 
-        // Add any pipeline job entities to the context before SaveChangesAsync so they are
-        // persisted within the transaction. The external HTTP submission happens after, so that
-        // if it fails the uncommitted transaction is rolled back cleanly.
-        PipelineJob? pendingPipelineJob = null;
         if (request.PresentationManifest.HasPipelineJob())
         {
-            pendingPipelineJob = BuildPipelineJob(dbManifest, request.PresentationManifest.Pipeline!);
-            if (pendingPipelineJob == null)
-            {
-                await manifestStorageManager.DeleteStagedManifest(dbManifest);
-                return PresUpdateResult.Failure("No recognised pipeline type in request",
-                    ModifyCollectionType.Unknown, WriteResult.BadRequest);
-            }
-            await dbContext.PipelineJobs.AddAsync(pendingPipelineJob, cancellationToken);
-            dbManifest.PipelineJobs = [pendingPipelineJob];
+            return await RegisterAndSubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!,
+                cancellationToken);
         }
 
+        // save changes called if there are no pipeline jobs
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return null;
+    }
+
+    // Persists pipeline job entities within the open transaction, then submits to external services.
+    // Submitting after SaveChangesAsync ensures DB state is consistent if the HTTP call fails and
+    // the transaction is rolled back by the caller.
+    private async Task<PresUpdateResult?> RegisterAndSubmitPipelineJobs(DbManifest dbManifest,
+        List<PipelineItem> pipeline, CancellationToken cancellationToken)
+    {
+        var job = BuildPipelineJob(dbManifest, pipeline);
+        if (job == null)
+        {
+            await manifestStorageManager.DeleteStagedManifest(dbManifest);
+            return PresUpdateResult.Failure("No recognised pipeline type in request",
+                ModifyCollectionType.Unknown, WriteResult.BadRequest);
+        }
+
+        await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
+        dbManifest.PipelineJobs = [job];
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        if (pendingPipelineJob != null)
+        if (!await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
+                dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken))
         {
-            var submitted = await textServicesClient.CreateOrUpdateJob(pendingPipelineJob,
-                awsOptions.Value.S3.StorageBucket,
-                dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken);
-
-            if (!submitted)
-            {
-                logger.LogError("Failed to submit text-services job for manifest {ManifestId}", dbManifest.Id);
-                await manifestStorageManager.DeleteStagedManifest(dbManifest);
-                return PresUpdateResult.Failure(
-                    "Failed to submit text-services pipeline job",
-                    ModifyCollectionType.Unknown, WriteResult.Error);
-            }
+            logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
+            await manifestStorageManager.DeleteStagedManifest(dbManifest);
+            return PresUpdateResult.Failure("Failed to submit pipeline job; manifest has not been saved",
+                ModifyCollectionType.Unknown, WriteResult.Error);
         }
 
         return null;
@@ -526,7 +529,7 @@ public class ManifestWriteService(
     {
         foreach (var pipelineItem in pipeline)
         {
-            if (string.Equals(pipelineItem.Name, PipelineX.TextPipelineName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipelineName, StringComparison.OrdinalIgnoreCase))
             {
                 return new PipelineJob
                 {
