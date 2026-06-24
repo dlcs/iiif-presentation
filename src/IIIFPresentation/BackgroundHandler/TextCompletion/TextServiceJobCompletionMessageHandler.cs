@@ -34,7 +34,7 @@ public class TextServiceJobCompletionMessageHandler(
             try
             {
                 var completionMessage = DeserializeMessage(message, logger);
-                var customerId = ExtractCustomerIdFromJobId(completionMessage.JobId);
+                var (customerId, _) = PipelineJobX.ParseJobId(completionMessage.JobId);
                 if (customerId == null)
                 {
                     logger.LogWarning("Could not parse customer id from job id {JobId}; discarding message",
@@ -57,7 +57,7 @@ public class TextServiceJobCompletionMessageHandler(
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
-        var resourceId = ExtractResourceIdFromJobId(completionMessage.JobId);
+        var (customerId, resourceId) = PipelineJobX.ParseJobId(completionMessage.JobId);
         if (resourceId == null)
         {
             logger.LogWarning("Could not parse resource id from job id {JobId}; discarding message",
@@ -79,13 +79,16 @@ public class TextServiceJobCompletionMessageHandler(
             return discard;
         }
 
-        if (pipelineJob.Finished != null)
-            logger.LogWarning("PipelineJob for {JobId} already finished at {Finished}; re-processing",
+        if (pipelineJob.Status == PipelineJobStatus.Completed && pipelineJob.Finished != null)
+        {
+            logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; acknowledging",
                 completionMessage.JobId, pipelineJob.Finished);
+            return true;
+        }
 
         var dbManifest = await dbContext.Manifests
             .Include(m => m.CanvasPaintings)
-            .SingleOrDefaultAsync(m => m.Id == pipelineJob.ResourceId && m.CustomerId == pipelineJob.CustomerId,
+            .SingleOrDefaultAsync(m => m.Id == pipelineJob.ManifestId && m.CustomerId == pipelineJob.CustomerId,
                 cancellationToken);
 
         if (dbManifest == null)
@@ -150,7 +153,8 @@ public class TextServiceJobCompletionMessageHandler(
     {
         var augmented = await textServicesClient.GetTextAugmentedManifest(jobId, cancellationToken);
 
-        if (augmented?.Service == null || !augmented.Service.OfType<SearchService2>().Any())
+        var searchServices = augmented?.Service?.OfType<SearchService2>().ToList();
+        if (searchServices is not { Count: > 0 })
         {
             logger.LogDebug("No search services in text-augmented manifest for job {JobId}", jobId);
             return;
@@ -159,7 +163,7 @@ public class TextServiceJobCompletionMessageHandler(
         stagedManifest.Service ??= [];
         var existingIds = stagedManifest.Service.GetDistinctIds();
 
-        foreach (var service in augmented.Service.OfType<SearchService2>())
+        foreach (var service in searchServices)
         {
             if (existingIds.Add(service.Id!)) stagedManifest.Service.Add(service);
         }
@@ -175,22 +179,6 @@ public class TextServiceJobCompletionMessageHandler(
         {
             target.EnsureContext(context);
         }
-    }
-
-    private static int? ExtractCustomerIdFromJobId(string jobId)
-    {
-        // jobId format: "{customerId}/iiif/{resourceId}"
-        var firstSlash = jobId.IndexOf('/');
-        return firstSlash > 0 && int.TryParse(jobId[..firstSlash], out var customerId) ? customerId : null;
-    }
-
-    private static string? ExtractResourceIdFromJobId(string jobId)
-    {
-        // jobId format: "{customerId}/iiif/{resourceId}"
-        var firstSlash = jobId.IndexOf('/');
-        if (firstSlash < 0) return null;
-        var secondSlash = jobId.IndexOf('/', firstSlash + 1);
-        return secondSlash > 0 && secondSlash < jobId.Length - 1 ? jobId[(secondSlash + 1)..] : null;
     }
 
     private static TextServiceJobCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)

@@ -498,6 +498,10 @@ public class ManifestWriteService(
     // Persists pipeline job entities within the open transaction, then submits to external services.
     // Submitting after SaveChangesAsync ensures DB state is consistent if the HTTP call fails and
     // the transaction is rolled back by the caller.
+    // Trade-off: the HTTP call to text-services runs while the DB transaction is still open.
+    // This keeps rollback simple (no compensating transaction needed) at the cost of holding
+    // the transaction for the duration of the HTTP round-trip. The HttpClient should be
+    // configured with a short timeout to bound this window.
     private async Task<PresUpdateResult?> RegisterAndSubmitPipelineJobs(DbManifest dbManifest,
         List<PipelineItem> pipeline, CancellationToken cancellationToken)
     {
@@ -526,6 +530,7 @@ public class ManifestWriteService(
 
     private PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
     {
+        // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
         foreach (var pipelineItem in pipeline)
         {
             if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipelineName, StringComparison.OrdinalIgnoreCase))

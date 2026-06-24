@@ -55,4 +55,17 @@ public static class PipelineJobX
         PipelineJobType.TextService => $"{job.CustomerId}/iiif/{job.ResourceId}",
         _ => throw new ArgumentOutOfRangeException(nameof(job.JobType), $"Unknown job type: {job.JobType}")
     };
+
+    /// <summary>
+    /// Parses a job id of the form "{customerId}/iiif/{resourceId}" into its components.
+    /// Returns null for either component if the format is not recognised.
+    /// </summary>
+    public static (int? CustomerId, string? ResourceId) ParseJobId(string jobId)
+    {
+        var firstSlash = jobId.IndexOf('/');
+        if (firstSlash <= 0 || !int.TryParse(jobId[..firstSlash], out var customerId)) return (null, null);
+        var secondSlash = jobId.IndexOf('/', firstSlash + 1);
+        var resourceId = secondSlash > 0 && secondSlash < jobId.Length - 1 ? jobId[(secondSlash + 1)..] : null;
+        return (customerId, resourceId);
+    }
 }

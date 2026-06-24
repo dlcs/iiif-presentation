@@ -33,8 +33,9 @@ public class TextServicesClient(
         }
 
         var sourceS3Uri = $"s3://{bucket}/{resourceKey}";
-        var request = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
-        var content = new StringContent(JsonSerializer.Serialize(request, JsonOptions), Encoding.UTF8, "application/json");
+        var body = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
+        var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
+        var content = new StringContent(serialisedBody, Encoding.UTF8, "application/json");
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
         var response = await httpClient.PostAsync(postUri, content, cancellationToken);
@@ -43,7 +44,9 @@ public class TextServicesClient(
         {
             logger.LogDebug("Text-services job {JobId} already exists, reprocessing", jobId);
             var putUri = new Uri(settings.BuilderApiUri, $"textbuilder/{jobId}");
-            response = await httpClient.PutAsync(putUri, null, cancellationToken);
+            // StringContent from POST is disposed; create a new one with the same body
+            var putContent = new StringContent(serialisedBody, Encoding.UTF8, "application/json");
+            response = await httpClient.PutAsync(putUri, putContent, cancellationToken);
         }
 
         if (response.IsSuccessStatusCode)
