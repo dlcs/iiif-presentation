@@ -61,19 +61,22 @@ public class ManifestWriteServiceTests
     {
         presentationContext = dbFixture.DbContext;
         dbFixture.CustomerIdProvider.SetCustomerId(Customer);
-        
+
+        // Use a tracked context for the SUT to mirror production behaviour (EF navigation-property cascades require tracking)
+        var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
+
         dlcsSettings = DefaultSettings.DlcsSettings();
 
         var typedPathTemplateOptions = Options.Create(PathRewriteOptions.Default);
-        
+
         var sqidsEncoder = new SqidsEncoder<long>();
         var idGenerator = new SqidsGenerator(sqidsEncoder, new NullLogger<SqidsGenerator>());
-        
-        var identityManager = new IdentityManager(idGenerator, presentationContext, new NullLogger<IdentityManager>());
-        
+
+        var identityManager = new IdentityManager(idGenerator, sutContext, new NullLogger<IdentityManager>());
+
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
-        
+
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
 
         var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://base") };
@@ -86,24 +89,24 @@ public class ManifestWriteServiceTests
             new NullLogger<ManifestItemsParser>());
 
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            Options.Create(pathSettings), presentationContext, canvasHelper, new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), sutContext, canvasHelper, new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
         var canvasPaintingResolver = new CanvasPaintingResolver(identityManager, manifestItemsParser,
             manifestPaintedResourceParser, canvasPaintingMerger, new NullLogger<CanvasPaintingResolver>());
-        
+
         dlcsClient = A.Fake<IDlcsApiClient>();
-        
+
         var apiOptions = Options.Create(new ApiSettings()
         {
             AWS = new AWSSettings(),
             DLCS = dlcsSettings
         });
-            
-        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext, apiOptions,
+
+        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, sutContext, apiOptions,
             new NullLogger<ManagedAssetResultFinder>());
-        var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
+        var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, sutContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());
 
         var parentSlugParser = A.Fake<IParentSlugParser>();
@@ -121,7 +124,7 @@ public class ManifestWriteServiceTests
         textServicesClient = A.Fake<ITextServicesClient>();
         A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .Returns(true);
-        sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
+        sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, pathRewriteParser, manifestLockManager, textServicesClient,
             Options.Create(new AWSSettings()), new NullLogger<ManifestWriteService>());
@@ -1166,7 +1169,7 @@ public class ManifestWriteServiceTests
             .MustHaveHappenedOnceExactly();
 
         var flatId = result.Entity.FlatId;
-        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ResourceId == flatId);
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
         pipelineJob.Config!.Action.Should().Be("Index");
@@ -1198,7 +1201,7 @@ public class ManifestWriteServiceTests
 
         // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
         presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();
-        presentationContext.PipelineJobs.Any(p => p.ResourceId == resourceId).Should().BeFalse();
+        presentationContext.PipelineJobs.Any(p => p.ManifestId == resourceId).Should().BeFalse();
 
         // Staged S3 objects must be cleaned up
         A.CallTo(() => manifestStorageManager.DeleteStagedManifest(A<Models.Database.Collections.Manifest>._))
@@ -1279,7 +1282,7 @@ public class ManifestWriteServiceTests
         A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly();
 
-        var jobs = presentationContext.PipelineJobs.Where(p => p.ResourceId == flatId).ToList();
+        var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
         jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
         jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Waiting));
     }

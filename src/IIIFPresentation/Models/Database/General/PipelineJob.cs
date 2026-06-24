@@ -1,4 +1,5 @@
 using Models.API.Manifest;
+using Models.Database.Collections;
 
 namespace Models.Database.General;
 
@@ -6,9 +7,18 @@ public class PipelineJob : ICustomerEntity
 {
     public int Id { get; set; }
 
-    public required string ResourceId { get; set; }
+    public string? ManifestId { get; set; }
 
-    public ResourceType ResourceType { get; set; }
+    public virtual Manifest? Manifest { get; set; }
+
+    public string? CollectionId { get; set; }
+
+    public virtual Collection? Collection { get; set; }
+
+    /// <summary>
+    /// Id of related Manifest or Collection
+    /// </summary>
+    public string? ResourceId => ManifestId ?? CollectionId;
 
     public PipelineJobType JobType { get; set; }
 
@@ -45,5 +55,4 @@ public static class PipelineJobX
         PipelineJobType.TextService => $"{job.CustomerId}/iiif/{job.ResourceId}",
         _ => throw new ArgumentOutOfRangeException(nameof(job.JobType), $"Unknown job type: {job.JobType}")
     };
-
 }

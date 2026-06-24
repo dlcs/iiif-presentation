@@ -9,8 +9,7 @@ public class PipelineJobXTests
     {
         var job = new PipelineJob
         {
-            ResourceId = "my-manifest",
-            ResourceType = ResourceType.IIIFManifest,
+            ManifestId = "my-manifest",
             JobType = PipelineJobType.TextService,
             CustomerId = 99
         };
@@ -23,13 +22,11 @@ public class PipelineJobXTests
     {
         var job = new PipelineJob
         {
-            ResourceId = "x",
-            ResourceType = ResourceType.IIIFManifest,
+            ManifestId = "x",
             JobType = (PipelineJobType)999,
             CustomerId = 1
         };
 
         job.Invoking(j => j.GetJobId()).Should().Throw<ArgumentOutOfRangeException>();
     }
-
 }

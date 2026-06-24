@@ -509,8 +509,7 @@ public class ManifestWriteService(
             return null;
         }
 
-        await dbContext.PipelineJobs.AddAsync(job, cancellationToken); // explicit Add required: PipelineJobs is [NotMapped] on Manifest
-        dbManifest.PipelineJobs = [job]; // in-memory only, for API response generation
+        (dbManifest.PipelineJobs ??= []).Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         if (!await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
@@ -533,8 +532,7 @@ public class ManifestWriteService(
             {
                 return new PipelineJob
                 {
-                    ResourceId = dbManifest.Id,
-                    ResourceType = ResourceType.IIIFManifest,
+                    ManifestId = dbManifest.Id,
                     JobType = PipelineJobType.TextService,
                     CustomerId = dbManifest.CustomerId,
                     Status = PipelineJobStatus.Waiting,

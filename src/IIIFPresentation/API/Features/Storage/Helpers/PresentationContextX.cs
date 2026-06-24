@@ -90,7 +90,7 @@ public static class PresentationContextX
         if (withPipelineJobs && manifest != null)
         {
             manifest.PipelineJobs = await dbContext.PipelineJobs
-                .Where(p => p.ResourceId == manifest.Id && p.ResourceType == ResourceType.IIIFManifest)
+                .Where(p => p.ManifestId == manifest.Id)
                 .ToListAsync(cancellationToken);
         }
 

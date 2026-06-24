@@ -78,7 +78,7 @@ public class ManifestXTests
         {
             Id = "x", CustomerId = 1,
             Batches = [new Batch { Id = 1, ManifestId = "x", Status = BatchStatus.Completed }],
-            PipelineJobs = [new PipelineJob { ResourceId = "x", ResourceType = ResourceType.IIIFManifest, CustomerId = 1, Status = PipelineJobStatus.Completed }]
+            PipelineJobs = [new PipelineJob { ManifestId = "x", CustomerId = 1, Status = PipelineJobStatus.Completed }]
         };
 
         manifest.HasFurtherWork().Should().BeFalse();
@@ -91,7 +91,7 @@ public class ManifestXTests
         {
             manifest.PipelineJobs =
             [
-                new PipelineJob { ResourceId = "x", ResourceType = ResourceType.IIIFManifest, CustomerId = 1, Status = status.Value }
+                new PipelineJob { ManifestId = "x", CustomerId = 1, Status = status.Value }
             ];
         }
         else

@@ -451,8 +451,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var dbManifest = await dbContext.Manifests.AddTestManifest(id);
         await dbContext.PipelineJobs.AddAsync(new PipelineJob
         {
-            ResourceId = id,
-            ResourceType = ResourceType.IIIFManifest,
+            ManifestId = id,
             JobType = PipelineJobType.TextService,
             CustomerId = 1,
 
@@ -490,8 +489,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var dbManifest = await dbContext.Manifests.AddTestManifest(id);
         await dbContext.PipelineJobs.AddAsync(new PipelineJob
         {
-            ResourceId = id,
-            ResourceType = ResourceType.IIIFManifest,
+            ManifestId = id,
             JobType = PipelineJobType.TextService,
             CustomerId = 1,
 

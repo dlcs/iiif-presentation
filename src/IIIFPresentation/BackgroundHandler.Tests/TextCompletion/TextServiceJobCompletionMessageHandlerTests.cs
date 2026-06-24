@@ -119,7 +119,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
-        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
         job.Status.Should().Be(PipelineJobStatus.Failed);
         job.Error.Should().Be("OCR timed out");
 
@@ -150,7 +150,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
-        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
         job.Status.Should().Be(PipelineJobStatus.Completed);
         job.Error.Should().BeNull();
 
@@ -293,7 +293,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
-        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
     }
 
@@ -306,7 +306,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR error"), CancellationToken.None);
 
-        var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
     }
 
@@ -348,8 +348,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var manifest = manifestEntry.Entity;
         await dbContext.PipelineJobs.AddAsync(new PipelineJob
         {
-            ResourceId = manifest.Id,
-            ResourceType = ResourceType.IIIFManifest,
+            ManifestId = manifest.Id,
             JobType = PipelineJobType.TextService,
             CustomerId = manifest.CustomerId,
 

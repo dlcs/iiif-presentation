@@ -74,6 +74,8 @@ public class Collection : IHierarchyResource
     /// </summary>
     public IEnumerable<Hierarchy>? Children { get; set; }
 
+    public List<PipelineJob>? PipelineJobs { get; set; }
+
     public Guid Etag { get; set; }
 }
 

@@ -71,6 +71,12 @@ public class PresentationContext : DbContext
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.NoAction);
 
+            entity.HasMany(e => e.PipelineJobs)
+                .WithOne(e => e.Collection)
+                .HasForeignKey(e => new { e.CollectionId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.Property(e => e.Etag)
                 .HasComputedColumnSql("""deterministic_uuid_sha256("modified", "id")""", stored: true);
         });
@@ -80,6 +86,12 @@ public class PresentationContext : DbContext
             entity.HasKey(e => new { e.Id, e.CustomerId });
 
             entity.HasMany(e => e.Hierarchy)
+                .WithOne(e => e.Manifest)
+                .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.PipelineJobs)
                 .WithOne(e => e.Manifest)
                 .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
@@ -169,12 +181,6 @@ public class PresentationContext : DbContext
                     s => s.ToString(),
                     s => s.GetEnumFromString<PipelineJobStatus>(true));
 
-            entity.Property(e => e.ResourceType)
-                .IsRequired()
-                .HasConversion(
-                    r => r.ToString(),
-                    r => r.GetEnumFromString<ResourceType>(true));
-
             entity.Property(e => e.JobType)
                 .IsRequired()
                 .HasConversion(
@@ -186,6 +192,11 @@ public class PresentationContext : DbContext
             entity.Property(e => e.Config)
                 .HasConversion<PipelineConfigConverter>()
                 .HasColumnType("jsonb");
+
+            entity.Ignore(p => p.ResourceId);
+
+            entity.ToTable(p => p.HasCheckConstraint("stop_collection_and_manifest_in_same_record",
+                "num_nonnulls(manifest_id, collection_id) = 1"));
         });
     }
 

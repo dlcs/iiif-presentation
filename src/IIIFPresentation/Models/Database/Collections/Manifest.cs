@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.Globalization;
+﻿using System.Globalization;
 using IIIF.Presentation.V3.Strings;
 using Models.Database.General;
 
@@ -49,7 +48,6 @@ public class Manifest : IHierarchyResource
     
     public List<Batch>? Batches { get; set; }
 
-    [NotMapped] // PipelineJob uses ResourceId+ResourceType rather than a direct FK, to support future resource types (e.g. collections)
     public List<PipelineJob>? PipelineJobs { get; set; }
     
     /// <summary>

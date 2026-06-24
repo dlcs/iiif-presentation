@@ -18,7 +18,7 @@ public class TextServicesClientTests
         new(new HttpClient(messageHandler), Options.Create(settings), new NullLogger<TextServicesClient>());
 
     private static PipelineJob MakeJob(int customerId = 1, string resourceId = "my-manifest") =>
-        new() { CustomerId = customerId, ResourceId = resourceId, ResourceType = ResourceType.IIIFManifest, JobType = PipelineJobType.TextService };
+        new() { CustomerId = customerId, ManifestId = resourceId, JobType = PipelineJobType.TextService };
 
     [Fact]
     public async Task CreateOrUpdateJob_ReturnsTrue_WhenPostSucceeds()

@@ -324,7 +324,7 @@ public class ManifestConverterTests
             [
                 new PipelineJob
                 {
-                    ResourceId = "id", CustomerId = 1,
+                    ManifestId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
                     Status = PipelineJobStatus.Waiting,
                     Created = DateTime.UtcNow
@@ -354,14 +354,14 @@ public class ManifestConverterTests
             [
                 new PipelineJob
                 {
-                    ResourceId = "id", CustomerId = 1,
+                    ManifestId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
                     Status = PipelineJobStatus.Completed,
                     Created = older
                 },
                 new PipelineJob
                 {
-                    ResourceId = "id", CustomerId = 1,
+                    ManifestId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
                     Status = PipelineJobStatus.Waiting,
                     Created = newer

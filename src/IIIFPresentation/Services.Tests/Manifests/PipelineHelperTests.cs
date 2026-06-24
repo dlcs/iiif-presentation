@@ -41,7 +41,7 @@ public class PipelineHelperTests
     {
         var job = new PipelineJob
         {
-            ResourceId = "id", CustomerId = 1,
+            ManifestId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
             Status = status,
             Config = new PipelineConfig { Action = "Index" }
@@ -59,7 +59,7 @@ public class PipelineHelperTests
     {
         var job = new PipelineJob
         {
-            ResourceId = "id", CustomerId = 1,
+            ManifestId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
             Status = PipelineJobStatus.Waiting,
             Config = null
