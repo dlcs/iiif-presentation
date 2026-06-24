@@ -158,7 +158,7 @@ public class TextServiceJobCompletionMessageHandler(
 
         stagedManifest.Service ??= [];
         var existingIds = stagedManifest.Service.GetDistinctIds();
-fixing tests
+
         foreach (var service in augmented.Service.OfType<SearchService2>())
         {
             if (existingIds.Add(service.Id!)) stagedManifest.Service.Add(service);
