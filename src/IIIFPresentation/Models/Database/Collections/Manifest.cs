@@ -49,7 +49,7 @@ public class Manifest : IHierarchyResource
     
     public List<Batch>? Batches { get; set; }
 
-    [NotMapped]
+    [NotMapped] // PipelineJob uses ResourceId+ResourceType rather than a direct FK, to support future resource types (e.g. collections)
     public List<PipelineJob>? PipelineJobs { get; set; }
     
     /// <summary>

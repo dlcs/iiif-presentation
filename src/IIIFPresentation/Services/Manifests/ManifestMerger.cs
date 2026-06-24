@@ -8,7 +8,6 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using Microsoft.Extensions.Logging;
 using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -425,22 +424,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     
     private void SetManifestContext(Manifest baseManifest, Manifest namedQueryManifest)
     {
-        // Grab any contexts from NQ manifest
-        IEnumerable<string> contexts = namedQueryManifest.Context switch
-        {
-            null => [],
-            string str => [str],
-            IEnumerable<string> enumerable => enumerable,
-            JArray jArray => jArray.Values<string>(),
-            JValue { Type: JTokenType.String } jValue when jValue.ToString() is { } plain => [plain],
-            _ => []
-        };
-        
-        // skip the default one
-        contexts = contexts.Where(c => !Context.Presentation3Context.Equals(c));
-
-        // ensure if any
-        foreach (var context in contexts)
+        foreach (var context in namedQueryManifest.GetContextStrings()
+                     .Where(c => !Context.Presentation3Context.Equals(c)))
         {
             logger.LogTrace("Adding context {Context} to {ManifestId}", context, baseManifest.Id);
             baseManifest.EnsureContext(context);

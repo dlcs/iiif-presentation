@@ -504,13 +504,13 @@ public class ManifestWriteService(
         var job = BuildPipelineJob(dbManifest, pipeline);
         if (job == null)
         {
-            await manifestStorageManager.DeleteStagedManifest(dbManifest);
-            return PresUpdateResult.Failure("No recognised pipeline type in request",
-                ModifyCollectionType.Unknown, WriteResult.BadRequest);
+            logger.LogWarning("No recognised pipeline type for manifest {ManifestId}; ignoring pipeline", dbManifest.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return null;
         }
 
-        await dbContext.PipelineJobs.AddAsync(job, cancellationToken);
-        dbManifest.PipelineJobs = [job];
+        await dbContext.PipelineJobs.AddAsync(job, cancellationToken); // explicit Add required: PipelineJobs is [NotMapped] on Manifest
+        dbManifest.PipelineJobs = [job]; // in-memory only, for API response generation
         await dbContext.SaveChangesAsync(cancellationToken);
 
         if (!await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,

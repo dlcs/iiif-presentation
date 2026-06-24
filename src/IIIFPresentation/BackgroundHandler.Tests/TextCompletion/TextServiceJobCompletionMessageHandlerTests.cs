@@ -108,14 +108,11 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     [Fact]
-    public async Task HandleMessage_UpdatesStatusToFailed_AndSavesManifest_WhenJobFailed()
+    public async Task HandleMessage_UpdatesStatusToFailed_WhenJobFailed()
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_failed");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
         await SetupManifestWithPipelineJob(manifestId, jobId);
-
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(new IIIFManifest { Id = manifestId });
 
         var message = CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR timed out");
 
@@ -125,9 +122,11 @@ public class TextServiceJobCompletionMessageHandlerTests
         job.Status.Should().Be(PipelineJobStatus.Failed);
         job.Error.Should().Be("OCR timed out");
 
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
-                A<IIIFManifest>._, A<DbManifest>._, null, false, A<CancellationToken>._))
-            .MustHaveHappenedOnceExactly();
+                A<IIIFManifest>._, A<DbManifest>._, A<string?>._, A<bool>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, true))
@@ -303,9 +302,6 @@ public class TextServiceJobCompletionMessageHandlerTests
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_finished_failed");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
         await SetupManifestWithPipelineJob(manifestId, jobId);
-
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(new IIIFManifest { Id = manifestId });
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR error"), CancellationToken.None);
 

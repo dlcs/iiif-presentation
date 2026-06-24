@@ -2,13 +2,16 @@ using System.Diagnostics;
 using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Helpers;
+using Core.IIIF;
 using IIIF;
 using IIIF.Presentation.V3;
+using IIIF.Search.V2;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Services.Manifests.AWS;
+using Services.Manifests.Helpers;
 using Services.TextServices;
 
 namespace BackgroundHandler.TextCompletion;
@@ -22,6 +25,8 @@ public class TextServiceJobCompletionMessageHandler(
     ILogger<TextServiceJobCompletionMessageHandler> logger)
     : IMessageHandler
 {
+    private const string Search2Context = "http://iiif.io/api/search/2/context.json";
+
     public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
     {
         using (LogContextHelpers.SetServiceName(nameof(TextServiceJobCompletionMessageHandler), message.MessageId))
@@ -74,7 +79,10 @@ public class TextServiceJobCompletionMessageHandler(
             return discard;
         }
 
-        var sw = Stopwatch.StartNew();
+        if (pipelineJob.Finished != null)
+            logger.LogWarning("PipelineJob for {JobId} already finished at {Finished}; re-processing",
+                completionMessage.JobId, pipelineJob.Finished);
+
         var dbManifest = await dbContext.Manifests
             .Include(m => m.CanvasPaintings)
             .SingleOrDefaultAsync(m => m.Id == pipelineJob.ResourceId && m.CustomerId == pipelineJob.CustomerId,
@@ -91,6 +99,20 @@ public class TextServiceJobCompletionMessageHandler(
             "Completing text pipeline for job:{JobId}, customer:{CustomerId}, manifest:{ManifestId}",
             completionMessage.JobId, pipelineJob.CustomerId, pipelineJob.ResourceId);
 
+        if (!completionMessage.IsCompleted)
+        {
+            logger.LogWarning("Text-services job {JobId} failed: {Errors}", completionMessage.JobId,
+                completionMessage.Errors);
+            pipelineJob.Error = completionMessage.Errors;
+            pipelineJob.Status = PipelineJobStatus.Failed;
+            pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await iiifS3.DeleteIIIFFromS3(dbManifest, true);
+            return true;
+        }
+
+        var sw = Stopwatch.StartNew();
+
         try
         {
             var stagedManifest =
@@ -102,19 +124,8 @@ public class TextServiceJobCompletionMessageHandler(
                 return false;
             }
 
-            if (!completionMessage.IsCompleted)
-            {
-                logger.LogWarning("Text-services job {JobId} failed: {Errors}", completionMessage.JobId,
-                    completionMessage.Errors);
-                pipelineJob.Error = completionMessage.Errors;
-                pipelineJob.Status = PipelineJobStatus.Failed;
-            }
-            else
-            {
-                await ApplyTextServices(completionMessage.JobId, stagedManifest, cancellationToken);
-                pipelineJob.Status = PipelineJobStatus.Completed;
-            }
-
+            await ApplyTextServices(completionMessage.JobId, stagedManifest, cancellationToken);
+            pipelineJob.Status = PipelineJobStatus.Completed;
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
             await manifestStorageManager.SaveManifestInStorage(stagedManifest, dbManifest, null,
@@ -139,38 +150,32 @@ public class TextServiceJobCompletionMessageHandler(
     {
         var augmented = await textServicesClient.GetTextAugmentedManifest(jobId, cancellationToken);
 
-        if (augmented?.Services == null || augmented.Services.Count == 0)
+        if (augmented?.Service == null || !augmented.Service.OfType<SearchService2>().Any())
         {
             logger.LogDebug("No search services in text-augmented manifest for job {JobId}", jobId);
             return;
         }
 
-        stagedManifest.Services ??= [];
-        var existingIds = new HashSet<string>(
-            stagedManifest.Services.Select(s => s.Id).Where(id => id != null)!);
-        foreach (var service in augmented.Services.Where(s => s.Id != null))
-        {
-            if (existingIds.Add(service.Id!))
-                stagedManifest.Services.Add(service);
-        }
+        stagedManifest.Service ??= [];
+        var existingIds = stagedManifest.Service.GetDistinctIds();
+        
+        // new HashSet<string>(
+        //     stagedManifest.Service.Select(s => s.Id).Where(id => id != null)!);
 
+        foreach (var service in augmented.Service.OfType<SearchService2>())
+        {
+            if (existingIds.Add(service.Id!)) stagedManifest.Service.Add(service);
+        }
+        
         MergeContext(stagedManifest, augmented);
 
         logger.LogDebug("Added {Count} search service(s) to manifest for job {JobId}",
-            augmented.Services.Count, jobId);
+            augmented.Service.Count, jobId);
     }
 
     private static void MergeContext(Manifest target, Manifest source)
     {
-        IEnumerable<string> contexts = source.Context switch
-        {
-            null => [],
-            string str => [str],
-            IEnumerable<string> enumerable => enumerable,
-            _ => []
-        };
-
-        foreach (var context in contexts.Where(c => !IIIF.Presentation.Context.Presentation3Context.Equals(c)))
+        foreach (var context in source.GetContextStrings().Where(c => c == Search2Context))
         {
             target.EnsureContext(context);
         }
