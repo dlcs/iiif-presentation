@@ -158,10 +158,7 @@ public class TextServiceJobCompletionMessageHandler(
 
         stagedManifest.Service ??= [];
         var existingIds = stagedManifest.Service.GetDistinctIds();
-        
-        // new HashSet<string>(
-        //     stagedManifest.Service.Select(s => s.Id).Where(id => id != null)!);
-
+fixing tests
         foreach (var service in augmented.Service.OfType<SearchService2>())
         {
             if (existingIds.Add(service.Id!)) stagedManifest.Service.Add(service);
@@ -169,8 +166,7 @@ public class TextServiceJobCompletionMessageHandler(
         
         MergeContext(stagedManifest, augmented);
 
-        logger.LogDebug("Added {Count} search service(s) to manifest for job {JobId}",
-            augmented.Service.Count, jobId);
+        logger.LogDebug("Added search service to manifest for job {JobId}", jobId);
     }
 
     private static void MergeContext(Manifest target, Manifest source)

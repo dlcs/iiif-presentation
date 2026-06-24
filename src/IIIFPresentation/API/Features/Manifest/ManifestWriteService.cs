@@ -518,8 +518,8 @@ public class ManifestWriteService(
         {
             logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
-            return PresUpdateResult.Failure("Failed to submit pipeline job; manifest has not been saved",
-                ModifyCollectionType.Unknown, WriteResult.Error);
+            return PresUpdateResult.Failure("Error connecting to the text service",
+                ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
         }
 
         return null;

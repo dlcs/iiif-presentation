@@ -1194,7 +1194,7 @@ public class ManifestWriteServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.WriteResult.Should().Be(WriteResult.Error);
-        result.Error.Should().Contain("pipeline job");
+        result.Error.Should().Contain("text service");
 
         // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
         presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();

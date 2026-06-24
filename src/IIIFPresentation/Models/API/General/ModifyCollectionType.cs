@@ -30,5 +30,6 @@ public enum ModifyCollectionType
     CustomerIdDoesNotMatchCaller = 26,
     AssetsAdjunctsDoNotMatch = 27,
     ManifestCurrentlyIngesting = 28,
+    CannotConnectToTextService = 29,
     Unknown = 1000
 }

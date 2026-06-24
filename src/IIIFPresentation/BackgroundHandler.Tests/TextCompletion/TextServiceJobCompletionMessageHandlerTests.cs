@@ -6,6 +6,7 @@ using BackgroundHandler.Tests.infrastructure;
 using FakeItEasy;
 using FluentAssertions;
 using IIIF.Presentation.V3;
+using IIIF.Search.V1;
 using IIIF.Search.V2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -174,7 +175,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var searchService = new SearchService2 { Id = "https://search.example.com/search" };
         var augmentedManifest = new IIIFManifest
         {
-            Services = [searchService]
+            Service = [searchService]
         };
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns(augmentedManifest);
@@ -190,7 +191,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
         savedManifest.Should().NotBeNull();
-        savedManifest!.Services.Should().ContainSingle(s => s.Id == searchService.Id);
+        savedManifest!.Service.Should().ContainSingle(s => s.Id == searchService.Id);
     }
 
     [Fact]
@@ -204,14 +205,14 @@ public class TextServiceJobCompletionMessageHandlerTests
         var stagedManifest = new IIIFManifest
         {
             Id = manifestId,
-            Services = [new SearchService2 { Id = serviceId }]
+            Service = [new SearchService2 { Id = serviceId }]
         };
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(stagedManifest);
 
         var augmentedManifest = new IIIFManifest
         {
-            Services = [new SearchService2 { Id = serviceId }]
+            Service = [new SearchService2 { Id = serviceId }]
         };
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns(augmentedManifest);
@@ -226,7 +227,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(message, CancellationToken.None);
 
-        savedManifest!.Services.Should().HaveCount(1, "duplicate service ID should not be added twice");
+        savedManifest!.Service.Should().HaveCount(1, "duplicate service ID should not be added twice");
     }
 
     [Fact]
@@ -243,7 +244,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         var augmentedManifest = new IIIFManifest
         {
-            Services = [new SearchService2 { Id = "https://search.example.com/search" }],
+            Service = [new SearchService2 { Id = "https://search.example.com/search" }],
             Context = searchContext
         };
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
@@ -267,7 +268,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         var augmentedManifest = new IIIFManifest
         {
-            Services = [new SearchService2 { Id = "https://search.example.com/search" }],
+            Service = [new SearchService2 { Id = "https://search.example.com/search" }],
             Context = IIIF.Presentation.Context.Presentation3Context
         };
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
@@ -307,6 +308,38 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         var job = dbContext.PipelineJobs.Single(p => p.ResourceId == manifestId);
         job.Finished.Should().Be(new DateTime(2024, 6, 12, 10, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task HandleMessage_OnlyAddsSearchService2_WhenAugmentedManifestHasOtherServiceTypes()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_filter_services");
+        var jobId = $"{CustomerId}/iiif/{manifestId}";
+        await SetupManifestWithPipelineJob(manifestId, jobId);
+
+        var stagedManifest = new IIIFManifest { Id = manifestId };
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
+            .Returns(stagedManifest);
+
+        var searchService = new SearchService2 { Id = "https://search.example.com/search" };
+        var otherService = new SearchService { Id = "https://image.example.com/image" };
+        var augmentedManifest = new IIIFManifest
+        {
+            Service = [searchService, otherService]
+        };
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns(augmentedManifest);
+
+        IIIFManifest? savedManifest = null;
+        A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
+                A<IIIFManifest>._, A<DbManifest>._, null, false, A<CancellationToken>._))
+            .Invokes((IIIFManifest m, DbManifest _, string? _, bool _, CancellationToken _) => savedManifest = m)
+            .Returns(Task.CompletedTask);
+
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
+
+        savedManifest!.Service.Should().ContainSingle()
+            .Which.Should().BeOfType<SearchService2>();
     }
 
     private async Task SetupManifestWithPipelineJob(string manifestId, string jobId)
