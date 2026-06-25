@@ -307,7 +307,7 @@ public class DlcsManifestCoordinator(
 
         foreach (var adjunctInteraction in adjuncts)
         {
-            if (adjunctInteraction.ExistingAdjunctIds is not { Count: > 0 }) continue;
+            if (adjunctInteraction.ExistingAdjunctIds.IsNullOrEmpty()) continue;
 
             var currentIds = adjunctInteraction.Adjuncts
                 .Select(a => a[AdjunctProperties.Id]?.Value<string>())

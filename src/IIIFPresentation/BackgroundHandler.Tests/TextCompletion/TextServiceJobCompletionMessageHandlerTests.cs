@@ -5,6 +5,8 @@ using BackgroundHandler.TextCompletion;
 using BackgroundHandler.Tests.infrastructure;
 using FakeItEasy;
 using FluentAssertions;
+using IIIF;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Search.V1;
 using IIIF.Search.V2;
@@ -96,7 +98,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_staging_missing");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
@@ -113,7 +115,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_failed");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         var message = CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR timed out");
 
@@ -139,7 +141,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_no_services");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
@@ -166,9 +168,13 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_merged_services");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
-        var stagedManifest = new IIIFManifest { Id = manifestId };
+        var stagedManifest = new IIIFManifest
+        {
+            Id = manifestId,
+            Service = [new ImageService3 { Id = "https://image.example.com" }]
+        };
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(stagedManifest);
 
@@ -191,6 +197,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
         savedManifest.Should().NotBeNull();
+        savedManifest!.Service.Should().HaveCount(2, "Original image service not overwritten");
         savedManifest!.Service.Should().ContainSingle(s => s.Id == searchService.Id);
     }
 
@@ -199,20 +206,20 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_dedup_services");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         const string serviceId = "https://search.example.com/search";
         var stagedManifest = new IIIFManifest
         {
             Id = manifestId,
-            Service = [new SearchService2 { Id = serviceId }]
+            Service = [new SearchService2 { Id = serviceId, Profile = "original" }]
         };
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(stagedManifest);
 
         var augmentedManifest = new IIIFManifest
         {
-            Service = [new SearchService2 { Id = serviceId }]
+            Service = [new SearchService2 { Id = serviceId, Profile = "incoming" }]
         };
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns(augmentedManifest);
@@ -227,40 +234,18 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(message, CancellationToken.None);
 
-        savedManifest!.Service.Should().HaveCount(1, "duplicate service ID should not be added twice");
+        savedManifest!.Service.Should().HaveCount(1, "Duplicate service ID should not be added twice");
+        savedManifest.Service!.Single().As<SearchService2>().Profile.Should()
+            .Be("original", "Original is not ovewritten");
+        stagedManifest.Context.Should().BeNull("Context not added as no service added");
     }
 
     [Fact]
-    public async Task HandleMessage_MergesContextFromAugmentedManifest_WhenAugmentedManifestHasContext()
-    {
-        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_context_merge");
-        var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
-
-        const string searchContext = "http://iiif.io/api/search/2/context.json";
-        var stagedManifest = new IIIFManifest { Id = manifestId };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
-
-        var augmentedManifest = new IIIFManifest
-        {
-            Service = [new SearchService2 { Id = "https://search.example.com/search" }],
-            Context = searchContext
-        };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
-            .Returns(augmentedManifest);
-
-        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
-
-        stagedManifest.Context.Should().Be(searchContext);
-    }
-
-    [Fact]
-    public async Task HandleMessage_DoesNotAddPresentation3Context_FromAugmentedManifest()
+    public async Task HandleMessage_AddsSearch2Context_IfSearchServiceAdded()
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_context_p3_skip");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         var stagedManifest = new IIIFManifest { Id = manifestId };
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
@@ -276,7 +261,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
-        stagedManifest.Context.Should().BeNull();
+        stagedManifest.Context.Should().Be("http://iiif.io/api/search/2/context.json");
     }
 
     [Fact]
@@ -284,7 +269,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_finished_completed");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
@@ -302,7 +287,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_finished_failed");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Failed, errors: "OCR error"), CancellationToken.None);
 
@@ -315,7 +300,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     {
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_filter_services");
         var jobId = $"{CustomerId}/iiif/{manifestId}";
-        await SetupManifestWithPipelineJob(manifestId, jobId);
+        await SetupManifestWithPipelineJob(manifestId);
 
         var stagedManifest = new IIIFManifest { Id = manifestId };
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
@@ -338,11 +323,48 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
 
-        savedManifest!.Service.Should().ContainSingle()
-            .Which.Should().BeOfType<SearchService2>();
+        savedManifest!.Service.Should().ContainSingle().Which.Should().Be(searchService);
+    }
+    
+    [Fact]
+    public async Task HandleMessage_SetsLabelOnSearchService2_AndAutoCompleteService()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix();
+        var jobId = $"{CustomerId}/iiif/{manifestId}";
+        await SetupManifestWithPipelineJob(manifestId);
+
+        var stagedManifest = new IIIFManifest { Id = manifestId };
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
+            .Returns(stagedManifest);
+
+        var searchService = new SearchService2
+        {
+            Id = "https://search.example.com/search",
+            Service = [new AutoCompleteService2 { Id = "https://search.example.com/autocomplete" }]
+        };
+        var otherService = new SearchService { Id = "https://image.example.com/image" };
+        var augmentedManifest = new IIIFManifest
+        {
+            Service = [searchService, otherService]
+        };
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns(augmentedManifest);
+
+        IIIFManifest? savedManifest = null;
+        A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
+                A<IIIFManifest>._, A<DbManifest>._, null, false, A<CancellationToken>._))
+            .Invokes((IIIFManifest m, DbManifest _, string? _, bool _, CancellationToken _) => savedManifest = m)
+            .Returns(Task.CompletedTask);
+
+        await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
+
+        var savedSearchSvc = savedManifest!.Service!.Single().As<SearchService2>();
+        savedSearchSvc.Label!.Values.Should().ContainSingle("Search within this manifest");
+        var savedAutoCompleteSvc = savedSearchSvc!.Service!.Single().As<AutoCompleteService2>();
+        savedAutoCompleteSvc.Label!.Values.Should().ContainSingle("Autocomplete words in this manifest");
     }
 
-    private async Task SetupManifestWithPipelineJob(string manifestId, string jobId)
+    private async Task SetupManifestWithPipelineJob(string manifestId)
     {
         var manifestEntry = await dbContext.Manifests.AddTestManifest(id: manifestId);
         var manifest = manifestEntry.Entity;
