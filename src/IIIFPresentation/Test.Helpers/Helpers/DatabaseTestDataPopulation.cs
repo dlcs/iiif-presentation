@@ -151,4 +151,20 @@ public static class DatabaseTestDataPopulation
         manifest.CanvasPaintings.Add(canvasPainting);
         return canvasPaintings.AddAsync(canvasPainting);
     }
+
+    public static ValueTask<EntityEntry<Manifest>> WithTestPipelineJob(this ValueTask<EntityEntry<Manifest>> manifest,
+        PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null, DateTime? created = null)
+    {
+        manifest.Result.Entity.PipelineJobs ??= [];
+        manifest.Result.Entity.PipelineJobs.Add(
+            new PipelineJob
+            {
+                CustomerId = manifest.Result.Entity.CustomerId,
+                JobType = PipelineJobType.TextService,
+                Status = status,
+                Created = created ?? DateTime.UtcNow,
+                Finished = finished,
+            });
+        return manifest;
+    }
 }

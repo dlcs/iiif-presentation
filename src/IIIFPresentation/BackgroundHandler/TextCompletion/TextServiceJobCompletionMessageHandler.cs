@@ -54,8 +54,8 @@ public class TextServiceJobCompletionMessageHandler(
         return false;
     }
 
-    private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage,
-        TextJobId jobId, int approximateReceiveCount, CancellationToken cancellationToken)
+    private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId, 
+        int approximateReceiveCount, CancellationToken cancellationToken)
     {
         var pipelineJob = await dbContext.PipelineJobs
             .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
@@ -71,11 +71,11 @@ public class TextServiceJobCompletionMessageHandler(
             return discard;
         }
 
-        if (pipelineJob.Status == PipelineJobStatus.Completed && pipelineJob.Finished != null)
+        if (pipelineJob is { Status: PipelineJobStatus.Completed, Finished: not null })
         {
-            logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; acknowledging",
+            // This should never happen, but if it does, we want to reprocess it to avoid Manifest stuck in "staging"
+            logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; reprocessing",
                 completionMessage.JobId, pipelineJob.Finished);
-            return true;
         }
 
         var dbManifest = await dbContext.Manifests
@@ -96,10 +96,10 @@ public class TextServiceJobCompletionMessageHandler(
 
         if (!completionMessage.IsCompleted)
         {
-            logger.LogWarning("Text-services job {JobId} failed: {Errors}", completionMessage.JobId,
-                completionMessage.Errors);
+            logger.LogWarning("Text-services job {JobId} incomplete, status {Status}: {Errors}",
+                completionMessage.JobId, completionMessage.Status, completionMessage.Errors);
             pipelineJob.Error = completionMessage.Errors;
-            pipelineJob.Status = PipelineJobStatus.Failed;
+            pipelineJob.Status = completionMessage.Status; // This will likely be "Failed" but record what we were given 
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
             await dbContext.SaveChangesAsync(cancellationToken);
             await iiifS3.DeleteIIIFFromS3(dbManifest, true);
@@ -140,8 +140,7 @@ public class TextServiceJobCompletionMessageHandler(
         return true;
     }
 
-    private async Task ApplyTextServices(TextJobId jobId, Manifest stagedManifest,
-        CancellationToken cancellationToken)
+    private async Task ApplyTextServices(TextJobId jobId, Manifest stagedManifest, CancellationToken cancellationToken)
     {
         var augmented = await textServicesClient.GetTextAugmentedManifest(jobId, cancellationToken);
 

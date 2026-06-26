@@ -34,7 +34,6 @@ public static class ServiceCollectionX
     
     public static IServiceCollection AddBackgroundServices(this IServiceCollection services, AWSSettings aws)
     {
-        
         if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
         {
             services

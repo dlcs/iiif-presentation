@@ -6,8 +6,11 @@ using Models.Database.General;
 namespace BackgroundHandler.TextCompletion;
 
 /// <summary>
-/// Represents a job-completion notification from text-services, matching JobCompletionNotification.
+/// Represents a job-completion notification from text-services
 /// </summary>
+/// <remarks>
+/// See https://github.com/dlcs/text-services/blob/main/src/TextServices.Builder.Api/Services/Notifications/JobCompletionNotification.cs for source
+/// </remarks>
 public class TextServiceJobCompletionMessage(
     string jobId,
     PipelineJobStatus status,
