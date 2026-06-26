@@ -5,8 +5,6 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
-using AWS.Helpers;
-using AWS.Settings;
 using Core;
 using Core.Auth;
 using Core.Helpers;
@@ -102,7 +100,6 @@ public class ManifestWriteService(
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
     ITextBuilderClient textServicesClient,
-    IOptions<AWSSettings> awsOptions,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -521,8 +518,7 @@ public class ManifestWriteService(
         (dbManifest.PipelineJobs ??= []).Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        if (!await textServicesClient.CreateOrUpdateJob(job, awsOptions.Value.S3.StorageBucket,
-                dbManifest.GetResourceBucketKey(BucketLocationType.Staging), cancellationToken))
+        if (!await textServicesClient.CreateOrUpdateJob(dbManifest, job, cancellationToken))
         {
             logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);

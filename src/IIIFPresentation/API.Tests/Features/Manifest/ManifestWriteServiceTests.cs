@@ -122,12 +122,12 @@ public class ManifestWriteServiceTests
         manifestLockManager = new LockManager();
 
         textServicesClient = A.Fake<ITextBuilderClient>();
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(true);
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
             manifestStorageManager, pathRewriteParser, manifestLockManager, textServicesClient,
-            Options.Create(new AWSSettings()), new NullLogger<ManifestWriteService>());
+            new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
@@ -1165,7 +1165,7 @@ public class ManifestWriteServiceTests
         var result = await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         var flatId = result.Entity.FlatId;
@@ -1188,7 +1188,7 @@ public class ManifestWriteServiceTests
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(false);
 
         // Act
@@ -1224,7 +1224,7 @@ public class ManifestWriteServiceTests
         await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -1279,7 +1279,7 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.WriteResult.Should().Be(WriteResult.Accepted);
-        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly();
 
         var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();

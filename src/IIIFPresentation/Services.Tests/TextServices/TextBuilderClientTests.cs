@@ -1,9 +1,11 @@
 using System.Net;
+using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
 using Services.TextServices;
+using DbManifest = Models.Database.Collections.Manifest;
 
 namespace Services.Tests.TextServices;
 
@@ -12,10 +14,15 @@ public class TextBuilderClientTests
     private readonly TestMessageHandler messageHandler = new();
 
     private TextBuilderClient CreateSut(TextServicesSettings settings) =>
-        new(new HttpClient(messageHandler), Options.Create(settings), new NullLogger<TextBuilderClient>());
+        new(new HttpClient(messageHandler), Options.Create(settings),
+            Options.Create(new AWSSettings { S3 = new S3Settings { StorageBucket = "my-bucket" } }),
+            new NullLogger<TextBuilderClient>());
 
     private static PipelineJob MakeJob(int customerId = 1, string resourceId = "my-manifest") =>
         new() { CustomerId = customerId, ManifestId = resourceId, JobType = PipelineJobType.TextService };
+
+    private static DbManifest MakeManifest(int customerId = 1, string id = "my-manifest") =>
+        new() { CustomerId = customerId, Id = id };
 
     [Fact]
     public async Task CreateOrUpdateJob_ReturnsTrue_WhenPostSucceeds()
@@ -23,8 +30,7 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        var result = await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest",
-            CancellationToken.None);
+        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeTrue();
         messageHandler.Requests.Single().Method.Should().Be(HttpMethod.Post);
@@ -37,8 +43,7 @@ public class TextBuilderClientTests
         messageHandler.Enqueue(HttpStatusCode.Conflict);
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        var result = await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest",
-            CancellationToken.None);
+        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeTrue();
         messageHandler.Requests.Should().HaveCount(2);
@@ -51,8 +56,7 @@ public class TextBuilderClientTests
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = null });
 
-        var result = await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest",
-            CancellationToken.None);
+        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeFalse();
         messageHandler.Requests.Should().BeEmpty();
@@ -64,8 +68,7 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.InternalServerError);
 
-        var result = await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest",
-            CancellationToken.None);
+        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeFalse();
     }
@@ -76,8 +79,8 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        await sut.CreateOrUpdateJob(MakeJob(customerId: 5, resourceId: "test-manifest"), "my-bucket",
-            "staging/5/manifests/test-manifest", CancellationToken.None);
+        await sut.CreateOrUpdateJob(MakeManifest(customerId: 5, id: "test-manifest"),
+            MakeJob(customerId: 5, resourceId: "test-manifest"), CancellationToken.None);
 
         var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
         body.Should().Contain("\"id\":\"5/iiif/test-manifest\"");
@@ -90,8 +93,7 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        await sut.CreateOrUpdateJob(MakeJob(), "my-bucket", "staging/1/manifests/my-manifest",
-            CancellationToken.None);
+        await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
         var expected = (int)(JobServices.All);

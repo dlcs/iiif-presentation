@@ -2,16 +2,20 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AWS.Helpers;
+using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
+using DbManifest = Models.Database.Collections.Manifest;
 
 namespace Services.TextServices;
 
 public class TextBuilderClient(
     HttpClient httpClient,
     IOptions<TextServicesSettings> options,
+    IOptions<AWSSettings> awsOptions,
     ILogger<TextBuilderClient> logger) : ITextBuilderClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -19,8 +23,7 @@ public class TextBuilderClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public async Task<bool> CreateOrUpdateJob(PipelineJob job, string bucket, string resourceKey,
-        CancellationToken cancellationToken)
+    public async Task<bool> CreateOrUpdateJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         var jobId = job.GetJobId();
@@ -30,9 +33,7 @@ public class TextBuilderClient(
             return false;
         }
 
-        var sourceS3Uri = $"s3://{bucket}/{resourceKey}";
-        var body = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
-        var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
+        var serialisedBody = CreateJobRequestJsonBody(manifest, jobId);
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
         var response = await httpClient.PostAsync(postUri, GetStringContent(), cancellationToken);
@@ -57,5 +58,21 @@ public class TextBuilderClient(
         {
             return new StringContent(serialisedBody, Encoding.UTF8, "application/json");
         }
+    }
+
+    private string CreateJobRequestJsonBody(DbManifest manifest, string jobId)
+    {
+        var sourceS3Uri = GetManifestS3Key(manifest);
+        var body = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
+        var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
+        return serialisedBody;
+    }
+
+    private string GetManifestS3Key(DbManifest manifest)
+    {
+        var bucket = awsOptions.Value.S3.StorageBucket;
+        var resourceKey = manifest.GetResourceBucketKey(BucketLocationType.Staging);
+        var sourceS3Uri = $"s3://{bucket}/{resourceKey}";
+        return sourceS3Uri;
     }
 }
