@@ -51,7 +51,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => DLCSApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
             .ThrowsAsync(new DlcsException("Error creating DLCS space", HttpStatusCode.BadRequest));
-        A.CallTo(() => TextServicesClient.CreateOrUpdateJob(A<Models.Database.Collections.Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => TextServicesClient.UpsertJob(A<Models.Database.Collections.Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(true);
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,

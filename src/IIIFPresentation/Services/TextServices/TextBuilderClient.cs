@@ -23,7 +23,7 @@ public class TextBuilderClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public async Task<bool> CreateOrUpdateJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken)
+    public async Task<bool> UpsertJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         var jobId = job.GetJobId();

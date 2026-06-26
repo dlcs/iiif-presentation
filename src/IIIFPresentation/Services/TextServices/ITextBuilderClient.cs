@@ -10,5 +10,5 @@ public interface ITextBuilderClient
     /// </summary>
     /// <param name="manifest">The manifest whose staged source the job will read</param>
     /// <param name="job">The pipeline job to submit</param>
-    Task<bool> CreateOrUpdateJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken);
+    Task<bool> UpsertJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken);
 }

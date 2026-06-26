@@ -31,16 +31,17 @@ var aws = builder.Configuration.GetSection(AWSSettings.SettingsName).Get<AWSSett
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
 
-builder.Services.Configure<TextServicesSettings>(
-    builder.Configuration.GetSection(TextServicesSettings.SettingsName));
+var textServicesSettings = builder.Configuration.GetSection(TextServicesSettings.SettingsName);
+builder.Services.Configure<TextServicesSettings>(textServicesSettings);
+var textServices = textServicesSettings.Get<TextServicesSettings>() ?? new TextServicesSettings();
 
 builder.RegisterSharedServiceSettings();
     
 builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddDataAccess(builder.Configuration)
     .AddDlcsOrchestratorClient(dlcs)
-    .AddTextBuilderClient()
-    .AddTextAugmentedManifestClient()
+    .AddTextBuilderClient(textServices)
+    .AddTextSearchClient(textServices)
     .AddBackgroundServices(aws)
     .AddSingleton<IPathGenerator, SettingsBasedPathGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()

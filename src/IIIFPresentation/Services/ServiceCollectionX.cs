@@ -20,20 +20,24 @@ public static class ServiceCollectionX
         builder.Services.Configure<ServicesSettings>(builder.Configuration.GetSection(ServicesSettings.SettingsName));
     }
 
-    public static IServiceCollection AddTextBuilderClient(this IServiceCollection services)
+    public static IServiceCollection AddTextBuilderClient(this IServiceCollection services,
+        TextServicesSettings settings)
     {
         services.AddHttpClient<ITextBuilderClient, TextBuilderClient>(client =>
         {
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("IIIF-Presentation", "1.0.0"));
+            client.Timeout = TimeSpan.FromSeconds(settings.BuilderApiTimeoutSeconds);
         });
         return services;
     }
 
-    public static IServiceCollection AddTextAugmentedManifestClient(this IServiceCollection services)
+    public static IServiceCollection AddTextSearchClient(this IServiceCollection services,
+        TextServicesSettings settings)
     {
         services.AddHttpClient<ITextSearchClient, TextSearchClient>(client =>
         {
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("IIIF-Presentation", "1.0.0"));
+            client.Timeout = TimeSpan.FromSeconds(settings.SearchApiTimeoutSeconds);
         });
         return services;
     }

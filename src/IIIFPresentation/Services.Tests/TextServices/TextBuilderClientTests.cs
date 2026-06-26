@@ -25,25 +25,25 @@ public class TextBuilderClientTests
         new() { CustomerId = customerId, Id = id };
 
     [Fact]
-    public async Task CreateOrUpdateJob_ReturnsTrue_WhenPostSucceeds()
+    public async Task UpsertJob_ReturnsTrue_WhenPostSucceeds()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeTrue();
         messageHandler.Requests.Single().Method.Should().Be(HttpMethod.Post);
     }
 
     [Fact]
-    public async Task CreateOrUpdateJob_FallsBackToPut_WhenPostReturns409()
+    public async Task UpsertJob_FallsBackToPut_WhenPostReturns409()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.Conflict);
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeTrue();
         messageHandler.Requests.Should().HaveCount(2);
@@ -52,34 +52,34 @@ public class TextBuilderClientTests
     }
 
     [Fact]
-    public async Task CreateOrUpdateJob_ReturnsFalse_WhenBuilderApiUriNotConfigured()
+    public async Task UpsertJob_ReturnsFalse_WhenBuilderApiUriNotConfigured()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = null });
 
-        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeFalse();
         messageHandler.Requests.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task CreateOrUpdateJob_ReturnsFalse_WhenPostReturnsNonSuccess()
+    public async Task UpsertJob_ReturnsFalse_WhenPostReturnsNonSuccess()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.InternalServerError);
 
-        var result = await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task CreateOrUpdateJob_SendsCorrectJobIdAndS3Uri_InPostBody()
+    public async Task UpsertJob_SendsCorrectJobIdAndS3Uri_InPostBody()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        await sut.CreateOrUpdateJob(MakeManifest(customerId: 5, id: "test-manifest"),
+        await sut.UpsertJob(MakeManifest(customerId: 5, id: "test-manifest"),
             MakeJob(customerId: 5, resourceId: "test-manifest"), CancellationToken.None);
 
         var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
@@ -88,12 +88,12 @@ public class TextBuilderClientTests
     }
 
     [Fact]
-    public async Task CreateOrUpdateJob_SendsSearchAutocompleteTextAugmented_AsServicesField()
+    public async Task UpsertJob_SendsSearchAutocompleteTextAugmented_AsServicesField()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
 
-        await sut.CreateOrUpdateJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
 
         var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
         var expected = (int)(JobServices.All);

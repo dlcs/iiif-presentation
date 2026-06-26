@@ -22,7 +22,7 @@ public class TextSearchClient(
             return null;
         }
 
-        var uri = new Uri(settings.SearchApiUri, $"text-augmented/v3/{jobId.ToString()}");
+        var uri = new Uri(settings.SearchApiUri, $"text-augmented/v3/{jobId}");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         if (!string.IsNullOrEmpty(settings.CustomerOrchestratorUri))

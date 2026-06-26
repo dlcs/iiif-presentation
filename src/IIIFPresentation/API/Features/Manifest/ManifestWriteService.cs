@@ -517,7 +517,7 @@ public class ManifestWriteService(
         (dbManifest.PipelineJobs ??= []).Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        if (!await textServicesClient.CreateOrUpdateJob(dbManifest, job, cancellationToken))
+        if (!await textServicesClient.UpsertJob(dbManifest, job, cancellationToken))
         {
             logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
