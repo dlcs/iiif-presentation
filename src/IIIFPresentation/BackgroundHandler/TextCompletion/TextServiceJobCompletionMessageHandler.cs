@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using AWS.Helpers;
 using AWS.SQS;
-using BackgroundHandler.Helpers;
+using BackgroundHandler.Infrastructure;
 using Core.Helpers;
 using Core.IIIF;
 using IIIF;
@@ -13,7 +13,6 @@ using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Services.Manifests.AWS;
-using Services.Manifests.Helpers;
 using Services.TextServices;
 
 namespace BackgroundHandler.TextCompletion;
@@ -25,36 +24,26 @@ public class TextServiceJobCompletionMessageHandler(
     IIIIFS3Service iiifS3,
     ITextSearchClient textServicesClient,
     ILogger<TextServiceJobCompletionMessageHandler> logger)
-    : IMessageHandler
+    : MessageHandlerBase<TextServiceJobCompletionMessage>(logger)
 {
-    public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
-    {
-        using (LogContextHelpers.SetServiceName(nameof(TextServiceJobCompletionMessageHandler), message.MessageId))
-        {
-            try
-            {
-                var completionMessage = DeserializeMessage(message, logger);
-                if (!TextJobId.TryParse(completionMessage.JobId, out var jobId))
-                {
-                    logger.LogWarning("Could not parse job id {JobId}; discarding message",
-                        completionMessage.JobId);
-                    return true;
-                }
+    protected override TextServiceJobCompletionMessage DeserializeMessage(QueueMessage message) =>
+        TextServiceJobCompletionMessage.FromQueueMessage(message);
 
-                customerIdProvider.SetCustomerId(jobId!.CustomerId);
-                return await TryCompleteManifest(completionMessage, jobId, message.ApproximateReceiveCount,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error handling text-service job completion message {MessageId}", message.MessageId);
-            }
+    protected override async Task<bool> HandleMessage(TextServiceJobCompletionMessage completionMessage,
+        QueueMessage rawMessage, CancellationToken cancellationToken)
+    {
+        if (!TextJobId.TryParse(completionMessage.JobId, out var jobId))
+        {
+            Logger.LogWarning("Could not parse job id {JobId}; discarding message", completionMessage.JobId);
+            return true;
         }
 
-        return false;
+        customerIdProvider.SetCustomerId(jobId!.CustomerId);
+        return await TryCompleteManifest(completionMessage, jobId, rawMessage.ApproximateReceiveCount,
+            cancellationToken);
     }
 
-    private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId, 
+    private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
         var pipelineJob = await dbContext.PipelineJobs
@@ -64,17 +53,13 @@ public class TextServiceJobCompletionMessageHandler(
 
         if (pipelineJob == null)
         {
-            var discard = approximateReceiveCount >= 2;
-            logger.LogTrace(
-                "PipelineJob for {JobId} not found. ApproximateReceiveCount:{Count}. {Action}",
-                completionMessage.JobId, approximateReceiveCount, discard ? "Discarding" : "Will retry");
-            return discard;
+            return DiscardUntrackedResource(approximateReceiveCount, $"PipelineJob for {completionMessage.JobId}");
         }
 
         if (pipelineJob is { Status: PipelineJobStatus.Completed, Finished: not null })
         {
             // This should never happen, but if it does, we want to reprocess it to avoid Manifest stuck in "staging"
-            logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; reprocessing",
+            Logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; reprocessing",
                 completionMessage.JobId, pipelineJob.Finished);
         }
 
@@ -85,18 +70,18 @@ public class TextServiceJobCompletionMessageHandler(
 
         if (dbManifest == null)
         {
-            logger.LogError("Manifest {ResourceId} for pipeline job {JobId} not found",
+            Logger.LogError("Manifest {ResourceId} for pipeline job {JobId} not found",
                 pipelineJob.ResourceId, completionMessage.JobId);
             return false;
         }
 
-        logger.LogInformation(
+        Logger.LogInformation(
             "Completing text pipeline for job:{JobId}, customer:{CustomerId}, manifest:{ManifestId}",
             completionMessage.JobId, pipelineJob.CustomerId, pipelineJob.ResourceId);
 
         if (!completionMessage.IsCompleted)
         {
-            logger.LogWarning("Text-services job {JobId} incomplete, status {Status}: {Errors}",
+            Logger.LogWarning("Text-services job {JobId} incomplete, status {Status}: {Errors}",
                 completionMessage.JobId, completionMessage.Status, completionMessage.Errors);
             pipelineJob.Error = completionMessage.Errors;
             pipelineJob.Status = completionMessage.Status; // This will likely be "Failed" but record what we were given 
@@ -115,7 +100,7 @@ public class TextServiceJobCompletionMessageHandler(
 
             if (stagedManifest == null)
             {
-                logger.LogError("Staged manifest not found for {ManifestId}; cannot complete text pipeline", dbManifest.Id);
+                Logger.LogError("Staged manifest not found for {ManifestId}; cannot complete text pipeline", dbManifest.Id);
                 return false;
             }
 
@@ -127,13 +112,13 @@ public class TextServiceJobCompletionMessageHandler(
                 saveToStaging: false, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await iiifS3.DeleteIIIFFromS3(dbManifest, true);
-            logger.LogInformation(
+            Logger.LogInformation(
                 "Text pipeline completed for job:{JobId}, manifest:{ManifestId}. Elapsed:{Elapsed}ms",
                 completionMessage.JobId, pipelineJob.ResourceId, sw.ElapsedMilliseconds);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error completing text pipeline for job {JobId}", completionMessage.JobId);
+            Logger.LogError(e, "Error completing text pipeline for job {JobId}", completionMessage.JobId);
             return false;
         }
 
@@ -147,7 +132,7 @@ public class TextServiceJobCompletionMessageHandler(
         var searchServices = augmented?.Service?.OfType<SearchService2>().ToList();
         if (searchServices.IsNullOrEmpty())
         {
-            logger.LogDebug("No search services in text-augmented manifest for job {JobId}", jobId);
+            Logger.LogDebug("No search services in text-augmented manifest for job {JobId}", jobId);
             return;
         }
         
@@ -155,7 +140,7 @@ public class TextServiceJobCompletionMessageHandler(
         stagedManifest.Service ??= [];
         var added = stagedManifest.Service.AddDistinctById(searchServices, AddService);
         if (added > 0) stagedManifest.EnsureContext(SearchService2.Search2Context);
-        logger.LogDebug("Added search service to manifest for job {JobId}", jobId);
+        Logger.LogDebug("Added search service to manifest for job {JobId}", jobId);
     }
 
     private static void AddService(IService service)
@@ -171,19 +156,6 @@ public class TextServiceJobCompletionMessageHandler(
             {
                 autoComplete.Label ??= new LanguageMap("en", "Autocomplete words in this manifest");
             }
-        }
-    }
-
-    private static TextServiceJobCompletionMessage DeserializeMessage(QueueMessage message, ILogger logger)
-    {
-        try
-        {
-            return TextServiceJobCompletionMessage.FromQueueMessage(message);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Could not deserialize text-service completion message");
-            throw;
         }
     }
 }
