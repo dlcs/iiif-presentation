@@ -38,8 +38,15 @@ public class TextManifestAugmentor(ITextSearchClient textSearchClient, ILogger<T
         // Add search service to manifest, if added then ensure Manifest has the search context
         manifest.Service ??= [];
         var added = manifest.Service.AddDistinctById(searchServices, AddService);
-        if (added > 0) manifest.EnsureContext(SearchService2.Search2Context);
-        logger.LogDebug("Added SearchService2 to manifest for job {JobId}", jobId);
+        if (added > 0)
+        {
+            manifest.EnsureContext(SearchService2.Search2Context);
+            logger.LogDebug("Added SearchService2 to manifest for job {JobId}", jobId);
+        }
+        else
+        {
+            logger.LogDebug("Found SearchService2 but did not augment manifest for job {JobId}", jobId);
+        }
 
         return manifest;
     }
