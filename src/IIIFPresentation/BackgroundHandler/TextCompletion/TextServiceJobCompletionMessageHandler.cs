@@ -48,6 +48,7 @@ public class TextServiceJobCompletionMessageHandler(
     {
         var pipelineJob = await dbContext.PipelineJobs
             .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
+            .Include(p => p.Manifest)
             .OrderByDescending(p => p.Created)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -63,10 +64,7 @@ public class TextServiceJobCompletionMessageHandler(
                 completionMessage.JobId, pipelineJob.Finished);
         }
 
-        var dbManifest = await dbContext.Manifests
-            .Include(m => m.CanvasPaintings)
-            .SingleOrDefaultAsync(m => m.Id == pipelineJob.ManifestId && m.CustomerId == pipelineJob.CustomerId,
-                cancellationToken);
+        var dbManifest = pipelineJob.Manifest;
 
         if (dbManifest == null)
         {
