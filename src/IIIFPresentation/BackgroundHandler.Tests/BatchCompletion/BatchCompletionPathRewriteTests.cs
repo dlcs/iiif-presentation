@@ -91,7 +91,7 @@ public class BatchCompletionPathRewriteTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
-        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger);
+        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger, new NullLogger<DlcsManifestMerger>());
 
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
             new TestOptionsMonitor<BehaviourSettings>(behaviour),

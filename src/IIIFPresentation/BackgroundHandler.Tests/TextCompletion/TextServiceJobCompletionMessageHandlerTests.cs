@@ -44,11 +44,16 @@ public class TextServiceJobCompletionMessageHandlerTests
         manifestStorageManager = A.Fake<IManifestStorageManager>();
         textServicesClient = A.Fake<ITextSearchClient>();
 
+        // Use a real augmentor (with the faked text-services client) so the existing augmentation
+        // assertions continue to exercise the search-service merge logic through the handler
+        var textManifestAugmentor =
+            new TextManifestAugmentor(textServicesClient, new NullLogger<TextManifestAugmentor>());
+
         sut = new TextServiceJobCompletionMessageHandler(
             sutContext,
             dbFixture.CustomerIdProvider,
             manifestStorageManager,
-            textServicesClient,
+            textManifestAugmentor,
             new NullLogger<TextServiceJobCompletionMessageHandler>());
     }
 

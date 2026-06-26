@@ -454,7 +454,7 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront && requiresCloudServicesContent)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
-            var manifest = await dlcsManifestMerger.Merge(iiifManifest, dbManifest, cancellationToken);
+            var manifest = await dlcsManifestMerger.Augment(iiifManifest, dbManifest, cancellationToken);
             await manifestStorageManager.SaveManifestInStorage(manifest, dbManifest, originalToStore, saveToStaging,
                 cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);

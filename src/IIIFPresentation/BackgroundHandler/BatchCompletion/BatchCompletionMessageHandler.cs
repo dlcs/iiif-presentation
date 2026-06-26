@@ -96,7 +96,7 @@ public class BatchCompletionMessageHandler(
         var staged = await manifestS3Manager.ReadStagedManifest(dbManifest, cancellationToken);
         staged.Manifest.ThrowIfNull(nameof(staged.Manifest), "Manifest was not found in staging location");
 
-        var merged = await dlcsManifestMerger.Merge(staged.Manifest!, dbManifest, cancellationToken);
+        var merged = await dlcsManifestMerger.Augment(staged.Manifest!, dbManifest, cancellationToken);
         await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: false,
             cancellationToken);
         await manifestS3Manager.DeleteStagedManifest(dbManifest);

@@ -115,7 +115,7 @@ public class ManifestWriteServiceTests
         manifestStorageManager = A.Fake<IManifestStorageManager>();
         dlcsManifestMerger = A.Fake<IDlcsManifestMerger>();
         // By default echo the manifest back, mirroring a merge that adds no external content
-        A.CallTo(() => dlcsManifestMerger.Merge(A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily((IIIFManifest m, DbManifest _, CancellationToken _) => m);
         var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(dlcsSettings),
             new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
@@ -674,7 +674,7 @@ public class ManifestWriteServiceTests
 
         // The DLCS merge returns a manifest carrying both user-set and stub values for all
         // three adjunct types, as ManifestMerger would produce after applying ApplyManifestLevelAdjuncts
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
@@ -772,7 +772,7 @@ public class ManifestWriteServiceTests
 
         // ManifestMerger preserves the base manifest's empty lists when the stub canvas has no adjuncts,
         // so the merge returns empty (not null) for each adjunct type
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest { SeeAlso = [], Rendering = [], Annotations = [] });
 
@@ -821,7 +821,7 @@ public class ManifestWriteServiceTests
         await presentationContext.Batches.AddTestBatch(9991, dbManifest.Entity, DbDeliverableType.Adjunct, DbBatchStatus.Completed);
         await presentationContext.SaveChangesAsync();
 
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
@@ -853,7 +853,7 @@ public class ManifestWriteServiceTests
         result.Entity.Adjuncts.Should().ContainSingle()
             .Which.Value<string>("id").Should().Be(existingAdjunctId,
                 "existing adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
@@ -882,7 +882,7 @@ public class ManifestWriteServiceTests
         // Assert
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
@@ -907,7 +907,7 @@ public class ManifestWriteServiceTests
                 JObject.Parse($$"""{ "id": "{{stubAssetName}}", "space": 0 }""")
             ]));
 
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
@@ -922,7 +922,7 @@ public class ManifestWriteServiceTests
         // Assert
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
-        A.CallTo(() => dlcsManifestMerger.Merge(
+        A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }

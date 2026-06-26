@@ -10,6 +10,7 @@ using Services;
 using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
+using Services.TextServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddSingleton<IPathRewriteParser, PathRewriteParser>()
     .AddScoped<IManifestMerger, ManifestMerger>()
     .AddScoped<IDlcsManifestMerger, DlcsManifestMerger>()
+    .AddScoped<ITextManifestAugmentor, TextManifestAugmentor>()
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<ICustomerIdProvider, SetCustomerIdProvider>()
     .Configure<DlcsSettings>(dlcsSettings);
