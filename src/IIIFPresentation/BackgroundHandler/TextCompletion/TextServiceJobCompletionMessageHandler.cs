@@ -34,16 +34,16 @@ public class TextServiceJobCompletionMessageHandler(
             try
             {
                 var completionMessage = DeserializeMessage(message, logger);
-                var (customerId, _) = PipelineJobX.ParseJobId(completionMessage.JobId);
-                if (customerId == null)
+                if (!TextJobId.TryParse(completionMessage.JobId, out var jobId))
                 {
-                    logger.LogWarning("Could not parse customer id from job id {JobId}; discarding message",
+                    logger.LogWarning("Could not parse job id {JobId}; discarding message",
                         completionMessage.JobId);
                     return true;
                 }
 
-                customerIdProvider.SetCustomerId(customerId.Value);
-                return await TryCompleteManifest(completionMessage, message.ApproximateReceiveCount, cancellationToken);
+                customerIdProvider.SetCustomerId(jobId!.CustomerId);
+                return await TryCompleteManifest(completionMessage, jobId, message.ApproximateReceiveCount,
+                    cancellationToken);
             }
             catch (Exception ex)
             {
@@ -55,18 +55,10 @@ public class TextServiceJobCompletionMessageHandler(
     }
 
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage,
-        int approximateReceiveCount, CancellationToken cancellationToken)
+        TextJobId jobId, int approximateReceiveCount, CancellationToken cancellationToken)
     {
-        var (customerId, resourceId) = PipelineJobX.ParseJobId(completionMessage.JobId);
-        if (resourceId == null)
-        {
-            logger.LogWarning("Could not parse resource id from job id {JobId}; discarding message",
-                completionMessage.JobId);
-            return true;
-        }
-
         var pipelineJob = await dbContext.PipelineJobs
-            .Where(p => p.ManifestId == resourceId && p.JobType == PipelineJobType.TextService)
+            .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
             .OrderByDescending(p => p.Created)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -127,7 +119,7 @@ public class TextServiceJobCompletionMessageHandler(
                 return false;
             }
 
-            await ApplyTextServices(completionMessage.JobId, stagedManifest, cancellationToken);
+            await ApplyTextServices(jobId, stagedManifest, cancellationToken);
             pipelineJob.Status = PipelineJobStatus.Completed;
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
@@ -148,7 +140,7 @@ public class TextServiceJobCompletionMessageHandler(
         return true;
     }
 
-    private async Task ApplyTextServices(string jobId, Manifest stagedManifest,
+    private async Task ApplyTextServices(TextJobId jobId, Manifest stagedManifest,
         CancellationToken cancellationToken)
     {
         var augmented = await textServicesClient.GetTextAugmentedManifest(jobId, cancellationToken);

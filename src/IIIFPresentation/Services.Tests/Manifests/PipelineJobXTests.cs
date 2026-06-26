@@ -1,4 +1,5 @@
 using Models.Database.General;
+using Services.TextServices;
 
 namespace Services.Tests.Manifests;
 
@@ -14,7 +15,7 @@ public class PipelineJobXTests
             CustomerId = 99
         };
 
-        job.GetJobId().Should().Be("99/iiif/my-manifest");
+        job.GetJobId().ToString().Should().Be("99/iiif/my-manifest");
     }
 
     [Fact]

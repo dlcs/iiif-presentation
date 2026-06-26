@@ -1173,7 +1173,7 @@ public class ManifestWriteServiceTests
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
         pipelineJob.Config!.Action.Should().Be("Index");
-        pipelineJob.GetJobId().Should().Be($"{Customer}/iiif/{flatId}");
+        pipelineJob.GetJobId().ToString().Should().Be($"{Customer}/iiif/{flatId}");
         result.Entity.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipelineName && p.Status == "Waiting");
     }
 

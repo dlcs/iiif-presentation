@@ -12,7 +12,7 @@ public class TextSearchClient(
     IOptions<TextServicesSettings> options,
     ILogger<TextSearchClient> logger) : ITextSearchClient
 {
-    public async Task<Manifest?> GetTextAugmentedManifest(string jobId,
+    public async Task<Manifest?> GetTextAugmentedManifest(TextJobId jobId,
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
@@ -22,7 +22,7 @@ public class TextSearchClient(
             return null;
         }
 
-        var uri = new Uri(settings.SearchApiUri, $"text-augmented/v3/{jobId}");
+        var uri = new Uri(settings.SearchApiUri, $"text-augmented/v3/{jobId.ToString()}");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         if (!string.IsNullOrEmpty(settings.CustomerOrchestratorUri))

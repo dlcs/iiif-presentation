@@ -10,6 +10,8 @@ namespace Services.Tests.TextServices;
 
 public class TextSearchClientTests
 {
+    private static readonly TextJobId TestJobId = new(1, "my-manifest");
+
     private readonly TestMessageHandler messageHandler = new();
 
     private TextSearchClient CreateSut(TextServicesSettings settings) =>
@@ -20,7 +22,7 @@ public class TextSearchClientTests
     {
         var sut = CreateSut(new TextServicesSettings { SearchApiUri = null });
 
-        var result = await sut.GetTextAugmentedManifest("1/iiif/my-manifest", CancellationToken.None);
+        var result = await sut.GetTextAugmentedManifest(TestJobId, CancellationToken.None);
 
         result.Should().BeNull();
         messageHandler.Requests.Should().BeEmpty();
@@ -32,7 +34,7 @@ public class TextSearchClientTests
         var sut = CreateSut(new TextServicesSettings { SearchApiUri = new Uri("http://search-api/") });
         messageHandler.Enqueue(HttpStatusCode.NotFound);
 
-        var result = await sut.GetTextAugmentedManifest("1/iiif/my-manifest", CancellationToken.None);
+        var result = await sut.GetTextAugmentedManifest(TestJobId, CancellationToken.None);
 
         result.Should().BeNull();
     }
@@ -44,7 +46,7 @@ public class TextSearchClientTests
         var manifest = new Manifest { Id = "https://example.com/manifest" };
         messageHandler.Enqueue(HttpStatusCode.OK, manifest.AsJson());
 
-        var result = await sut.GetTextAugmentedManifest("1/iiif/my-manifest", CancellationToken.None);
+        var result = await sut.GetTextAugmentedManifest(TestJobId, CancellationToken.None);
 
         result.Should().NotBeNull();
         result!.Id.Should().Be("https://example.com/manifest");
@@ -61,7 +63,7 @@ public class TextSearchClientTests
         });
         messageHandler.Enqueue(HttpStatusCode.OK, new Manifest().AsJson());
 
-        await sut.GetTextAugmentedManifest("1/iiif/my-manifest", CancellationToken.None);
+        await sut.GetTextAugmentedManifest(TestJobId, CancellationToken.None);
 
         var request = messageHandler.Requests.Single();
         request.Headers.GetValues("X-Forwarded-Host").Single().Should().Be("orchestrator.example.com");

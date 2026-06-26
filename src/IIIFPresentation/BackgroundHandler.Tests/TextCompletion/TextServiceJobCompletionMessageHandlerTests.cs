@@ -130,7 +130,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
                 A<IIIFManifest>._, A<DbManifest>._, A<string?>._, A<bool>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(A<string>._, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, true))
             .MustHaveHappenedOnceExactly();
@@ -145,7 +145,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
         var message = CreateMessage(jobId, PipelineJobStatus.Completed);
@@ -183,7 +183,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         {
             Service = [searchService]
         };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns(augmentedManifest);
 
         IIIFManifest? savedManifest = null;
@@ -221,7 +221,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         {
             Service = [new SearchService2 { Id = serviceId, Profile = "incoming" }]
         };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns(augmentedManifest);
 
         IIIFManifest? savedManifest = null;
@@ -256,7 +256,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             Service = [new SearchService2 { Id = "https://search.example.com/search" }],
             Context = IIIF.Presentation.Context.Presentation3Context
         };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns(augmentedManifest);
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
@@ -273,7 +273,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .Returns(new IIIFManifest { Id = manifestId });
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
         await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None);
@@ -312,7 +312,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         {
             Service = [searchService, otherService]
         };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns(augmentedManifest);
 
         IIIFManifest? savedManifest = null;
@@ -347,7 +347,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         {
             Service = [searchService, otherService]
         };
-        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(TextJobId.FromString(jobId), A<CancellationToken>._))
             .Returns(augmentedManifest);
 
         IIIFManifest? savedManifest = null;

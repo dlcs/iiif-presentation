@@ -60,10 +60,10 @@ public class TextBuilderClient(
         }
     }
 
-    private string CreateJobRequestJsonBody(DbManifest manifest, string jobId)
+    private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
     {
         var sourceS3Uri = GetManifestS3Key(manifest);
-        var body = new { id = jobId, sourceUri = sourceS3Uri, services = (int)JobServices.All };
+        var body = new { id = jobId.ToString(), sourceUri = sourceS3Uri, services = (int)JobServices.All };
         var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
         return serialisedBody;
     }
