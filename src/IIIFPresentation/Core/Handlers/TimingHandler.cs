@@ -1,9 +1,12 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace DLCS.Handlers;
+namespace Core.Handlers;
 
-internal class TimingHandler(ILogger<TimingHandler> logger) : DelegatingHandler
+/// <summary>
+/// Delegating handler that adds logs timing information for outgoing requests
+/// </summary>
+public class TimingHandler(ILogger<TimingHandler> logger) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
