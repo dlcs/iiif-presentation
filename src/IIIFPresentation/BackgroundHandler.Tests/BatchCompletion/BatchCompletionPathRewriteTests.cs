@@ -91,13 +91,14 @@ public class BatchCompletionPathRewriteTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
+        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger);
 
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
             new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
-            new NullLogger<BatchCompletionMessageHandler>());
+            dlcsManifestMerger, new NullLogger<BatchCompletionMessageHandler>());
     }
     
     [Fact]

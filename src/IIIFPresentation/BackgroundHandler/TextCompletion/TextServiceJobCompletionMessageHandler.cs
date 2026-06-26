@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.Infrastructure;
 using Core.Helpers;
@@ -21,7 +20,6 @@ public class TextServiceJobCompletionMessageHandler(
     PresentationContext dbContext,
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestStorageManager,
-    IIIIFS3Service iiifS3,
     ITextSearchClient textServicesClient,
     ILogger<TextServiceJobCompletionMessageHandler> logger)
     : MessageHandlerBase<TextServiceJobCompletionMessage>(logger)
@@ -85,7 +83,7 @@ public class TextServiceJobCompletionMessageHandler(
             pipelineJob.Status = completionMessage.Status; // This will likely be "Failed" but record what we were given 
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
             await dbContext.SaveChangesAsync(cancellationToken);
-            await iiifS3.DeleteIIIFFromS3(dbManifest, true);
+            await manifestStorageManager.DeleteStagedManifest(dbManifest);
             return true;
         }
 
@@ -93,23 +91,22 @@ public class TextServiceJobCompletionMessageHandler(
 
         try
         {
-            var stagedManifest =
-                await iiifS3.ReadIIIFFromS3<Manifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
+            var staged = await manifestStorageManager.ReadStagedManifest(dbManifest, cancellationToken);
 
-            if (stagedManifest == null)
+            if (staged.Manifest == null)
             {
                 Logger.LogError("Staged manifest not found for {ManifestId}; cannot complete text pipeline", dbManifest.Id);
                 return false;
             }
 
-            await ApplyTextServices(jobId, stagedManifest, cancellationToken);
+            await ApplyTextServices(jobId, staged.Manifest, cancellationToken);
             pipelineJob.Status = PipelineJobStatus.Completed;
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
-            await manifestStorageManager.SaveManifestInStorage(stagedManifest, dbManifest, null,
+            await manifestStorageManager.SaveManifestInStorage(staged.Manifest, dbManifest, staged.Original,
                 saveToStaging: false, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
-            await iiifS3.DeleteIIIFFromS3(dbManifest, true);
+            await manifestStorageManager.DeleteStagedManifest(dbManifest);
             Logger.LogInformation(
                 "Text pipeline completed for job:{JobId}, manifest:{ManifestId}. Elapsed:{Elapsed}ms",
                 completionMessage.JobId, pipelineJob.ResourceId, sw.ElapsedMilliseconds);
@@ -130,7 +127,7 @@ public class TextServiceJobCompletionMessageHandler(
         var searchServices = augmented?.Service?.OfType<SearchService2>().ToList();
         if (searchServices.IsNullOrEmpty())
         {
-            Logger.LogDebug("No search services in text-augmented manifest for job {JobId}", jobId);
+            Logger.LogDebug("No SearchService2 in text-augmented manifest for job {JobId}", jobId);
             return;
         }
         
@@ -138,7 +135,7 @@ public class TextServiceJobCompletionMessageHandler(
         stagedManifest.Service ??= [];
         var added = stagedManifest.Service.AddDistinctById(searchServices, AddService);
         if (added > 0) stagedManifest.EnsureContext(SearchService2.Search2Context);
-        Logger.LogDebug("Added search service to manifest for job {JobId}", jobId);
+        Logger.LogDebug("Added SearchService2 to manifest for job {JobId}", jobId);
     }
 
     private static void AddService(IService service)

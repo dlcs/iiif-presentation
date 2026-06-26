@@ -1,5 +1,4 @@
 using Amazon.SQS.Model;
-using AWS.Helpers;
 using AWS.SQS;
 using BackgroundHandler.TextCompletion;
 using BackgroundHandler.Tests.infrastructure;
@@ -32,7 +31,6 @@ public class TextServiceJobCompletionMessageHandlerTests
     private readonly PresentationContext dbContext;
     private readonly TextServiceJobCompletionMessageHandler sut;
     private readonly IManifestStorageManager manifestStorageManager;
-    private readonly IIIIFS3Service iiifS3;
     private readonly ITextSearchClient textServicesClient;
     private const int CustomerId = 1;
 
@@ -43,7 +41,6 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
 
-        iiifS3 = A.Fake<IIIIFS3Service>();
         manifestStorageManager = A.Fake<IManifestStorageManager>();
         textServicesClient = A.Fake<ITextSearchClient>();
 
@@ -51,10 +48,13 @@ public class TextServiceJobCompletionMessageHandlerTests
             sutContext,
             dbFixture.CustomerIdProvider,
             manifestStorageManager,
-            iiifS3,
             textServicesClient,
             new NullLogger<TextServiceJobCompletionMessageHandler>());
     }
+
+    private void SetupStagedManifest(IIIFManifest? manifest, string? original = null) =>
+        A.CallTo(() => manifestStorageManager.ReadStagedManifest(A<DbManifest>._, A<CancellationToken>._))
+            .Returns(new StagedManifest(manifest, original));
 
     [Theory]
     [InlineData("not-a-valid-id")]
@@ -65,7 +65,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var message = CreateMessageFromRawJobId(malformedJobId, PipelineJobStatus.Completed);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+        A.CallTo(() => manifestStorageManager.ReadStagedManifest(A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -77,7 +77,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var message = CreateMessage(new TextJobId(CustomerId, "unknown-manifest"), PipelineJobStatus.Completed, receiveCount);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeFalse();
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+        A.CallTo(() => manifestStorageManager.ReadStagedManifest(A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -89,7 +89,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var message = CreateMessage(new TextJobId(CustomerId, "unknown-manifest-discard"), PipelineJobStatus.Completed, receiveCount);
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+        A.CallTo(() => manifestStorageManager.ReadStagedManifest(A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -100,8 +100,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var jobId = new TextJobId(CustomerId, manifestId);
         await SetupManifestWithPipelineJob(manifestId);
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns((IIIFManifest?)null);
+        SetupStagedManifest(null);
 
         var message = CreateMessage(jobId, PipelineJobStatus.Completed);
 
@@ -130,14 +129,14 @@ public class TextServiceJobCompletionMessageHandlerTests
         job.Status.Should().Be(status);
         job.Error.Should().Be("Text extraction timed out");
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, A<BucketLocationType>._, A<CancellationToken>._))
+        A.CallTo(() => manifestStorageManager.ReadStagedManifest(A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
                 A<IIIFManifest>._, A<DbManifest>._, A<string?>._, A<bool>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, true))
+        A.CallTo(() => manifestStorageManager.DeleteStagedManifest(A<DbManifest>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -148,8 +147,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var jobId = new TextJobId(CustomerId, manifestId);
         await SetupManifestWithPipelineJob(manifestId);
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(new IIIFManifest { Id = manifestId });
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
@@ -164,7 +162,28 @@ public class TextServiceJobCompletionMessageHandlerTests
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
                 A<IIIFManifest>._, A<DbManifest>._, null, false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
-        A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, true))
+        A.CallTo(() => manifestStorageManager.DeleteStagedManifest(A<DbManifest>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
+    public async Task HandleMessage_PromotesStoredOriginalPayload_WhenJobCompleted()
+    {
+        // The original payload stored alongside the staged manifest must be promoted to the final location
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_promote_original");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+
+        const string original = "{\"original\":\"payload\"}";
+        SetupStagedManifest(new IIIFManifest { Id = manifestId }, original);
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns((IIIFManifest?)null);
+
+        (await sut.HandleMessage(CreateMessage(jobId, PipelineJobStatus.Completed), CancellationToken.None))
+            .Should().BeTrue();
+
+        A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
+                A<IIIFManifest>._, A<DbManifest>._, original, false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -180,8 +199,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             Id = manifestId,
             Service = [new ImageService3 { Id = "https://image.example.com" }]
         };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var searchService = new SearchService2 { Id = "https://search.example.com/search" };
         var augmentedManifest = new IIIFManifest
@@ -218,8 +236,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             Id = manifestId,
             Service = [new ImageService3 { Id = "https://image.example.com" }]
         };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var searchService = new SearchService2 { Id = "https://search.example.com/search" };
         var augmentedManifest = new IIIFManifest
@@ -257,8 +274,7 @@ public class TextServiceJobCompletionMessageHandlerTests
             Id = manifestId,
             Service = [new SearchService2 { Id = serviceId, Profile = "original" }]
         };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var augmentedManifest = new IIIFManifest
         {
@@ -291,8 +307,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         await SetupManifestWithPipelineJob(manifestId);
 
         var stagedManifest = new IIIFManifest { Id = manifestId };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var augmentedManifest = new IIIFManifest
         {
@@ -314,8 +329,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         var jobId = new TextJobId(CustomerId, manifestId);
         await SetupManifestWithPipelineJob(manifestId);
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(new IIIFManifest { Id = manifestId });
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
             .Returns((IIIFManifest?)null);
 
@@ -346,8 +360,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         await SetupManifestWithPipelineJob(manifestId);
 
         var stagedManifest = new IIIFManifest { Id = manifestId };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var searchService = new SearchService2 { Id = "https://search.example.com/search" };
         var otherService = new SearchService { Id = "https://image.example.com/image" };
@@ -377,8 +390,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         await SetupManifestWithPipelineJob(manifestId);
 
         var stagedManifest = new IIIFManifest { Id = manifestId };
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
-            .Returns(stagedManifest);
+        SetupStagedManifest(stagedManifest);
 
         var searchService = new SearchService2
         {

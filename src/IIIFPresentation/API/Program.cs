@@ -87,6 +87,7 @@ builder.Services
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()
     .AddScoped<IManifestMerger, ManifestMerger>()
+    .AddScoped<IDlcsManifestMerger, DlcsManifestMerger>()
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()

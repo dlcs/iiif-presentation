@@ -71,11 +71,12 @@ public class BatchCompletionMessageHandlerTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger, new TestOptionsMonitor<BehaviourSettings>(behaviour),
-            new NullLogger<ManifestS3Manager>());
+        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger);
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
+            new TestOptionsMonitor<BehaviourSettings>(behaviour), new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
 
-        sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager,
+        sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager, dlcsManifestMerger,
             new NullLogger<BatchCompletionMessageHandler>());
     }
 

@@ -20,6 +20,7 @@ using Repository;
 using Repository.Helpers;
 using Repository.Paths;
 using Services;
+using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
@@ -95,6 +96,7 @@ public class ManifestWriteService(
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
+    IDlcsManifestMerger dlcsManifestMerger,
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
     ITextBuilderClient textServicesClient,
@@ -452,8 +454,9 @@ public class ManifestWriteService(
         if (canBeBuiltUpfront && requiresCloudServicesContent)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
-            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
-                originalToStore, saveToStaging, cancellationToken);
+            var manifest = await dlcsManifestMerger.Merge(iiifManifest, dbManifest, cancellationToken);
+            await manifestStorageManager.SaveManifestInStorage(manifest, dbManifest, originalToStore, saveToStaging,
+                cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else

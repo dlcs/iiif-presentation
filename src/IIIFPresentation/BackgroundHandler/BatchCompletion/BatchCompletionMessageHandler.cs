@@ -1,11 +1,14 @@
 ﻿using System.Diagnostics;
 using AWS.SQS;
 using BackgroundHandler.Infrastructure;
+using Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
+using Services.Manifests;
 using Services.Manifests.AWS;
+using Manifest = Models.Database.Collections.Manifest;
 
 namespace BackgroundHandler.BatchCompletion;
 
@@ -13,6 +16,7 @@ public class BatchCompletionMessageHandler(
     PresentationContext dbContext,
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestS3Manager,
+    IDlcsManifestMerger dlcsManifestMerger,
     ILogger<BatchCompletionMessageHandler> logger)
     : MessageHandlerBase<BatchCompletionMessage>(logger)
 {
@@ -60,7 +64,7 @@ public class BatchCompletionMessageHandler(
             {
                 if (TryCompleteBatch(batch, batchCompletionMessage.Finished))
                 {
-                    await manifestS3Manager.UpsertManifestFromStagingInStorage(batch.Manifest!, cancellationToken);
+                    await CompleteManifestFromStaging(batch.Manifest!, cancellationToken);
                 }
                 else
                 {
@@ -83,6 +87,19 @@ public class BatchCompletionMessageHandler(
             "Updating batch:{BatchId}, customer:{CustomerId}, manifest:{ManifestId}. Completed in {Elapsed}ms",
             batch.Id, batch.CustomerId, batch.ManifestId, sw.ElapsedMilliseconds);
         return true;
+    }
+
+    // Read the staged manifest, merge in the DLCS content, save the final manifest (promoting any stored original
+    // payload) then remove the staging artifacts.
+    private async Task CompleteManifestFromStaging(Manifest dbManifest, CancellationToken cancellationToken)
+    {
+        var staged = await manifestS3Manager.ReadStagedManifest(dbManifest, cancellationToken);
+        staged.Manifest.ThrowIfNull(nameof(staged.Manifest), "Manifest was not found in staging location");
+
+        var merged = await dlcsManifestMerger.Merge(staged.Manifest!, dbManifest, cancellationToken);
+        await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: false,
+            cancellationToken);
+        await manifestS3Manager.DeleteStagedManifest(dbManifest);
     }
 
     /// <summary>
