@@ -23,7 +23,7 @@ public class TextServiceJobCompletionMessageHandler(
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestStorageManager,
     IIIIFS3Service iiifS3,
-    ITextServicesClient textServicesClient,
+    ITextSearchClient textServicesClient,
     ILogger<TextServiceJobCompletionMessageHandler> logger)
     : IMessageHandler
 {

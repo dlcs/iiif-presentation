@@ -37,7 +37,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
-    private static readonly ITextServicesClient TextServicesClient = A.Fake<ITextServicesClient>();
+    private static readonly ITextBuilderClient TextServicesClient = A.Fake<ITextBuilderClient>();
     private const int Customer = 1;
     private const int ExampleCustomer = 601;
     private const int InvalidSpaceCustomer = 34512;

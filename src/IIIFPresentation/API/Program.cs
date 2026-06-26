@@ -62,7 +62,7 @@ builder.RegisterSharedServiceSettings();
 builder.Services
     .AddDlcsApiClient(dlcs)
     .AddDlcsOrchestratorClient(dlcs)
-    .AddTextServicesClient()
+    .AddTextBuilderClient()
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);

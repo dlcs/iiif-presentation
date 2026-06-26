@@ -33,7 +33,7 @@ public class TextServiceJobCompletionMessageHandlerTests
     private readonly TextServiceJobCompletionMessageHandler sut;
     private readonly IManifestStorageManager manifestStorageManager;
     private readonly IIIIFS3Service iiifS3;
-    private readonly ITextServicesClient textServicesClient;
+    private readonly ITextSearchClient textServicesClient;
     private const int CustomerId = 1;
 
     public TextServiceJobCompletionMessageHandlerTests(PresentationContextFixture dbFixture)
@@ -45,7 +45,7 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         iiifS3 = A.Fake<IIIIFS3Service>();
         manifestStorageManager = A.Fake<IManifestStorageManager>();
-        textServicesClient = A.Fake<ITextServicesClient>();
+        textServicesClient = A.Fake<ITextSearchClient>();
 
         sut = new TextServiceJobCompletionMessageHandler(
             sutContext,

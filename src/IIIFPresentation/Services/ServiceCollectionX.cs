@@ -1,4 +1,5 @@
-﻿using Core.Settings;
+﻿using System.Net.Http.Headers;
+using Core.Settings;
 using Core.Web;
 using DLCS;
 using Microsoft.AspNetCore.Builder;
@@ -19,9 +20,21 @@ public static class ServiceCollectionX
         builder.Services.Configure<ServicesSettings>(builder.Configuration.GetSection(ServicesSettings.SettingsName));
     }
 
-    public static IServiceCollection AddTextServicesClient(this IServiceCollection services)
+    public static IServiceCollection AddTextBuilderClient(this IServiceCollection services)
     {
-        services.AddHttpClient<ITextServicesClient, TextServicesClient>();
+        services.AddHttpClient<ITextBuilderClient, TextBuilderClient>(client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("IIIF-Presentation", "1.0.0"));
+        });
+        return services;
+    }
+
+    public static IServiceCollection AddTextAugmentedManifestClient(this IServiceCollection services)
+    {
+        services.AddHttpClient<ITextSearchClient, TextSearchClient>(client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("IIIF-Presentation", "1.0.0"));
+        });
         return services;
     }
 }

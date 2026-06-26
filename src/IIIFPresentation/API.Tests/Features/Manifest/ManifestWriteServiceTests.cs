@@ -55,7 +55,7 @@ public class ManifestWriteServiceTests
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
     private readonly LockManager manifestLockManager;
-    private readonly ITextServicesClient textServicesClient;
+    private readonly ITextBuilderClient textServicesClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -121,7 +121,7 @@ public class ManifestWriteServiceTests
 
         manifestLockManager = new LockManager();
 
-        textServicesClient = A.Fake<ITextServicesClient>();
+        textServicesClient = A.Fake<ITextBuilderClient>();
         A.CallTo(() => textServicesClient.CreateOrUpdateJob(A<PipelineJob>._, A<string>._, A<string>._, A<CancellationToken>._))
             .Returns(true);
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
