@@ -1897,7 +1897,37 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.Headers.Should().NotContainKey(Microsoft.Net.Http.Headers.HeaderNames.ETag,
             "202 responses must not include an ETag as the manifest is not yet finalised");
     }
-    
+
+    [Fact]
+    public async Task CreateManifest_StoresOriginalPayloadInStaging_WhenManifestHasPipeline()
+    {
+        // Arrange - a pipeline-only manifest is saved to staging; the caller's raw payload must be persisted
+        // alongside it so the background text-completion flow can rebuild the final manifest from the original
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.Slug(),
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var payload = manifest.AsJson();
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", payload);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseManifest!.Id!.GetLastPathElement();
+
+        var savedOriginal = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"staging/{Customer}/manifests/{id}/original");
+        var originalJson = await new StreamReader(savedOriginal.ResponseStream).ReadToEndAsync();
+        originalJson.Should().Be(payload, "the caller's raw payload is stored verbatim as the original");
+    }
+
     [Theory]
     [InlineData("flurb", "Index")] // unknown pipeline name
     [InlineData("text", "Process")] // known pipeline name, but unknown action

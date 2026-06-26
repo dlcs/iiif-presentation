@@ -443,15 +443,13 @@ public class ManifestWriteService(
 
         // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
         // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
-        // TODO - does this need to take into account Pipelines, or returned to highlight it's DLCS content resources?
-        var requiresExternalContent = hasAssets || hasAdjuncts;
-
-        var originalToStore = requiresExternalContent ? request.RawRequestBody : null;
+        var requiresCloudServicesContent = hasAssets || hasAdjuncts;
+        var originalToStore = requiresCloudServicesContent || hasPipeline ? request.RawRequestBody : null;
 
         // Pipeline forces staging even if we'd otherwise save directly to final
         var saveToStaging = !canBeBuiltUpfront || hasPipeline;
 
-        if (canBeBuiltUpfront && requiresExternalContent)
+        if (canBeBuiltUpfront && requiresCloudServicesContent)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
             var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
@@ -475,7 +473,6 @@ public class ManifestWriteService(
             await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
                 saveToStaging, cancellationToken);
 
-            // TODO - how does this work for pipelines?
             // Direct save (built upfront, no external content) with nothing to store as original:
             // remove any stale original payload left by a previous version of this manifest.
             // if (originalToStore is null)

@@ -1229,7 +1229,7 @@ public class ManifestWriteServiceTests
     }
 
     [Fact]
-    public async Task Create_SavesManifestToStaging_WhenPipelineIsSet()
+    public async Task Create_SavesManifestAndOriginalPayloadToStaging_WhenPipelineIsSet()
     {
         // Arrange
         var (slug, resourceId) = TestIdentifiers.SlugResource();
@@ -1243,10 +1243,14 @@ public class ManifestWriteServiceTests
         // Act
         await sut.Create(request, CancellationToken.None);
 
-        // Assert
+        // Assert - manifest saved to staging, with the caller's raw payload stored as the original will differ from final
         A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
-                A<IIIFManifest>._, A<DbManifest>._, null, true, A<CancellationToken>._))
+                A<IIIFManifest>._, A<DbManifest>._, A<string>.That.IsNotNull(), true, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
+
+        // Staging save with an original payload stored - must not attempt to delete any original payload
+        A.CallTo(() => manifestStorageManager.DeleteOriginalPayload(A<DbManifest>._))
+            .MustNotHaveHappened();
     }
 
     [Fact]
