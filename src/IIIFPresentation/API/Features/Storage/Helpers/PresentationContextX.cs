@@ -62,11 +62,11 @@ public static class PresentationContextX
     /// Retrieves a manifest from the database, with the Hierarchy records included
     /// </summary>
     /// <param name="dbContext">The context to pull records from</param>
-    /// <param name="customerId">Customer the record is attached to</param>
     /// <param name="manifestId">The manifest to retrieve</param>
     /// <param name="tracked">Whether the resource should be tracked or not</param>
     /// <param name="withCanvasPaintings">Whether the CanvasPaintings records should be included</param>
     /// <param name="withBatches">Whether the Batches records should be included</param>
+    /// <param name="withPipelineJobs">Whether PipelineJobs records should be included</param>
     /// <param name="cancellationToken">A cancellation token</param>
     /// <returns>The retrieved collection</returns>
     public static async Task<DbManifest?> RetrieveManifestAsync(this PresentationContext dbContext,
@@ -85,15 +85,12 @@ public static class PresentationContextX
             dbContextManifests = dbContextManifests.Include(m => m.Batches);
         }
 
-        var manifest = await dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
-
-        if (withPipelineJobs && manifest != null)
+        if (withPipelineJobs)
         {
-            manifest.PipelineJobs = await dbContext.PipelineJobs
-                .Where(p => p.ManifestId == manifest.Id)
-                .ToListAsync(cancellationToken);
+            dbContextManifests = dbContextManifests.Include(m => m.PipelineJobs);
         }
 
+        var manifest = await dbContextManifests.Retrieve(manifestId, tracked, cancellationToken);
         return manifest;
     }
     
