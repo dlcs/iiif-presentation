@@ -448,16 +448,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineQueued");
 
         // Arrange
-        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
-        await dbContext.PipelineJobs.AddAsync(new PipelineJob
-        {
-            ManifestId = id,
-            JobType = PipelineJobType.TextService,
-            CustomerId = 1,
-
-            Status = PipelineJobStatus.Waiting,
-            Created = DateTime.UtcNow
-        });
+        await dbContext.Manifests.AddTestManifest(id).WithTestPipelineJob();
         await dbContext.SaveChangesAsync();
 
         await amazonS3.PutObjectAsync(new()
@@ -477,7 +468,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
         manifest.Should().NotBeNull();
         manifest!.Id.Should().Be($"http://localhost/1/manifests/{id}");
-        manifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipelineName && p.Status == "Waiting");
+        manifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
     }
 
     [Fact]
@@ -486,17 +477,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineCompleted");
 
         // Arrange
-        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
-        await dbContext.PipelineJobs.AddAsync(new PipelineJob
-        {
-            ManifestId = id,
-            JobType = PipelineJobType.TextService,
-            CustomerId = 1,
-
-            Status = PipelineJobStatus.Completed,
-            Created = DateTime.UtcNow,
-            Finished = DateTime.UtcNow
-        });
+        await dbContext.Manifests.AddTestManifest(id)
+            .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow);
         await dbContext.SaveChangesAsync();
 
         await amazonS3.PutObjectAsync(new()
@@ -514,7 +496,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Should().ContainKey(HeaderNames.ETag, "pipeline is complete so manifest is final");
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
-        manifest!.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipelineName && p.Status == "Completed");
+        manifest!.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Completed");
     }
 
     [Fact]

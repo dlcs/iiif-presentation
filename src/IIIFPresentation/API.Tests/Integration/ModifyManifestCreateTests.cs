@@ -1875,20 +1875,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
     }
-    
-    /// <summary>
-    /// Configure dlcsApiClient fake for batch creation
-    /// </summary>
-    private static void SetupApiClientWithBatchReturn(params string[] assetIds)
-    {
-        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
-                A<List<JObject>>.That.Matches(o =>
-                    o.Count == assetIds.Length &&
-                    assetIds.All(id => o.Any(obj => obj.GetValue("id")!.ToString() == id))),
-                false,
-                A<CancellationToken>._))
-            .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
-    }
 
     [Fact]
     public async Task CreateManifest_ReturnsAccepted_WithNoETag_WhenManifestHasPipeline()
@@ -1910,5 +1896,41 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         response.Headers.Should().NotContainKey(Microsoft.Net.Http.Headers.HeaderNames.ETag,
             "202 responses must not include an ETag as the manifest is not yet finalised");
+    }
+    
+    [Theory]
+    [InlineData("flurb", "Index")] // unknown pipeline name
+    [InlineData("text", "Process")] // known pipeline name, but unknown action
+    public async Task CreateManifest_ReturnsCreated_WhenManifestHasPipeline_ButUnknownValues(string name, string action)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.IdWithSuffix(suffix: $"{name}{action}"),
+            Pipeline = [new PipelineItem { Name = name, Config = new PipelineConfig { Action = action } }]
+        };
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+    
+    /// <summary>
+    /// Configure dlcsApiClient fake for batch creation
+    /// </summary>
+    private static void SetupApiClientWithBatchReturn(params string[] assetIds)
+    {
+        A.CallTo(() => DLCSApiClient.IngestDeliverables(Customer,
+                A<List<JObject>>.That.Matches(o =>
+                    o.Count == assetIds.Length &&
+                    assetIds.All(id => o.Any(obj => obj.GetValue("id")!.ToString() == id))),
+                false,
+                A<CancellationToken>._))
+            .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
     }
 }

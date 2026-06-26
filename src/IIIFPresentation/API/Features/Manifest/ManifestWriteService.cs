@@ -11,8 +11,6 @@ using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -321,6 +319,7 @@ public class ManifestWriteService(
     {
         var saveError = await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
         if (saveError != null) return saveError;
+        
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
             writeResult, cancellationToken);
     }
@@ -534,7 +533,7 @@ public class ManifestWriteService(
         // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
         foreach (var pipelineItem in pipeline)
         {
-            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipelineName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase))
             {
                 return new PipelineJob
                 {

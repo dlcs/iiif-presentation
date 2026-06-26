@@ -29,7 +29,7 @@ public class CreateManifestHandler(
         CancellationToken cancellationToken)
     {
         var upsertRequest = new WriteManifestRequest(request.CustomerId, 
-            request.PresentationManifest,
+            request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
             request.CreateSpace);
 

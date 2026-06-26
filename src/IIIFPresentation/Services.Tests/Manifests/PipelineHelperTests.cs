@@ -33,8 +33,141 @@ public class PipelineHelperTests
     }
 
 
+    [Fact]
+    public void RemoveInvalidPipelines_DoesNothing_WhenPipelineIsNull()
+    {
+        var manifest = new PresentationManifest { Pipeline = null };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().BeNull();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_LeavesEmpty_WhenPipelineIsEmpty()
+    {
+        var manifest = new PresentationManifest { Pipeline = [] };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_KeepsValidTextPipeline()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().ContainSingle()
+            .Which.Name.Should().Be("text");
+    }
+
+    [Theory]
+    [InlineData("TEXT")]
+    [InlineData("Text")]
+    public void RemoveInvalidPipelines_KeepsTextPipeline_RegardlessOfNameCasing(string name)
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = name, Config = new PipelineConfig { Action = "Index" } }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("index")]
+    [InlineData("INDEX")]
+    public void RemoveInvalidPipelines_KeepsTextPipeline_RegardlessOfActionCasing(string action)
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = action } }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_RemovesPipeline_WithUnknownName()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "thumbs", Config = new PipelineConfig { Action = "Index" } }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_RemovesTextPipeline_WithInvalidAction()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_RemovesTextPipeline_WithNullConfig()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = null }]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_RemovesAllInvalid_KeepingOnlyValid()
+    {
+        var validItem = new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } };
+        var manifest = new PresentationManifest
+        {
+            Pipeline =
+            [
+                new PipelineItem { Name = "thumbs", Config = new PipelineConfig { Action = "Index" } },
+                validItem,
+                new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } },
+                new PipelineItem { Name = "text", Config = null }
+            ]
+        };
+
+        manifest.RemoveInvalidPipelines();
+
+        manifest.Pipeline.Should().ContainSingle()
+            .Which.Should().BeSameAs(validItem);
+    }
+
+    [Fact]
+    public void RemoveInvalidPipelines_ReturnsSameManifest_ForFluentChaining()
+    {
+        var manifest = new PresentationManifest { Pipeline = [] };
+
+        manifest.RemoveInvalidPipelines().Should().BeSameAs(manifest);
+    }
+
     [Theory]
     [InlineData(PipelineJobStatus.Waiting, "Waiting")]
+    [InlineData(PipelineJobStatus.Running, "Running")]
     [InlineData(PipelineJobStatus.Completed, "Completed")]
     [InlineData(PipelineJobStatus.Failed, "Failed")]
     public void ToPipelineItem_SetsStatusFromJob(PipelineJobStatus status, string expectedStatus)
@@ -49,7 +182,7 @@ public class PipelineHelperTests
 
         var result = job.ToPipelineItem();
 
-        result.Name.Should().Be(PipelineHelper.TextPipelineName);
+        result.Name.Should().Be(PipelineHelper.TextPipeline.Name);
         result.Config!.Action.Should().Be("Index");
         result.Status.Should().Be(expectedStatus);
     }
