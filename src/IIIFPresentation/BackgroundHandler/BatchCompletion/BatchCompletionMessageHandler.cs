@@ -8,6 +8,7 @@ using Repository;
 using Repository.Helpers;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.TextServices;
 using Manifest = Models.Database.Collections.Manifest;
 
 namespace BackgroundHandler.BatchCompletion;
@@ -17,6 +18,7 @@ public class BatchCompletionMessageHandler(
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestS3Manager,
     IDlcsManifestMerger dlcsManifestMerger,
+    ITextBuilderClient textBuilderClient,
     ILogger<BatchCompletionMessageHandler> logger)
     : MessageHandlerBase<BatchCompletionMessage>(logger)
 {
@@ -33,8 +35,9 @@ public class BatchCompletionMessageHandler(
     private async Task<bool> TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, int approximateReceiveCount, CancellationToken cancellationToken)
     {
         // Load batch the incoming message is referring to
-        var batch = await dbContext.Batches.Include(b => b.Manifest)
-            .ThenInclude(m => m.CanvasPaintings)
+        var batch = await dbContext.Batches
+            .Include(b => b.Manifest).ThenInclude(m => m.CanvasPaintings)
+            .Include(b => b.Manifest).ThenInclude(m => m.PipelineJobs)
             .SingleOrDefaultAsync(
                 b => b.Id == batchCompletionMessage.Id && b.DeliverableType == batchCompletionMessage.DeliverableType,
                 cancellationToken);
@@ -64,7 +67,7 @@ public class BatchCompletionMessageHandler(
             {
                 if (TryCompleteBatch(batch, batchCompletionMessage.Finished))
                 {
-                    await CompleteManifestFromStaging(batch.Manifest!, cancellationToken);
+                    if (!await CompleteManifestFromStaging(batch.Manifest!, cancellationToken)) return false;
                 }
                 else
                 {
@@ -89,17 +92,36 @@ public class BatchCompletionMessageHandler(
         return true;
     }
 
-    // Read the staged manifest, merge in the DLCS content, save the final manifest (promoting any stored original
-    // payload) then remove the staging artifacts.
-    private async Task CompleteManifestFromStaging(Manifest dbManifest, CancellationToken cancellationToken)
+    // Read the staged manifest, merge in the DLCS content, then either hand off to the text pipeline or
+    // save the final manifest directly. Returns false if text-services submission fails (caller should retry).
+    private async Task<bool> CompleteManifestFromStaging(Manifest dbManifest, CancellationToken cancellationToken)
     {
         var staged = await manifestS3Manager.ReadStagedManifest(dbManifest, cancellationToken);
         staged.Manifest.ThrowIfNull(nameof(staged.Manifest), "Manifest was not found in staging location");
 
         var merged = await dlcsManifestMerger.Augment(staged.Manifest!, dbManifest, cancellationToken);
+
+        var pendingPipelineJob = dbManifest.PipelineJobs?.FirstOrDefault(p => p.Status == PipelineJobStatus.Waiting);
+        if (pendingPipelineJob != null)
+        {
+            Logger.LogInformation(
+                "Manifest {ManifestId} has pending text pipeline; saving merged content to staging and submitting job",
+                dbManifest.Id);
+            await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: true,
+                cancellationToken);
+            if (!await textBuilderClient.UpsertJob(dbManifest, pendingPipelineJob, cancellationToken))
+            {
+                Logger.LogError("Failed to submit text-builder job for manifest {ManifestId} after batch completion",
+                    dbManifest.Id);
+                return false;
+            }
+            return true;
+        }
+
         await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: false,
             cancellationToken);
         await manifestS3Manager.DeleteStagedManifest(dbManifest);
+        return true;
     }
 
     /// <summary>

@@ -1183,6 +1183,135 @@ public class ManifestWriteServiceTests
     }
 
     [Fact]
+    public async Task Create_RegistersPipelineJob_ButDoesNotCallTextServices_WhenManifestHasPipelineAndAssetsBeingIngested()
+    {
+        // Arrange - new assets require DLCS ingestion (canBeBuiltUpfront=false), so text-services submission
+        // must be deferred until the batch-completion background handler fires.
+        dynamic asset = new JObject();
+        var (slug, resourceId, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        asset.id = assetId;
+
+        // Return an ingesting batch so canBeBuiltUpfront=false — the asset is being processed by DLCS
+        A.CallTo(() => dlcsClient.IngestDeliverables(A<int>._, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
+            .Returns([
+                new()
+                {
+                    ResourceId = $"https://dlcs.api/customers/{Customer}/queue/batches/1001",
+                    Submitted = DateTime.UtcNow
+                }
+            ]);
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+
+        // Text-services must NOT be called — ingestion is still in progress
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        // Pipeline job must be persisted so the batch-completion handler can submit it later
+        var flatId = result.Entity.FlatId;
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
+    }
+
+    [Fact]
+    public async Task Upsert_RegistersPipelineJob_ButDoesNotCallTextServices_WhenManifestHasPipelineAndAssetsBeingIngested()
+    {
+        // Arrange — create a bare manifest first, then update it to add pipeline + new assets still being ingested
+        var (slug, resourceId, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        var createManifest = new PresentationManifest { Slug = slug };
+        var createRequest = new UpsertManifestRequest(resourceId, null, Customer, createManifest, createManifest.AsJson(), true);
+        var createResult = await sut.Create(createRequest, CancellationToken.None);
+        var flatId = createResult.Entity.FlatId;
+        var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
+
+        // Return an ingesting batch so canBeBuiltUpfront=false — the asset is being processed by DLCS
+        A.CallTo(() => dlcsClient.IngestDeliverables(A<int>._, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
+            .Returns([
+                new()
+                {
+                    ResourceId = $"https://dlcs.api/customers/{Customer}/queue/batches/1002",
+                    Submitted = DateTime.UtcNow
+                }
+            ]);
+
+        dynamic asset = new JObject();
+        asset.id = assetId;
+
+        var updateManifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(updateRequest, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+
+        // Text-services must NOT be called — DLCS batch is still ingesting
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        // Pipeline job must be persisted so the batch-completion handler can submit it later
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
+    }
+
+    [Fact]
     public async Task Create_ReturnsError_AndDoesNotPersistManifest_WhenTextServiceSubmissionFails()
     {
         // Arrange
