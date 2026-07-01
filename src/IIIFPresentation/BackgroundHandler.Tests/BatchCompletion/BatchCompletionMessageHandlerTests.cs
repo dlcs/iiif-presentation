@@ -500,6 +500,64 @@ public class BatchCompletionMessageHandlerTests
     }
 
     [Fact]
+    public async Task HandleMessage_SubmitsMostRecentWaitingJob_WhenManifestHasMultiplePipelineJobs()
+    {
+        // Arrange - a manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for
+        // history, see ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more
+        // than one can be Waiting at once. The newest should be the one submitted, matching the "latest wins"
+        // convention TextServiceJobCompletionMessageHandler already uses when resolving a completion notification.
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(
+            nameof(HandleMessage_SubmitsMostRecentWaitingJob_WhenManifestHasMultiplePipelineJobs));
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "pipeline_multiple");
+        const int space = 2;
+        var assetId = new AssetId(CustomerId, space, identifier);
+
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging,
+                A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { Id = identifier });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.Waiting,
+            Created = DateTime.UtcNow.AddMinutes(-10)
+        });
+        var newestJobEntry = await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.Waiting,
+            Created = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        var newestJobId = newestJobEntry.Entity.Id;
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<PipelineJob>.That.Matches(j => j.Id == newestJobId), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Fact]
     public async Task HandleMessage_ReturnsFalse_WhenPipelineJobPending_AndTextServicesFails()
     {
         // Arrange

@@ -101,7 +101,14 @@ public class BatchCompletionMessageHandler(
 
         var merged = await dlcsManifestMerger.Augment(staged.Manifest!, dbManifest, cancellationToken);
 
-        var pendingPipelineJob = dbManifest.PipelineJobs?.FirstOrDefault(p => p.Status == PipelineJobStatus.Waiting);
+        // A manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for history - see
+        // ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more than one can
+        // be Waiting at once. Pick the most recent, matching the "latest wins" convention
+        // TextServiceJobCompletionMessageHandler already uses to resolve which job a completion applies to.
+        var pendingPipelineJob = dbManifest.PipelineJobs?
+            .Where(p => p.Status == PipelineJobStatus.Waiting)
+            .OrderByDescending(p => p.Created)
+            .FirstOrDefault();
         if (pendingPipelineJob != null)
         {
             Logger.LogInformation(

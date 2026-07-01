@@ -56,7 +56,7 @@ public class ManifestWriteServiceTests
     private readonly IManifestStorageManager manifestStorageManager;
     private readonly IDlcsManifestMerger dlcsManifestMerger;
     private readonly LockManager manifestLockManager;
-    private readonly ITextBuilderClient textServicesClient;
+    private readonly ITextBuilderClient textBuilderClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -126,12 +126,12 @@ public class ManifestWriteServiceTests
 
         manifestLockManager = new LockManager();
 
-        textServicesClient = A.Fake<ITextBuilderClient>();
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        textBuilderClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(true);
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, textServicesClient,
+            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, textBuilderClient,
             new NullLogger<ManifestWriteService>());
 
         var parentCollection =
@@ -1170,7 +1170,7 @@ public class ManifestWriteServiceTests
         var result = await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         var flatId = result.Entity.FlatId;
@@ -1234,7 +1234,7 @@ public class ManifestWriteServiceTests
         result.WriteResult.Should().Be(WriteResult.Accepted);
 
         // Text-services must NOT be called — ingestion is still in progress
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
         // Pipeline job must be persisted so the batch-completion handler can submit it later
@@ -1302,7 +1302,7 @@ public class ManifestWriteServiceTests
         result.WriteResult.Should().Be(WriteResult.Accepted);
 
         // Text-services must NOT be called — DLCS batch is still ingesting
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
         // Pipeline job must be persisted so the batch-completion handler can submit it later
@@ -1322,7 +1322,7 @@ public class ManifestWriteServiceTests
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(false);
 
         // Act
@@ -1358,7 +1358,7 @@ public class ManifestWriteServiceTests
         await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -1417,7 +1417,7 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.WriteResult.Should().Be(WriteResult.Accepted);
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly();
 
         var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();

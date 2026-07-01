@@ -99,7 +99,7 @@ public class ManifestWriteService(
     IDlcsManifestMerger dlcsManifestMerger,
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
-    ITextBuilderClient textServicesClient,
+    ITextBuilderClient textBuilderClient,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -487,15 +487,15 @@ public class ManifestWriteService(
 
         if (request.PresentationManifest.HasPipelineJob())
         {
-            var registerError = await RegisterPipelineJob(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken);
-            if (registerError != null) return registerError;
+            var job = await RegisterPipelineJob(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken);
+            if (job == null) return null;
 
             // Submission is deferred until DLCS batch completion when assets are still being ingested
             if (canBeBuiltUpfront)
             {
                 logger.LogDebug("Submitting pipeline job for manifest {ManifestId}",
                     dbManifest.Id);
-                return await SubmitPipelineJob(dbManifest, cancellationToken);
+                return await SubmitPipelineJob(dbManifest, job, cancellationToken);
             }
 
             logger.LogDebug("Deferring text-services submission for manifest {ManifestId} until DLCS batch completion",
@@ -509,8 +509,8 @@ public class ManifestWriteService(
     }
 
     // Persists the pipeline job record within the open transaction.
-    // Returns a failure result if no recognised pipeline type is found, otherwise null.
-    private async Task<PresUpdateResult?> RegisterPipelineJob(DbManifest dbManifest,
+    // Returns the created job, or null if no recognised pipeline type was found (nothing registered).
+    private async Task<PipelineJob?> RegisterPipelineJob(DbManifest dbManifest,
         List<PipelineItem> pipeline, CancellationToken cancellationToken)
     {
         var job = BuildPipelineJob(dbManifest, pipeline);
@@ -523,16 +523,16 @@ public class ManifestWriteService(
 
         (dbManifest.PipelineJobs ??= []).Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return null;
+        return job;
     }
 
-    // Submits the most recently registered pipeline job to text-services.
+    // Submits the given pipeline job to text-services.
     // The HTTP call runs while the DB transaction is still open — the HttpClient should be configured with a short
     // timeout to bound this window. On failure the staged manifest is cleaned up so the caller can retry cleanly.
-    private async Task<PresUpdateResult?> SubmitPipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    private async Task<PresUpdateResult?> SubmitPipelineJob(DbManifest dbManifest, PipelineJob job,
+        CancellationToken cancellationToken)
     {
-        var job = dbManifest.PipelineJobs!.Last();
-        if (!await textServicesClient.UpsertJob(dbManifest, job, cancellationToken))
+        if (!await textBuilderClient.UpsertJob(dbManifest, job, cancellationToken))
         {
             logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
