@@ -63,11 +63,38 @@ public class TypedPathTemplateOptionsTests
     {
         // Arrange
         const string expected = "/different/type1";
-        
+
         // Act
         var actual = sut.GetPathTemplateForHostAndType("proxy.host", "Type1");
-        
+
         // Assert
         actual.Should().Be(expected, "type override is returned");
+    }
+
+    [Fact]
+    public void GetPathTemplatesForHost_ReturnsTemplatesForConfiguredDefaults_WithHostOverridesApplied()
+    {
+        // Act
+        var actual = sut.GetPathTemplatesForHost("proxy.host");
+
+        // Assert
+        actual.Should().ContainKeys("Type1", "Type2");
+        actual.Should().HaveCount(2, "the configured Defaults drive the set of types returned");
+        actual["Type1"].Should().Be("/different/type1", "host override is applied");
+        actual["Type2"].Should().Be("/path/type2", "default is used when no host override");
+    }
+
+    [Fact]
+    public void GetPathTemplatesForHost_ReturnsAllDefaultTypes_WhenDefaultsNotCustomised()
+    {
+        // Arrange
+        var options = new TypedPathTemplateOptions();
+
+        // Act
+        var actual = options.GetPathTemplatesForHost("default.host");
+
+        // Assert
+        actual.Should().ContainKeys("ManifestPrivate", "CollectionPrivate", "ResourcePublic", "Canvas");
+        actual["ManifestPrivate"].Should().Be("/{customerId}/manifests/{resourceId}");
     }
 }

@@ -28,11 +28,10 @@ public class TypedPathTemplateOptions
     /// <summary>
     /// Get all templates for host. 
     /// </summary>
-    public Dictionary<string, string> GetPathTemplatesForHost(string host) => DefaultFormats
-        .Select(format => (format.Key, GetPathTemplateForHostAndType(host, format.Key)))
-        .ToDictionary(format => format.Key, format => format.Item2);
-   
-
+    /// <returns>Paths for host, or defaults if override not found.</returns>
+    public Dictionary<string, string> GetPathTemplatesForHost(string host) => Defaults
+        .ToDictionary(format => format.Key, format => GetPathTemplateForHostAndType(host, format.Key));
+    
     /// <summary>
     /// Get template path for host. 
     /// </summary>
