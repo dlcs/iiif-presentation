@@ -67,6 +67,16 @@ public static class ManifestConverter
             foreach (var adjunct in iiifManifest.Adjuncts!) adjunct.Remove(AssetProperties.Asset);
         }
 
+        if (!dbManifest.PipelineJobs.IsNullOrEmpty())
+        {
+            iiifManifest.Pipeline = dbManifest.PipelineJobs!
+                .GroupBy(j => j.JobType)
+                // get the last created version of each pipeline item - we don't care about history
+                .Select(g => g.OrderByDescending(j => j.Created).First()
+                    .ToPipelineItem())
+                .ToList();
+        }
+
         iiifManifest.EnsurePresentation3Context();
         iiifManifest.EnsureContext(PresentationJsonLdContext.Context);
 

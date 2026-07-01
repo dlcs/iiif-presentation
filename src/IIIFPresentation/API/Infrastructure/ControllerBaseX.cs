@@ -70,7 +70,7 @@ public static class ControllerBaseX
         {
             WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
             WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
-                entityResult.Entity, (int)HttpStatusCode.Accepted, entityResult.ETag),
+                entityResult.Entity, (int)HttpStatusCode.Accepted, null),
             WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
                 entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
             WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),

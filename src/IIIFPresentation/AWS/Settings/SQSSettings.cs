@@ -11,6 +11,11 @@ public class SQSSettings
     /// Name of queue that will receive notifications when a batch is completed
     /// </summary>
     public string? BatchCompletionQueueName { get; set; }
+
+    /// <summary>
+    /// Name of queue that will receive notifications when a text-services job is completed
+    /// </summary>
+    public string? TextJobQueueName { get; set; }
     
     /// <summary>
     /// The duration (in seconds) for which the call waits for a message to arrive in the queue before returning

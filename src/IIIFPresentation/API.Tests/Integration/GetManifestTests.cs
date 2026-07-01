@@ -443,6 +443,63 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     }
 
     [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenPipelineJobQueued()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineQueued");
+
+        // Arrange
+        await dbContext.Manifests.AddTestManifest(id).WithTestPipelineJob();
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().NotContainKey(HeaderNames.ETag, "manifest is not yet finalised");
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest.Should().NotBeNull();
+        manifest!.Id.Should().Be($"http://localhost/1/manifests/{id}");
+        manifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsOK_WhenPipelineJobCompleted()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineCompleted");
+
+        // Arrange
+        await dbContext.Manifests.AddTestManifest(id)
+            .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow);
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag, "pipeline is complete so manifest is final");
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest!.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Completed");
+    }
+
+    [Fact]
     public async Task Get_IiifManifest_Hierarchical_ReturnsNotFoundWhenIngesting()
     {
         // Arrange

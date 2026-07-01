@@ -22,6 +22,7 @@ using Repository;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using Services.TextServices;
 using Batch = DLCS.Models.Batch;
 using Collection = Models.Database.Collections.Collection;
 using Manifest = Models.Database.Collections.Manifest;
@@ -36,6 +37,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
     private static readonly IDlcsApiClient DLCSApiClient = A.Fake<IDlcsApiClient>();
+    private static readonly ITextBuilderClient TextServicesClient = A.Fake<ITextBuilderClient>();
     private const int Customer = 1;
     private const int ExampleCustomer = 601;
     private const int InvalidSpaceCustomer = 34512;
@@ -49,10 +51,12 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             .Returns(new Space { Id = NewlyCreatedSpace, Name = "test" });
         A.CallTo(() => DLCSApiClient.CreateSpace(InvalidSpaceCustomer, A<string>._, A<CancellationToken>._))
             .ThrowsAsync(new DlcsException("Error creating DLCS space", HttpStatusCode.BadRequest));
+        A.CallTo(() => TextServicesClient.UpsertJob(A<Models.Database.Collections.Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(true);
         httpClient = factory
             .ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
                 appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
-                services => services.AddSingleton(DLCSApiClient)
+                services => services.AddSingleton(DLCSApiClient).AddSingleton(TextServicesClient)
             );
 
         storageFixture.DbFixture.CleanUp();
@@ -1870,6 +1874,80 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
 
         var error = await response.ReadAsPresentationResponseAsync<Error>();
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ValidationFailed");
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsAccepted_WithNoETag_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.Slug(),
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().NotContainKey(Microsoft.Net.Http.Headers.HeaderNames.ETag,
+            "202 responses must not include an ETag as the manifest is not yet finalised");
+    }
+
+    [Fact]
+    public async Task CreateManifest_StoresOriginalPayloadInStaging_WhenManifestHasPipeline()
+    {
+        // Arrange - a pipeline-only manifest is saved to staging; the caller's raw payload must be persisted
+        // alongside it so the background text-completion flow can rebuild the final manifest from the original
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.Slug(),
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var payload = manifest.AsJson();
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", payload);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        var id = responseManifest!.Id!.GetLastPathElement();
+
+        var savedOriginal = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"staging/{Customer}/manifests/{id}/original");
+        var originalJson = await new StreamReader(savedOriginal.ResponseStream).ReadToEndAsync();
+        originalJson.Should().Be(payload, "the caller's raw payload is stored verbatim as the original");
+    }
+
+    [Theory]
+    [InlineData("flurb", "Index")] // unknown pipeline name
+    [InlineData("text", "Process")] // known pipeline name, but unknown action
+    public async Task CreateManifest_ReturnsCreated_WhenManifestHasPipeline_ButUnknownValues(string name, string action)
+    {
+        // Arrange
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = TestIdentifiers.IdWithSuffix(suffix: $"{name}{action}"),
+            Pipeline = [new PipelineItem { Name = name, Config = new PipelineConfig { Action = action } }]
+        };
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
     
     /// <summary>

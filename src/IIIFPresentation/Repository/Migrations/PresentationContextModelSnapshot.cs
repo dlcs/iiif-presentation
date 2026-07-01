@@ -351,6 +351,70 @@ namespace Repository.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Models.Database.General.PipelineJob", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CollectionId")
+                        .HasColumnType("text")
+                        .HasColumnName("collection_id");
+
+                    b.Property<string>("Config")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("config");
+
+                    b.Property<DateTime>("Created")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("error");
+
+                    b.Property<DateTime?>("Finished")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished");
+
+                    b.Property<string>("JobType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("job_type");
+
+                    b.Property<string>("ManifestId")
+                        .HasColumnType("text")
+                        .HasColumnName("manifest_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pipeline_jobs");
+
+                    b.HasIndex("CollectionId", "CustomerId")
+                        .HasDatabaseName("ix_pipeline_jobs_collection_id_customer_id");
+
+                    b.HasIndex("ManifestId", "CustomerId")
+                        .HasDatabaseName("ix_pipeline_jobs_manifest_id_customer_id");
+
+                    b.ToTable("pipeline_jobs", null, t =>
+                        {
+                            t.HasCheckConstraint("stop_collection_and_manifest_in_same_record", "num_nonnulls(manifest_id, collection_id) = 1");
+                        });
+                });
+
             modelBuilder.Entity("Models.Database.CanvasPainting", b =>
                 {
                     b.HasOne("Models.Database.Collections.Manifest", "Manifest")
@@ -402,11 +466,32 @@ namespace Repository.Migrations
                     b.Navigation("ParentCollection");
                 });
 
+            modelBuilder.Entity("Models.Database.General.PipelineJob", b =>
+                {
+                    b.HasOne("Models.Database.Collections.Collection", "Collection")
+                        .WithMany("PipelineJobs")
+                        .HasForeignKey("CollectionId", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_pipeline_jobs_collections_collection_id_customer_id");
+
+                    b.HasOne("Models.Database.Collections.Manifest", "Manifest")
+                        .WithMany("PipelineJobs")
+                        .HasForeignKey("ManifestId", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_pipeline_jobs_manifests_manifest_id_customer_id");
+
+                    b.Navigation("Collection");
+
+                    b.Navigation("Manifest");
+                });
+
             modelBuilder.Entity("Models.Database.Collections.Collection", b =>
                 {
                     b.Navigation("Children");
 
                     b.Navigation("Hierarchy");
+
+                    b.Navigation("PipelineJobs");
                 });
 
             modelBuilder.Entity("Models.Database.Collections.Manifest", b =>
@@ -416,6 +501,8 @@ namespace Repository.Migrations
                     b.Navigation("CanvasPaintings");
 
                     b.Navigation("Hierarchy");
+
+                    b.Navigation("PipelineJobs");
                 });
 #pragma warning restore 612, 618
         }

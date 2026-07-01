@@ -50,7 +50,6 @@ public class ManifestController(
             default: return this.PresentationNotFound();
         }
 
-
         if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
             return entityResult.Entity.FullPath is { Length: > 0 } fullPath
                 ? SeeOther(fullPath)

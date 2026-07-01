@@ -6,6 +6,7 @@ using AWS.SQS;
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.CustomerCreation;
 using BackgroundHandler.Listener;
+using BackgroundHandler.TextCompletion;
 using Repository;
 using Repository.Helpers;
 
@@ -33,7 +34,6 @@ public static class ServiceCollectionX
     
     public static IServiceCollection AddBackgroundServices(this IServiceCollection services, AWSSettings aws)
     {
-        
         if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
         {
             services
@@ -45,9 +45,17 @@ public static class ServiceCollectionX
         if (!string.IsNullOrEmpty(aws.SQS.BatchCompletionQueueName))
         {
             services
-                .AddHostedService(sp => 
+                .AddHostedService(sp =>
                     ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<BatchCompletionMessageHandler>>(sp, aws.SQS.BatchCompletionQueueName))
                 .AddScoped<BatchCompletionMessageHandler>();
+        }
+
+        if (!string.IsNullOrEmpty(aws.SQS.TextJobQueueName))
+        {
+            services
+                .AddHostedService(sp =>
+                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<TextServiceJobCompletionMessageHandler>>(sp, aws.SQS.TextJobQueueName))
+                .AddScoped<TextServiceJobCompletionMessageHandler>();
         }
 
         return services;

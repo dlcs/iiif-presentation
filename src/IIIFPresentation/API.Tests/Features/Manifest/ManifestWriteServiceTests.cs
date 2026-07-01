@@ -23,6 +23,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using DbBatchStatus = Models.Database.General.BatchStatus;
 using DbDeliverableType = Models.Database.General.DeliverableType;
+using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -30,12 +31,14 @@ using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Services.TextServices;
 using Sqids;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Test.Helpers.Settings;
 using DbCanvasPainting = Models.Database.CanvasPainting;
+using DbManifest = Models.Database.Collections.Manifest;
 using IIIFManifest = IIIF.Presentation.V3.Manifest;
 
 namespace API.Tests.Features.Manifest;
@@ -51,25 +54,30 @@ public class ManifestWriteServiceTests
     private readonly DlcsSettings dlcsSettings;
     private readonly IDlcsApiClient dlcsClient;
     private readonly IManifestStorageManager manifestStorageManager;
+    private readonly IDlcsManifestMerger dlcsManifestMerger;
     private readonly LockManager manifestLockManager;
+    private readonly ITextBuilderClient textServicesClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
         dbFixture.CustomerIdProvider.SetCustomerId(Customer);
-        
+
+        // Use a tracked context for the SUT to mirror production behaviour (EF navigation-property cascades require tracking)
+        var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
+
         dlcsSettings = DefaultSettings.DlcsSettings();
 
         var typedPathTemplateOptions = Options.Create(PathRewriteOptions.Default);
-        
+
         var sqidsEncoder = new SqidsEncoder<long>();
         var idGenerator = new SqidsGenerator(sqidsEncoder, new NullLogger<SqidsGenerator>());
-        
-        var identityManager = new IdentityManager(idGenerator, presentationContext, new NullLogger<IdentityManager>());
-        
+
+        var identityManager = new IdentityManager(idGenerator, sutContext, new NullLogger<IdentityManager>());
+
         var presentationGenerator =
             new TestPresentationConfigGenerator("https://localhost:5000", PathRewriteOptions.Default);
-        
+
         var pathRewriteParser = new PathRewriteParser(typedPathTemplateOptions, new NullLogger<PathRewriteParser>());
 
         var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://base") };
@@ -82,29 +90,33 @@ public class ManifestWriteServiceTests
             new NullLogger<ManifestItemsParser>());
 
         var manifestPaintedResourceParser = new ManifestPaintedResourceParser(pathRewriteParser, presentationGenerator,
-            Options.Create(pathSettings), presentationContext, canvasHelper, new NullLogger<ManifestPaintedResourceParser>());
+            Options.Create(pathSettings), sutContext, canvasHelper, new NullLogger<ManifestPaintedResourceParser>());
 
         var canvasPaintingMerger = new CanvasPaintingMerger(pathRewriteParser);
 
         var canvasPaintingResolver = new CanvasPaintingResolver(identityManager, manifestItemsParser,
             manifestPaintedResourceParser, canvasPaintingMerger, new NullLogger<CanvasPaintingResolver>());
-        
+
         dlcsClient = A.Fake<IDlcsApiClient>();
-        
+
         var apiOptions = Options.Create(new ApiSettings()
         {
             AWS = new AWSSettings(),
             DLCS = dlcsSettings
         });
-            
-        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, presentationContext, apiOptions,
+
+        var managedResultFinder = new ManagedAssetResultFinder(dlcsClient, sutContext, apiOptions,
             new NullLogger<ManagedAssetResultFinder>());
-        var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, presentationContext, managedResultFinder,
+        var dlcsManifestCoordinator = new DlcsManifestCoordinator(dlcsClient, sutContext, managedResultFinder,
             new NullLogger<DlcsManifestCoordinator>());
 
         var parentSlugParser = A.Fake<IParentSlugParser>();
 
         manifestStorageManager = A.Fake<IManifestStorageManager>();
+        dlcsManifestMerger = A.Fake<IDlcsManifestMerger>();
+        // By default echo the manifest back, mirroring a merge that adds no external content
+        A.CallTo(() => dlcsManifestMerger.Augment(A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
+            .ReturnsLazily((IIIFManifest m, DbManifest _, CancellationToken _) => m);
         var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(dlcsSettings),
             new SettingsDrivenPresentationConfigGenerator(Options.Create(new PathSettings()
         {
@@ -114,9 +126,13 @@ public class ManifestWriteServiceTests
 
         manifestLockManager = new LockManager();
 
-        sut = new ManifestWriteService(presentationContext, identityManager, canvasPaintingResolver,
+        textServicesClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(true);
+        sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, pathRewriteParser, manifestLockManager, new NullLogger<ManifestWriteService>());
+            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, textServicesClient,
+            new NullLogger<ManifestWriteService>());
 
         var parentCollection =
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
@@ -530,7 +546,7 @@ public class ManifestWriteServiceTests
 
         // Setup a fake batch with resource ID, this is unfinished so means it's sync complete
         A.CallTo(() => dlcsClient.IngestDeliverables(Customer, A<List<JObject>>._, false, A<CancellationToken>._))
-            .Returns([new Batch { Finished = null, ResourceId = "12345" }]);
+            .Returns([new DLCS.Models.Batch { Finished = null, ResourceId = "12345" }]);
 
         var (slug, resourceId, assetId) = TestIdentifiers.SlugResourceAsset();
 
@@ -656,10 +672,10 @@ public class ManifestWriteServiceTests
             canvasPaintings: [canvasPainting], spaceId: NewlyCreatedSpace);
         await presentationContext.SaveChangesAsync();
 
-        // UpsertManifestInStorage returns a manifest carrying both user-set and stub values for all
+        // The DLCS merge returns a manifest carrying both user-set and stub values for all
         // three adjunct types, as ManifestMerger would produce after applying ApplyManifestLevelAdjuncts
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 SeeAlso =
@@ -755,9 +771,9 @@ public class ManifestWriteServiceTests
         await presentationContext.SaveChangesAsync();
 
         // ManifestMerger preserves the base manifest's empty lists when the stub canvas has no adjuncts,
-        // so UpsertManifestInStorage returns empty (not null) for each adjunct type
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        // so the merge returns empty (not null) for each adjunct type
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest { SeeAlso = [], Rendering = [], Annotations = [] });
 
         A.CallTo(() => dlcsClient.GetCustomerImages(Customer, A<string>._, A<CancellationToken>._))
@@ -794,7 +810,7 @@ public class ManifestWriteServiceTests
     }
 
     [Fact]
-    public async Task Upsert_CallsUpsertManifestInStorage_WhenAdjunctsNull_AndExistingAdjunctBatch()
+    public async Task Upsert_CallsDlcsMerge_WhenAdjunctsNull_AndExistingAdjunctBatch()
     {
         // Arrange - no painted resources, adjuncts = null ("no change"), but the manifest has a previously
         // ingested adjunct batch. ManifestMerger must run to bake the existing DLCS adjunct properties
@@ -805,8 +821,8 @@ public class ManifestWriteServiceTests
         await presentationContext.Batches.AddTestBatch(9991, dbManifest.Entity, DbDeliverableType.Adjunct, DbBatchStatus.Completed);
         await presentationContext.SaveChangesAsync();
 
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
         const string existingAdjunctId = "existing-adjunct.xml";
@@ -837,8 +853,8 @@ public class ManifestWriteServiceTests
         result.Entity.Adjuncts.Should().ContainSingle()
             .Which.Value<string>("id").Should().Be(existingAdjunctId,
                 "existing adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -846,7 +862,7 @@ public class ManifestWriteServiceTests
     public async Task Upsert_CallsSaveManifestInStorage_WhenAdjunctsNull_AndNoPriorDlcsContent()
     {
         // Arrange - items-only manifest: no painted resources, no adjuncts, no prior DLCS batches.
-        // ManifestMerger must NOT be called — doing so would make an unnecessary DLCS NQ call.
+        // The DLCS merge must NOT be called — doing so would make an unnecessary DLCS NQ call.
         var (slug, resourceId) = TestIdentifiers.SlugResource();
 
         var dbManifest = await presentationContext.Manifests.AddTestManifest(resourceId, slug: slug);
@@ -866,13 +882,13 @@ public class ManifestWriteServiceTests
         // Assert
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
     [Fact]
-    public async Task Upsert_CallsUpsertManifestInStorage_WhenAdjunctsEmpty_AndNoAssets()
+    public async Task Upsert_CallsDlcsMerge_WhenAdjunctsEmpty_AndNoAssets()
     {
         // Arrange - no painted resources, adjuncts = [] (explicit clear) and stub asset already in DLCS.
         // canBeBuiltUpfront = true (stub exists, no new batch needed) so ManifestMerger must be called.
@@ -891,8 +907,8 @@ public class ManifestWriteServiceTests
                 JObject.Parse($$"""{ "id": "{{stubAssetName}}", "space": 0 }""")
             ]));
 
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest());
 
         var manifest = new PresentationManifest { Slug = slug, Adjuncts = [] };
@@ -906,8 +922,8 @@ public class ManifestWriteServiceTests
         // Assert
         result.Error.Should().BeNull();
         result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
-        A.CallTo(() => manifestStorageManager.UpsertManifestInStorage(
-                A<IIIFManifest>._, A<Models.Database.Collections.Manifest>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => dlcsManifestMerger.Augment(
+                A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -1117,5 +1133,166 @@ public class ManifestWriteServiceTests
         dbManifest.CanvasPaintings[1].Id.Should().Be( $"{canvasId}_2");
         dbManifest.CanvasPaintings[2].CanvasOriginalId.Should().Be( $"https://base/0/canvases/{canvasId}_3");
         dbManifest.CanvasPaintings[3].Id.Should().Be( $"{canvasId}_4");
+    }
+
+    [Fact]
+    public async Task Create_ReturnsAccepted_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+    }
+
+    [Fact]
+    public async Task Create_CallsTextServicesAndCreatesPipelineJob_WhenManifestHasPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        var flatId = result.Entity.FlatId;
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull();
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
+        pipelineJob.Config!.Action.Should().Be("Index");
+        pipelineJob.GetJobId().ToString().Should().Be($"{Customer}/iiif/{flatId}");
+        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+    }
+
+    [Fact]
+    public async Task Create_ReturnsError_AndDoesNotPersistManifest_WhenTextServiceSubmissionFails()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(false);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.WriteResult.Should().Be(WriteResult.Error);
+        result.Error.Should().Contain("text service");
+
+        // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
+        presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();
+        presentationContext.PipelineJobs.Any(p => p.ManifestId == resourceId).Should().BeFalse();
+
+        // Staged S3 objects must be cleaned up
+        A.CallTo(() => manifestStorageManager.DeleteStagedManifest(A<Models.Database.Collections.Manifest>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
+    public async Task Create_DoesNotCallTextServices_WhenManifestHasNoPipeline()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items = [new Canvas { Id = "https://base/0/canvases/canvas-1" }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task Create_SavesManifestAndOriginalPayloadToStaging_WhenPipelineIsSet()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        await sut.Create(request, CancellationToken.None);
+
+        // Assert - manifest saved to staging, with the caller's raw payload stored as the original will differ from final
+        A.CallTo(() => manifestStorageManager.SaveManifestInStorage(
+                A<IIIFManifest>._, A<DbManifest>._, A<string>.That.IsNotNull(), true, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        // Staging save with an original payload stored - must not attempt to delete any original payload
+        A.CallTo(() => manifestStorageManager.DeleteOriginalPayload(A<DbManifest>._))
+            .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest()
+    {
+        // Arrange
+        var (slug, resourceId) = TestIdentifiers.SlugResource();
+
+        // First create
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var firstResult = await sut.Create(request, CancellationToken.None);
+        var flatId = firstResult.Entity.FlatId;
+
+        // Second create (update path) — resubmit the same manifest with pipeline
+        var updateManifest = new PresentationManifest
+        {
+            Slug = slug,
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(updateRequest, CancellationToken.None);
+
+        // Assert
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+
+        var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
+        jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
+        jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Waiting));
     }
 }

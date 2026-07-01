@@ -35,7 +35,7 @@ public class UpsertManifestHandler(IManifestWrite manifestService)
             request.ManifestId,
             request.Etag,
             request.CustomerId,
-            request.PresentationManifest,
+            request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
             request.CreateSpace);
 

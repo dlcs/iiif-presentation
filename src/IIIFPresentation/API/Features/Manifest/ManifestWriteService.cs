@@ -14,16 +14,17 @@ using DLCS.Exceptions;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
-using Models.Database.Collections;
 using Models.DLCS;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
 using Services;
+using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using Services.TextServices;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
 using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
@@ -95,8 +96,10 @@ public class ManifestWriteService(
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IParentSlugParser parentSlugParser,
     IManifestStorageManager manifestStorageManager,
+    IDlcsManifestMerger dlcsManifestMerger,
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
+    ITextBuilderClient textServicesClient,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -182,14 +185,21 @@ public class ManifestWriteService(
                 cancellationToken: cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
             var (error, dbManifest) =
                 await CreateDatabaseRecord(request, resolved.ParsedParentSlug!, dlcsResult.InteractionResult!.SpaceId,
                     dlcsResult.CanvasPaintings, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Created : WriteResult.Accepted;
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasPipelineJob()
+                ? WriteResult.Created
+                : WriteResult.Accepted;
+            var createResult = await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
+
+            if (createResult.IsSuccess) await transaction.CommitAsync(cancellationToken);
+            return createResult;
         }
     }
 
@@ -214,13 +224,20 @@ public class ManifestWriteService(
             var dlcsResult = await HandleDlcsInteractions(request, existingManifest.Id, resolved.ParsedManifestResult!, existingAssetIds, existingManifest, cancellationToken);
             if (dlcsResult.Error != null) return dlcsResult.Error;
 
+            await using var updateTx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
             var (error, dbManifest) = await UpdateDatabaseRecord(request, resolved.ParsedParentSlug!, existingManifest,
                 dlcsResult.InteractionResult!.SpaceId, cancellationToken);
             if (error != null) return error;
 
-            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront ? WriteResult.Updated : WriteResult.Accepted;
-            return await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
+            var writeResult = dlcsResult.InteractionResult!.CanBeBuiltUpfront && !request.PresentationManifest.HasPipelineJob()
+                ? WriteResult.Updated
+                : WriteResult.Accepted;
+            var updateResult = await SaveToS3AndGenerateResult(request, dbManifest!, dlcsResult.InteractionResult!, writeResult,
                 cancellationToken);
+
+            if (updateResult.IsSuccess) await updateTx.CommitAsync(cancellationToken);
+            return updateResult;
         }
     }
 
@@ -302,7 +319,9 @@ public class ManifestWriteService(
     private async Task<PresUpdateResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
-        await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        var saveError = await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
+        if (saveError != null) return saveError;
+        
         return await GeneratePresentationSuccessResult(request.PresentationManifest, request.CustomerId, dbManifest,
             writeResult, cancellationToken);
     }
@@ -415,25 +434,29 @@ public class ManifestWriteService(
     /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    private async Task SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
+    private async Task<PresUpdateResult?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
         CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest()!;
         var hasAssets = request.PresentationManifest.PaintedResources.HasAsset();
         var hasAdjuncts = request.PresentationManifest.Adjuncts != null
             || dbManifest.Batches?.Any(b => b.DeliverableType == DeliverableType.Adjunct) == true;
+        var hasPipeline = request.PresentationManifest.HasPipelineJob();
 
         // When there is further work to do the JSON saved to S3 differs substantially from the original payload,
         // and we will want to store it. Otherwise, we'll pass null not to store the raw request.
-        var requiresExternalContent = hasAssets || hasAdjuncts;
+        var requiresCloudServicesContent = hasAssets || hasAdjuncts;
+        var originalToStore = requiresCloudServicesContent || hasPipeline ? request.RawRequestBody : null;
 
-        var originalToStore = requiresExternalContent ? request.RawRequestBody : null;
+        // Pipeline forces staging even if we'd otherwise save directly to final
+        var saveToStaging = !canBeBuiltUpfront || hasPipeline;
 
-        if (canBeBuiltUpfront && requiresExternalContent)
+        if (canBeBuiltUpfront && requiresCloudServicesContent)
         {
             logger.LogDebug("Manifest {Manifest} can be built upfront, after merging", dbManifest.Id);
-            var manifest = await manifestStorageManager.UpsertManifestInStorage(iiifManifest, dbManifest,
-                originalToStore, cancellationToken);
+            var manifest = await dlcsManifestMerger.Augment(iiifManifest, dbManifest, cancellationToken);
+            await manifestStorageManager.SaveManifestInStorage(manifest, dbManifest, originalToStore, saveToStaging,
+                cancellationToken);
             MergeManifestFields(manifest, request.PresentationManifest);
         }
         else
@@ -448,20 +471,82 @@ public class ManifestWriteService(
                 iiifManifest.Items = canvasPaintings.GenerateProvisionalCanvases(savedManifestPathGenerator,
                     iiifManifest.Items, pathRewriteParser);
             }
-            
+
             request.PresentationManifest.Items = iiifManifest.Items;
             await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
-                !canBeBuiltUpfront, cancellationToken);
+                saveToStaging, cancellationToken);
 
             // Direct save (built upfront, no external content) with nothing to store as original:
             // remove any stale original payload left by a previous version of this manifest.
-            if (originalToStore is null)
+            // if (originalToStore is null)
+            if (!saveToStaging && originalToStore is null)
             {
                 await manifestStorageManager.DeleteOriginalPayload(dbManifest);
             }
         }
 
+        if (request.PresentationManifest.HasPipelineJob())
+        {
+            return await RegisterAndSubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!,
+                cancellationToken);
+        }
+
+        // save changes called if there are no pipeline jobs
         await dbContext.SaveChangesAsync(cancellationToken);
+        return null;
+    }
+
+    // Persists pipeline job entities within the open transaction, then submits to external services.
+    // Submitting after SaveChangesAsync ensures DB state is consistent if the HTTP call fails and
+    // the transaction is rolled back by the caller.
+    // Trade-off: the HTTP call to text-services runs while the DB transaction is still open.
+    // This keeps rollback simple (no compensating transaction needed) at the cost of holding
+    // the transaction for the duration of the HTTP round-trip. The HttpClient should be
+    // configured with a short timeout to bound this window.
+    private async Task<PresUpdateResult?> RegisterAndSubmitPipelineJobs(DbManifest dbManifest,
+        List<PipelineItem> pipeline, CancellationToken cancellationToken)
+    {
+        var job = BuildPipelineJob(dbManifest, pipeline);
+        if (job == null)
+        {
+            logger.LogWarning("No recognised pipeline type for manifest {ManifestId}; ignoring pipeline", dbManifest.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        (dbManifest.PipelineJobs ??= []).Add(job);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (!await textServicesClient.UpsertJob(dbManifest, job, cancellationToken))
+        {
+            logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
+            await manifestStorageManager.DeleteStagedManifest(dbManifest);
+            return PresUpdateResult.Failure("Error connecting to the text service",
+                ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
+        }
+
+        return null;
+    }
+
+    private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
+    {
+        // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
+        foreach (var pipelineItem in pipeline)
+        {
+            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return new PipelineJob
+                {
+                    ManifestId = dbManifest.Id,
+                    JobType = PipelineJobType.TextService,
+                    CustomerId = dbManifest.CustomerId,
+                    Status = PipelineJobStatus.Waiting,
+                    Config = pipelineItem.Config,
+                    Created = DateTime.UtcNow
+                };
+            }
+        }
+        return null;
     }
 
     /// <summary>

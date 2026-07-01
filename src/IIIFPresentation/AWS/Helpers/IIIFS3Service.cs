@@ -22,7 +22,7 @@ public interface IIIIFS3Service
         CancellationToken cancellationToken) where T : ResourceBase, new();
 
     /// <summary>
-    /// Write IIIF resource to S3 - ensuring @context and Id set. Saved valud is iiifResource.AsJson()
+    /// Write IIIF resource to S3 - ensuring @context and Id set. Saved value is iiifResource.AsJson()
     /// </summary>
     public Task SaveIIIFToS3(ResourceBase iiifResource, IHierarchyResource dbResource, string flatId,
         bool saveToStaging, CancellationToken cancellationToken);

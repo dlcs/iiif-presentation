@@ -37,7 +37,7 @@ public class ManifestReadService(
         IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
         var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withBatches: true,
-            cancellationToken: cancellationToken);
+            withPipelineJobs: true, cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
 
@@ -57,11 +57,11 @@ public class ManifestReadService(
 
         var getAssets = dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
         PresentationManifest? manifest = null;
-        if (dbManifest.IsIngesting())
+        if (dbManifest.HasFurtherWork())
         {
             manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
             if (manifest == null)
-                logger.LogError("Manifest {DbManifestId} IsIngesting but can't read from staging", dbManifest.Id);
+                logger.LogError("Manifest {DbManifestId} has further work pending but can't read from staging", dbManifest.Id);
         }
 
         // if is not ingesting read from "real" location
@@ -84,7 +84,7 @@ public class ManifestReadService(
             m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
 
         Guid? etag = dbManifest.Etag;
-        if (dbManifest.IsIngesting())
+        if (dbManifest.HasFurtherWork())
         {
             manifest.CurrentlyIngesting = true;
             etag = null;
