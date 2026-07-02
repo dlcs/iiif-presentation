@@ -11,6 +11,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
+using Models.Database.General;
 using Models.DLCS;
 using Repository;
 using Repository.Paths;
@@ -18,6 +19,7 @@ using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Services.TextServices;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -97,8 +99,13 @@ public class BatchCompletionPathRewriteTests
             new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
 
+        var textBuilderClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(true);
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
+
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
-            dlcsManifestMerger, new NullLogger<BatchCompletionMessageHandler>());
+            dlcsManifestMerger, pipelineJobService, new NullLogger<BatchCompletionMessageHandler>());
     }
     
     [Fact]

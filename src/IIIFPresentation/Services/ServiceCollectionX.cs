@@ -29,6 +29,7 @@ public static class ServiceCollectionX
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("IIIF-Presentation", "1.0.0"));
             client.Timeout = TimeSpan.FromSeconds(settings.BuilderApiTimeoutSeconds);
         }).AddHttpMessageHandler<TimingHandler>();
+        services.AddScoped<IPipelineJobService, PipelineJobService>();
         return services;
     }
 

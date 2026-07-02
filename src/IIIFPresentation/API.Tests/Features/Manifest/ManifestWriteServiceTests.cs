@@ -56,7 +56,7 @@ public class ManifestWriteServiceTests
     private readonly IManifestStorageManager manifestStorageManager;
     private readonly IDlcsManifestMerger dlcsManifestMerger;
     private readonly LockManager manifestLockManager;
-    private readonly ITextBuilderClient textServicesClient;
+    private readonly ITextBuilderClient textBuilderClient;
     
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
@@ -126,12 +126,14 @@ public class ManifestWriteServiceTests
 
         manifestLockManager = new LockManager();
 
-        textServicesClient = A.Fake<ITextBuilderClient>();
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        textBuilderClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Invokes((DbManifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
             .Returns(true);
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, textServicesClient,
+            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, pipelineJobService,
             new NullLogger<ManifestWriteService>());
 
         var parentCollection =
@@ -1170,7 +1172,7 @@ public class ManifestWriteServiceTests
         var result = await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         var flatId = result.Entity.FlatId;
@@ -1180,6 +1182,135 @@ public class ManifestWriteServiceTests
         pipelineJob.Config!.Action.Should().Be("Index");
         pipelineJob.GetJobId().ToString().Should().Be($"{Customer}/iiif/{flatId}");
         result.Entity.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+    }
+
+    [Fact]
+    public async Task Create_RegistersPipelineJob_ButDoesNotCallTextServices_WhenManifestHasPipelineAndAssetsBeingIngested()
+    {
+        // Arrange - new assets require DLCS ingestion (canBeBuiltUpfront=false), so text-services submission
+        // must be deferred until the batch-completion background handler fires.
+        dynamic asset = new JObject();
+        var (slug, resourceId, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+        asset.id = assetId;
+
+        // Return an ingesting batch so canBeBuiltUpfront=false — the asset is being processed by DLCS
+        A.CallTo(() => dlcsClient.IngestDeliverables(A<int>._, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
+            .Returns([
+                new()
+                {
+                    ResourceId = $"https://dlcs.api/customers/{Customer}/queue/batches/1001",
+                    Submitted = DateTime.UtcNow
+                }
+            ]);
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+
+        // Act
+        var result = await sut.Create(request, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+
+        // Text-services must NOT be called — ingestion is still in progress
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        // Pipeline job must be persisted so the batch-completion handler can submit it later
+        var flatId = result.Entity.FlatId;
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.NotSubmitted);
+    }
+
+    [Fact]
+    public async Task Upsert_RegistersPipelineJob_ButDoesNotCallTextServices_WhenManifestHasPipelineAndAssetsBeingIngested()
+    {
+        // Arrange — create a bare manifest first, then update it to add pipeline + new assets still being ingested
+        var (slug, resourceId, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
+
+        var createManifest = new PresentationManifest { Slug = slug };
+        var createRequest = new UpsertManifestRequest(resourceId, null, Customer, createManifest, createManifest.AsJson(), true);
+        var createResult = await sut.Create(createRequest, CancellationToken.None);
+        var flatId = createResult.Entity.FlatId;
+        var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
+
+        // Return an ingesting batch so canBeBuiltUpfront=false — the asset is being processed by DLCS
+        A.CallTo(() => dlcsClient.IngestDeliverables(A<int>._, A<List<JObject>>._, A<bool>._, A<CancellationToken>._))
+            .Returns([
+                new()
+                {
+                    ResourceId = $"https://dlcs.api/customers/{Customer}/queue/batches/1002",
+                    Submitted = DateTime.UtcNow
+                }
+            ]);
+
+        dynamic asset = new JObject();
+        asset.id = assetId;
+
+        var updateManifest = new PresentationManifest
+        {
+            Slug = slug,
+            Items =
+            [
+                ManifestTestCreator.Canvas($"https://base/0/canvases/{canvasId}")
+                    .WithImage()
+                    .Build()
+            ],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    Asset = asset,
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = TestIdentifiers.IdCanvasPainting().canvasPaintingId,
+                        CanvasOrder = 1
+                    }
+                }
+            ],
+            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+        };
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+
+        // Act
+        var result = await sut.Upsert(updateRequest, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.WriteResult.Should().Be(WriteResult.Accepted);
+
+        // Text-services must NOT be called — DLCS batch is still ingesting
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        // Pipeline job must be persisted so the batch-completion handler can submit it later
+        var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
+        pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.NotSubmitted);
     }
 
     [Fact]
@@ -1193,7 +1324,7 @@ public class ManifestWriteServiceTests
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(false);
 
         // Act
@@ -1202,7 +1333,7 @@ public class ManifestWriteServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.WriteResult.Should().Be(WriteResult.Error);
-        result.Error.Should().Contain("text service");
+        result.Error.Should().Contain("text pipeline job");
 
         // Manifest and pipeline job should be rolled back — resubmitting the same slug must not conflict
         presentationContext.Hierarchy.Any(h => h.Slug == slug).Should().BeFalse();
@@ -1229,7 +1360,7 @@ public class ManifestWriteServiceTests
         await sut.Create(request, CancellationToken.None);
 
         // Assert
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -1288,7 +1419,7 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.WriteResult.Should().Be(WriteResult.Accepted);
-        A.CallTo(() => textServicesClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+        A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly();
 
         var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();

@@ -24,6 +24,7 @@ using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Services.TextServices;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -40,6 +41,7 @@ public class BatchCompletionMessageHandlerTests
     private readonly BatchCompletionMessageHandler sut;
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
+    private readonly ITextBuilderClient textBuilderClient;
     private readonly BehaviourSettings behaviour = new();
     private readonly PathSettings pathSettings;
     private const int CustomerId = 1;
@@ -50,12 +52,16 @@ public class BatchCompletionMessageHandlerTests
         // The context from dbFixture doesn't track changes so setup/assert
         dbContext = dbFixture.DbContext;
         dbFixture.CustomerIdProvider.SetCustomerId(CustomerId);
-        
+
         // The context used by SUT should track to mimic context config in actual use
         var sutContext = dbFixture.GetNewPresentationContext(dbFixture.CustomerIdProvider);
-        
+
         dlcsClient = A.Fake<IDlcsOrchestratorClient>();
         iiifS3 = A.Fake<IIIIFS3Service>();
+        textBuilderClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Invokes((Manifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
+            .Returns(true);
 
         pathSettings = new PathSettings
         {
@@ -66,18 +72,19 @@ public class BatchCompletionMessageHandlerTests
         {
             ApiUri = new Uri("https://dlcs.api")
         }), new SettingsDrivenPresentationConfigGenerator(Options.Create(pathSettings)));
-        
+
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
-        
+
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
         var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger, new NullLogger<DlcsManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
             new TestOptionsMonitor<BehaviourSettings>(behaviour), new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
 
         sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager, dlcsManifestMerger,
-            new NullLogger<BatchCompletionMessageHandler>());
+            pipelineJobService, new NullLogger<BatchCompletionMessageHandler>());
     }
 
     [Fact]
@@ -434,6 +441,176 @@ public class BatchCompletionMessageHandlerTests
         paintingAnnotation.Id.Should().Be($"https://localhost:5000/1/canvases/{canvasPaintingId}/annotations/1",
             "PaintingAnnotation Id overwritten");
         paintingAnnotation.Target.As<Canvas>().Id.Should().Be(expectedCanvasId, "Target Id matches canvasId");
+    }
+
+    [Theory]
+    [InlineData(DeliverableType.Asset)]
+    [InlineData(DeliverableType.Adjunct)]
+    public async Task HandleMessage_SavesMergedManifestToStaging_AndSubmitsTextJob_WhenPipelineJobPending(
+        DeliverableType deliverableType)
+    {
+        // Arrange
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(
+            nameof(HandleMessage_SavesMergedManifestToStaging_AndSubmitsTextJob_WhenPipelineJobPending) + deliverableType);
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType}_pipeline");
+        const int space = 2;
+        var assetId = new AssetId(CustomerId, space, identifier);
+
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging,
+                A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { Id = identifier });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        manifest.Batches!.Single().DeliverableType = deliverableType;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.NotSubmitted,
+            Created = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId, deliverableType: deliverableType);
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<string>._, true, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<string>._, false, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<PipelineJob>._, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, A<bool>._))
+            .MustNotHaveHappened();
+        var pipelineJob = await dbContext.PipelineJobs.SingleAsync(p => p.ManifestId == manifestId);
+        pipelineJob.Status.Should().Be(PipelineJobStatus.Waiting,
+            "successful submission moves the job from NotSubmitted to Waiting for its completion notification");
+    }
+
+    [Fact]
+    public async Task HandleMessage_SubmitsMostRecentNotSubmittedJob_WhenManifestHasMultiplePipelineJobs()
+    {
+        // Arrange - a manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for
+        // history, see ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more
+        // than one can be NotSubmitted at once. The newest should be the one submitted, matching the "latest wins"
+        // convention TextServiceJobCompletionMessageHandler already uses when resolving a completion notification.
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(
+            nameof(HandleMessage_SubmitsMostRecentNotSubmittedJob_WhenManifestHasMultiplePipelineJobs));
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "pipeline_multiple");
+        const int space = 2;
+        var assetId = new AssetId(CustomerId, space, identifier);
+
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging,
+                A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { Id = identifier });
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.NotSubmitted,
+            Created = DateTime.UtcNow.AddMinutes(-10)
+        });
+        var newestJobEntry = await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.NotSubmitted,
+            Created = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        var newestJobId = newestJobEntry.Entity.Id;
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<PipelineJob>.That.Matches(j => j.Id == newestJobId), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Fact]
+    public async Task HandleMessage_ReturnsFalse_WhenPipelineJobPending_AndTextServicesFails()
+    {
+        // Arrange
+        var batchId = TestIdentifiers.BatchId();
+        var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "pipeline_fail");
+        const int space = 2;
+        var assetId = new AssetId(CustomerId, space, identifier);
+
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging,
+                A<CancellationToken>._))
+            .ReturnsLazily(() => new IIIFManifest { Id = identifier });
+
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(false);
+
+        var manifestEntityEntry = await dbContext.Manifests.AddTestManifest(id: manifestId, batchId: batchId);
+        var manifest = manifestEntityEntry.Entity;
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(manifest, id: canvasPaintingId, assetId: assetId,
+            canvasOrder: 1, ingesting: true);
+        await dbContext.PipelineJobs.AddAsync(new PipelineJob
+        {
+            ManifestId = manifestId,
+            CustomerId = CustomerId,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.NotSubmitted,
+            Created = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
+            .Returns(ManifestTestCreator.GenerateMinimalNamedQueryManifest(assetId, pathSettings.PresentationApiUrl));
+
+        var message = QueueHelper.CreateQueueMessage(batchId, CustomerId);
+
+        // Act
+        var result = await sut.HandleMessage(message, CancellationToken.None);
+
+        // Assert
+        result.Should().BeFalse("text-services submission failed, message should be retried");
+        A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
+                A<string>._, false, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        var pipelineJob = await dbContext.PipelineJobs.SingleAsync(p => p.ManifestId == manifestId);
+        pipelineJob.Status.Should().Be(PipelineJobStatus.NotSubmitted,
+            "failed submission must not move the job out of NotSubmitted, so a retry picks it up again");
     }
 
     [Fact]

@@ -8,6 +8,7 @@ using Repository;
 using Repository.Helpers;
 using Services.Manifests;
 using Services.Manifests.AWS;
+using Services.TextServices;
 using Manifest = Models.Database.Collections.Manifest;
 
 namespace BackgroundHandler.BatchCompletion;
@@ -17,6 +18,7 @@ public class BatchCompletionMessageHandler(
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestS3Manager,
     IDlcsManifestMerger dlcsManifestMerger,
+    IPipelineJobService pipelineJobService,
     ILogger<BatchCompletionMessageHandler> logger)
     : MessageHandlerBase<BatchCompletionMessage>(logger)
 {
@@ -33,8 +35,10 @@ public class BatchCompletionMessageHandler(
     private async Task<bool> TryUpdateManifest(BatchCompletionMessage batchCompletionMessage, int approximateReceiveCount, CancellationToken cancellationToken)
     {
         // Load batch the incoming message is referring to
-        var batch = await dbContext.Batches.Include(b => b.Manifest)
-            .ThenInclude(m => m.CanvasPaintings)
+        var batch = await dbContext.Batches
+            .Include(b => b.Manifest).ThenInclude(m => m.CanvasPaintings)
+            .Include(b => b.Manifest).ThenInclude(m => m.PipelineJobs.Where(p => p.Status == PipelineJobStatus.NotSubmitted))
+            .AsSplitQuery()
             .SingleOrDefaultAsync(
                 b => b.Id == batchCompletionMessage.Id && b.DeliverableType == batchCompletionMessage.DeliverableType,
                 cancellationToken);
@@ -64,7 +68,7 @@ public class BatchCompletionMessageHandler(
             {
                 if (TryCompleteBatch(batch, batchCompletionMessage.Finished))
                 {
-                    await CompleteManifestFromStaging(batch.Manifest!, cancellationToken);
+                    if (!await TryCompleteManifestFromStaging(batch.Manifest!, cancellationToken)) return false;
                 }
                 else
                 {
@@ -89,17 +93,40 @@ public class BatchCompletionMessageHandler(
         return true;
     }
 
-    // Read the staged manifest, merge in the DLCS content, save the final manifest (promoting any stored original
-    // payload) then remove the staging artifacts.
-    private async Task CompleteManifestFromStaging(Manifest dbManifest, CancellationToken cancellationToken)
+    // Read the staged manifest, merge in the DLCS content, then either hand off to the text pipeline or
+    // save the final manifest directly. Returns false if text-services submission fails (caller should retry).
+    private async Task<bool> TryCompleteManifestFromStaging(Manifest dbManifest, CancellationToken cancellationToken)
     {
         var staged = await manifestS3Manager.ReadStagedManifest(dbManifest, cancellationToken);
         staged.Manifest.ThrowIfNull(nameof(staged.Manifest), "Manifest was not found in staging location");
 
         var merged = await dlcsManifestMerger.Augment(staged.Manifest!, dbManifest, cancellationToken);
+
+        // A manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for history - see
+        // ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more than one can
+        // be NotSubmitted at once (the query above only loads NotSubmitted jobs). Pick the most recent, matching the
+        // "latest wins" convention TextServiceJobCompletionMessageHandler already uses to resolve which job a
+        // completion applies to.
+        var pendingPipelineJob = dbManifest.PipelineJobs?
+            .OrderByDescending(p => p.Created)
+            .FirstOrDefault();
+        if (pendingPipelineJob != null)
+        {
+            Logger.LogInformation(
+                "Manifest {ManifestId} has pending text pipeline; saving merged content to staging and submitting job",
+                dbManifest.Id);
+            // originalPayload omitted: staged.Original was just read unchanged from OriginalStaging, so re-saving it
+            // here would be a no-op write. TextServiceJobCompletionMessageHandler re-reads it fresh when promoting
+            // the final manifest, so nothing downstream depends on it being re-written at this staging step.
+            await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, originalPayload: null, saveToStaging: true,
+                cancellationToken);
+            return await pipelineJobService.SubmitPipelineJob(dbManifest, pendingPipelineJob, cancellationToken);
+        }
+
         await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: false,
             cancellationToken);
         await manifestS3Manager.DeleteStagedManifest(dbManifest);
+        return true;
     }
 
     /// <summary>

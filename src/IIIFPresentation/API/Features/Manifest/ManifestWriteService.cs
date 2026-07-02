@@ -99,7 +99,7 @@ public class ManifestWriteService(
     IDlcsManifestMerger dlcsManifestMerger,
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
-    ITextBuilderClient textServicesClient,
+    IPipelineJobService pipelineJobService,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -487,8 +487,20 @@ public class ManifestWriteService(
 
         if (request.PresentationManifest.HasPipelineJob())
         {
-            return await RegisterAndSubmitPipelineJobs(dbManifest, request.PresentationManifest.Pipeline!,
+            var job = await pipelineJobService.PersistPipelineJob(dbManifest, request.PresentationManifest.Pipeline!,
                 cancellationToken);
+            if (job == null) return null;
+
+            if (canBeBuiltUpfront)
+            {
+                logger.LogDebug("Submitting pipeline job for manifest {ManifestId}", dbManifest.Id);
+                return await SubmitPipelineJob(dbManifest, job, cancellationToken);
+            }
+
+            // Submission is deferred until DLCS batch completion when assets are still being ingested
+            logger.LogDebug("Deferring text-services submission for manifest {ManifestId} until DLCS batch completion",
+                dbManifest.Id);
+            return null;
         }
 
         // save changes called if there are no pipeline jobs
@@ -496,56 +508,20 @@ public class ManifestWriteService(
         return null;
     }
 
-    // Persists pipeline job entities within the open transaction, then submits to external services.
-    // Submitting after SaveChangesAsync ensures DB state is consistent if the HTTP call fails and
-    // the transaction is rolled back by the caller.
-    // Trade-off: the HTTP call to text-services runs while the DB transaction is still open.
-    // This keeps rollback simple (no compensating transaction needed) at the cost of holding
-    // the transaction for the duration of the HTTP round-trip. The HttpClient should be
-    // configured with a short timeout to bound this window.
-    private async Task<PresUpdateResult?> RegisterAndSubmitPipelineJobs(DbManifest dbManifest,
-        List<PipelineItem> pipeline, CancellationToken cancellationToken)
+    // Submits the given pipeline job to text-services.
+    // The HTTP call runs while the DB transaction is still open — the HttpClient should be configured with a short
+    // timeout to bound this window. On failure the staged manifest is cleaned up so the caller can retry cleanly.
+    private async Task<PresUpdateResult?> SubmitPipelineJob(DbManifest dbManifest, PipelineJob job,
+        CancellationToken cancellationToken)
     {
-        var job = BuildPipelineJob(dbManifest, pipeline);
-        if (job == null)
+        if (!await pipelineJobService.SubmitPipelineJob(dbManifest, job, cancellationToken))
         {
-            logger.LogWarning("No recognised pipeline type for manifest {ManifestId}; ignoring pipeline", dbManifest.Id);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            return null;
-        }
-
-        (dbManifest.PipelineJobs ??= []).Add(job);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (!await textServicesClient.UpsertJob(dbManifest, job, cancellationToken))
-        {
-            logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
-            return PresUpdateResult.Failure("Error connecting to the text service",
+            return PresUpdateResult.Failure("Error submitting text pipeline job",
                 ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
         }
 
-        return null;
-    }
-
-    private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
-    {
-        // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
-        foreach (var pipelineItem in pipeline)
-        {
-            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                return new PipelineJob
-                {
-                    ManifestId = dbManifest.Id,
-                    JobType = PipelineJobType.TextService,
-                    CustomerId = dbManifest.CustomerId,
-                    Status = PipelineJobStatus.Waiting,
-                    Config = pipelineItem.Config,
-                    Created = DateTime.UtcNow
-                };
-            }
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
         return null;
     }
 
