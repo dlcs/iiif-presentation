@@ -94,7 +94,24 @@ public class TypedPathTemplateOptionsTests
         var actual = options.GetPathTemplatesForHost("default.host");
 
         // Assert
-        actual.Should().ContainKeys("ManifestPrivate", "CollectionPrivate", "ResourcePublic", "Canvas");
+        actual.Should().ContainKeys("ManifestPrivate", "CollectionPrivate", "ResourcePublic", "Canvas", "TextServiceJob");
         actual["ManifestPrivate"].Should().Be("/{customerId}/manifests/{resourceId}");
+    }
+
+    [Fact]
+    public void Defaults_IsIndependentCopy_MutatingOneInstanceDoesNotLeakToAnother()
+    {
+        // Arrange
+        var first = new TypedPathTemplateOptions();
+
+        // Act - mutate the first instance's Defaults in place (as config binding does)
+        first.Defaults["ManifestPrivate"] = "/mutated/manifest";
+        first.Defaults["NewType"] = "/mutated/new";
+        var second = new TypedPathTemplateOptions();
+
+        // Assert - a freshly-constructed instance is unaffected by the mutation
+        second.Defaults["ManifestPrivate"].Should().Be("/{customerId}/manifests/{resourceId}",
+            "each instance gets its own copy of the baseline defaults");
+        second.Defaults.Should().NotContainKey("NewType");
     }
 }

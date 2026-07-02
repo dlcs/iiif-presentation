@@ -19,7 +19,7 @@ public class TypedPathTemplateOptions
     /// <summary>
     /// Default path names for the different types of path
     /// </summary>
-    public Dictionary<string, string> Defaults { get; set; } = DefaultFormats; 
+    public Dictionary<string, string> Defaults { get; set; } = new(DefaultFormats);
     
     /// <summary>
     /// Collection of path template overrides, these are keyed by "hostname" and sub-dictionary keyed by type
