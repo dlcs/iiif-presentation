@@ -102,9 +102,10 @@ public class BatchCompletionPathRewriteTests
         var textBuilderClient = A.Fake<ITextBuilderClient>();
         A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(true);
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
 
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
-            dlcsManifestMerger, textBuilderClient, new NullLogger<BatchCompletionMessageHandler>());
+            dlcsManifestMerger, pipelineJobService, new NullLogger<BatchCompletionMessageHandler>());
     }
     
     [Fact]

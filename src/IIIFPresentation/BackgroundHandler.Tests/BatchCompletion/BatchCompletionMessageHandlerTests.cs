@@ -81,9 +81,10 @@ public class BatchCompletionMessageHandlerTests
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
             new TestOptionsMonitor<BehaviourSettings>(behaviour), new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
 
         sut = new BatchCompletionMessageHandler(sutContext, customerIdProvider, manifestS3Manager, dlcsManifestMerger,
-            textBuilderClient, new NullLogger<BatchCompletionMessageHandler>());
+            pipelineJobService, new NullLogger<BatchCompletionMessageHandler>());
     }
 
     [Fact]

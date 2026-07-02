@@ -130,9 +130,10 @@ public class ManifestWriteServiceTests
         A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Invokes((DbManifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
             .Returns(true);
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
-            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, textBuilderClient,
+            manifestStorageManager, dlcsManifestMerger, pathRewriteParser, manifestLockManager, pipelineJobService,
             new NullLogger<ManifestWriteService>());
 
         var parentCollection =

@@ -18,7 +18,7 @@ public class BatchCompletionMessageHandler(
     ICustomerIdProvider customerIdProvider,
     IManifestStorageManager manifestS3Manager,
     IDlcsManifestMerger dlcsManifestMerger,
-    ITextBuilderClient textBuilderClient,
+    IPipelineJobService pipelineJobService,
     ILogger<BatchCompletionMessageHandler> logger)
     : MessageHandlerBase<BatchCompletionMessage>(logger)
 {
@@ -120,10 +120,8 @@ public class BatchCompletionMessageHandler(
             // the final manifest, so nothing downstream depends on it being re-written at this staging step.
             await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, originalPayload: null, saveToStaging: true,
                 cancellationToken);
-            if (!await textBuilderClient.UpsertJob(dbManifest, pendingPipelineJob, cancellationToken))
+            if (!await pipelineJobService.SubmitPipelineJob(dbManifest, pendingPipelineJob, cancellationToken))
             {
-                Logger.LogError("Failed to submit text-builder job for manifest {ManifestId} after batch completion",
-                    dbManifest.Id);
                 return false;
             }
             return true;
