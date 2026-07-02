@@ -25,14 +25,16 @@ public class TextBuilderClientTests
         new() { CustomerId = customerId, Id = id };
 
     [Fact]
-    public async Task UpsertJob_ReturnsTrue_WhenPostSucceeds()
+    public async Task UpsertJob_ReturnsTrue_AndSetsJobWaiting_WhenPostSucceeds()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
+        var job = MakeJob();
 
-        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
         result.Should().BeTrue();
+        job.Status.Should().Be(PipelineJobStatus.Waiting);
         messageHandler.Requests.Single().Method.Should().Be(HttpMethod.Post);
     }
 
@@ -42,35 +44,41 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.Conflict);
         messageHandler.Enqueue(HttpStatusCode.OK);
+        var job = MakeJob();
 
-        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
         result.Should().BeTrue();
+        job.Status.Should().Be(PipelineJobStatus.Waiting);
         messageHandler.Requests.Should().HaveCount(2);
         messageHandler.Requests[0].Method.Should().Be(HttpMethod.Post);
         messageHandler.Requests[1].Method.Should().Be(HttpMethod.Put);
     }
 
     [Fact]
-    public async Task UpsertJob_ReturnsFalse_WhenBuilderApiUriNotConfigured()
+    public async Task UpsertJob_ReturnsFalse_AndSetsJobFailedToSubmit_WhenBuilderApiUriNotConfigured()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = null });
+        var job = MakeJob();
 
-        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
         result.Should().BeFalse();
+        job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
         messageHandler.Requests.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task UpsertJob_ReturnsFalse_WhenPostReturnsNonSuccess()
+    public async Task UpsertJob_ReturnsFalse_AndSetsJobFailedToSubmit_WhenPostReturnsNonSuccess()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.InternalServerError);
+        var job = MakeJob();
 
-        var result = await sut.UpsertJob(MakeManifest(), MakeJob(), CancellationToken.None);
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
         result.Should().BeFalse();
+        job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
     }
 
     [Fact]

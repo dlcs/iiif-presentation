@@ -30,6 +30,7 @@ public class TextBuilderClient(
         if (settings.BuilderApiUri == null)
         {
             logger.LogWarning("TextServices BuilderApiUri is not configured; skipping job creation for {JobId}", jobId);
+            job.Status = PipelineJobStatus.FailedToSubmit;
             return false;
         }
 
@@ -48,10 +49,12 @@ public class TextBuilderClient(
         if (response.IsSuccessStatusCode)
         {
             logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
+            job.Status = PipelineJobStatus.Waiting;
             return true;
         }
 
         logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode}", jobId, response.StatusCode);
+        job.Status = PipelineJobStatus.FailedToSubmit;
         return false;
 
         StringContent GetStringContent()

@@ -60,6 +60,7 @@ public class BatchCompletionMessageHandlerTests
         iiifS3 = A.Fake<IIIIFS3Service>();
         textBuilderClient = A.Fake<ITextBuilderClient>();
         A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Invokes((Manifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
             .Returns(true);
 
         pathSettings = new PathSettings

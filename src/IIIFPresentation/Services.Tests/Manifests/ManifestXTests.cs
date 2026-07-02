@@ -44,6 +44,7 @@ public class ManifestXTests
     [Theory]
     [InlineData(PipelineJobStatus.Completed)]
     [InlineData(PipelineJobStatus.Failed)]
+    [InlineData(PipelineJobStatus.FailedToSubmit)]
     public void HasPendingPipelineJob_ReturnsFalse_WhenJobIsNotQueued(PipelineJobStatus status)
         => ManifestWithJobs(status).HasPendingPipelineJob().Should().BeFalse();
 

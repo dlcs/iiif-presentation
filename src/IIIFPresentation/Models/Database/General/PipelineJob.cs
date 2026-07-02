@@ -41,7 +41,8 @@ public enum PipelineJobStatus
     Running = 1,
     Completed = 2,
     Failed = 3,
-    NotSubmitted = 4
+    NotSubmitted = 1000,
+    FailedToSubmit = 1001
 }
 
 public enum PipelineJobType

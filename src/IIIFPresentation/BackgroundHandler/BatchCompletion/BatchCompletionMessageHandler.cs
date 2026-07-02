@@ -126,7 +126,6 @@ public class BatchCompletionMessageHandler(
                     dbManifest.Id);
                 return false;
             }
-            pendingPipelineJob.Status = PipelineJobStatus.Waiting;
             return true;
         }
 

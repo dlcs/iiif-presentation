@@ -128,6 +128,7 @@ public class ManifestWriteServiceTests
 
         textBuilderClient = A.Fake<ITextBuilderClient>();
         A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Invokes((DbManifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
             .Returns(true);
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
             new TestPathGenerator(presentationGenerator), settingsBasedPathGenerator, dlcsManifestCoordinator, parentSlugParser,
