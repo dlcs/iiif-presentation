@@ -120,11 +120,7 @@ public class BatchCompletionMessageHandler(
             // the final manifest, so nothing downstream depends on it being re-written at this staging step.
             await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, originalPayload: null, saveToStaging: true,
                 cancellationToken);
-            if (!await pipelineJobService.SubmitPipelineJob(dbManifest, pendingPipelineJob, cancellationToken))
-            {
-                return false;
-            }
-            return true;
+            return await pipelineJobService.SubmitPipelineJob(dbManifest, pendingPipelineJob, cancellationToken);
         }
 
         await manifestS3Manager.SaveManifestInStorage(merged, dbManifest, staged.Original, saveToStaging: false,
