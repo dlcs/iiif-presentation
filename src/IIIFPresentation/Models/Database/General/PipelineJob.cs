@@ -40,7 +40,8 @@ public enum PipelineJobStatus
     Waiting = 0,
     Running = 1,
     Completed = 2,
-    Failed = 3
+    Failed = 3,
+    NotSubmitted = 4
 }
 
 public enum PipelineJobType

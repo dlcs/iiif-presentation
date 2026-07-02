@@ -38,6 +38,7 @@ public class BatchCompletionMessageHandler(
         var batch = await dbContext.Batches
             .Include(b => b.Manifest).ThenInclude(m => m.CanvasPaintings)
             .Include(b => b.Manifest).ThenInclude(m => m.PipelineJobs)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(
                 b => b.Id == batchCompletionMessage.Id && b.DeliverableType == batchCompletionMessage.DeliverableType,
                 cancellationToken);
@@ -103,10 +104,10 @@ public class BatchCompletionMessageHandler(
 
         // A manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for history - see
         // ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more than one can
-        // be Waiting at once. Pick the most recent, matching the "latest wins" convention
+        // be NotSubmitted at once. Pick the most recent, matching the "latest wins" convention
         // TextServiceJobCompletionMessageHandler already uses to resolve which job a completion applies to.
         var pendingPipelineJob = dbManifest.PipelineJobs?
-            .Where(p => p.Status == PipelineJobStatus.Waiting)
+            .Where(p => p.Status == PipelineJobStatus.NotSubmitted)
             .OrderByDescending(p => p.Created)
             .FirstOrDefault();
         if (pendingPipelineJob != null)
@@ -122,6 +123,7 @@ public class BatchCompletionMessageHandler(
                     dbManifest.Id);
                 return false;
             }
+            pendingPipelineJob.Status = PipelineJobStatus.Waiting;
             return true;
         }
 

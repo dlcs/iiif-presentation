@@ -52,6 +52,10 @@ public class ManifestXTests
         => ManifestWithJobs(PipelineJobStatus.Waiting).HasPendingPipelineJob().Should().BeTrue();
 
     [Fact]
+    public void HasPendingPipelineJob_ReturnsTrue_WhenJobIsNotSubmitted()
+        => ManifestWithJobs(PipelineJobStatus.NotSubmitted).HasPendingPipelineJob().Should().BeTrue();
+
+    [Fact]
     public void HasFurtherWork_ReturnsFalse_WhenNoIngestingBatchAndNoPendingJob()
         => new Manifest { Id = "x", CustomerId = 1 }.HasFurtherWork().Should().BeFalse();
 
@@ -70,6 +74,10 @@ public class ManifestXTests
     [Fact]
     public void HasFurtherWork_ReturnsTrue_WhenPipelineJobIsQueued()
         => ManifestWithJobs(PipelineJobStatus.Waiting).HasFurtherWork().Should().BeTrue();
+
+    [Fact]
+    public void HasFurtherWork_ReturnsTrue_WhenPipelineJobIsNotSubmitted()
+        => ManifestWithJobs(PipelineJobStatus.NotSubmitted).HasFurtherWork().Should().BeTrue();
 
     [Fact]
     public void HasFurtherWork_ReturnsFalse_WhenBatchCompletedAndJobCompleted()

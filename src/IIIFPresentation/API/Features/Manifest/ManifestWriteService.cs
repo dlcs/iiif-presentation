@@ -540,6 +540,8 @@ public class ManifestWriteService(
                 ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
         }
 
+        job.Status = PipelineJobStatus.Waiting;
+        await dbContext.SaveChangesAsync(cancellationToken);
         return null;
     }
 
@@ -555,7 +557,7 @@ public class ManifestWriteService(
                     ManifestId = dbManifest.Id,
                     JobType = PipelineJobType.TextService,
                     CustomerId = dbManifest.CustomerId,
-                    Status = PipelineJobStatus.Waiting,
+                    Status = PipelineJobStatus.NotSubmitted,
                     Config = pipelineItem.Config,
                     Created = DateTime.UtcNow
                 };

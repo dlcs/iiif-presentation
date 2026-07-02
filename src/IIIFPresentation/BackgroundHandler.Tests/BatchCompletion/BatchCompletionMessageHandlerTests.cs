@@ -471,7 +471,7 @@ public class BatchCompletionMessageHandlerTests
             ManifestId = manifestId,
             CustomerId = CustomerId,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.Waiting,
+            Status = PipelineJobStatus.NotSubmitted,
             Created = DateTime.UtcNow
         });
         await dbContext.SaveChangesAsync();
@@ -497,18 +497,21 @@ public class BatchCompletionMessageHandlerTests
             .MustHaveHappened(1, Times.Exactly);
         A.CallTo(() => iiifS3.DeleteIIIFFromS3(A<IHierarchyResource>._, A<bool>._))
             .MustNotHaveHappened();
+        var pipelineJob = await dbContext.PipelineJobs.SingleAsync(p => p.ManifestId == manifestId);
+        pipelineJob.Status.Should().Be(PipelineJobStatus.Waiting,
+            "successful submission moves the job from NotSubmitted to Waiting for its completion notification");
     }
 
     [Fact]
-    public async Task HandleMessage_SubmitsMostRecentWaitingJob_WhenManifestHasMultiplePipelineJobs()
+    public async Task HandleMessage_SubmitsMostRecentNotSubmittedJob_WhenManifestHasMultiplePipelineJobs()
     {
         // Arrange - a manifest can accumulate multiple PipelineJob rows (each resubmission creates a new one for
         // history, see ManifestWriteServiceTests.Create_AddsNewPipelineJob_WhenJobAlreadyExistsForManifest), so more
-        // than one can be Waiting at once. The newest should be the one submitted, matching the "latest wins"
+        // than one can be NotSubmitted at once. The newest should be the one submitted, matching the "latest wins"
         // convention TextServiceJobCompletionMessageHandler already uses when resolving a completion notification.
         var batchId = TestIdentifiers.BatchId();
         var (identifier, canvasPaintingId) = TestIdentifiers.IdCanvasPainting(
-            nameof(HandleMessage_SubmitsMostRecentWaitingJob_WhenManifestHasMultiplePipelineJobs));
+            nameof(HandleMessage_SubmitsMostRecentNotSubmittedJob_WhenManifestHasMultiplePipelineJobs));
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: "pipeline_multiple");
         const int space = 2;
         var assetId = new AssetId(CustomerId, space, identifier);
@@ -528,7 +531,7 @@ public class BatchCompletionMessageHandlerTests
             ManifestId = manifestId,
             CustomerId = CustomerId,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.Waiting,
+            Status = PipelineJobStatus.NotSubmitted,
             Created = DateTime.UtcNow.AddMinutes(-10)
         });
         var newestJobEntry = await dbContext.PipelineJobs.AddAsync(new PipelineJob
@@ -536,7 +539,7 @@ public class BatchCompletionMessageHandlerTests
             ManifestId = manifestId,
             CustomerId = CustomerId,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.Waiting,
+            Status = PipelineJobStatus.NotSubmitted,
             Created = DateTime.UtcNow
         });
         await dbContext.SaveChangesAsync();
@@ -585,7 +588,7 @@ public class BatchCompletionMessageHandlerTests
             ManifestId = manifestId,
             CustomerId = CustomerId,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.Waiting,
+            Status = PipelineJobStatus.NotSubmitted,
             Created = DateTime.UtcNow
         });
         await dbContext.SaveChangesAsync();
@@ -603,6 +606,9 @@ public class BatchCompletionMessageHandlerTests
         A.CallTo(() => iiifS3.SaveIIIFToS3(A<ResourceBase>._, A<Manifest>.That.Matches(m => m.Id == manifestId),
                 A<string>._, false, A<CancellationToken>._))
             .MustNotHaveHappened();
+        var pipelineJob = await dbContext.PipelineJobs.SingleAsync(p => p.ManifestId == manifestId);
+        pipelineJob.Status.Should().Be(PipelineJobStatus.NotSubmitted,
+            "failed submission must not move the job out of NotSubmitted, so a retry picks it up again");
     }
 
     [Fact]

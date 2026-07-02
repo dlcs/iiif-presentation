@@ -170,6 +170,7 @@ public class PipelineHelperTests
     [InlineData(PipelineJobStatus.Running, "Running")]
     [InlineData(PipelineJobStatus.Completed, "Completed")]
     [InlineData(PipelineJobStatus.Failed, "Failed")]
+    [InlineData(PipelineJobStatus.NotSubmitted, "NotSubmitted")]
     public void ToPipelineItem_SetsStatusFromJob(PipelineJobStatus status, string expectedStatus)
     {
         var job = new PipelineJob

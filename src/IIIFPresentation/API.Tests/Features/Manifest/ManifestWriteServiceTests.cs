@@ -1241,7 +1241,7 @@ public class ManifestWriteServiceTests
         var flatId = result.Entity.FlatId;
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
         pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
-        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.NotSubmitted);
     }
 
     [Fact]
@@ -1308,7 +1308,7 @@ public class ManifestWriteServiceTests
         // Pipeline job must be persisted so the batch-completion handler can submit it later
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
         pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
-        pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
+        pipelineJob!.Status.Should().Be(PipelineJobStatus.NotSubmitted);
     }
 
     [Fact]
