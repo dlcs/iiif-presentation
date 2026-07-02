@@ -4,7 +4,7 @@ namespace Test.Helpers.Helpers;
 
 public static class PathRewriteOptions
 {
-    public static TypedPathTemplateOptions Default = new ()
+    public static readonly TypedPathTemplateOptions Default = new ()
     {
         Defaults = new Dictionary<string, string>
         {

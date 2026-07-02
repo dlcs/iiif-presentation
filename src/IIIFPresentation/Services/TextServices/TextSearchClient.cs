@@ -1,36 +1,34 @@
 using System.Net;
+using Core.Paths;
 using Core.Settings;
+using Core.Web;
+using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Repository.Paths;
+
+using pathHelper = Core.Paths.PresentationPathReplacementHelpers;
 
 namespace Services.TextServices;
 
 public class TextSearchClient(
     HttpClient httpClient,
-    IOptions<TextServicesSettings> options,
+    IOptions<TextServicesSettings> textServicesOptions,
+    IOptions<TypedPathTemplateOptions> pathOptions,
+    IOptions<DlcsSettings> dlcsOptions,
     ILogger<TextSearchClient> logger) : ITextSearchClient
 {
-    public async Task<Manifest?> GetTextAugmentedManifest(TextJobId jobId,
-        CancellationToken cancellationToken)
+    public async Task<Manifest?> GetTextAugmentedManifest(TextJobId jobId, CancellationToken cancellationToken)
     {
-        var settings = options.Value;
-        if (settings.SearchApiUri == null)
+        if (textServicesOptions.Value.SearchApiUri == null)
         {
             logger.LogWarning("TextServices SearchApiUri is not configured; cannot retrieve augmented manifest for {JobId}", jobId);
             return null;
         }
 
-        var uri = new Uri(settings.SearchApiUri, $"text-augmented/v3/{jobId}");
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        if (!string.IsNullOrEmpty(settings.CustomerOrchestratorUri))
-            request.Headers.TryAddWithoutValidation("X-Forwarded-Host", settings.CustomerOrchestratorUri);
-        if (!string.IsNullOrEmpty(settings.PathRules))
-            request.Headers.TryAddWithoutValidation("X-Forwarded-Path", settings.PathRules);
-
-        var response = await httpClient.SendAsync(request, cancellationToken);
+        var response = await GetTextAugmentedManifestResponse(jobId, cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -45,5 +43,39 @@ public class TextSearchClient(
         }
 
         return (await response.Content.ReadAsStreamAsync(cancellationToken)).FromJsonStream<Manifest>();
+    }
+
+    /// <summary>
+    /// Get HttpResponse for text-augmented manifest. We always fetch the Manifest on the same host + path but use
+    /// X-Forwarded-* headers to control path format generation
+    /// </summary>
+    private async Task<HttpResponseMessage> GetTextAugmentedManifestResponse(TextJobId jobId, CancellationToken ct)
+    {
+        var settings = textServicesOptions.Value;
+        const string pathPrefix = "/text-augmented/v3";
+        var uri = new Uri(settings.SearchApiUri!, $"{pathPrefix}/{jobId}");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        
+        var orchestratorHost = dlcsOptions.Value.GetOrchestratorUri(jobId.CustomerId).Host;
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Host", orchestratorHost);
+
+        var forwardedJobId = GetForwardedJobId(jobId, orchestratorHost, pathPrefix);
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Path", forwardedJobId);
+
+        logger.LogDebug("Retrieving text-augmented manifest for host {Orchestrator} using id {JobId}", jobId,
+            forwardedJobId);
+
+        var response = await httpClient.SendAsync(request, ct);
+        return response;
+    }
+
+    private string GetForwardedJobId(TextJobId jobId, string orchestratorHost, string pathPrefix)
+    {
+        var textServiceFormat =
+            pathOptions.Value.GetPathTemplateForHostAndType(orchestratorHost, PresentationResourceType.TextServiceJob);
+        var newJobId = pathHelper.GeneratePresentationPathFromTemplate(textServiceFormat, jobId.CustomerId,
+            resourceId: jobId.ResourceId);
+        return $"{pathPrefix}{newJobId}";
     }
 }

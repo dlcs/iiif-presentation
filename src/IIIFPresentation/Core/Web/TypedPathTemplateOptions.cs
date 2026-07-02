@@ -12,7 +12,8 @@ public class TypedPathTemplateOptions
         ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
         ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
         ["ResourcePublic"] = "/{customerId}/{hierarchyPath}",
-        ["Canvas"] = "/{customerId}/canvases/{resourceId}"
+        ["Canvas"] = "/{customerId}/canvases/{resourceId}",
+        ["TextServiceJob"] = "/{customerId}/iiif/{resourceId}",
     };
 
     /// <summary>
