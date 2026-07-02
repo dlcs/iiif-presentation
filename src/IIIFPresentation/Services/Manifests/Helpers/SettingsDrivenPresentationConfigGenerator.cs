@@ -35,8 +35,8 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> se
         var presentationUrl = settings.GetCustomerSpecificPresentationUrl(customerId);
         var template = settings.PathRules.GetPathTemplateForHostAndType(presentationUrl.Host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId,
+            hierarchyPath, resourceId);
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

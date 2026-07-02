@@ -11,18 +11,18 @@ public static class PresentationPathReplacementHelpers
     /// Replace known slugs in a path template.
     /// </summary>
     /// <param name="template">presentation path template, including slugs to replace</param>
-    /// <param name="customer">Value to replace {customer} with</param>
+    /// <param name="customer">Value to replace {customerId} with</param>
     /// <param name="hierarchyPath">Value to replace {hierarchyPath} with</param>
     /// <param name="resourceId">Value to replace {resourceId} with</param>
     /// <returns>Template with string replacements made</returns>
     public static string GeneratePresentationPathFromTemplate(
         string template,
-        string? customer = null,
+        int? customer = null,
         string? hierarchyPath = null,
         string? resourceId = null)
     {
         return template
-            .Replace($"{{{SupportedTemplateOptions.CustomerId}}}", customer ?? string.Empty)
+            .Replace($"{{{SupportedTemplateOptions.CustomerId}}}", customer?.ToString() ?? string.Empty)
             .Replace($"{{{SupportedTemplateOptions.HierarchyPath}}}", hierarchyPath?.TrimStart('/') ?? string.Empty)
             .Replace($"{{{SupportedTemplateOptions.ResourceId}}}", resourceId ?? string.Empty)
             .TrimEnd('/');
