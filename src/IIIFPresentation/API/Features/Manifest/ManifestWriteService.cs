@@ -493,8 +493,7 @@ public class ManifestWriteService(
             // Submission is deferred until DLCS batch completion when assets are still being ingested
             if (canBeBuiltUpfront)
             {
-                logger.LogDebug("Submitting pipeline job for manifest {ManifestId}",
-                    dbManifest.Id);
+                logger.LogDebug("Submitting pipeline job for manifest {ManifestId}", dbManifest.Id);
                 return await SubmitPipelineJob(dbManifest, job, cancellationToken);
             }
 
