@@ -1,8 +1,8 @@
 ﻿using System.Text.RegularExpressions;
+using Core.Paths;
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Models.API.General;
-using static Core.Web.TypedPathTemplateOptions;
 
 namespace Repository.Paths;
 
@@ -41,12 +41,13 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
         foreach (var template in templates)
         {
+            var rawTemplate = template.Value.Template;
+
             // Split template into chunks
-            var templateSplit = template.Value.Split(PathSeparator,
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var templateSplit = template.Value.TemplateParts();
 
             // work out if the template is a FQDN and remove the host if it is
-            if (Uri.TryCreate(template.Value, UriKind.Absolute, out var uriResult) &&
+            if (Uri.TryCreate(rawTemplate, UriKind.Absolute, out var uriResult) &&
                 (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
             {
                 templateSplit = templateSplit.Skip(2).ToArray();
@@ -102,15 +103,15 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
             {
                 // This is a template - get the value of it from the path value
                 var capturedValue = match.Groups[1].Value;
-                if (capturedValue == SupportedTemplateOptions.CustomerId)
+                if (capturedValue == PathTemplate.SupportedTemplateOptions.CustomerId)
                 {
                     customerIdFromPath = int.Parse(valuePart);
                 }
-                else if (capturedValue == SupportedTemplateOptions.ResourceId)
+                else if (capturedValue == PathTemplate.SupportedTemplateOptions.ResourceId)
                 {
                     resourceId = valuePart;
                 }
-                else if (capturedValue == SupportedTemplateOptions.HierarchyPath &&
+                else if (capturedValue == PathTemplate.SupportedTemplateOptions.HierarchyPath &&
                          !SpecConstants.ProhibitedSlugs.Contains(valuePart))
                 {
                     // everything in the path after hierarchy goes into the path
@@ -127,7 +128,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
         // if the length is 1 less, and the template split is hierarchical, it means the root collection
         if (pathSplit.Length == templateSplit.Length - 1 &&
-            templateSplit.Contains($"{{{SupportedTemplateOptions.HierarchyPath}}}") &&
+            templateSplit.Contains($"{{{PathTemplate.SupportedTemplateOptions.HierarchyPath}}}") &&
             resourceId == null)
         {
             resourceId = string.Empty;

@@ -1,4 +1,5 @@
-﻿using Core.Web;
+﻿using Core.Paths;
+using Core.Web;
 
 namespace Test.Helpers.Helpers;
 
@@ -6,7 +7,7 @@ public static class PathRewriteOptions
 {
     public static readonly TypedPathTemplateOptions Default = new ()
     {
-        Defaults = new Dictionary<string, string>
+        Defaults = new Dictionary<string, PathTemplate>
         {
             ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
             ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
@@ -16,7 +17,7 @@ public static class PathRewriteOptions
         Overrides =
         {
             // override everything
-            ["foo.com"] = new Dictionary<string, string>
+            ["foo.com"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "/foo/{customerId}/manifests/{resourceId}",
                 ["CollectionPrivate"] = "/foo/{customerId}/collections/{resourceId}",
@@ -24,14 +25,14 @@ public static class PathRewriteOptions
                 ["Canvas"] = "/foo/{customerId}/canvases/{resourceId}"
             },
             // fallback to defaults
-            ["no-customer.com"] = new Dictionary<string, string>
+            ["no-customer.com"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "/manifests/{resourceId}",
                 ["CollectionPrivate"] = "/collections/{resourceId}",
                 ["ResourcePublic"] = "/{hierarchyPath}",
                 ["Canvas"] = "/canvases/{resourceId}"
             },
-            ["additional-path-no-customer.com"] = new Dictionary<string, string>
+            ["additional-path-no-customer.com"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "/foo/manifests/{resourceId}",
                 ["CollectionPrivate"] = "/foo/collections/{resourceId}",
@@ -39,7 +40,7 @@ public static class PathRewriteOptions
                 ["Canvas"] = "/foo/canvases/{resourceId}"
             },
             // custom base URL
-            ["fully-qualified.com"] = new Dictionary<string, string>
+            ["fully-qualified.com"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "https://foo.com/{customerId}/manifests/{resourceId}",
                 ["CollectionPrivate"] = "https://foo.com/{customerId}/collections/{resourceId}",

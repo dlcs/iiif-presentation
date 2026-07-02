@@ -1,3 +1,5 @@
+using Core.Paths;
+
 namespace Core.Web;
 
 /// <summary>
@@ -7,7 +9,7 @@ public class TypedPathTemplateOptions
 {
     public const string SettingsName = "PathRules";
 
-    private static readonly Dictionary<string, string> DefaultFormats = new ()
+    private static readonly Dictionary<string, PathTemplate> DefaultFormats = new ()
     {
         ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
         ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
@@ -19,27 +21,27 @@ public class TypedPathTemplateOptions
     /// <summary>
     /// Default path names for the different types of path
     /// </summary>
-    public Dictionary<string, string> Defaults { get; set; } = new(DefaultFormats);
-    
+    public Dictionary<string, PathTemplate> Defaults { get; set; } = new(DefaultFormats);
+
     /// <summary>
     /// Collection of path template overrides, these are keyed by "hostname" and sub-dictionary keyed by type
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> Overrides { get; set; } = new();
+    public Dictionary<string, Dictionary<string, PathTemplate>> Overrides { get; set; } = new();
 
     /// <summary>
-    /// Get all templates for host. 
+    /// Get all templates for host.
     /// </summary>
     /// <returns>Paths for host, or defaults if override not found.</returns>
-    public Dictionary<string, string> GetPathTemplatesForHost(string host) => Defaults
+    public Dictionary<string, PathTemplate> GetPathTemplatesForHost(string host) => Defaults
         .ToDictionary(format => format.Key, format => GetPathTemplateForHostAndType(host, format.Key));
-    
+
     /// <summary>
-    /// Get template path for host. 
+    /// Get template path for host.
     /// </summary>
     /// <param name="host">Host to get template path for.</param>
     /// <param name="type">Type of item to get template path for.</param>
     /// <returns>Returns path for host, or default if override not found.</returns>
-    public string GetPathTemplateForHostAndType(string host, string type)
+    public PathTemplate GetPathTemplateForHostAndType(string host, string type)
     {
         if (Overrides.TryGetValue(host, out var hostLevel))
         {
@@ -49,7 +51,7 @@ public class TypedPathTemplateOptions
         return GetPathTemplateForType(type);
     }
 
-    private string GetPathTemplateForType(string type)
+    private PathTemplate GetPathTemplateForType(string type)
     {
         if (Defaults.TryGetValue(type, out var template))
         {

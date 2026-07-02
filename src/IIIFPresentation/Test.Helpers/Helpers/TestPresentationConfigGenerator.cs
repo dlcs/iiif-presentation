@@ -23,8 +23,7 @@ public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTe
         var host = presentationUrl;
         var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template, customerId,
-            hierarchyPath, resourceId);
+        var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

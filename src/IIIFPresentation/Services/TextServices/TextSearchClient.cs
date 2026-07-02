@@ -9,8 +9,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
 
-using pathHelper = Core.Paths.PresentationPathReplacementHelpers;
-
 namespace Services.TextServices;
 
 public class TextSearchClient(
@@ -74,8 +72,7 @@ public class TextSearchClient(
     {
         var textServiceFormat =
             pathOptions.Value.GetPathTemplateForHostAndType(orchestratorHost, PresentationResourceType.TextServiceJob);
-        var newJobId = pathHelper.GeneratePresentationPathFromTemplate(textServiceFormat, jobId.CustomerId,
-            resourceId: jobId.ResourceId);
+        var newJobId = textServiceFormat.GeneratePath(jobId.CustomerId, resourceId: jobId.ResourceId);
         return $"{pathPrefix}{newJobId}";
     }
 }

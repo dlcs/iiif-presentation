@@ -1,4 +1,5 @@
 ﻿using API.Paths;
+using Core.Paths;
 using Core.Web;
 using FakeItEasy;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,7 @@ public class HostnameDrivenPresentationPathGeneratorTests
 
     private readonly TypedPathTemplateOptions defaultTypedPathTemplateOptions = new ()
     {
-        Defaults = new Dictionary<string, string>
+        Defaults = new Dictionary<string, PathTemplate>
         {
             ["ManifestPrivate"] = "/custom/{customerId}/manifests/{resourceId}",
             ["CollectionPrivate"] = "/custom/{customerId}/collections/{resourceId}",
@@ -24,7 +25,7 @@ public class HostnameDrivenPresentationPathGeneratorTests
         Overrides =
         {
             // override everything
-            ["foo"] = new Dictionary<string, string>
+            ["foo"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "/foo/{customerId}/manifests/{resourceId}",
                 ["CollectionPrivate"] = "/foo/{customerId}/collections/{resourceId}",
@@ -32,12 +33,12 @@ public class HostnameDrivenPresentationPathGeneratorTests
                 ["Canvas"] = "/foo/{customerId}/canvases/{resourceId}"
             },
             // fallback to defaults
-            ["bar"] = new Dictionary<string, string>
+            ["bar"] = new Dictionary<string, PathTemplate>
             {
                 ["ResourcePublic"] = "/bar/{customerId}/{hierarchyPath}"
             },
             // custom base URL
-            ["baz"] = new Dictionary<string, string>
+            ["baz"] = new Dictionary<string, PathTemplate>
             {
                 ["ManifestPrivate"] = "https://base/{customerId}/manifests/{resourceId}",
                 ["CollectionPrivate"] = "https://base/{customerId}/collections/{resourceId}",

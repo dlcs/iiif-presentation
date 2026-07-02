@@ -1,4 +1,5 @@
 using System.Net;
+using Core.Paths;
 using Core.Settings;
 using Core.Web;
 using DLCS;
@@ -84,7 +85,7 @@ public class TextSearchClientTests
         var sut = CreateSut(
             typedPathTemplateOptions: new TypedPathTemplateOptions
             {
-                Overrides = new Dictionary<string, Dictionary<string, string>>
+                Overrides = new Dictionary<string, Dictionary<string, PathTemplate>>
                 {
                     ["orchestrator.diff"] = new() { ["TextServiceJob"] = "/{resourceId}" }
                 }
