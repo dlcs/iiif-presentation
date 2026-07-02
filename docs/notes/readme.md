@@ -11,3 +11,5 @@
   * Details of how the reingest property works
 * [Canvas Id Parsing](canvas-id-parsing.md)
   * Shows how the canvas id can be parsed from a payload
+* [Path Customisation](path-customisation.md)
+  * Details of how `PathTemplates` are configured.
