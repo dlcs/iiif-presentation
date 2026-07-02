@@ -61,7 +61,7 @@ public class TextSearchClient(
         var forwardedJobId = GetForwardedJobId(jobId, orchestratorHost, pathPrefix);
         request.Headers.TryAddWithoutValidation("X-Forwarded-Path", forwardedJobId);
 
-        logger.LogDebug("Retrieving text-augmented manifest for host {Orchestrator} using id {JobId}", jobId,
+        logger.LogDebug("Retrieving text-augmented manifest for host {Orchestrator} using id {JobId}", orchestratorHost,
             forwardedJobId);
 
         var response = await httpClient.SendAsync(request, ct);
