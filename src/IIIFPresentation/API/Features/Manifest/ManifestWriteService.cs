@@ -487,16 +487,16 @@ public class ManifestWriteService(
 
         if (request.PresentationManifest.HasPipelineJob())
         {
-            var job = await RegisterPipelineJob(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken);
+            var job = await PersistPipelineJob(dbManifest, request.PresentationManifest.Pipeline!, cancellationToken);
             if (job == null) return null;
 
-            // Submission is deferred until DLCS batch completion when assets are still being ingested
             if (canBeBuiltUpfront)
             {
                 logger.LogDebug("Submitting pipeline job for manifest {ManifestId}", dbManifest.Id);
                 return await SubmitPipelineJob(dbManifest, job, cancellationToken);
             }
 
+            // Submission is deferred until DLCS batch completion when assets are still being ingested
             logger.LogDebug("Deferring text-services submission for manifest {ManifestId} until DLCS batch completion",
                 dbManifest.Id);
             return null;
@@ -509,7 +509,7 @@ public class ManifestWriteService(
 
     // Persists the pipeline job record within the open transaction.
     // Returns the created job, or null if no recognised pipeline type was found (nothing registered).
-    private async Task<PipelineJob?> RegisterPipelineJob(DbManifest dbManifest,
+    private async Task<PipelineJob?> PersistPipelineJob(DbManifest dbManifest,
         List<PipelineItem> pipeline, CancellationToken cancellationToken)
     {
         var job = BuildPipelineJob(dbManifest, pipeline);
@@ -535,7 +535,7 @@ public class ManifestWriteService(
         {
             logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
-            return PresUpdateResult.Failure("Error connecting to the text service",
+            return PresUpdateResult.Failure("Error submitting text pipeline job",
                 ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
         }
 
