@@ -33,7 +33,7 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         if (canonical != null) return canonical;
 
         // Not canonical - try and match to a path...
-        var templates = settings.GetPathTemplatesForHost(host);
+        var templates = GetValidTemplatesForHost(host);
 
         // First split the path into it's individual segments
         var pathSplit = path.Split(PathSeparator,
@@ -74,6 +74,14 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
         }
 
         return new PathParts(null, null, true);
+    }
+
+    private IEnumerable<KeyValuePair<string, PathTemplate>> GetValidTemplatesForHost(string host)
+    {
+        // TextServiceJob is an outbound-only template don't use to match inbound paths
+        var templates = settings.GetPathTemplatesForHost(host)
+            .Where(template => template.Key != PresentationResourceType.TextServiceJob);
+        return templates;
     }
 
     public PathParts ParsePathWithRewrites(string? uri, int customer)

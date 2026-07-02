@@ -1,4 +1,5 @@
-﻿using Core.Web;
+﻿using Core.Paths;
+using Core.Web;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
@@ -132,8 +133,34 @@ public class PathRewriteParserTests
     {
         // Arrange and Act
         var parsedPath = pathRewriteParser.ParsePathWithRewrites(null, 1);
-        
+
         // Assert
         parsedPath.Customer.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParsePathWithRewrites_NeverMatchesTextServiceJobTemplate()
+    {
+        // Arrange - TextServiceJob is an outbound-only template (used to build the X-Forwarded-Path header). It must
+        // never be used to parse inbound paths. Here it is the only template that could match "1/iiif/foo", so if it
+        // were still a parse candidate the path would resolve as a flat resource "foo"; with it excluded the path is
+        // left unparsed.
+        var options = new TypedPathTemplateOptions
+        {
+            Defaults = new Dictionary<string, PathTemplate>
+            {
+                ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
+                ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
+                ["Canvas"] = "/{customerId}/canvases/{resourceId}",
+                ["TextServiceJob"] = "/{customerId}/iiif/{resourceId}",
+            }
+        };
+        var parser = new PathRewriteParser(Options.Create(options), new NullLogger<PathRewriteParser>());
+
+        // Act
+        var parsedPath = parser.ParsePathWithRewrites("default-host.com", "1/iiif/foo", 1);
+
+        // Assert - not parsed (would be resource "foo" if TextServiceJob were matched)
+        parsedPath.Resource.Should().BeNull();
     }
 }
