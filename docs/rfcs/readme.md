@@ -7,3 +7,4 @@
 5. [Mixed Manifests](0005-mixed-manifests.md)
 6. [Adjuncts](0006-adjuncts.md)
 7. [Text Services](0007-text-services.md)
+8. [Search Across MVP](0008-search-across-mvp.md)
