@@ -194,3 +194,4 @@ Possible future improvements that can be explored:
 * Searching beyond `"label"`. IIIF `"metadata"` or IIIF-Presentation `tags` could be used.
 * More complex matching, see [Advanced](#advanced) section, above.
 * Alternative technology to handle more complex searches, such as Typesense, OpenSearch, ElasticSearch etc.
+* Specific indexing of content for search, whether that be in Postgres or an alternative. The above [Advanced](#advanced) suggestion involves creating a specific searchable column in existing table, this approach would quickly get unweildy as the number of searchable fields grows. Search indexing can manage normalising to remove diacritics etc too.
