@@ -46,8 +46,14 @@ public class TextServiceJobCompletionMessageHandler(
 
         // Match the specific invocation this notification refers to; fall back to "newest wins" for any
         // job created before InvocationCount existed, or if text-services ever omits it.
-        var pipelineJob = candidateJobs.FirstOrDefault(p => p.InvocationCount == completionMessage.InvocationCount)
-            ?? candidateJobs.FirstOrDefault();
+        var pipelineJob = candidateJobs.FirstOrDefault(p => p.InvocationCount == completionMessage.InvocationCount);
+        if (pipelineJob == null && candidateJobs.Count > 0)
+        {
+            Logger.LogWarning(
+                "No PipelineJob matched InvocationCount {InvocationCount} for job {JobId}; falling back to newest of {Count} candidates",
+                completionMessage.InvocationCount, completionMessage.JobId, candidateJobs.Count);
+            pipelineJob = candidateJobs.FirstOrDefault();
+        }
 
         if (pipelineJob == null)
         {

@@ -57,7 +57,8 @@ public class ManifestWriteServiceTests
     private readonly IDlcsManifestMerger dlcsManifestMerger;
     private readonly LockManager manifestLockManager;
     private readonly ITextBuilderClient textBuilderClient;
-    
+    private int textServicesInvocationCounter;
+
     public ManifestWriteServiceTests(PresentationContextFixture dbFixture)
     {
         presentationContext = dbFixture.DbContext;
@@ -128,7 +129,13 @@ public class ManifestWriteServiceTests
 
         textBuilderClient = A.Fake<ITextBuilderClient>();
         A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
-            .Invokes((DbManifest _, PipelineJob job, CancellationToken _) => job.Status = PipelineJobStatus.Waiting)
+            .Invokes((DbManifest _, PipelineJob job, CancellationToken _) =>
+            {
+                // Mirrors real ITextBuilderClient behaviour: text-services owns InvocationCount and hands back
+                // a real, incrementing value once a submission actually succeeds.
+                job.Status = PipelineJobStatus.Waiting;
+                job.InvocationCount = ++textServicesInvocationCounter;
+            })
             .Returns(true);
         var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
         sut = new ManifestWriteService(sutContext, identityManager, canvasPaintingResolver,
@@ -1425,5 +1432,7 @@ public class ManifestWriteServiceTests
         var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
         jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
         jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Waiting));
+        jobs.Select(j => j.InvocationCount).Should().BeEquivalentTo([1, 2],
+            "each successful submission gets a distinct invocation count from text-services");
     }
 }

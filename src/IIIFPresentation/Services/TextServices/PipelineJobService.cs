@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -19,14 +18,7 @@ public class PipelineJobService(
     public async Task<PipelineJob?> PersistPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline,
         CancellationToken cancellationToken)
     {
-        // Each resubmission gets its own PipelineJob row (kept for history) but text-services reuses the
-        // same job id and increments its own InvocationCount on every reprocess - mirror that count here so
-        // a completion notification can be tied back to this exact row.
-        var invocationCount = await dbContext.PipelineJobs
-            .Where(p => p.ManifestId == dbManifest.Id && p.JobType == PipelineJobType.TextService)
-            .CountAsync(cancellationToken) + 1;
-
-        var job = BuildPipelineJob(dbManifest, pipeline, invocationCount);
+        var job = BuildPipelineJob(dbManifest, pipeline);
         if (job == null)
         {
             logger.LogWarning("No recognised pipeline type for manifest {ManifestId}; ignoring pipeline", dbManifest.Id);
@@ -48,8 +40,7 @@ public class PipelineJobService(
         return false;
     }
 
-    private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline,
-        int invocationCount)
+    private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
     {
         // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
         foreach (var pipelineItem in pipeline)
@@ -63,8 +54,7 @@ public class PipelineJobService(
                     CustomerId = dbManifest.CustomerId,
                     Status = PipelineJobStatus.NotSubmitted,
                     Config = pipelineItem.Config,
-                    Created = DateTime.UtcNow,
-                    InvocationCount = invocationCount
+                    Created = DateTime.UtcNow
                 };
             }
         }

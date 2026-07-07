@@ -415,6 +415,11 @@ namespace Repository.Migrations
                     b.HasIndex("ManifestId", "CustomerId")
                         .HasDatabaseName("ix_pipeline_jobs_manifest_id_customer_id");
 
+                    b.HasIndex("CustomerId", "ManifestId", "CollectionId", "JobType", "InvocationCount")
+                        .IsUnique()
+                        .HasDatabaseName("ix_pipeline_jobs_customer_id_manifest_id_collection_id_job_typ")
+                        .HasFilter("status NOT IN ('NotSubmitted', 'FailedToSubmit')");
+
                     b.ToTable("pipeline_jobs", null, t =>
                         {
                             t.HasCheckConstraint("stop_collection_and_manifest_in_same_record", "num_nonnulls(manifest_id, collection_id) = 1");

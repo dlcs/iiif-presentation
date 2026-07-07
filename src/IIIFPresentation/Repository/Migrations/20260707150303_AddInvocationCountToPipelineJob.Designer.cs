@@ -12,7 +12,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20260707105755_AddInvocationCountToPipelineJob")]
+    [Migration("20260707150303_AddInvocationCountToPipelineJob")]
     partial class AddInvocationCountToPipelineJob
     {
         /// <inheritdoc />
@@ -417,6 +417,11 @@ namespace Repository.Migrations
 
                     b.HasIndex("ManifestId", "CustomerId")
                         .HasDatabaseName("ix_pipeline_jobs_manifest_id_customer_id");
+
+                    b.HasIndex("CustomerId", "ManifestId", "CollectionId", "JobType", "InvocationCount")
+                        .IsUnique()
+                        .HasDatabaseName("ix_pipeline_jobs_customer_id_manifest_id_collection_id_job_typ")
+                        .HasFilter("status NOT IN ('NotSubmitted', 'FailedToSubmit')");
 
                     b.ToTable("pipeline_jobs", null, t =>
                         {

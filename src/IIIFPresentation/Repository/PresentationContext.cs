@@ -195,6 +195,15 @@ public class PresentationContext : DbContext
 
             entity.Property(p => p.InvocationCount).HasDefaultValue(1);
 
+            // Enforces the invariant completion-notification correlation relies on: no two jobs for the same
+            // resource+type can claim the same invocation number. Excludes NotSubmitted/FailedToSubmit rows -
+            // those never got a real value from text-services, so they're left at the column default and
+            // would otherwise collide with each other (and with real values) without ever being ambiguous in
+            // practice, since a notification never arrives for a job that was never successfully submitted.
+            entity.HasIndex(p => new { p.CustomerId, p.ManifestId, p.CollectionId, p.JobType, p.InvocationCount })
+                .IsUnique()
+                .HasFilter("""status NOT IN ('NotSubmitted', 'FailedToSubmit')""");
+
             entity.Ignore(p => p.ResourceId);
 
             entity.ToTable(p => p.HasCheckConstraint("stop_collection_and_manifest_in_same_record",

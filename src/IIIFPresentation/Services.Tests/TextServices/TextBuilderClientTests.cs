@@ -39,6 +39,45 @@ public class TextBuilderClientTests
     }
 
     [Fact]
+    public async Task UpsertJob_SetsInvocationCountFromResponse_WhenPostSucceeds()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK, """{"invocationCount":1}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.InvocationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpsertJob_SetsInvocationCountFromResponse_WhenPutSucceedsAfterConflict()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.Conflict);
+        messageHandler.Enqueue(HttpStatusCode.OK, """{"invocationCount":2}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.InvocationCount.Should().Be(2, "text-services incremented its own counter on reprocess");
+    }
+
+    [Fact]
+    public async Task UpsertJob_LeavesInvocationCountUnchanged_WhenResponseBodyIsUnparseable()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK, "not-json");
+        var job = MakeJob();
+        job.InvocationCount = 7;
+
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        result.Should().BeTrue("an unparseable response body shouldn't fail an otherwise-successful submission");
+        job.InvocationCount.Should().Be(7);
+    }
+
+    [Fact]
     public async Task UpsertJob_FallsBackToPut_WhenPostReturns409()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
