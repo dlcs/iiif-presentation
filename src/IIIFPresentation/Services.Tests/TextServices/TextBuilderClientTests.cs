@@ -82,6 +82,36 @@ public class TextBuilderClientTests
     }
 
     [Fact]
+    public async Task UpsertJob_ReturnsFalse_AndSetsJobFailedToSubmit_WhenPostTimesOut()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.EnqueueException(new TaskCanceledException());
+        var job = MakeJob();
+
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        result.Should().BeFalse();
+        job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
+        messageHandler.Requests.Single().Method.Should().Be(HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task UpsertJob_ReturnsFalse_AndSetsJobFailedToSubmit_WhenPutTimesOut()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.Conflict);
+        messageHandler.EnqueueException(new TaskCanceledException());
+        var job = MakeJob();
+
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        result.Should().BeFalse();
+        job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
+        messageHandler.Requests.Should().HaveCount(2);
+        messageHandler.Requests[1].Method.Should().Be(HttpMethod.Put);
+    }
+
+    [Fact]
     public async Task UpsertJob_SendsCorrectJobIdAndS3Uri_InPostBody()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });

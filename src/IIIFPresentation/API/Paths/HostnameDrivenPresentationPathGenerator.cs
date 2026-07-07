@@ -34,8 +34,7 @@ public class HostnameDrivenPresentationPathGenerator(
         var host = request.Host.Value;
         var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+        var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
 
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

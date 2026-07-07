@@ -2,6 +2,7 @@
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Paths;
 using Core.Settings;
 using Core.Web;
 using DLCS;
@@ -62,7 +63,7 @@ public class BatchCompletionPathRewriteTests
             },
             PathRules = new TypedPathTemplateOptions
             {
-                Overrides = new Dictionary<string, Dictionary<string, string>>
+                Overrides = new Dictionary<string, Dictionary<string, PathTemplate>>
                 {
                     // override everything
                     ["foo.com"] = new()
