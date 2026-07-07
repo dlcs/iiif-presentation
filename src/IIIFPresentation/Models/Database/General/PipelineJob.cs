@@ -33,6 +33,12 @@ public class PipelineJob : ICustomerEntity
     public DateTime? Finished { get; set; }
 
     public PipelineConfig? Config { get; set; }
+
+    /// <summary>
+    /// Number of times text-services has been asked to (re)process this job. Mirrors text-services'
+    /// own `InvocationCount`, so a completion notification can be matched back to this exact record.
+    /// </summary>
+    public int InvocationCount { get; set; } = 1;
 }
 
 public enum PipelineJobStatus
@@ -48,4 +54,13 @@ public enum PipelineJobStatus
 public enum PipelineJobType
 {
     TextService = 0
+}
+
+public static class PipelineJobStatusX
+{
+    /// <summary>
+    /// Whether this status represents a job that has stopped processing, successfully or not.
+    /// </summary>
+    public static bool IsFinished(this PipelineJobStatus status) =>
+        status is PipelineJobStatus.Completed or PipelineJobStatus.Failed or PipelineJobStatus.FailedToSubmit;
 }

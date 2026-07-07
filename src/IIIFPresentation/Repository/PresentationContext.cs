@@ -193,6 +193,8 @@ public class PresentationContext : DbContext
                 .HasConversion<PipelineConfigConverter>()
                 .HasColumnType("jsonb");
 
+            entity.Property(p => p.InvocationCount).HasDefaultValue(1);
+
             entity.Ignore(p => p.ResourceId);
 
             entity.ToTable(p => p.HasCheckConstraint("stop_collection_and_manifest_in_same_record",

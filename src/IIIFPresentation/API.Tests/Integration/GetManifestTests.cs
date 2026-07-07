@@ -496,7 +496,38 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Should().ContainKey(HeaderNames.ETag, "pipeline is complete so manifest is final");
         var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
-        manifest!.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Completed");
+        manifest!.Pipeline.Should().BeNullOrEmpty("a finished job is no longer in-flight");
+        manifest.FinishedPipelines.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Completed");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsFinishedPipelinesAndPipeline_WhenResubmittedWhileHistoryExists()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineResubmitted");
+
+        // Arrange - one finished job from a previous run, and a new in-flight job from a resubmission
+        await dbContext.Manifests.AddTestManifest(id)
+            .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow.AddHours(-1),
+                created: DateTime.UtcNow.AddHours(-1), invocationCount: 1)
+            .WithTestPipelineJob(status: PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationCount: 2);
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest!.Pipeline.Should().ContainSingle(p => p.Status == "Waiting", "the resubmitted job is still in-flight");
+        manifest.FinishedPipelines.Should().ContainSingle(p => p.Status == "Completed", "the earlier run is retained as history");
     }
 
     [Fact]

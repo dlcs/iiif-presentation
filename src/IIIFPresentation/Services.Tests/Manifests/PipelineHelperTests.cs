@@ -203,4 +203,38 @@ public class PipelineHelperTests
 
         result.Config.Should().BeNull();
     }
+
+    [Fact]
+    public void ToPipelineItem_SetsErrorCreatedAndFinished_FromJob()
+    {
+        var created = DateTime.UtcNow.AddMinutes(-5);
+        var finished = DateTime.UtcNow;
+        var job = new PipelineJob
+        {
+            ManifestId = "id", CustomerId = 1,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.Failed,
+            Error = "Something went wrong",
+            Created = created,
+            Finished = finished
+        };
+
+        var result = job.ToPipelineItem();
+
+        result.Error.Should().Be("Something went wrong");
+        result.Created.Should().Be(created);
+        result.Finished.Should().Be(finished);
+    }
+
+    [Theory]
+    [InlineData(PipelineJobStatus.Completed, true)]
+    [InlineData(PipelineJobStatus.Failed, true)]
+    [InlineData(PipelineJobStatus.FailedToSubmit, true)]
+    [InlineData(PipelineJobStatus.Waiting, false)]
+    [InlineData(PipelineJobStatus.NotSubmitted, false)]
+    [InlineData(PipelineJobStatus.Running, false)]
+    public void IsFinished_ReturnsExpectedResult_ForEachStatus(PipelineJobStatus status, bool expected)
+    {
+        status.IsFinished().Should().Be(expected);
+    }
 }

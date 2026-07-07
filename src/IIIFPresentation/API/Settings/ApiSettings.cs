@@ -23,6 +23,11 @@ public class ApiSettings
     /// Forces reingestion to always occur
     /// </summary>
     public bool AlwaysReingest { get; set; }
+
+    /// <summary>
+    /// The maximum number of historical pipeline jobs returned in a Manifest's "finishedPipelines" property
+    /// </summary>
+    public int FinishedPipelinesLimit { get; set; } = 20;
     
     public required AWSSettings AWS { get; set; }
 

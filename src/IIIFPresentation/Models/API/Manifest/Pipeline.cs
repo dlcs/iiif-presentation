@@ -12,6 +12,11 @@ public class PipelineItem
     public PipelineConfig? Config { get; set; }
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Status { get; set; }
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? Error { get; set; }
+    public DateTime Created { get; set; }
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public DateTime? Finished { get; set; }
 }
 
 public class PipelineConfig
@@ -51,6 +56,9 @@ public static class PipelineHelper
     {
         Name = job.JobType == PipelineJobType.TextService ? TextPipeline.Name : "unknown",
         Config = job.Config,
-        Status = job.Status.ToString()
+        Status = job.Status.ToString(),
+        Error = job.Error,
+        Created = job.Created,
+        Finished = job.Finished
     };
 }

@@ -33,7 +33,7 @@ public static class ManifestConverter
     /// </param>
     public static PresentationManifest SetGeneratedFields(this PresentationManifest iiifManifest,
         Manifest dbManifest, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, Dictionary<string, JObject>? assets = null,
-        Func<Manifest, Hierarchy>? hierarchyFactory = null)
+        Func<Manifest, Hierarchy>? hierarchyFactory = null, int finishedPipelinesLimit = 20)
     {
         hierarchyFactory ??= manifest => manifest.Hierarchy.ThrowIfNull(nameof(manifest.Hierarchy)).Single();
         
@@ -69,12 +69,29 @@ public static class ManifestConverter
 
         if (!dbManifest.PipelineJobs.IsNullOrEmpty())
         {
-            iiifManifest.Pipeline = dbManifest.PipelineJobs!
+            // "pipeline" only ever reflects the current, in-flight job per type - if the most recently
+            // created job for a type has already finished, there's nothing further happening for it
+            var inFlightJobs = dbManifest.PipelineJobs!
                 .GroupBy(j => j.JobType)
-                // get the last created version of each pipeline item - we don't care about history
-                .Select(g => g.OrderByDescending(j => j.Created).First()
-                    .ToPipelineItem())
+                .Select(g => g.OrderByDescending(j => j.Created).First())
+                .Where(j => !j.Status.IsFinished())
                 .ToList();
+            if (inFlightJobs.Count > 0)
+            {
+                iiifManifest.Pipeline = inFlightJobs.Select(j => j.ToPipelineItem()).ToList();
+            }
+
+            // "finishedPipelines" is the history of completed/failed runs, most recent first, capped to
+            // the configured limit
+            var finishedJobs = dbManifest.PipelineJobs!
+                .Where(j => j.Status.IsFinished())
+                .OrderByDescending(j => j.Created)
+                .Take(finishedPipelinesLimit)
+                .ToList();
+            if (finishedJobs.Count > 0)
+            {
+                iiifManifest.FinishedPipelines = finishedJobs.Select(j => j.ToPipelineItem()).ToList();
+            }
         }
 
         iiifManifest.EnsurePresentation3Context();

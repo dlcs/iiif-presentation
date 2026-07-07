@@ -3,7 +3,9 @@ using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using AWS.Helpers;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.DLCS;
@@ -31,6 +33,7 @@ public class ManifestReadService(
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IPathGenerator pathGenerator,
     SettingsBasedPathGenerator settingsBasedPathGenerator,
+    IOptions<ApiSettings> options,
     ILogger<ManifestReadService> logger) : IManifestRead
 {
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
@@ -81,7 +84,7 @@ public class ManifestReadService(
         if (assets != null) manifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
 
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
-            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
+            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical), options.Value.FinishedPipelinesLimit);
 
         Guid? etag = dbManifest.Etag;
         if (dbManifest.HasFurtherWork())

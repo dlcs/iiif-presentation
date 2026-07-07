@@ -1,5 +1,6 @@
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
+using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -13,9 +14,11 @@ public class PipelineJobServiceTests
     private readonly PresentationContext dbContext = A.Fake<PresentationContext>();
     private readonly ITextBuilderClient textBuilderClient = A.Fake<ITextBuilderClient>();
     private readonly PipelineJobService sut;
+    private readonly List<PipelineJob> existingPipelineJobs = [];
 
     public PipelineJobServiceTests()
     {
+        A.CallTo(() => dbContext.PipelineJobs).Returns(existingPipelineJobs.BuildMockDbSet());
         sut = new PipelineJobService(dbContext, textBuilderClient, NullLogger<PipelineJobService>.Instance);
     }
 
@@ -39,7 +42,35 @@ public class PipelineJobServiceTests
         job.JobType.Should().Be(PipelineJobType.TextService);
         job.Status.Should().Be(PipelineJobStatus.NotSubmitted);
         job.Config!.Action.Should().Be("Index");
+        job.InvocationCount.Should().Be(1);
         dbManifest.PipelineJobs.Should().ContainSingle().Which.Should().BeSameAs(job);
+    }
+
+    [Fact]
+    public async Task PersistPipelineJob_IncrementsInvocationCount_WhenPriorJobsExistForManifest()
+    {
+        var dbManifest = MakeManifest();
+        existingPipelineJobs.AddRange(
+        [
+            new PipelineJob
+            {
+                ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService,
+                Status = PipelineJobStatus.Completed, InvocationCount = 1
+            },
+            new PipelineJob
+            {
+                ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService,
+                Status = PipelineJobStatus.Failed, InvocationCount = 2
+            }
+        ]);
+        var pipeline = new List<PipelineItem>
+        {
+            new() { Name = "text", Config = new PipelineConfig { Action = "Index" } }
+        };
+
+        var job = await sut.PersistPipelineJob(dbManifest, pipeline, CancellationToken.None);
+
+        job!.InvocationCount.Should().Be(3);
     }
 
     [Fact]

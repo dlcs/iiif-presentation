@@ -5,12 +5,14 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.IdGenerator;
+using API.Settings;
 using Core;
 using Core.Auth;
 using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database;
@@ -100,6 +102,7 @@ public class ManifestWriteService(
     IPathRewriteParser pathRewriteParser,
     ILockManager manifestLockManager,
     IPipelineJobService pipelineJobService,
+    IOptions<ApiSettings> options,
     ILogger<ManifestWriteService> logger) : IManifestWrite
 {
     /// <summary>
@@ -119,7 +122,7 @@ public class ManifestWriteService(
         {
             var existingManifest =
                 await dbContext.RetrieveManifestAsync(request.ManifestId, true,
-                    withCanvasPaintings: true, withBatches: true, cancellationToken: cancellationToken);
+                    withCanvasPaintings: true, withBatches: true, withPipelineJobs: true, cancellationToken: cancellationToken);
 
             if (existingManifest == null)
             {
@@ -337,7 +340,8 @@ public class ManifestWriteService(
         }
 
         return PresUpdateResult.Success(
-            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets),
+            presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets,
+                finishedPipelinesLimit: options.Value.FinishedPipelinesLimit),
             writeResult,
             dbManifest?.Etag);
     }

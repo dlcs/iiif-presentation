@@ -38,11 +38,16 @@ public class TextServiceJobCompletionMessageHandler(
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
-        var pipelineJob = await dbContext.PipelineJobs
+        var candidateJobs = await dbContext.PipelineJobs
             .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
             .Include(p => p.Manifest)
             .OrderByDescending(p => p.Created)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        // Match the specific invocation this notification refers to; fall back to "newest wins" for any
+        // job created before InvocationCount existed, or if text-services ever omits it.
+        var pipelineJob = candidateJobs.FirstOrDefault(p => p.InvocationCount == completionMessage.InvocationCount)
+            ?? candidateJobs.FirstOrDefault();
 
         if (pipelineJob == null)
         {
