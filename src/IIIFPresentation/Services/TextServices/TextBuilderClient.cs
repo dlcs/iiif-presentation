@@ -37,23 +37,32 @@ public class TextBuilderClient(
         var serialisedBody = CreateJobRequestJsonBody(manifest, jobId);
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
-        var response = await httpClient.PostAsync(postUri, GetStringContent(), cancellationToken);
-
-        if (response.StatusCode == HttpStatusCode.Conflict)
+        try
         {
-            logger.LogDebug("Text-services job {JobId} already exists, reprocessing", jobId);
-            var putUri = new Uri(settings.BuilderApiUri, $"textbuilder/{jobId}");
-            response = await httpClient.PutAsync(putUri, GetStringContent(), cancellationToken);
-        }
+            var response = await httpClient.PostAsync(postUri, GetStringContent(), cancellationToken);
 
-        if (response.IsSuccessStatusCode)
+            if (response.StatusCode == HttpStatusCode.Conflict)
+            {
+                logger.LogDebug("Text-services job {JobId} already exists, reprocessing", jobId);
+                var putUri = new Uri(settings.BuilderApiUri, $"textbuilder/{jobId}");
+                response = await httpClient.PutAsync(putUri, GetStringContent(), cancellationToken);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
+                job.Status = PipelineJobStatus.Waiting;
+                return true;
+            }
+
+            logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode}", jobId,
+                response.StatusCode);
+        }
+        catch (TaskCanceledException e)
         {
-            logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
-            job.Status = PipelineJobStatus.Waiting;
-            return true;
+            logger.LogError(e, "Text-services job {JobId} timed out", jobId);
         }
-
-        logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode}", jobId, response.StatusCode);
+        
         job.Status = PipelineJobStatus.FailedToSubmit;
         return false;
 
