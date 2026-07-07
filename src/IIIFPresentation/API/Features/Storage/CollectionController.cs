@@ -35,14 +35,10 @@ public class CollectionController(
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1,
         string? orderBy = null, string? orderByDescending = null)
     {
-        if (pageSize is null or <= 0) pageSize = Settings.PageSize;
-        if (pageSize > Settings.MaxPageSize) pageSize = Settings.MaxPageSize;
-        if (page is null or <= 0) page = 1;
-
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
 
-        var entityResult = await Mediator.Send(new GetCollection(id, Request.Headers.IfNoneMatch.AsETagValues(),
-            page.Value, pageSize.Value, orderByField, descending));
+        var entityResult = await Mediator.Send(new GetCollection(id, Request.Headers.IfNoneMatch.AsETagValues(), page,
+            pageSize, orderByField, descending));
 
         if (entityResult.ETagMatch)
             return new NotModifiedResult(entityResult.ETag!.Value);
