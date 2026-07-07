@@ -38,7 +38,7 @@ public static class CollectionConverter
     public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
         int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items, DbCollection? parentCollection,
         IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, string? orderQueryParam = null) =>
-        EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
+        new PresentationCollection().EnrichPresentationCollection(dbAsset, pageSize, currentPage, totalItems, items,
             parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
 
     /// <summary>

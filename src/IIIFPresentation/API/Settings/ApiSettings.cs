@@ -16,6 +16,11 @@ public class ApiSettings
     /// The maximum size of a page
     /// </summary>
     public int MaxPageSize { get; set; } = 1000;
+
+    /// <summary>
+    /// Minimum number of characters required in a search term before a search is run
+    /// </summary>
+    public int MinSearchLength { get; set; } = 3;
     
     public string? PathBase { get; set; }
     
