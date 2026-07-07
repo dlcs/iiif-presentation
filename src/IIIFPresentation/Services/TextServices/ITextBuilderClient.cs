@@ -10,7 +10,8 @@ public interface ITextBuilderClient
     /// Sets <paramref name="job"/>'s <see cref="PipelineJob.Status"/> to <see cref="PipelineJobStatus.Waiting"/> on
     /// success, or <see cref="PipelineJobStatus.FailedToSubmit"/> on failure. On success, also sets
     /// <see cref="PipelineJob.InvocationCount"/> from text-services' own (authoritative) counter, as returned in
-    /// the response body.
+    /// the response body. On failure, sets <see cref="PipelineJob.Error"/> from the response body (or a fallback
+    /// message describing the failure, if there was no body to read).
     /// </summary>
     /// <param name="manifest">The manifest whose staged source the job will read</param>
     /// <param name="job">The pipeline job to submit</param>

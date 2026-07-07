@@ -31,6 +31,7 @@ public class TextBuilderClient(
         {
             logger.LogWarning("TextServices BuilderApiUri is not configured; skipping job creation for {JobId}", jobId);
             job.Status = PipelineJobStatus.FailedToSubmit;
+            job.Error = "TextServices BuilderApiUri is not configured";
             return false;
         }
 
@@ -48,16 +49,19 @@ public class TextBuilderClient(
                 response = await httpClient.PutAsync(putUri, GetStringContent(), cancellationToken);
             }
 
-        if (response.IsSuccessStatusCode)
-        {
-            logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
-            job.Status = PipelineJobStatus.Waiting;
-            await SetInvocationCountFromResponse(response, job, jobId, cancellationToken);
-            return true;
-        }
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
+                job.Status = PipelineJobStatus.Waiting;
+                var body = await ReadResponseBody(response, jobId, cancellationToken);
+                if (body != null) job.InvocationCount = body.InvocationCount;
+                return true;
+            }
 
-            logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode}", jobId,
-                response.StatusCode);
+            var errorBody = await ReadResponseBody(response, jobId, cancellationToken);
+            logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode} {Errors}", jobId,
+                response.StatusCode, errorBody?.Errors);
+            job.Error = errorBody?.Errors ?? $"Text-services returned {(int)response.StatusCode}";
         }
         catch (TaskCanceledException e)
         {
@@ -75,25 +79,27 @@ public class TextBuilderClient(
 
     // text-services owns InvocationCount (1 on initial creation, incremented on every reprocess) - read it
     // back from the response rather than guessing locally, so it always matches what text-services will
-    // later echo in its completion notification for this exact submission.
-    private async Task SetInvocationCountFromResponse(HttpResponseMessage response, PipelineJob job, TextJobId jobId,
+    // later echo in its completion notification for this exact submission. Also carries any error message
+    // text-services returned for a rejected submission.
+    private async Task<TextBuilderJobResponse?> ReadResponseBody(HttpResponseMessage response, TextJobId jobId,
         CancellationToken cancellationToken)
     {
         try
         {
-            var body = await JsonSerializer.DeserializeAsync<TextBuilderJobResponse>(
+            return await JsonSerializer.DeserializeAsync<TextBuilderJobResponse>(
                 await response.Content.ReadAsStreamAsync(cancellationToken), JsonOptions, cancellationToken);
-            if (body != null) job.InvocationCount = body.InvocationCount;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not read text-services response for job {JobId}", jobId);
+            return null;
         }
     }
 
     private class TextBuilderJobResponse
     {
         public int InvocationCount { get; set; } = 1;
+        public string? Errors { get; set; }
     }
 
     private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
