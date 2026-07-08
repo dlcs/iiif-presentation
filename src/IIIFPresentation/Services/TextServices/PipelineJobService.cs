@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -38,6 +39,20 @@ public class PipelineJobService(
 
         logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
         return false;
+    }
+
+    public async Task DeletePipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    {
+        var hasJob = await dbContext.PipelineJobs
+            .AnyAsync(p => p.ManifestId == dbManifest.Id && p.CustomerId == dbManifest.CustomerId, cancellationToken);
+        if (!hasJob) return;
+
+        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
+        if (!await textBuilderClient.DeleteJob(jobId, cancellationToken))
+        {
+            logger.LogWarning("Failed to delete text-services job {JobId} for manifest {ManifestId}", jobId,
+                dbManifest.Id);
+        }
     }
 
     private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)

@@ -3,12 +3,15 @@ using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Helpers;
 using Core.Response;
+using FakeItEasy;
 using IIIF.Serialisation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
+using Services.TextServices;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -21,15 +24,18 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
     private readonly HttpClient httpClient;
     private readonly PresentationContext dbContext;
     private readonly IAmazonS3 amazonS3;
+    private static readonly ITextBuilderClient TextServicesClient = A.Fake<ITextBuilderClient>();
     private const int Customer = 1;
 
     public DeleteManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         dbContext = storageFixture.DbFixture.DbContext;
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
+        A.CallTo(() => TextServicesClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).Returns(true);
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
+            services => services.AddSingleton(TextServicesClient));
 
         storageFixture.DbFixture.CleanUp();
     }
@@ -51,6 +57,46 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         (await dbContext.Manifests.CountAsync(m => m.Id == dbManifest.Id)).Should().Be(0, "the manifest was deleted");
+    }
+
+    [Fact]
+    public async Task DeleteManifest_DeletesTextBuilderJob_WhenManifestHasPipelineJob()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest().WithTestPipelineJob()).Entity;
+        await dbContext.SaveChangesAsync();
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/manifests/{dbManifest.Id}", dbContext.GetETag(dbManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        A.CallTo(() => TextServicesClient.DeleteJob(
+            A<TextJobId>.That.Matches(j => j.CustomerId == Customer && j.ResourceId == dbManifest.Id),
+            A<CancellationToken>._)).MustHaveHappened();
+    }
+
+    [Fact]
+    public async Task DeleteManifest_DoesNotCallTextBuilder_WhenManifestHasNoPipelineJob()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        await dbContext.SaveChangesAsync();
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/manifests/{dbManifest.Id}", dbContext.GetETag(dbManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        A.CallTo(() => TextServicesClient.DeleteJob(
+            A<TextJobId>.That.Matches(j => j.ResourceId == dbManifest.Id),
+            A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Fact]

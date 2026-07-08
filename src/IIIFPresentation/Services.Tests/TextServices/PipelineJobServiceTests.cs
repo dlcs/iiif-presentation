@@ -1,5 +1,6 @@
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
+using MockQueryable.FakeItEasy;
 using Models.API.Manifest;
 using Models.Database.General;
 using Repository;
@@ -96,5 +97,50 @@ public class PipelineJobServiceTests
         var result = await sut.SubmitPipelineJob(dbManifest, job, CancellationToken.None);
 
         result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeletePipelineJob_CallsTextBuilderClient_WhenManifestHasPipelineJob()
+    {
+        var dbManifest = MakeManifest();
+        var jobs = new List<PipelineJob>
+        {
+            new() { ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService }
+        };
+        A.CallTo(() => dbContext.PipelineJobs).Returns(jobs.BuildMockDbSet());
+        A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).Returns(true);
+
+        await sut.DeletePipelineJob(dbManifest, CancellationToken.None);
+
+        A.CallTo(() => textBuilderClient.DeleteJob(
+            A<TextJobId>.That.Matches(j => j.CustomerId == dbManifest.CustomerId && j.ResourceId == dbManifest.Id),
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
+    public async Task DeletePipelineJob_DoesNotCallTextBuilderClient_WhenManifestHasNoPipelineJob()
+    {
+        var dbManifest = MakeManifest();
+        A.CallTo(() => dbContext.PipelineJobs).Returns(new List<PipelineJob>().BuildMockDbSet());
+
+        await sut.DeletePipelineJob(dbManifest, CancellationToken.None);
+
+        A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task DeletePipelineJob_DoesNotThrow_WhenTextBuilderClientFails()
+    {
+        var dbManifest = MakeManifest();
+        var jobs = new List<PipelineJob>
+        {
+            new() { ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService }
+        };
+        A.CallTo(() => dbContext.PipelineJobs).Returns(jobs.BuildMockDbSet());
+        A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).Returns(false);
+
+        var act = async () => await sut.DeletePipelineJob(dbManifest, CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
     }
 }
