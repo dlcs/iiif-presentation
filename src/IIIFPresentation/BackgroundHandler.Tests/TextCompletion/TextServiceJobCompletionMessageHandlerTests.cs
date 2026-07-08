@@ -172,6 +172,25 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     [Fact]
+    public async Task HandleMessage_SetsStatusToCompletedNoOperation_WhenTotalWordCountIsZero()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_no_text");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns((IIIFManifest?)null);
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, totalWordCount: 0);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
+        job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+    }
+
+    [Fact]
     public async Task HandleMessage_PromotesStoredOriginalPayload_WhenJobCompleted()
     {
         // The original payload stored alongside the staged manifest must be promoted to the final location
@@ -463,14 +482,14 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     private static QueueMessage CreateMessage(TextJobId jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
-        string? errors = null, int invocationCount = 1)
-        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors, invocationCount);
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
+        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors, invocationCount, totalWordCount);
 
     private static QueueMessage CreateMessageFromRawJobId(string jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
-        string? errors = null, int invocationCount = 1)
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
     {
         var errorsJson = errors == null ? "null" : $"\"{errors}\"";
-        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":100,"errors":{{errorsJson}},"invocationCount":{{invocationCount}}}""";
+        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":{{totalWordCount}},"errors":{{errorsJson}},"invocationCount":{{invocationCount}}}""";
         var systemAttributes = new Dictionary<string, string>
         {
             ["ApproximateReceiveCount"] = approximateReceiveCount.ToString()

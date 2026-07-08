@@ -14,6 +14,8 @@ public class PipelineItem
     public string? Status { get; set; }
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Error { get; set; }
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? Warning { get; set; }
     public DateTime Created { get; set; }
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public DateTime? Finished { get; set; }
@@ -30,6 +32,7 @@ public static class PipelineHelper
     {
         public const string Name = "text";
         public static readonly string[] Actions = ["Index"];
+        public const string NoTextFoundWarning = "No text resources found";
     }
 
     /// <summary>
@@ -58,6 +61,7 @@ public static class PipelineHelper
         Config = job.Config,
         Status = job.Status.ToString(),
         Error = job.Error,
+        Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? TextPipeline.NoTextFoundWarning : null,
         Created = job.Created,
         Finished = job.Finished
     };

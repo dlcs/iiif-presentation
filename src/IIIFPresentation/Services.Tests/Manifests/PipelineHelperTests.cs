@@ -169,6 +169,7 @@ public class PipelineHelperTests
     [InlineData(PipelineJobStatus.Waiting, "Waiting")]
     [InlineData(PipelineJobStatus.Running, "Running")]
     [InlineData(PipelineJobStatus.Completed, "Completed")]
+    [InlineData(PipelineJobStatus.CompletedNoOperation, "CompletedNoOperation")]
     [InlineData(PipelineJobStatus.Failed, "Failed")]
     [InlineData(PipelineJobStatus.NotSubmitted, "NotSubmitted")]
     public void ToPipelineItem_SetsStatusFromJob(PipelineJobStatus status, string expectedStatus)
@@ -228,6 +229,7 @@ public class PipelineHelperTests
 
     [Theory]
     [InlineData(PipelineJobStatus.Completed, true)]
+    [InlineData(PipelineJobStatus.CompletedNoOperation, true)]
     [InlineData(PipelineJobStatus.Failed, true)]
     [InlineData(PipelineJobStatus.FailedToSubmit, true)]
     [InlineData(PipelineJobStatus.Waiting, false)]
@@ -236,5 +238,38 @@ public class PipelineHelperTests
     public void IsFinished_ReturnsExpectedResult_ForEachStatus(PipelineJobStatus status, bool expected)
     {
         status.IsFinished().Should().Be(expected);
+    }
+
+    [Fact]
+    public void ToPipelineItem_SetsWarning_WhenStatusIsCompletedNoOperation()
+    {
+        var job = new PipelineJob
+        {
+            ManifestId = "id", CustomerId = 1,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.CompletedNoOperation
+        };
+
+        var result = job.ToPipelineItem();
+
+        result.Warning.Should().Be(PipelineHelper.TextPipeline.NoTextFoundWarning);
+    }
+
+    [Theory]
+    [InlineData(PipelineJobStatus.Completed)]
+    [InlineData(PipelineJobStatus.Failed)]
+    [InlineData(PipelineJobStatus.Waiting)]
+    public void ToPipelineItem_WarningIsNull_ForOtherStatuses(PipelineJobStatus status)
+    {
+        var job = new PipelineJob
+        {
+            ManifestId = "id", CustomerId = 1,
+            JobType = PipelineJobType.TextService,
+            Status = status
+        };
+
+        var result = job.ToPipelineItem();
+
+        result.Warning.Should().BeNull();
     }
 }

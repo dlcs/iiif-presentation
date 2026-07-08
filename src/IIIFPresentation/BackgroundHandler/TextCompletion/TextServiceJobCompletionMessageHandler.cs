@@ -60,7 +60,7 @@ public class TextServiceJobCompletionMessageHandler(
             return DiscardUntrackedResource(approximateReceiveCount, $"PipelineJob for {completionMessage.JobId}");
         }
 
-        if (pipelineJob is { Status: PipelineJobStatus.Completed, Finished: not null })
+        if (pipelineJob.Status.IsFinished() && pipelineJob.Finished is not null)
         {
             // This should never happen, but if it does, we want to reprocess it to avoid Manifest stuck in "staging"
             Logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; reprocessing",
@@ -105,7 +105,9 @@ public class TextServiceJobCompletionMessageHandler(
             }
 
             var finalManifest = await textManifestAugmentor.Augment(staged.Manifest, dbManifest, cancellationToken);
-            pipelineJob.Status = PipelineJobStatus.Completed;
+            pipelineJob.Status = completionMessage.TotalWordCount == 0
+                ? PipelineJobStatus.CompletedNoOperation
+                : PipelineJobStatus.Completed;
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
             await manifestStorageManager.SaveManifestInStorage(finalManifest, dbManifest, staged.Original,

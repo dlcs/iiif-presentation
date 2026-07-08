@@ -379,6 +379,36 @@ public class ManifestConverterTests
     }
 
     [Fact]
+    public void SetGeneratedFields_SetsWarningOnFinishedPipeline_WhenJobCompletedNoOperation()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs =
+            [
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.CompletedNoOperation,
+                    Created = DateTime.UtcNow,
+                    Finished = DateTime.UtcNow
+                }
+            ]
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.FinishedPipelines.Should().ContainSingle(p =>
+            p.Status == "CompletedNoOperation" && p.Warning == PipelineHelper.TextPipeline.NoTextFoundWarning);
+    }
+
+    [Fact]
     public void SetGeneratedFields_DoesNotSetPipeline_WhenNoPipelineJobs()
     {
         // Arrange
