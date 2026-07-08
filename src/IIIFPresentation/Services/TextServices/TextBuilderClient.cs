@@ -8,6 +8,7 @@ using Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
+using Services.TextServices.Http;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace Services.TextServices;
@@ -94,12 +95,6 @@ public class TextBuilderClient(
             logger.LogWarning(ex, "Could not read text-services response for job {JobId}", jobId);
             return null;
         }
-    }
-
-    private class TextBuilderJobResponse
-    {
-        public int InvocationCount { get; set; } = 1;
-        public string? Errors { get; set; }
     }
 
     private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
