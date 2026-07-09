@@ -128,6 +128,24 @@ public class PipelineJobServiceTests
         A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
+    [Theory]
+    [InlineData(PipelineJobStatus.NotSubmitted)]
+    [InlineData(PipelineJobStatus.FailedToSubmit)]
+    public async Task DeletePipelineJob_DoesNotCallTextBuilderClient_WhenJobNeverReachedTextServices(
+        PipelineJobStatus status)
+    {
+        var dbManifest = MakeManifest();
+        var jobs = new List<PipelineJob>
+        {
+            new() { ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService, Status = status }
+        };
+        A.CallTo(() => dbContext.PipelineJobs).Returns(jobs.BuildMockDbSet());
+
+        await sut.DeletePipelineJob(dbManifest, CancellationToken.None);
+
+        A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     [Fact]
     public async Task DeletePipelineJob_DoesNotThrow_WhenTextBuilderClientFails()
     {
