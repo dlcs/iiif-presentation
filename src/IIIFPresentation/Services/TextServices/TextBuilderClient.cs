@@ -97,6 +97,36 @@ public class TextBuilderClient(
         }
     }
 
+    public async Task<bool> DeleteJob(TextJobId jobId, CancellationToken cancellationToken)
+    {
+        var settings = options.Value;
+        if (settings.BuilderApiUri == null)
+        {
+            logger.LogWarning("TextServices BuilderApiUri is not configured; skipping job deletion for {JobId}", jobId);
+            return false;
+        }
+
+        var deleteUri = new Uri(settings.BuilderApiUri, $"textbuilder/{jobId}");
+        try
+        {
+            var response = await httpClient.DeleteAsync(deleteUri, cancellationToken);
+
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+            {
+                logger.LogDebug("Text-services job {JobId} deleted", jobId);
+                return true;
+            }
+
+            logger.LogError("Failed to delete text-services job {JobId}: {StatusCode}", jobId, response.StatusCode);
+        }
+        catch (TaskCanceledException e)
+        {
+            logger.LogError(e, "Text-services job {JobId} deletion timed out", jobId);
+        }
+
+        return false;
+    }
+
     private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
     {
         var sourceS3Uri = GetManifestS3Key(manifest);

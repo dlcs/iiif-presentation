@@ -6,12 +6,14 @@ using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
 using Repository;
+using Services.TextServices;
 
 namespace API.Features.Common.Helpers;
 
 public class HierarchyResourceDeleter(
     PresentationContext dbContext,
     IIIIFS3Service iiifS3,
+    IPipelineJobService pipelineJobService,
     ILogger<HierarchyResourceDeleter> logger)
 {
     public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> DeleteResource<T>(string? etagFromRequest, int customerId, 
@@ -32,7 +34,7 @@ public class HierarchyResourceDeleter(
                 break;
             }
             case Models.Database.Collections.Manifest manifest:
-                await DeleteManifest(resource, manifest);
+                await DeleteManifest(resource, manifest, cancellationToken);
                 break;
         }
 
@@ -75,10 +77,27 @@ public class HierarchyResourceDeleter(
         return null;
     }
     
-    private async Task DeleteManifest(IHierarchyResource resource, Models.Database.Collections.Manifest manifest)
+    private async Task DeleteManifest(IHierarchyResource resource, Models.Database.Collections.Manifest manifest,
+        CancellationToken cancellationToken)
     {
         dbContext.Remove(manifest);
-        await iiifS3.DeleteIIIFFromS3(resource);
+        await Task.WhenAll(
+            iiifS3.DeleteIIIFFromS3(resource),
+            DeletePipelineJobSafely(manifest, cancellationToken));
+    }
+
+    private async Task DeletePipelineJobSafely(Models.Database.Collections.Manifest manifest,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pipelineJobService.DeletePipelineJob(manifest, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Text-services being unreachable shouldn't stop the manifest itself from being deleted
+            logger.LogWarning(ex, "Error deleting text-services job for manifest {ManifestId}", manifest.Id);
+        }
     }
 
 }

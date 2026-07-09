@@ -16,4 +16,10 @@ public interface ITextBuilderClient
     /// <param name="manifest">The manifest whose staged source the job will read</param>
     /// <param name="job">The pipeline job to submit</param>
     Task<bool> UpsertJob(DbManifest manifest, PipelineJob job, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Delete a text-builder job. A job that no longer exists in text-builder is treated as a success.
+    /// </summary>
+    /// <param name="jobId">Id of the job to delete</param>
+    Task<bool> DeleteJob(TextJobId jobId, CancellationToken cancellationToken);
 }

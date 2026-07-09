@@ -227,4 +227,62 @@ public class TextBuilderClientTests
         var expected = (int)(JobServices.All);
         body.Should().Contain($"\"services\":{expected}");
     }
+
+    [Fact]
+    public async Task DeleteJob_ReturnsTrue_WhenDeleteSucceeds()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK);
+
+        var result = await sut.DeleteJob(new TextJobId(1, "my-manifest"), CancellationToken.None);
+
+        result.Should().BeTrue();
+        var request = messageHandler.Requests.Single();
+        request.Method.Should().Be(HttpMethod.Delete);
+        request.RequestUri!.ToString().Should().Be("http://text-services/textbuilder/1/iiif/my-manifest");
+    }
+
+    [Fact]
+    public async Task DeleteJob_ReturnsTrue_WhenJobAlreadyGone()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.NotFound);
+
+        var result = await sut.DeleteJob(new TextJobId(1, "my-manifest"), CancellationToken.None);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteJob_ReturnsFalse_WhenBuilderApiUriNotConfigured()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = null });
+
+        var result = await sut.DeleteJob(new TextJobId(1, "my-manifest"), CancellationToken.None);
+
+        result.Should().BeFalse();
+        messageHandler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteJob_ReturnsFalse_WhenDeleteReturnsNonSuccess()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.InternalServerError);
+
+        var result = await sut.DeleteJob(new TextJobId(1, "my-manifest"), CancellationToken.None);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeleteJob_ReturnsFalse_WhenDeleteTimesOut()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.EnqueueException(new TaskCanceledException());
+
+        var result = await sut.DeleteJob(new TextJobId(1, "my-manifest"), CancellationToken.None);
+
+        result.Should().BeFalse();
+    }
 }

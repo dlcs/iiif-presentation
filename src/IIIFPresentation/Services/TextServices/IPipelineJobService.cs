@@ -18,4 +18,10 @@ public interface IPipelineJobService
     /// underlying <see cref="ITextBuilderClient"/> call; callers are responsible for saving that change.
     /// </summary>
     Task<bool> SubmitPipelineJob(DbManifest dbManifest, PipelineJob job, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes any text-services job associated with the given manifest. A no-op if the manifest has no
+    /// associated <see cref="PipelineJob"/>.
+    /// </summary>
+    Task DeletePipelineJob(DbManifest dbManifest, CancellationToken cancellationToken);
 }

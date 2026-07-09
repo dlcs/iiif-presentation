@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Models.API.Manifest;
 using Models.Database.General;
@@ -38,6 +39,26 @@ public class PipelineJobService(
 
         logger.LogError("Failed to submit {JobType} pipeline job for manifest {ManifestId}", job.JobType, dbManifest.Id);
         return false;
+    }
+
+    public async Task DeletePipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
+    {
+        // A manifest can have several PipelineJob rows over its lifetime (one per invocation); the
+        // text-services job id is deterministic per manifest, so if any of them ever reached
+        // text-services (i.e. isn't NotSubmitted/FailedToSubmit) there's something to delete there
+        var everSubmitted = await dbContext.PipelineJobs.AnyAsync(p =>
+                p.ManifestId == dbManifest.Id && p.JobType == PipelineJobType.TextService &&
+                p.Status != PipelineJobStatus.NotSubmitted && p.Status != PipelineJobStatus.FailedToSubmit,
+            cancellationToken);
+
+        if (!everSubmitted) return;
+
+        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
+        if (!await textBuilderClient.DeleteJob(jobId, cancellationToken))
+        {
+            logger.LogWarning("Failed to delete text-services job {JobId} for manifest {ManifestId}", jobId,
+                dbManifest.Id);
+        }
     }
 
     private static PipelineJob? BuildPipelineJob(DbManifest dbManifest, List<PipelineItem> pipeline)
