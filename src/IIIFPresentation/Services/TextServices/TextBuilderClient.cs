@@ -55,7 +55,7 @@ public class TextBuilderClient(
                 logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
                 job.Status = PipelineJobStatus.Waiting;
                 var body = await ReadResponseBody(response, jobId, cancellationToken);
-                if (body != null) job.InvocationCount = body.InvocationCount;
+                if (body != null) job.InvocationId = body.InvocationCount.ToString();
                 return true;
             }
 
@@ -79,9 +79,9 @@ public class TextBuilderClient(
     }
 
     // text-services owns InvocationCount (1 on initial creation, incremented on every reprocess) - read it
-    // back from the response rather than guessing locally, so it always matches what text-services will
-    // later echo in its completion notification for this exact submission. Also carries any error message
-    // text-services returned for a rejected submission.
+    // back from the response rather than guessing locally, so our InvocationId always matches what
+    // text-services will later echo in its completion notification for this exact submission. Also carries
+    // any error message text-services returned for a rejected submission.
     private async Task<TextBuilderJobResponse?> ReadResponseBody(HttpResponseMessage response, TextJobId jobId,
         CancellationToken cancellationToken)
     {

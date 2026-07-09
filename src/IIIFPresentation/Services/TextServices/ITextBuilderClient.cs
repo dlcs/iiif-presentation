@@ -9,7 +9,7 @@ public interface ITextBuilderClient
     /// Create a new text-builder job, or reprocess an existing one.
     /// Sets <paramref name="job"/>'s <see cref="PipelineJob.Status"/> to <see cref="PipelineJobStatus.Waiting"/> on
     /// success, or <see cref="PipelineJobStatus.FailedToSubmit"/> on failure. On success, also sets
-    /// <see cref="PipelineJob.InvocationCount"/> from text-services' own (authoritative) counter, as returned in
+    /// <see cref="PipelineJob.InvocationId"/> from text-services' own (authoritative) counter, as returned in
     /// the response body. On failure, sets <see cref="PipelineJob.Error"/> from the response body (or a fallback
     /// message describing the failure, if there was no body to read).
     /// </summary>

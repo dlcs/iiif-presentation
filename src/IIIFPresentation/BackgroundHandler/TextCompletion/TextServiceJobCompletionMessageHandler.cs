@@ -38,21 +38,33 @@ public class TextServiceJobCompletionMessageHandler(
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
-        var candidateJobs = await dbContext.PipelineJobs
-            .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
+        var invocationId = completionMessage.InvocationCount.ToString();
+        var pipelineJob = await dbContext.PipelineJobs
+            .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService
+                        && p.InvocationId == invocationId)
             .Include(p => p.Manifest)
-            .OrderByDescending(p => p.Created)
-            .ToListAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
 
-        // Match the specific invocation this notification refers to; fall back to "newest wins" for any
-        // job created before InvocationCount existed, or if text-services ever omits it.
-        var pipelineJob = candidateJobs.FirstOrDefault(p => p.InvocationCount == completionMessage.InvocationCount);
-        if (pipelineJob == null && candidateJobs.Count > 0)
+        if (pipelineJob == null)
         {
-            Logger.LogWarning(
-                "No PipelineJob matched InvocationCount {InvocationCount} for job {JobId}; falling back to newest of {Count} candidates",
-                completionMessage.InvocationCount, completionMessage.JobId, candidateJobs.Count);
-            pipelineJob = candidateJobs.FirstOrDefault();
+            // Only expected to matter for jobs that were already in-flight with text-services when the
+            // InvocationId migration ran: their row's id was backfilled sequentially by row order rather
+            // than by text-services' real counter for that job, so it won't equal completionMessage's
+            // InvocationId. Falls back to "newest wins" (the pre-migration behaviour) for that transition
+            // window only - once every row has a genuine text-services-assigned id, this branch is dead.
+            var fallbackJob = await dbContext.PipelineJobs
+                .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
+                .Include(p => p.Manifest)
+                .OrderByDescending(p => p.Created)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (fallbackJob != null)
+            {
+                Logger.LogWarning(
+                    "No PipelineJob matched InvocationId {InvocationId} for job {JobId}; falling back to newest",
+                    invocationId, completionMessage.JobId);
+            }
+            pipelineJob = fallbackJob;
         }
 
         if (pipelineJob == null)

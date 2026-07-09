@@ -35,10 +35,14 @@ public class PipelineJob : ICustomerEntity
     public PipelineConfig? Config { get; set; }
 
     /// <summary>
-    /// Number of times text-services has been asked to (re)process this job. Mirrors text-services'
-    /// own `InvocationCount`, so a completion notification can be matched back to this exact record.
+    /// Identifier for this specific invocation of the pipeline, as assigned by whatever service ran it, so a
+    /// completion notification can be matched back to this exact record. For text-services this is currently
+    /// its numeric `InvocationCount` (as a string); other pipeline types may use a different scheme (a GUID,
+    /// an opaque run id, etc). Null until a submission actually succeeds - <see cref="PipelineJobStatus.NotSubmitted"/>
+    /// and <see cref="PipelineJobStatus.FailedToSubmit"/> jobs never get a real value, so they stay null rather
+    /// than colliding on a placeholder.
     /// </summary>
-    public int InvocationCount { get; set; } = 1;
+    public string? InvocationId { get; set; }
 }
 
 public enum PipelineJobStatus

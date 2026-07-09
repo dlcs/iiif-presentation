@@ -444,18 +444,18 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     [Fact]
-    public async Task HandleMessage_MatchesJobByInvocationCount_NotByNewest_WhenMultipleJobsExist()
+    public async Task HandleMessage_MatchesJobByInvocationId_NotByNewest_WhenMultipleJobsExist()
     {
         // A resubmission ("reprocess") creates a new PipelineJob row without removing the old one, so two rows
-        // can legitimately co-exist for the same manifest. The completion notification's InvocationCount must be
+        // can legitimately co-exist for the same manifest. The completion notification's InvocationId must be
         // used to pick the matching row - "newest wins" would incorrectly complete the wrong one here, since the
         // older invocation (1) is the one whose completion has just arrived, after the newer one (2) was already
         // recorded as still Waiting.
-        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_invocation_count_match");
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_invocation_id_match");
         var jobId = new TextJobId(CustomerId, manifestId);
         await dbContext.Manifests.AddTestManifest(id: manifestId)
-            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow.AddMinutes(-1), invocationCount: 1)
-            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationCount: 2);
+            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow.AddMinutes(-1), invocationId: 1)
+            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationId: 2);
         await dbContext.SaveChangesAsync();
 
         SetupStagedManifest(new IIIFManifest { Id = manifestId });
@@ -466,10 +466,10 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
-        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationCount == 1);
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationId == "1");
         job.Status.Should().Be(PipelineJobStatus.Completed);
 
-        var otherJob = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationCount == 2);
+        var otherJob = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationId == "2");
         otherJob.Status.Should().Be(PipelineJobStatus.Waiting, "the newer invocation is unrelated to this notification");
     }
 

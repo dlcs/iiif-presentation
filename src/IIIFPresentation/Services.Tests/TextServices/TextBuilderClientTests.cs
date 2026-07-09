@@ -39,7 +39,7 @@ public class TextBuilderClientTests
     }
 
     [Fact]
-    public async Task UpsertJob_SetsInvocationCountFromResponse_WhenPostSucceeds()
+    public async Task UpsertJob_SetsInvocationIdFromResponse_WhenPostSucceeds()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK, """{"invocationCount":1}""");
@@ -47,11 +47,11 @@ public class TextBuilderClientTests
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
-        job.InvocationCount.Should().Be(1);
+        job.InvocationId.Should().Be("1");
     }
 
     [Fact]
-    public async Task UpsertJob_SetsInvocationCountFromResponse_WhenPutSucceedsAfterConflict()
+    public async Task UpsertJob_SetsInvocationIdFromResponse_WhenPutSucceedsAfterConflict()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.Conflict);
@@ -60,21 +60,21 @@ public class TextBuilderClientTests
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
-        job.InvocationCount.Should().Be(2, "text-services incremented its own counter on reprocess");
+        job.InvocationId.Should().Be("2", "text-services incremented its own counter on reprocess");
     }
 
     [Fact]
-    public async Task UpsertJob_LeavesInvocationCountUnchanged_WhenResponseBodyIsUnparseable()
+    public async Task UpsertJob_LeavesInvocationIdUnchanged_WhenResponseBodyIsUnparseable()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK, "not-json");
         var job = MakeJob();
-        job.InvocationCount = 7;
+        job.InvocationId = "7";
 
         var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
         result.Should().BeTrue("an unparseable response body shouldn't fail an otherwise-successful submission");
-        job.InvocationCount.Should().Be(7);
+        job.InvocationId.Should().Be("7");
     }
 
     [Fact]

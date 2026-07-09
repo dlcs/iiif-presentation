@@ -473,7 +473,7 @@ public class ManifestConverterTests
                 JobType = PipelineJobType.TextService,
                 Status = PipelineJobStatus.Completed,
                 Created = DateTime.UtcNow.AddMinutes(-i),
-                InvocationCount = i + 1
+                InvocationId = (i + 1).ToString()
             }).ToList()
         };
 

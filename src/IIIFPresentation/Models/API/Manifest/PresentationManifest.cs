@@ -54,7 +54,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [JsonProperty(Order = 16)] public List<PipelineItem>? Pipeline { get; set; }
 
     /// <summary>
-    /// History of previous (completed/failed) pipeline runs for this manifest, most recent first.
+    /// History of previous (completed/failed) pipeline runs for this manifest.
     /// </summary>
     [JsonProperty(Order = 17)] public List<PipelineItem>? FinishedPipelines { get; set; }
 }

@@ -1,5 +1,4 @@
 using Models.Database.General;
-using Newtonsoft.Json;
 
 namespace Models.API.Manifest;
 
@@ -10,14 +9,10 @@ public class PipelineItem
 {
     public string? Name { get; set; }
     public PipelineConfig? Config { get; set; }
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Status { get; set; }
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Error { get; set; }
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Warning { get; set; }
     public DateTime Created { get; set; }
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public DateTime? Finished { get; set; }
 }
 

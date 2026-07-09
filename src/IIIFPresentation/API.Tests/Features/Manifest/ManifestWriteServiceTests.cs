@@ -134,7 +134,7 @@ public class ManifestWriteServiceTests
                 // Mirrors real ITextBuilderClient behaviour: text-services owns InvocationCount and hands back
                 // a real, incrementing value once a submission actually succeeds.
                 job.Status = PipelineJobStatus.Waiting;
-                job.InvocationCount = ++textServicesInvocationCounter;
+                job.InvocationId = (++textServicesInvocationCounter).ToString();
             })
             .Returns(true);
         var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
@@ -1432,7 +1432,7 @@ public class ManifestWriteServiceTests
         var jobs = presentationContext.PipelineJobs.Where(p => p.ManifestId == flatId).ToList();
         jobs.Should().HaveCount(2, "each resubmission creates a new job record for history");
         jobs.Should().AllSatisfy(j => j.Status.Should().Be(PipelineJobStatus.Waiting));
-        jobs.Select(j => j.InvocationCount).Should().BeEquivalentTo([1, 2],
-            "each successful submission gets a distinct invocation count from text-services");
+        jobs.Select(j => j.InvocationId).Should().BeEquivalentTo(["1", "2"],
+            "each successful submission gets a distinct invocation id from text-services");
     }
 }

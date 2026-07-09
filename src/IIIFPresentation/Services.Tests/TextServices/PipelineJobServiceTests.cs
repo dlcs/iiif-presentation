@@ -39,7 +39,7 @@ public class PipelineJobServiceTests
         job.JobType.Should().Be(PipelineJobType.TextService);
         job.Status.Should().Be(PipelineJobStatus.NotSubmitted);
         job.Config!.Action.Should().Be("Index");
-        job.InvocationCount.Should().Be(1, "unset here - it's read from text-services' response once submitted");
+        job.InvocationId.Should().BeNull("unset here - it's read from text-services' response once submitted");
         dbManifest.PipelineJobs.Should().ContainSingle().Which.Should().BeSameAs(job);
     }
 

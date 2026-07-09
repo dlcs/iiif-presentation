@@ -386,11 +386,9 @@ namespace Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("finished");
 
-                    b.Property<int>("InvocationCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("invocation_count");
+                    b.Property<string>("InvocationId")
+                        .HasColumnType("text")
+                        .HasColumnName("invocation_id");
 
                     b.Property<string>("JobType")
                         .IsRequired()
@@ -415,10 +413,10 @@ namespace Repository.Migrations
                     b.HasIndex("ManifestId", "CustomerId")
                         .HasDatabaseName("ix_pipeline_jobs_manifest_id_customer_id");
 
-                    b.HasIndex("CustomerId", "ManifestId", "CollectionId", "JobType", "InvocationCount")
+                    b.HasIndex("CustomerId", "ManifestId", "CollectionId", "JobType", "InvocationId")
                         .IsUnique()
                         .HasDatabaseName("ix_pipeline_jobs_customer_id_manifest_id_collection_id_job_typ")
-                        .HasFilter("status NOT IN ('NotSubmitted', 'FailedToSubmit')");
+                        .HasFilter("invocation_id IS NOT NULL");
 
                     b.ToTable("pipeline_jobs", null, t =>
                         {

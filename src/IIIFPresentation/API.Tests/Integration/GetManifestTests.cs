@@ -510,8 +510,8 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         // Arrange - one finished job from a previous run, and a new in-flight job from a resubmission
         await dbContext.Manifests.AddTestManifest(id)
             .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow.AddHours(-1),
-                created: DateTime.UtcNow.AddHours(-1), invocationCount: 1)
-            .WithTestPipelineJob(status: PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationCount: 2);
+                created: DateTime.UtcNow.AddHours(-1), invocationId: 1)
+            .WithTestPipelineJob(status: PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationId: 2);
         await dbContext.SaveChangesAsync();
 
         await amazonS3.PutObjectAsync(new()
@@ -542,7 +542,7 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
         for (var i = 1; i <= FinishedPipelinesLimit + 2; i++)
         {
             manifest = manifest.WithTestPipelineJob(status: PipelineJobStatus.Completed,
-                created: DateTime.UtcNow.AddMinutes(-i), finished: DateTime.UtcNow.AddMinutes(-i), invocationCount: i);
+                created: DateTime.UtcNow.AddMinutes(-i), finished: DateTime.UtcNow.AddMinutes(-i), invocationId: i);
         }
         await manifest;
         await dbContext.SaveChangesAsync();
