@@ -38,18 +38,44 @@ public class TextServiceJobCompletionMessageHandler(
     private async Task<bool> TryCompleteManifest(TextServiceJobCompletionMessage completionMessage, TextJobId jobId,
         int approximateReceiveCount, CancellationToken cancellationToken)
     {
+        var invocationId = completionMessage.InvocationCount.ToString();
         var pipelineJob = await dbContext.PipelineJobs
-            .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
+            .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService
+                        && p.InvocationId == invocationId)
             .Include(p => p.Manifest)
-            .OrderByDescending(p => p.Created)
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (pipelineJob == null)
+        {
+            Logger.LogWarning(
+                "Could not find a pipeline by  matched InvocationId {InvocationId} for job {JobId}; falling back to newest",
+                invocationId, completionMessage.JobId);
+            
+            // Only expected to matter for jobs that were already in-flight with text-services when the
+            // InvocationId migration ran: their row's id was backfilled sequentially by row order rather
+            // than by text-services' real counter for that job, so it won't equal completionMessage's
+            // InvocationId. Falls back to "newest wins" (the pre-migration behaviour) for that transition
+            // window only - once every row has a genuine text-services-assigned id, this branch is dead.
+            var fallbackJob = await dbContext.PipelineJobs
+                .Where(p => p.ManifestId == jobId.ResourceId && p.JobType == PipelineJobType.TextService)
+                .Include(p => p.Manifest)
+                .OrderByDescending(p => p.Created)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (fallbackJob == null)
+            {
+                Logger.LogWarning(
+                    "No PipelineJob found for job {JobId}", completionMessage.JobId);
+            }
+            pipelineJob = fallbackJob;
+        }
 
         if (pipelineJob == null)
         {
             return DiscardUntrackedResource(approximateReceiveCount, $"PipelineJob for {completionMessage.JobId}");
         }
 
-        if (pipelineJob is { Status: PipelineJobStatus.Completed, Finished: not null })
+        if (pipelineJob.Status.IsFinished() && pipelineJob.Finished is not null)
         {
             // This should never happen, but if it does, we want to reprocess it to avoid Manifest stuck in "staging"
             Logger.LogWarning("PipelineJob for {JobId} already completed at {Finished}; reprocessing",
@@ -94,7 +120,9 @@ public class TextServiceJobCompletionMessageHandler(
             }
 
             var finalManifest = await textManifestAugmentor.Augment(staged.Manifest, dbManifest, cancellationToken);
-            pipelineJob.Status = PipelineJobStatus.Completed;
+            pipelineJob.Status = completionMessage.TotalWordCount == 0
+                ? PipelineJobStatus.CompletedNoOperation
+                : PipelineJobStatus.Completed;
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
             await manifestStorageManager.SaveManifestInStorage(finalManifest, dbManifest, staged.Original,

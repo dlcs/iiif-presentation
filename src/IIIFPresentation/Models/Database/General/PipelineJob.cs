@@ -33,6 +33,16 @@ public class PipelineJob : ICustomerEntity
     public DateTime? Finished { get; set; }
 
     public PipelineConfig? Config { get; set; }
+
+    /// <summary>
+    /// Identifier for this specific invocation of the pipeline, as assigned by whatever service ran it, so a
+    /// completion notification can be matched back to this exact record. For text-services this is currently
+    /// its numeric `InvocationCount` (as a string); other pipeline types may use a different scheme (a GUID,
+    /// an opaque run id, etc). Null until a submission actually succeeds - <see cref="PipelineJobStatus.NotSubmitted"/>
+    /// and <see cref="PipelineJobStatus.FailedToSubmit"/> jobs never get a real value, so they stay null rather
+    /// than colliding on a placeholder.
+    /// </summary>
+    public string? InvocationId { get; set; }
 }
 
 public enum PipelineJobStatus
@@ -42,10 +52,21 @@ public enum PipelineJobStatus
     Completed = 2,
     Failed = 3,
     NotSubmitted = 1000,
-    FailedToSubmit = 1001
+    FailedToSubmit = 1001,
+    CompletedNoOperation = 1002
 }
 
 public enum PipelineJobType
 {
     TextService = 0
+}
+
+public static class PipelineJobStatusX
+{
+    /// <summary>
+    /// Whether this status represents a job that has stopped processing, successfully or not.
+    /// </summary>
+    public static bool IsFinished(this PipelineJobStatus status) =>
+        status is PipelineJobStatus.Completed or PipelineJobStatus.CompletedNoOperation
+            or PipelineJobStatus.Failed or PipelineJobStatus.FailedToSubmit;
 }

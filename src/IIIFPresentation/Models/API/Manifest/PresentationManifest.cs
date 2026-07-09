@@ -14,7 +14,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [
         "slug", "publicId", "parent", "created", "modified",
         "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "adjuncts", "ingesting",
-        "fullPath", "currentlyIngesting", "pipeline"
+        "fullPath", "currentlyIngesting", "pipeline", "finishedPipelines"
     ];
 
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
@@ -52,6 +52,11 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [JsonIgnore] public bool CurrentlyIngesting { get; set; }
 
     [JsonProperty(Order = 16)] public List<PipelineItem>? Pipeline { get; set; }
+
+    /// <summary>
+    /// History of previous (completed/failed) pipeline runs for this manifest.
+    /// </summary>
+    [JsonProperty(Order = 17)] public List<PipelineItem>? FinishedPipelines { get; set; }
 }
 
 /// <summary>

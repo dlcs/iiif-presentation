@@ -193,6 +193,15 @@ public class PresentationContext : DbContext
                 .HasConversion<PipelineConfigConverter>()
                 .HasColumnType("jsonb");
 
+            // Enforces the invariant completion-notification correlation relies on: no two jobs for the same
+            // resource+type can claim the same invocation id. NotSubmitted/FailedToSubmit rows never get a real
+            // value from the pipeline service, so InvocationId stays null for them - the filter (and Postgres'
+            // native "multiple NULLs never collide" unique-index semantics) excludes them without needing to
+            // name specific statuses, so this doesn't need updating if new pre-submission statuses are added.
+            entity.HasIndex(p => new { p.CustomerId, p.ManifestId, p.CollectionId, p.JobType, p.InvocationId })
+                .IsUnique()
+                .HasFilter("""invocation_id IS NOT NULL""");
+
             entity.Ignore(p => p.ResourceId);
 
             entity.ToTable(p => p.HasCheckConstraint("stop_collection_and_manifest_in_same_record",

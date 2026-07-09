@@ -8,6 +8,7 @@ using Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
+using Services.TextServices.Http;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace Services.TextServices;
@@ -31,6 +32,7 @@ public class TextBuilderClient(
         {
             logger.LogWarning("TextServices BuilderApiUri is not configured; skipping job creation for {JobId}", jobId);
             job.Status = PipelineJobStatus.FailedToSubmit;
+            job.Error = "TextServices BuilderApiUri is not configured";
             return false;
         }
 
@@ -52,11 +54,15 @@ public class TextBuilderClient(
             {
                 logger.LogDebug("Text-services job {JobId} enqueued successfully", jobId);
                 job.Status = PipelineJobStatus.Waiting;
+                var body = await ReadResponseBody(response, jobId, cancellationToken);
+                if (body != null) job.InvocationId = body.InvocationCount.ToString();
                 return true;
             }
 
-            logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode}", jobId,
-                response.StatusCode);
+            var errorBody = await ReadResponseBody(response, jobId, cancellationToken);
+            logger.LogError("Failed to create/update text-services job {JobId}: {StatusCode} {Errors}", jobId,
+                response.StatusCode, errorBody?.Errors);
+            job.Error = errorBody?.Errors ?? $"Text-services returned {(int)response.StatusCode}";
         }
         catch (TaskCanceledException e)
         {
@@ -69,6 +75,25 @@ public class TextBuilderClient(
         StringContent GetStringContent()
         {
             return new StringContent(serialisedBody, Encoding.UTF8, "application/json");
+        }
+    }
+
+    // text-services owns InvocationCount (1 on initial creation, incremented on every reprocess) - read it
+    // back from the response rather than guessing locally, so our InvocationId always matches what
+    // text-services will later echo in its completion notification for this exact submission. Also carries
+    // any error message text-services returned for a rejected submission.
+    private async Task<TextBuilderJobResponse?> ReadResponseBody(HttpResponseMessage response, TextJobId jobId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await JsonSerializer.DeserializeAsync<TextBuilderJobResponse>(
+                await response.Content.ReadAsStreamAsync(cancellationToken), JsonOptions, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not read text-services response for job {JobId}", jobId);
+            return null;
         }
     }
 

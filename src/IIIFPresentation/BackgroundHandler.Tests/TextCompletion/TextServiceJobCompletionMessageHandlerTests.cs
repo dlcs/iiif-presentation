@@ -172,6 +172,25 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     [Fact]
+    public async Task HandleMessage_SetsStatusToCompletedNoOperation_WhenTotalWordCountIsZero()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_no_text");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns((IIIFManifest?)null);
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, totalWordCount: 0);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
+        job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+    }
+
+    [Fact]
     public async Task HandleMessage_PromotesStoredOriginalPayload_WhenJobCompleted()
     {
         // The original payload stored alongside the staged manifest must be promoted to the final location
@@ -424,6 +443,36 @@ public class TextServiceJobCompletionMessageHandlerTests
         savedAutoCompleteSvc.Label!.Values.Should().ContainSingle("Autocomplete words in this manifest");
     }
 
+    [Fact]
+    public async Task HandleMessage_MatchesJobByInvocationId_NotByNewest_WhenMultipleJobsExist()
+    {
+        // A resubmission ("reprocess") creates a new PipelineJob row without removing the old one, so two rows
+        // can legitimately co-exist for the same manifest. The completion notification's InvocationId must be
+        // used to pick the matching row - "newest wins" would incorrectly complete the wrong one here, since the
+        // older invocation (1) is the one whose completion has just arrived, after the newer one (2) was already
+        // recorded as still Waiting.
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_invocation_id_match");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await dbContext.Manifests.AddTestManifest(id: manifestId)
+            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow.AddMinutes(-1), invocationId: 1)
+            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationId: 2);
+        await dbContext.SaveChangesAsync();
+
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+        A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
+            .Returns((IIIFManifest?)null);
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, invocationCount: 1);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationId == "1");
+        job.Status.Should().Be(PipelineJobStatus.Completed);
+
+        var otherJob = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId && p.InvocationId == "2");
+        otherJob.Status.Should().Be(PipelineJobStatus.Waiting, "the newer invocation is unrelated to this notification");
+    }
+
     private async Task SetupManifestWithPipelineJob(string manifestId,
         PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null)
     {
@@ -432,13 +481,15 @@ public class TextServiceJobCompletionMessageHandlerTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static QueueMessage CreateMessage(TextJobId jobId, PipelineJobStatus status, int approximateReceiveCount = 0, string? errors = null)
-        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors);
+    private static QueueMessage CreateMessage(TextJobId jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
+        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors, invocationCount, totalWordCount);
 
-    private static QueueMessage CreateMessageFromRawJobId(string jobId, PipelineJobStatus status, int approximateReceiveCount = 0, string? errors = null)
+    private static QueueMessage CreateMessageFromRawJobId(string jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
     {
         var errorsJson = errors == null ? "null" : $"\"{errors}\"";
-        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":100,"errors":{{errorsJson}}}""";
+        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":{{totalWordCount}},"errors":{{errorsJson}},"invocationCount":{{invocationCount}}}""";
         var systemAttributes = new Dictionary<string, string>
         {
             ["ApproximateReceiveCount"] = approximateReceiveCount.ToString()

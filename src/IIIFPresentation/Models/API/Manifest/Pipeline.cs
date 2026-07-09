@@ -1,5 +1,4 @@
 using Models.Database.General;
-using Newtonsoft.Json;
 
 namespace Models.API.Manifest;
 
@@ -10,8 +9,11 @@ public class PipelineItem
 {
     public string? Name { get; set; }
     public PipelineConfig? Config { get; set; }
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Status { get; set; }
+    public string? Error { get; set; }
+    public string? Warning { get; set; }
+    public DateTime Created { get; set; }
+    public DateTime? Finished { get; set; }
 }
 
 public class PipelineConfig
@@ -25,6 +27,7 @@ public static class PipelineHelper
     {
         public const string Name = "text";
         public static readonly string[] Actions = ["Index"];
+        public const string NoTextFoundWarning = "No text resources found";
     }
 
     /// <summary>
@@ -51,6 +54,10 @@ public static class PipelineHelper
     {
         Name = job.JobType == PipelineJobType.TextService ? TextPipeline.Name : "unknown",
         Config = job.Config,
-        Status = job.Status.ToString()
+        Status = job.Status.ToString(),
+        Error = job.Error,
+        Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? TextPipeline.NoTextFoundWarning : null,
+        Created = job.Created,
+        Finished = job.Finished
     };
 }

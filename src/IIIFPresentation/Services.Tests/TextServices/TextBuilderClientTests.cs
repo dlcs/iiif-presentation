@@ -39,6 +39,45 @@ public class TextBuilderClientTests
     }
 
     [Fact]
+    public async Task UpsertJob_SetsInvocationIdFromResponse_WhenPostSucceeds()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK, """{"invocationCount":1}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.InvocationId.Should().Be("1");
+    }
+
+    [Fact]
+    public async Task UpsertJob_SetsInvocationIdFromResponse_WhenPutSucceedsAfterConflict()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.Conflict);
+        messageHandler.Enqueue(HttpStatusCode.OK, """{"invocationCount":2}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.InvocationId.Should().Be("2", "text-services incremented its own counter on reprocess");
+    }
+
+    [Fact]
+    public async Task UpsertJob_LeavesInvocationIdUnchanged_WhenResponseBodyIsUnparseable()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK, "not-json");
+        var job = MakeJob();
+        job.InvocationId = "7";
+
+        var result = await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        result.Should().BeTrue("an unparseable response body shouldn't fail an otherwise-successful submission");
+        job.InvocationId.Should().Be("7");
+    }
+
+    [Fact]
     public async Task UpsertJob_FallsBackToPut_WhenPostReturns409()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
@@ -65,6 +104,7 @@ public class TextBuilderClientTests
 
         result.Should().BeFalse();
         job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
+        job.Error.Should().Be("TextServices BuilderApiUri is not configured");
         messageHandler.Requests.Should().BeEmpty();
     }
 
@@ -79,6 +119,56 @@ public class TextBuilderClientTests
 
         result.Should().BeFalse();
         job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
+    }
+
+    [Fact]
+    public async Task UpsertJob_StoresErrorsFieldFromResponse_AsJobError_WhenPostReturnsNonSuccess()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.BadRequest, """{"errors":"sourceUri is invalid"}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.Error.Should().Be("sourceUri is invalid");
+    }
+
+    [Fact]
+    public async Task UpsertJob_StoresFallbackMessage_AsJobError_WhenNonSuccessResponseHasNoBody()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.InternalServerError);
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.Error.Should().Be("Text-services returned 500");
+    }
+
+    [Fact]
+    public async Task UpsertJob_StoresFallbackMessage_AsJobError_WhenResponseBodyIsUnparseable()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.BadRequest, "not-json");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.Error.Should().Be("Text-services returned 400");
+    }
+
+    [Fact]
+    public async Task UpsertJob_StoresErrorsFieldFromResponse_AsJobError_WhenPutReturnsNonSuccessAfterConflict()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.Conflict);
+        messageHandler.Enqueue(HttpStatusCode.BadRequest, """{"errors":"reprocess rejected"}""");
+        var job = MakeJob();
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        job.Status.Should().Be(PipelineJobStatus.FailedToSubmit);
+        job.Error.Should().Be("reprocess rejected");
     }
 
     [Fact]

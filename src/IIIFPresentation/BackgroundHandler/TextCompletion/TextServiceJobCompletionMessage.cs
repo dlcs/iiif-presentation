@@ -17,7 +17,8 @@ public class TextServiceJobCompletionMessage(
     DateTimeOffset? finished,
     int totalPages,
     int totalWordCount,
-    string? errors)
+    string? errors,
+    int invocationCount = 1)
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -35,6 +36,8 @@ public class TextServiceJobCompletionMessage(
     public int TotalWordCount { get; } = totalWordCount;
 
     public string? Errors { get; } = errors;
+
+    public int InvocationCount { get; } = invocationCount;
 
     public bool IsCompleted => Status == PipelineJobStatus.Completed;
 
