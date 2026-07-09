@@ -43,11 +43,14 @@ public class PipelineJobService(
 
     public async Task DeletePipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
     {
-        var hasJob = await dbContext.PipelineJobs
-            .AnyAsync(p => p.ManifestId == dbManifest.Id && p.CustomerId == dbManifest.CustomerId, cancellationToken);
-        if (!hasJob) return;
+        var job = await dbContext.PipelineJobs
+            .FirstOrDefaultAsync(p => p.ManifestId == dbManifest.Id && p.CustomerId == dbManifest.CustomerId,
+                cancellationToken);
 
-        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
+        // NotSubmitted/FailedToSubmit jobs never reached text-services, so there's nothing to delete there
+        if (job == null || job.Status is PipelineJobStatus.NotSubmitted or PipelineJobStatus.FailedToSubmit) return;
+
+        var jobId = job.GetJobId();
         if (!await textBuilderClient.DeleteJob(jobId, cancellationToken))
         {
             logger.LogWarning("Failed to delete text-services job {JobId} for manifest {ManifestId}", jobId,

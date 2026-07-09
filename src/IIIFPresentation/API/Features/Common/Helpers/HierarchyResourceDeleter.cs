@@ -81,8 +81,23 @@ public class HierarchyResourceDeleter(
         CancellationToken cancellationToken)
     {
         dbContext.Remove(manifest);
-        await iiifS3.DeleteIIIFFromS3(resource);
-        await pipelineJobService.DeletePipelineJob(manifest, cancellationToken);
+        await Task.WhenAll(
+            iiifS3.DeleteIIIFFromS3(resource),
+            DeletePipelineJobSafely(manifest, cancellationToken));
+    }
+
+    private async Task DeletePipelineJobSafely(Models.Database.Collections.Manifest manifest,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pipelineJobService.DeletePipelineJob(manifest, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Text-services being unreachable shouldn't stop the manifest itself from being deleted
+            logger.LogWarning(ex, "Error deleting text-services job for manifest {ManifestId}", manifest.Id);
+        }
     }
 
 }
