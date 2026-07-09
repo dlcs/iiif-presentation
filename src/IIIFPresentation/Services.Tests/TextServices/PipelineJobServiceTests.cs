@@ -147,6 +147,35 @@ public class PipelineJobServiceTests
     }
 
     [Fact]
+    public async Task DeletePipelineJob_CallsTextBuilderClient_WhenAnyPastInvocationWasSubmitted()
+    {
+        // A manifest can accumulate several PipelineJob rows across reprocessing; even if the most
+        // recent one never reached text-services, an earlier submitted one still needs cleaning up
+        var dbManifest = MakeManifest();
+        var jobs = new List<PipelineJob>
+        {
+            new()
+            {
+                ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService,
+                Status = PipelineJobStatus.Completed, InvocationId = "1"
+            },
+            new()
+            {
+                ManifestId = dbManifest.Id, CustomerId = dbManifest.CustomerId, JobType = PipelineJobType.TextService,
+                Status = PipelineJobStatus.FailedToSubmit, InvocationId = null
+            }
+        };
+        A.CallTo(() => dbContext.PipelineJobs).Returns(jobs.BuildMockDbSet());
+        A.CallTo(() => textBuilderClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._)).Returns(true);
+
+        await sut.DeletePipelineJob(dbManifest, CancellationToken.None);
+
+        A.CallTo(() => textBuilderClient.DeleteJob(
+            A<TextJobId>.That.Matches(j => j.CustomerId == dbManifest.CustomerId && j.ResourceId == dbManifest.Id),
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Fact]
     public async Task DeletePipelineJob_DoesNotThrow_WhenTextBuilderClientFails()
     {
         var dbManifest = MakeManifest();

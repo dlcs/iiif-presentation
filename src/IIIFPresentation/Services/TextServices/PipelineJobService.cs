@@ -43,14 +43,17 @@ public class PipelineJobService(
 
     public async Task DeletePipelineJob(DbManifest dbManifest, CancellationToken cancellationToken)
     {
-        var job = await dbContext.PipelineJobs
-            .FirstOrDefaultAsync(p => p.ManifestId == dbManifest.Id && p.CustomerId == dbManifest.CustomerId,
-                cancellationToken);
+        // A manifest can have several PipelineJob rows over its lifetime (one per invocation); the
+        // text-services job id is deterministic per manifest, so if any of them ever reached
+        // text-services (i.e. isn't NotSubmitted/FailedToSubmit) there's something to delete there
+        var everSubmitted = await dbContext.PipelineJobs.AnyAsync(p =>
+                p.ManifestId == dbManifest.Id && p.JobType == PipelineJobType.TextService &&
+                p.Status != PipelineJobStatus.NotSubmitted && p.Status != PipelineJobStatus.FailedToSubmit,
+            cancellationToken);
 
-        // NotSubmitted/FailedToSubmit jobs never reached text-services, so there's nothing to delete there
-        if (job == null || job.Status is PipelineJobStatus.NotSubmitted or PipelineJobStatus.FailedToSubmit) return;
+        if (!everSubmitted) return;
 
-        var jobId = job.GetJobId();
+        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
         if (!await textBuilderClient.DeleteJob(jobId, cancellationToken))
         {
             logger.LogWarning("Failed to delete text-services job {JobId} for manifest {ManifestId}", jobId,
