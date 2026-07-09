@@ -47,6 +47,10 @@ public class TextServiceJobCompletionMessageHandler(
 
         if (pipelineJob == null)
         {
+            Logger.LogWarning(
+                "Could not find a pipeline by  matched InvocationId {InvocationId} for job {JobId}; falling back to newest",
+                invocationId, completionMessage.JobId);
+            
             // Only expected to matter for jobs that were already in-flight with text-services when the
             // InvocationId migration ran: their row's id was backfilled sequentially by row order rather
             // than by text-services' real counter for that job, so it won't equal completionMessage's
@@ -58,11 +62,10 @@ public class TextServiceJobCompletionMessageHandler(
                 .OrderByDescending(p => p.Created)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (fallbackJob != null)
+            if (fallbackJob == null)
             {
                 Logger.LogWarning(
-                    "No PipelineJob matched InvocationId {InvocationId} for job {JobId}; falling back to newest",
-                    invocationId, completionMessage.JobId);
+                    "No PipelineJob found for job {JobId}", completionMessage.JobId);
             }
             pipelineJob = fallbackJob;
         }
