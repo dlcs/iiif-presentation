@@ -100,6 +100,27 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
     }
 
     [Fact]
+    public async Task DeleteManifest_DeletesManifest_WhenTextBuilderClientThrows()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest().WithTestPipelineJob()).Entity;
+        await dbContext.SaveChangesAsync();
+        A.CallTo(() => TextServicesClient.DeleteJob(A<TextJobId>._, A<CancellationToken>._))
+            .Throws(new HttpRequestException("text-services unreachable"));
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete,
+            $"{Customer}/manifests/{dbManifest.Id}", dbContext.GetETag(dbManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await dbContext.Manifests.CountAsync(m => m.Id == dbManifest.Id)).Should().Be(0,
+            "the manifest should still be deleted even though text-services was unreachable");
+    }
+
+    [Fact]
     public async Task DeleteManifest_NotFound_WhenDoesNotExists()
     {
         // Arrange
