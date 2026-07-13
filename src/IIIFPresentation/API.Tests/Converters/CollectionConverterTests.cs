@@ -4,6 +4,7 @@ using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
+using Models;
 using Models.API.Collection;
 using Models.Database.General;
 using Repository.Paths;
@@ -122,6 +123,39 @@ public class CollectionConverterTests
         presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
     
+    [Fact]
+    public void ToPresentationCollection_NoSearchService_IfNotRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.Service.Should().BeNull("search-across is only supported from the root collection");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_SearchService_IfRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        collection.Id = KnownCollections.RootCollection;
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var service = presentationCollection.Service.Should().ContainSingle().Subject
+            .Should().BeOfType<ExternalService>().Subject;
+        service.Id.Should().Be("http://base/1/collections/root/search");
+        service.Type.Should().Be("IIIFCS-Search");
+        service.Profile.Should().Be("level0");
+    }
+
     [Fact]
     public void ToPresentationCollection_ConvertsStorageCollection()
     {

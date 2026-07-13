@@ -1,5 +1,6 @@
 ﻿using API.Helpers;
 using Core.Helpers;
+using IIIF;
 using Core.IIIF;
 using Core.Infrastructure;
 using IIIF.Presentation;
@@ -7,6 +8,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository.Helpers;
 using Repository.Paths;
@@ -136,6 +138,7 @@ public static class CollectionConverter
         GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator, settingsBasedPathGenerator);
         
         collection.SeeAlso = GenerateSeeAlso(dbCollection, settingsBasedPathGenerator, pathGenerator);
+        collection.Service = GenerateService(dbCollection, pathGenerator);
         collection.Behavior = GenerateBehavior(dbCollection);
         collection.Totals = GetDescendantCounts(dbCollection, items);
         collection.Label = dbCollection.Label;
@@ -303,6 +306,27 @@ public static class CollectionConverter
                 Label = collection.Label,
                 Profile = profile,
             });
+    }
+
+    /// <summary>
+    /// Generates the Service part of a collection, currently only advertising the search-across capability
+    /// </summary>
+    /// <param name="collection">The collection to use in generation</param>
+    /// <param name="pathGenerator">Generates paths for collections</param>
+    /// <returns>A list of services, or null if none available</returns>
+    private static List<IService>? GenerateService(DbCollection collection, IPathGenerator pathGenerator)
+    {
+        // only the root storage collection can be searched for now
+        if (!collection.IsStorageCollection || !collection.IsRoot()) return null;
+
+        return
+        [
+            new ExternalService(PresentationServices.Search)
+            {
+                Id = pathGenerator.GenerateFlatCollectionSearchId(collection),
+                Profile = PresentationServices.SearchLevel0
+            }
+        ];
     }
 
     /// <summary>
