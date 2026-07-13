@@ -2,6 +2,7 @@
 
 using API.Features.Storage.Helpers;
 using API.Tests.Integration.Infrastructure;
+using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
@@ -82,7 +83,7 @@ public class SearchCollectionItemsTests
         await Seed();
         await using var ctx = GetScopedContext();
 
-        var results = await ctx.SearchCollectionItems("hunter thompson").ToListAsync();
+        var results = await ctx.SearchCollectionItems("hunter thompson".SplitOnWhitespace()).ToListAsync();
 
         results.Select(h => h.ResourceId).Should().BeEquivalentTo(["hst-coll", "hst-man"]);
     }
@@ -93,7 +94,7 @@ public class SearchCollectionItemsTests
         await Seed();
         await using var ctx = GetScopedContext();
 
-        var resourceIds = (await ctx.SearchCollectionItems("hunter thompson").ToListAsync())
+        var resourceIds = (await ctx.SearchCollectionItems("hunter thompson".SplitOnWhitespace()).ToListAsync())
             .Select(h => h.ResourceId).ToList();
 
         resourceIds.Should().NotContain("emma-coll", "'Emma Thompson' is missing the 'hunter' token");
@@ -106,7 +107,7 @@ public class SearchCollectionItemsTests
         await Seed();
         await using var ctx = GetScopedContext();
 
-        var results = await ctx.SearchCollectionItems("kerouac").ToListAsync();
+        var results = await ctx.SearchCollectionItems("kerouac".SplitOnWhitespace()).ToListAsync();
 
         results.Should().BeEmpty();
     }
@@ -125,7 +126,7 @@ public class SearchCollectionItemsTests
         }
 
         await using var ctx = GetScopedContext(Customer);
-        var resourceIds = (await ctx.SearchCollectionItems("hunter thompson").ToListAsync())
+        var resourceIds = (await ctx.SearchCollectionItems("hunter thompson".SplitOnWhitespace()).ToListAsync())
             .Select(h => h.ResourceId).ToList();
 
         resourceIds.Should().BeEquivalentTo(["hst-coll", "hst-man"]);
@@ -140,7 +141,7 @@ public class SearchCollectionItemsTests
 
         // single token 'thompson' matches every seeded item that has it in a value:
         // hst-coll, hst-man, emma-coll and split-man ('Thompson biography')
-        var query = ctx.SearchCollectionItems("thompson");
+        var query = ctx.SearchCollectionItems("thompson".SplitOnWhitespace());
 
         var total = await query.CountAsync();
         var firstPage = await query.AsOrderedCollectionItemsQuery(orderBy: "id").Skip(0).Take(2).ToListAsync();
@@ -172,7 +173,7 @@ public class SearchCollectionItemsTests
         }
 
         await using var ctx = GetScopedContext();
-        var results = await ctx.SearchCollectionItems("kerouac").ToListAsync();
+        var results = await ctx.SearchCollectionItems("kerouac".SplitOnWhitespace()).ToListAsync();
 
         results.Select(h => h.ResourceId).Should()
             .BeEquivalentTo(["depth-child", "depth-man"], "search is across all resources, regardless of nesting");
@@ -201,7 +202,7 @@ public class SearchCollectionItemsTests
         }
 
         await using var ctx = GetScopedContext();
-        var results = await ctx.SearchCollectionItems("kerouac").ToListAsync();
+        var results = await ctx.SearchCollectionItems("kerouac".SplitOnWhitespace()).ToListAsync();
 
         results.Should().ContainSingle().Which.Canonical.Should().BeTrue();
     }
@@ -217,7 +218,7 @@ public class SearchCollectionItemsTests
         }
 
         await using var ctx = GetScopedContext();
-        var results = await ctx.SearchCollectionItems("kerouac").ToListAsync();
+        var results = await ctx.SearchCollectionItems("kerouac".SplitOnWhitespace()).ToListAsync();
 
         results.Select(h => h.ResourceId).Should().BeEquivalentTo(["welsh-man"],
             "all label values are searched, whatever the language key");
@@ -246,7 +247,7 @@ public class SearchCollectionItemsTests
         }
 
         await using var ctx = GetScopedContext();
-        var results = await ctx.SearchCollectionItems(term).ToListAsync();
+        var results = await ctx.SearchCollectionItems(term.SplitOnWhitespace()).ToListAsync();
 
         results.Select(h => h.ResourceId).Should().BeEquivalentTo([expectedMatch]);
     }
@@ -257,7 +258,7 @@ public class SearchCollectionItemsTests
         await Seed();
         await using var ctx = GetScopedContext();
 
-        var results = await ctx.SearchCollectionItems("hunter thompson").ToListAsync();
+        var results = await ctx.SearchCollectionItems("hunter thompson".SplitOnWhitespace()).ToListAsync();
 
         results.Single(h => h.ResourceId == "hst-coll").Collection.Should().NotBeNull();
         results.Single(h => h.ResourceId == "hst-man").Manifest.Should().NotBeNull();
@@ -276,7 +277,7 @@ public class SearchCollectionItemsTests
 
         await using var ctx = GetScopedContext();
 
-        var results = await ctx.SearchCollectionItems("kerouac").ToListAsync();
+        var results = await ctx.SearchCollectionItems("kerouac".SplitOnWhitespace()).ToListAsync();
 
         results.Should().BeEmpty();
     }
@@ -289,7 +290,7 @@ public class SearchCollectionItemsTests
         await Seed();
         await using var ctx = GetScopedContext();
 
-        var query = ctx.SearchCollectionItems(term);
+        var query = ctx.SearchCollectionItems(term.SplitOnWhitespace());
 
         (await query.CountAsync()).Should().Be(0);
         (await query.Skip(0).Take(10).ToListAsync()).Should().BeEmpty();

@@ -94,11 +94,13 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
     [InlineData("a")]
     [InlineData("ab")]
     [InlineData("  ab  ")]
+    [InlineData("a b")] // no single term is selective, despite the label as a whole being over the minimum length
+    [InlineData("  a   b  ")]
     public async Task Search_ReturnsBadRequest_WhenLabelBelowMinimumLength(string label)
     {
         // Act
-        var response =
-            await httpClient.AsCustomer().GetAsync($"1/collections/{RootCollection.Id}/search?label={label}");
+        var response = await httpClient.AsCustomer()
+            .GetAsync($"1/collections/{RootCollection.Id}/search?label={Uri.EscapeDataString(label)}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -113,10 +115,13 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Act
         var response = await httpClient.AsCustomer(SearchCustomer)
             .GetAsync($"{SearchCustomer}/collections/{RootCollection.Id}/search?label=hunter+thompson");
+        var rawBody = await response.Content.ReadAsStringAsync();
         var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        rawBody.Should().NotContain("\"created\"", "audit props are meaningless on a synthetic search collection")
+            .And.NotContain("\"modified\"");
         collection!.Id.Should().Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}/search");
         collection.SeeAlso.Should().ContainSingle().Which.Id.Should()
             .Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}", "links back to what was searched");
@@ -126,6 +131,24 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
             .Be($"http://localhost/{SearchCustomer}/collections/hst-coll");
         collection.Items.OfType<Manifest>().Single().Id.Should()
             .Be($"http://localhost/{SearchCustomer}/manifests/hst-man");
+    }
+
+    [Fact]
+    public async Task Search_AllowsShortTerm_WhenAnotherTermIsLongEnough()
+    {
+        // Arrange
+        await SeedSearchCustomer();
+
+        // Act - "s." is under the minimum length, but "thompson" makes the search selective
+        var response = await httpClient.AsCustomer(SearchCustomer)
+            .GetAsync($"{SearchCustomer}/collections/{RootCollection.Id}/search?label=thompson+s.");
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.TotalItems.Should().Be(1, "the short term still narrows the search - 'Thompson, Hunter' has no 's.'");
+        collection.Items.OfType<Collection>().Single().Id.Should()
+            .Be($"http://localhost/{SearchCustomer}/collections/hst-coll");
     }
 
     [Fact]

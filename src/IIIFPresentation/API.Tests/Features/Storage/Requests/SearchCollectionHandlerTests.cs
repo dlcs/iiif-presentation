@@ -4,6 +4,7 @@ using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
 using Core.Web;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository;
@@ -54,6 +55,22 @@ public class SearchCollectionHandlerTests
             new NullLogger<SearchCollectionHandler>());
     }
 
+    /// <summary>
+    /// Gets a context for the customer, ensuring they have the root collection they'd get on creation. CleanUp()
+    /// preserves 'root' for all customers, so this is idempotent across tests sharing the fixture.
+    /// </summary>
+    private async Task<PresentationContext> GetSeededContext()
+    {
+        var ctx = GetScopedContext();
+        if (!await ctx.Collections.AnyAsync(c => c.Id == RootCollection.Id))
+        {
+            await ctx.Collections.AddTestRootCollection(Customer);
+            await ctx.SaveChangesAsync();
+        }
+
+        return ctx;
+    }
+
     [Fact]
     public async Task Handle_ReturnsNotFound_WhenCollectionDoesNotExist()
     {
@@ -61,8 +78,8 @@ public class SearchCollectionHandlerTests
         await using var ctx = GetScopedContext();
 
         // Act
-        var result = await GetSut(ctx).Handle(new SearchCollection("i-do-not-exist", "thompson", 1, 10),
-            CancellationToken.None);
+        var result = await GetSut(ctx).Handle(
+            new SearchCollection("i-do-not-exist", "thompson", ["thompson"], 1, 10), CancellationToken.None);
 
         // Assert
         result.EntityNotFound.Should().BeTrue();
@@ -77,29 +94,47 @@ public class SearchCollectionHandlerTests
         await ctx.SaveChangesAsync();
 
         // Act - unreachable via the API today (search is root-only) but the handler must still refuse
-        var result = await GetSut(ctx).Handle(new SearchCollection("iiif-coll", "thompson", 1, 10),
+        var result = await GetSut(ctx).Handle(new SearchCollection("iiif-coll", "thompson", ["thompson"], 1, 10),
             CancellationToken.None);
 
         // Assert
         result.BadRequest.Should().BeTrue();
         result.Error.Should().BeTrue("BadRequest must not be mistaken for success by callers that ignore it");
         result.Entity.Should().BeNull();
-        result.ErrorMessage.Should().Be("Search is only supported for storage collections");
+        result.ErrorMessage.Should().Be("Search is only supported for the root storage collection");
     }
 
     [Fact]
-    public async Task Handle_ReturnsResults_WhenCollectionIsStorageCollection()
+    public async Task Handle_ReturnsBadRequest_WhenStorageCollectionIsNotRoot()
     {
         // Arrange
-        await using var ctx = GetScopedContext();
-        var storageCollection =
-            (await ctx.Collections.AddTestCollection(id: "storage-coll", customer: Customer, parent: null)).Entity;
+        await using var ctx = await GetSeededContext();
+        var storageCollection = (await ctx.Collections.AddTestCollection(id: "storage-coll", customer: Customer)).Entity;
         storageCollection.Label = new LanguageMap("en", ["Hunter S. Thompson"]);
         await ctx.SaveChangesAsync();
 
-        // Act
-        var result = await GetSut(ctx).Handle(new SearchCollection("storage-coll", "thompson", 1, 10),
+        // Act - the search query is customer-wide, so a non-root collection would return items from outside itself
+        var result = await GetSut(ctx).Handle(new SearchCollection("storage-coll", "thompson", ["thompson"], 1, 10),
             CancellationToken.None);
+
+        // Assert
+        result.BadRequest.Should().BeTrue();
+        result.Entity.Should().BeNull();
+        result.ErrorMessage.Should().Be("Search is only supported for the root storage collection");
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsResults_WhenCollectionIsRoot()
+    {
+        // Arrange
+        await using var ctx = await GetSeededContext();
+        await ctx.Manifests.AddTestManifest(id: "hst-man", customer: Customer,
+            label: new LanguageMap("en", ["Hunter S. Thompson"]));
+        await ctx.SaveChangesAsync();
+
+        // Act
+        var result = await GetSut(ctx).Handle(
+            new SearchCollection(RootCollection.Id, "thompson", ["thompson"], 1, 10), CancellationToken.None);
 
         // Assert
         result.BadRequest.Should().BeFalse();

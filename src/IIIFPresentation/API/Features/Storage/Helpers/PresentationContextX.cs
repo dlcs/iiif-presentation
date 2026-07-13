@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using API.Infrastructure.Requests;
+using API.Settings;
 using Core;
 using IIIF;
 using Microsoft.EntityFrameworkCore;
@@ -180,10 +181,14 @@ public static class PresentationContextX
     /// and, case-insensitively and language-agnostically, ALL tokens must appear within a single label value
     /// (same-value AND). e.g. "Hunter Thompson" matches "Thompson, Hunter" but not "Emma Thompson".
     /// </remarks>
-    public static IQueryable<Hierarchy> SearchCollectionItems(this PresentationContext dbContext, string label)
+    /// <param name="dbContext">Current db context</param>
+    /// <param name="terms">
+    /// Search terms, already tokenised - each is matched as a substring. Every term is scanned with an unindexed
+    /// ILIKE, so callers must reject terms too short to be selective (see <see cref="ApiSettings.MinSearchLength"/>)
+    /// </param>
+    public static IQueryable<Hierarchy> SearchCollectionItems(this PresentationContext dbContext, string[] terms)
     {
-        var tokens = label
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var tokens = terms
             .Select(EscapeForILike)
             .Distinct()
             .ToList();
@@ -216,6 +221,7 @@ public static class PresentationContextX
 
         return dbContext.Hierarchy
             .FromSqlRaw(sql.ToString(), parameters.ToArray())
+            .AsNoTracking()
             .Include(h => h.Collection)
             .Include(h => h.Manifest);
     }

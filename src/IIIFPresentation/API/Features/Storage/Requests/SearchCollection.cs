@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
+using Models.Database.Collections;
 using Repository;
 using Repository.Collections;
 using Repository.Paths;
@@ -17,6 +18,7 @@ namespace API.Features.Storage.Requests;
 public class SearchCollection(
     string id,
     string label,
+    string[] terms,
     int? page,
     int? pageSize,
     string? orderBy = null,
@@ -25,7 +27,11 @@ public class SearchCollection(
 {
     public string Id { get; } = id;
 
+    /// <summary>The search term as supplied, used to label and link the results</summary>
     public string Label { get; } = label;
+
+    /// <summary>The search term tokenised into the individual terms to match on</summary>
+    public string[] Terms { get; } = terms;
 
     public int? Page { get; } = page;
 
@@ -54,12 +60,15 @@ public class SearchCollectionHandler(
 
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
-        // Only storage collections can be searched - their items are db records, whereas an IIIF collection's items
-        // are stored in S3. Currently unreachable as callers restrict search to 'root', but the guard belongs here.
-        if (!collection.IsStorageCollection)
-            return FetchEntityResult<PresentationCollection>.Invalid("Search is only supported for storage collections");
+        // For MVP SearchCollectionItems searches every resource in the customer, so it only gives the right answer for
+        // the root collection, guard here.
+        if (!collection.IsStorageCollection || !collection.IsRoot())
+        {
+            return FetchEntityResult<PresentationCollection>.Invalid(
+                "Search is only supported for the root storage collection");
+        }
 
-        var searchQuery = dbContext.SearchCollectionItems(request.Label);
+        var searchQuery = dbContext.SearchCollectionItems(request.Terms);
 
         // Label search is an un-indexed ILIKE scan (see RFC 0008), so time the 2 queries it runs separately - the
         // count has no LIMIT to short-circuit it, so is expected to be the more expensive of the pair

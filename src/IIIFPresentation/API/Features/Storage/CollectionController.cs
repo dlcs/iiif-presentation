@@ -10,6 +10,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
+using Core.Helpers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -67,18 +68,20 @@ public class CollectionController(
         // MVP: only the root collection supports search-across
         if (!KnownCollections.IsRoot(id)) return this.PresentationNotFound();
 
-        // Validate search term length (configurable minimum, default 3)
+        // Validate search term length, at least one must match minimum length
         var term = label?.Trim() ?? string.Empty;
-        if (term.Length < Settings.MinSearchLength)
+        var terms = term.SplitOnWhitespace();
+        if (!terms.Any(t => t.Length >= Settings.MinSearchLength))
         {
-            return this.PresentationProblem($"Search term must be at least {Settings.MinSearchLength} characters",
+            return this.PresentationProblem(
+                $"At least one search term must be {Settings.MinSearchLength} characters or more",
                 null, (int)HttpStatusCode.BadRequest, "Bad request",
                 this.GetErrorType(ModifyCollectionType.ValidationFailed));
         }
 
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
 
-        return await HandleFetch(new SearchCollection(id, term, page, pageSize, orderByField, descending),
+        return await HandleFetch(new SearchCollection(id, term, terms, page, pageSize, orderByField, descending),
             errorTitle: "Search failed");
     }
 
