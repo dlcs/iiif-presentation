@@ -594,8 +594,8 @@ public class CollectionConverterTests
         searchCollection.Behavior.Should().BeNull();
         searchCollection.Totals.Should().BeNull("descendant counts can't be derived from a page of results");
         searchCollection.ItemsOrder.Should().BeNull();
-        searchCollection.Created.Should().Be(default);
-        searchCollection.Modified.Should().Be(default);
+        searchCollection.Created.Should().BeNull();
+        searchCollection.Modified.Should().BeNull();
         searchCollection.CreatedBy.Should().BeNull();
         searchCollection.ModifiedBy.Should().BeNull();
     }

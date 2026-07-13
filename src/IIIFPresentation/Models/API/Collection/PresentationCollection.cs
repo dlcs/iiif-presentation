@@ -18,9 +18,9 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
     [JsonProperty(Order = 7)] public string? PublicId { get; set; }
     [JsonProperty(Order = 8)] public string? Parent { get; set; }
-    [JsonProperty(Order = 9)] public DateTime Created { get; set; }
+    [JsonProperty(Order = 9)] public DateTime? Created { get; set; }
 
-    [JsonProperty(Order = 9)] public DateTime Modified { get; set; }
+    [JsonProperty(Order = 9)] public DateTime? Modified { get; set; }
 
     [JsonProperty(Order = 10)] public string? CreatedBy { get; set; }
 
