@@ -14,7 +14,13 @@ using Repository.Paths;
 
 namespace API.Features.Storage.Requests;
 
-public class SearchCollection(string id, string label, int? page, int? pageSize)
+public class SearchCollection(
+    string id,
+    string label,
+    int? page,
+    int? pageSize,
+    string? orderBy = null,
+    bool descending = false)
     : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
 {
     public string Id { get; } = id;
@@ -25,10 +31,9 @@ public class SearchCollection(string id, string label, int? page, int? pageSize)
 
     public int? PageSize { get; } = pageSize;
 
-    // Search does not expose ordering yet (see RFC 0008); results use the default order.
-    public string? OrderBy => null;
+    public string? OrderBy { get; } = orderBy;
 
-    public bool Descending => false;
+    public bool Descending { get; } = descending;
 }
 
 public class SearchCollectionHandler(

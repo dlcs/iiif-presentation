@@ -62,7 +62,7 @@ public class CollectionController(
     [Authorize]
     [HttpGet("collections/{id}/search")]
     public async Task<IActionResult> Search(int customerId, string id, string? label = null, int? page = 1,
-        int? pageSize = -1)
+        int? pageSize = -1, string? orderBy = null, string? orderByDescending = null)
     {
         // MVP: only the root collection supports search-across
         if (!KnownCollections.IsRoot(id)) return this.PresentationNotFound();
@@ -76,7 +76,10 @@ public class CollectionController(
                 this.GetErrorType(ModifyCollectionType.ValidationFailed));
         }
 
-        return await HandleFetch(new SearchCollection(id, term, page, pageSize), errorTitle: "Search failed");
+        var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
+
+        return await HandleFetch(new SearchCollection(id, term, page, pageSize, orderByField, descending),
+            errorTitle: "Search failed");
     }
 
     [Authorize]

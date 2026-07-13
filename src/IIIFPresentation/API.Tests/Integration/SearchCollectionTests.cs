@@ -145,6 +145,50 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
         collection.Items.Should().BeNullOrEmpty("an empty items list isn't serialised");
     }
 
+    [Theory]
+    [InlineData("orderBy=id", "hst-coll", "hst-man")]
+    [InlineData("orderByDescending=id", "hst-man", "hst-coll")]
+    public async Task Search_OrdersResults(string orderQueryParam, string firstId, string secondId)
+    {
+        // Arrange
+        await SeedSearchCustomer();
+
+        // Act
+        var response = await httpClient.AsCustomer(SearchCustomer).GetAsync(
+            $"{SearchCustomer}/collections/{RootCollection.Id}/search?label=hunter+thompson&{orderQueryParam}");
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Items.OfType<ResourceBase>().Select(i => i.Id).Should()
+            .ContainInOrder(GetFlatId(firstId), GetFlatId(secondId));
+        return;
+
+        string GetFlatId(string id) => id.EndsWith("-man")
+            ? $"http://localhost/{SearchCustomer}/manifests/{id}"
+            : $"http://localhost/{SearchCustomer}/collections/{id}";
+    }
+
+    [Fact]
+    public async Task Search_ViewPreservesOrdering()
+    {
+        // Arrange
+        await SeedSearchCustomer();
+        var searchPath = $"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}/search";
+
+        // Act - pageSize of 1 forces a second page, so paging links are generated
+        var response = await httpClient.AsCustomer(SearchCustomer).GetAsync(
+            $"{SearchCustomer}/collections/{RootCollection.Id}/search?label=hunter+thompson&pageSize=1&orderByDescending=id");
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.View.Id.Should()
+            .Be($"{searchPath}?label=hunter%20thompson&page=1&pageSize=1&orderByDescending=id");
+        collection.View.Next.Should()
+            .Be(new Uri($"{searchPath}?label=hunter%20thompson&page=2&pageSize=1&orderByDescending=id"));
+    }
+
     [Fact]
     public async Task Search_ViewPointsAtSearchEndpoint_PreservingSearchTerm()
     {
