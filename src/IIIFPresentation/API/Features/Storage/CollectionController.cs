@@ -61,7 +61,8 @@ public class CollectionController(
 
     [Authorize]
     [HttpGet("collections/{id}/search")]
-    public IActionResult Search(int customerId, string id, string? label = null, int? page = 1, int? pageSize = -1)
+    public async Task<IActionResult> Search(int customerId, string id, string? label = null, int? page = 1,
+        int? pageSize = -1)
     {
         // MVP: only the root collection supports search-across
         if (!KnownCollections.IsRoot(id)) return this.PresentationNotFound();
@@ -69,14 +70,13 @@ public class CollectionController(
         // Validate search term length (configurable minimum, default 3)
         var term = label?.Trim() ?? string.Empty;
         if (term.Length < Settings.MinSearchLength)
+        {
             return this.PresentationProblem($"Search term must be at least {Settings.MinSearchLength} characters",
                 null, (int)HttpStatusCode.BadRequest, "Bad request",
                 this.GetErrorType(ModifyCollectionType.ValidationFailed));
+        }
 
-        // TODO (next slice, GH #631): normalise paging (shared with GetCollection) + run label
-        // search, return synthetic paged Collection
-        return this.PresentationProblem("Search is not yet implemented", null,
-            (int)HttpStatusCode.NotImplemented, "Not implemented");
+        return await HandleFetch(new SearchCollection(id, term, page, pageSize), errorTitle: "Search failed");
     }
 
     [Authorize]

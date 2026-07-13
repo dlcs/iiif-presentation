@@ -48,13 +48,13 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
         if (request.IfNoneMatch.Contains(collection.Etag))
+        {
             return FetchEntityResult<PresentationCollection>.Matched(collection.Etag);
+        }
 
         var hierarchy = collection.Hierarchy.GetCanonical();
 
         var parentCollection = collection.Hierarchy?.SingleOrDefault()?.ParentCollection;
-
-        var requestModifiers = request.GetRequestModifiers(options.Value);
 
         if (hierarchy.Parent != null)
         {
@@ -64,6 +64,8 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
 
         if (collection.IsStorageCollection)
         {
+            var requestModifiers = request.GetRequestModifiers(options.Value);
+            
             var items = await dbContext.RetrieveCollectionItems(collection.Id)
                 .AsOrderedCollectionItemsQuery(requestModifiers.OrderBy, requestModifiers.Descending)
                 .Skip((requestModifiers.Page - 1) * requestModifiers.PageSize)

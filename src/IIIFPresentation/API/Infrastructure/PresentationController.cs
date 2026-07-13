@@ -160,13 +160,13 @@ public abstract class PresentationController : Controller
         string? instance = null,
         string? errorTitle = "Fetch failed",
         CancellationToken cancellationToken = default)
-        where T : class
+        where T : JsonLdBase
     {
         return await HandleRequest(async () =>
         {
             var result = await Mediator.Send(request, cancellationToken);
 
-            return this.FetchResultToHttpResult(result);
+            return this.FetchResultToHttpResult(result, instance, errorTitle);
         }, errorTitle);
     }
 

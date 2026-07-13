@@ -42,6 +42,27 @@ public static class CollectionConverter
             parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
 
     /// <summary>
+    /// Converts a db collection to a synthetic <see cref="PresentationCollection"/> holding a page of search results
+    /// (see RFC 0008). Differs from <see cref="ToPresentationCollection"/> in that the View points at the search
+    /// endpoint, carrying the search term, and 'totals' is omitted - descendant counts of the searched collection
+    /// can't be derived from a page of search results.
+    /// </summary>
+    public static PresentationCollection ToSearchCollection(this DbCollection dbAsset, string label, int pageSize,
+        int currentPage, int totalItems, IList<Hierarchy> items, DbCollection? parentCollection,
+        IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator,
+        string? orderQueryParam = null)
+    {
+        var collection = new PresentationCollection().EnrichPresentationCollection(dbAsset, pageSize, currentPage,
+            totalItems, items, parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
+
+        collection.Totals = null;
+        collection.View = GenerateSearchView(dbAsset, label, pathGenerator, pageSize, currentPage,
+            GenerateTotalPages(pageSize, totalItems), GenerateOrderQueryParamConverted(orderQueryParam));
+
+        return collection;
+    }
+
+    /// <summary>
     /// Sets generated fields on a IIIF collection
     /// </summary>
     /// <param name="collection">The collection to set fields on</param>
@@ -315,6 +336,40 @@ public static class CollectionConverter
         return view;
     }
     
+    /// <summary>
+    /// Generates the view component of a page of search results - as <see cref="GenerateView"/> but all links point
+    /// back at the search endpoint, preserving the search term
+    /// </summary>
+    private static View GenerateSearchView(DbCollection collection, string label, IPathGenerator pathGenerator,
+        int pageSize, int currentPage, int totalPages, string? orderQueryParam)
+    {
+        var view = new View
+        {
+            Id = SearchViewId(currentPage),
+            Type = PresentationType.PartialCollectionView,
+            Page = currentPage,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+        };
+
+        if (currentPage > 1)
+        {
+            view.First = new Uri(SearchViewId(1));
+            view.Previous = new Uri(SearchViewId(currentPage - 1));
+        }
+
+        if (totalPages > currentPage)
+        {
+            view.Next = new Uri(SearchViewId(currentPage + 1));
+            view.Last = new Uri(SearchViewId(totalPages));
+        }
+
+        return view;
+
+        string SearchViewId(int page) =>
+            pathGenerator.GenerateFlatCollectionSearchView(collection, label, page, pageSize, orderQueryParam);
+    }
+
     private static DescendantCounts? GetDescendantCounts(DbCollection dbAsset, IList<Hierarchy>? items)
     {
         if (!dbAsset.IsStorageCollection) return null;
