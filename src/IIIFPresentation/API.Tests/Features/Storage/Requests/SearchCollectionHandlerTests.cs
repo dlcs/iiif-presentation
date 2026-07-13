@@ -4,6 +4,7 @@ using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
 using Core.Web;
 using IIIF.Presentation.V3.Strings;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository;
 using Services.Manifests.Helpers;
@@ -49,8 +50,8 @@ public class SearchCollectionHandlerTests
             DLCS = dlcsSettings
         });
 
-        return new SearchCollectionHandler(dbContext, settingsBasedPathGenerator, settingsBasedPathGenerator,
-            apiSettings);
+        return new SearchCollectionHandler(dbContext, settingsBasedPathGenerator, apiSettings,
+            new NullLogger<SearchCollectionHandler>());
     }
 
     [Fact]

@@ -21,6 +21,11 @@ public class ApiSettings
     /// Minimum number of characters required in a search term before a search is run
     /// </summary>
     public int MinSearchLength { get; set; } = 3;
+
+    /// <summary>
+    /// Search queries taking longer than this, in milliseconds, are logged as a warning
+    /// </summary>
+    public int SlowSearchThresholdMs { get; set; } = 1000;
     
     public string? PathBase { get; set; }
     

@@ -117,7 +117,9 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        collection!.Id.Should().Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}");
+        collection!.Id.Should().Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}/search");
+        collection.SeeAlso.Should().ContainSingle().Which.Id.Should()
+            .Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}", "links back to what was searched");
         collection.TotalItems.Should().Be(2, "'Emma Thompson' is not a match");
 
         collection.Items.OfType<Collection>().Single().Id.Should()

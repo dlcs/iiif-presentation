@@ -5,6 +5,7 @@ using Core.Infrastructure;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
 using Models.Database.General;
 using Repository.Helpers;
@@ -43,21 +44,38 @@ public static class CollectionConverter
 
     /// <summary>
     /// Converts a db collection to a synthetic <see cref="PresentationCollection"/> holding a page of search results
-    /// (see RFC 0008). Differs from <see cref="ToPresentationCollection"/> in that the View points at the search
-    /// endpoint, carrying the search term, and 'totals' is omitted - descendant counts of the searched collection
-    /// can't be derived from a page of search results.
+    /// (see RFC 0008).
     /// </summary>
+    /// <remarks>
+    /// Deliberately does NOT share <see cref="EnrichPresentationCollection"/>: the returned resource is not the
+    /// searched collection, it's a synthetic rendering of some of its contents, so properties that describe the
+    /// collection itself (created/modified, slug, parent, partOf, publicId, behavior, totals...) do not belong on it.
+    /// Only the Id (which is the search endpoint), the searched collection's Tags, and a SeeAlso pointing back at
+    /// the collection being searched are carried over.
+    /// </remarks>
     public static PresentationCollection ToSearchCollection(this DbCollection dbAsset, string label, int pageSize,
-        int currentPage, int totalItems, IList<Hierarchy> items, DbCollection? parentCollection,
-        IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator,
+        int currentPage, int totalItems, IList<Hierarchy> items, IPathGenerator pathGenerator,
         string? orderQueryParam = null)
     {
-        var collection = new PresentationCollection().EnrichPresentationCollection(dbAsset, pageSize, currentPage,
-            totalItems, items, parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
-
-        collection.Totals = null;
-        collection.View = GenerateSearchView(dbAsset, label, pathGenerator, pageSize, currentPage,
-            GenerateTotalPages(pageSize, totalItems), GenerateOrderQueryParamConverted(orderQueryParam));
+        var collection = new PresentationCollection
+        {
+            Id = pathGenerator.GenerateFlatCollectionSearchId(dbAsset),
+            Context = GenerateContext(),
+            Label = new LanguageMap("en", $"Search results for '{label}' in '{dbAsset.Id}'"),
+            Tags = dbAsset.Tags,
+            SeeAlso =
+            [
+                new ExternalResource(nameof(PresentationType.Collection))
+                {
+                    Id = pathGenerator.GenerateFlatCollectionId(dbAsset),
+                    Label = dbAsset.Label
+                }
+            ],
+            Items = GenerateItems(pathGenerator, items),
+            TotalItems = totalItems,
+            View = GenerateSearchView(dbAsset, label, pathGenerator, pageSize, currentPage,
+                GenerateTotalPages(pageSize, totalItems), GenerateOrderQueryParamConverted(orderQueryParam))
+        };
 
         return collection;
     }

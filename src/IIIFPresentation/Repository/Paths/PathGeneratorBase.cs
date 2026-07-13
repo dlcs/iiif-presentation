@@ -59,9 +59,12 @@ public abstract class PathGeneratorBase(IPresentationPathGenerator presentationP
         string orderQueryParam) => new(
         $"{GenerateFlatCollectionId(collection)}?page={lastPage}&pageSize={pageSize}{orderQueryParam}");
     
+    public string GenerateFlatCollectionSearchId(Collection collection) =>
+        $"{GenerateFlatCollectionId(collection)}/search";
+
     public string GenerateFlatCollectionSearchView(Collection collection, string label, int page, int pageSize,
         string? orderQueryParam) =>
-        $"{GenerateFlatCollectionId(collection)}/search?label={Uri.EscapeDataString(label)}&page={page}&pageSize={pageSize}{orderQueryParam}";
+        $"{GenerateFlatCollectionSearchId(collection)}?label={Uri.EscapeDataString(label)}&page={page}&pageSize={pageSize}{orderQueryParam}";
 
     public string GenerateFullPath(Hierarchy collection, Hierarchy parent)
         => GenerateFullPath(collection, parent.FullPath);

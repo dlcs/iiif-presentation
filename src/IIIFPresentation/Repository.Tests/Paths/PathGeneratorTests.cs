@@ -173,6 +173,23 @@ public class PathGeneratorTests
         id.Should().Be("http://base/0/collections/test?page=1&pageSize=10&test");
     }
 
+    [Fact]
+    public void GenerateFlatCollectionSearchId_CreatesSearchId()
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "test",
+            Hierarchy = GetDefaultHierarchyList()
+        };
+
+        // Act
+        var id = pathGenerator.GenerateFlatCollectionSearchId(collection);
+
+        // Assert
+        id.Should().Be("http://base/0/collections/test/search");
+    }
+
     [Theory]
     [InlineData("&test")]
     [InlineData(null)]

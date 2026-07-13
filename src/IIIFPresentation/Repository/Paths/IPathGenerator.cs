@@ -56,6 +56,11 @@ public interface IPathGenerator
         string orderQueryParam);
 
     /// <summary>
+    /// Get the search endpoint for the given collection, e.g. {collection}/search
+    /// </summary>
+    string GenerateFlatCollectionSearchId(Collection collection);
+
+    /// <summary>
     /// Get the id for a page of search results for the given collection, e.g.
     /// {collection}/search?label=medicine&amp;page=1&amp;pageSize=100
     /// </summary>
