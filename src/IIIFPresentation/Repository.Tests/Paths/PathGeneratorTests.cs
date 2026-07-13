@@ -174,6 +174,45 @@ public class PathGeneratorTests
     }
 
     [Theory]
+    [InlineData("&test")]
+    [InlineData(null)]
+    public void GenerateFlatCollectionSearchView_CreatesSearchViewId(string? orderQueryParam)
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "test",
+            Hierarchy = GetDefaultHierarchyList()
+        };
+
+        // Act
+        var id = pathGenerator.GenerateFlatCollectionSearchView(collection, "medicine", 2, 10, orderQueryParam);
+
+        // Assert
+        id.Should().Be($"http://base/0/collections/test/search?label=medicine&page=2&pageSize=10{orderQueryParam}");
+    }
+
+    [Theory]
+    [InlineData("hunter thompson", "hunter%20thompson")]
+    [InlineData("19th century & co", "19th%20century%20%26%20co")]
+    [InlineData("100%", "100%25")]
+    public void GenerateFlatCollectionSearchView_EscapesSearchTerm(string label, string expected)
+    {
+        // Arrange
+        var collection = new Collection
+        {
+            Id = "test",
+            Hierarchy = GetDefaultHierarchyList()
+        };
+
+        // Act
+        var id = pathGenerator.GenerateFlatCollectionSearchView(collection, label, 1, 10, null);
+
+        // Assert
+        id.Should().Be($"http://base/0/collections/test/search?label={expected}&page=1&pageSize=10");
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(null)]
     public void GenerateFullPath_Correct_ParentFullPathNullOrEmpty(string? path)
@@ -493,8 +532,6 @@ public class PathGeneratorTests
     public void GetModifiedImageRequest_SetsSizeParam_WhenRewritten(string input, string expected)
     {
         // Verify that we can handle image paths for "rewritten" (non standard) asset paths
-        const int customerId = 123;
-        const int spaceId = 456;
         const int width = 75;
         const int height = 50;
 
