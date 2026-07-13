@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Requests;
+﻿using System.Text;
+using API.Infrastructure.Requests;
 using Core;
 using IIIF;
 using Microsoft.EntityFrameworkCore;
@@ -166,6 +167,62 @@ public static class PresentationContextX
 
         return hierarchy;
     }
+
+    /// <summary>
+    /// Searches across all resources (Collections + Manifests) in the customer by label value, regardless of
+    /// nesting depth, returning the matching canonical <see cref="Hierarchy"/> rows so they can be shaped into
+    /// a Collection via the CollectionConverter. Customer scoping is applied automatically by the global query
+    /// filter; the returned query is composable, so callers add ordering/paging on top.
+    /// </summary>
+    /// <remarks>
+    /// Label is jsonb but persisted via a value converter, so a LINQ predicate won't translate. This uses raw
+    /// SQL following RFC 0008 (docs/rfcs/0008-search-across-mvp.md): the term is split into whitespace tokens
+    /// and, case-insensitively and language-agnostically, ALL tokens must appear within a single label value
+    /// (same-value AND). e.g. "Hunter Thompson" matches "Thompson, Hunter" but not "Emma Thompson".
+    /// </remarks>
+    public static IQueryable<Hierarchy> SearchCollectionItems(this PresentationContext dbContext, string label)
+    {
+        var tokens = label
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(EscapeForILike)
+            .Distinct()
+            .ToList();
+
+        // Nothing searchable (e.g. all-whitespace) - return an empty, still-composable query
+        if (tokens.Count == 0) return dbContext.Hierarchy.Where(_ => false);
+
+        var sql = new StringBuilder(
+            """
+            SELECT h.* FROM hierarchy h
+            LEFT JOIN collections c ON c.id = h.collection_id AND c.customer_id = h.customer_id
+            LEFT JOIN manifests m ON m.id = h.manifest_id AND m.customer_id = h.customer_id
+            WHERE h.canonical
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_each(COALESCE(c.label, m.label)) AS kv,
+                     LATERAL jsonb_array_elements_text(kv.value) AS val
+                WHERE
+            """);
+
+        var parameters = new List<object>();
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            sql.Append(i == 0 ? " " : " AND ");
+            sql.Append($"val ILIKE {{{parameters.Count}}}");
+            parameters.Add($"%{tokens[i]}%");
+        }
+
+        sql.Append(')');
+
+        return dbContext.Hierarchy
+            .FromSqlRaw(sql.ToString(), parameters.ToArray())
+            .Include(h => h.Collection)
+            .Include(h => h.Manifest);
+    }
+
+    // Escapes LIKE/ILIKE wildcards so user input matches literally (default '\' escape char).
+    private static string EscapeForILike(string token) =>
+        token.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     public static async Task<int> GetTotalItemCountForCollection(this PresentationContext dbContext,
         Collection collection, int itemCount, int pageSize, int pageNo, CancellationToken cancellationToken = default)
