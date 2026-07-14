@@ -10,9 +10,9 @@ public interface IPresentation
     public string? FlatId { get; set; }
     string? Slug { get; set; }
     string? Parent { get; set; }
-    public DateTime Created { get; set; }
+    public DateTime? Created { get; set; }
 
-    public DateTime Modified { get; set; }
+    public DateTime? Modified { get; set; }
 
     public string? CreatedBy { get; set; }
 

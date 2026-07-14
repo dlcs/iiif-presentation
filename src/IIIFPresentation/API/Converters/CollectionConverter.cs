@@ -1,11 +1,14 @@
 ﻿using API.Helpers;
 using Core.Helpers;
+using IIIF;
 using Core.IIIF;
 using Core.Infrastructure;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository.Helpers;
 using Repository.Paths;
@@ -38,8 +41,46 @@ public static class CollectionConverter
     public static PresentationCollection ToPresentationCollection(this DbCollection dbAsset,
         int pageSize, int currentPage, int totalItems, IList<Hierarchy>? items, DbCollection? parentCollection,
         IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, string? orderQueryParam = null) =>
-        EnrichPresentationCollection(new PresentationCollection(), dbAsset, pageSize, currentPage, totalItems, items,
+        new PresentationCollection().EnrichPresentationCollection(dbAsset, pageSize, currentPage, totalItems, items,
             parentCollection, pathGenerator, settingsBasedPathGenerator, orderQueryParam);
+
+    /// <summary>
+    /// Converts a db collection to a synthetic <see cref="PresentationCollection"/> holding a page of search results
+    /// (see RFC 0008).
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does NOT share <see cref="EnrichPresentationCollection"/>: the returned resource is not the
+    /// searched collection, it's a synthetic rendering of some of its contents, so properties that describe the
+    /// collection itself (created/modified, slug, parent, partOf, publicId, behavior, totals...) do not belong on it.
+    /// Only the Id (which is the search endpoint), the searched collection's Tags, and a SeeAlso pointing back at
+    /// the collection being searched are carried over.
+    /// </remarks>
+    public static PresentationCollection ToSearchCollection(this DbCollection dbAsset, string label, int pageSize,
+        int currentPage, int totalItems, IList<Hierarchy> items, IPathGenerator pathGenerator,
+        string? orderQueryParam = null)
+    {
+        var collection = new PresentationCollection
+        {
+            Id = pathGenerator.GenerateFlatCollectionSearchId(dbAsset),
+            Context = GenerateContext(),
+            Label = new LanguageMap("en", $"Search results for '{label}' in '{dbAsset.Id}'"),
+            Tags = dbAsset.Tags,
+            SeeAlso =
+            [
+                new ExternalResource(nameof(PresentationType.Collection))
+                {
+                    Id = pathGenerator.GenerateFlatCollectionId(dbAsset),
+                    Label = dbAsset.Label
+                }
+            ],
+            Items = GenerateItems(pathGenerator, items),
+            TotalItems = totalItems,
+            View = GenerateSearchView(dbAsset, label, pathGenerator, pageSize, currentPage,
+                GenerateTotalPages(pageSize, totalItems), GenerateOrderQueryParamConverted(orderQueryParam))
+        };
+
+        return collection;
+    }
 
     /// <summary>
     /// Sets generated fields on a IIIF collection
@@ -97,6 +138,7 @@ public static class CollectionConverter
         GenerateCommonFields(collection, dbCollection, hierarchy,  parentCollection, pathGenerator, settingsBasedPathGenerator);
         
         collection.SeeAlso = GenerateSeeAlso(dbCollection, settingsBasedPathGenerator, pathGenerator);
+        collection.Service = GenerateService(dbCollection, pathGenerator);
         collection.Behavior = GenerateBehavior(dbCollection);
         collection.Totals = GetDescendantCounts(dbCollection, items);
         collection.Label = dbCollection.Label;
@@ -267,6 +309,27 @@ public static class CollectionConverter
     }
 
     /// <summary>
+    /// Generates the Service part of a collection, currently only advertising the search-across capability
+    /// </summary>
+    /// <param name="collection">The collection to use in generation</param>
+    /// <param name="pathGenerator">Generates paths for collections</param>
+    /// <returns>A list of services, or null if none available</returns>
+    private static List<IService>? GenerateService(DbCollection collection, IPathGenerator pathGenerator)
+    {
+        // only the root storage collection can be searched for now
+        if (!collection.IsStorageCollection || !collection.IsRoot()) return null;
+
+        return
+        [
+            new ExternalService(PresentationServices.Search)
+            {
+                Id = pathGenerator.GenerateFlatCollectionSearchId(collection),
+                Profile = PresentationServices.SearchLevel0
+            }
+        ];
+    }
+
+    /// <summary>
     /// Generates items in a hierarchy into the correct format
     /// </summary>
     /// <param name="pathGenerator">Generates a path</param>
@@ -315,6 +378,40 @@ public static class CollectionConverter
         return view;
     }
     
+    /// <summary>
+    /// Generates the view component of a page of search results - as <see cref="GenerateView"/> but all links point
+    /// back at the search endpoint, preserving the search term
+    /// </summary>
+    private static View GenerateSearchView(DbCollection collection, string label, IPathGenerator pathGenerator,
+        int pageSize, int currentPage, int totalPages, string? orderQueryParam)
+    {
+        var view = new View
+        {
+            Id = SearchViewId(currentPage),
+            Type = PresentationType.PartialCollectionView,
+            Page = currentPage,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+        };
+
+        if (currentPage > 1)
+        {
+            view.First = new Uri(SearchViewId(1));
+            view.Previous = new Uri(SearchViewId(currentPage - 1));
+        }
+
+        if (totalPages > currentPage)
+        {
+            view.Next = new Uri(SearchViewId(currentPage + 1));
+            view.Last = new Uri(SearchViewId(totalPages));
+        }
+
+        return view;
+
+        string SearchViewId(int page) =>
+            pathGenerator.GenerateFlatCollectionSearchView(collection, label, page, pageSize, orderQueryParam);
+    }
+
     private static DescendantCounts? GetDescendantCounts(DbCollection dbAsset, IList<Hierarchy>? items)
     {
         if (!dbAsset.IsStorageCollection) return null;

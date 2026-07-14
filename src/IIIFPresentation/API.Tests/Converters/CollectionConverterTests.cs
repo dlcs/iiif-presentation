@@ -4,6 +4,7 @@ using DLCS;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
+using Models;
 using Models.API.Collection;
 using Models.Database.General;
 using Repository.Paths;
@@ -122,6 +123,39 @@ public class CollectionConverterTests
         presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
     
+    [Fact]
+    public void ToPresentationCollection_NoSearchService_IfNotRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.Service.Should().BeNull("search-across is only supported from the root collection");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_SearchService_IfRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        collection.Id = KnownCollections.RootCollection;
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var service = presentationCollection.Service.Should().ContainSingle().Subject
+            .Should().BeOfType<ExternalService>().Subject;
+        service.Id.Should().Be("http://base/1/collections/root/search");
+        service.Type.Should().Be("IIIFCS-Search");
+        service.Profile.Should().Be("level0");
+    }
+
     [Fact]
     public void ToPresentationCollection_ConvertsStorageCollection()
     {
@@ -510,6 +544,154 @@ public class CollectionConverterTests
             new DescendantCounts(2, 2, 2)
         },
     };
+
+    [Fact]
+    public void ToSearchCollection_IdIsSearchEndpoint_AndItemsUseFlatIds()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Id.Should().Be("http://base/1/collections/some-id/search",
+            "the resource is the search, not the collection being searched");
+        searchCollection.TotalItems.Should().Be(1);
+        searchCollection.Items.Should().ContainSingle().Which.Should().BeOfType<IIIF.Presentation.V3.Collection>()
+            .Which.Id.Should().Be("http://base/1/collections/some-child", "results are identified by flat id");
+    }
+
+    [Fact]
+    public void ToSearchCollection_LabelDescribesTheSearch_NotTheCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("hunter thompson", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Label!["en"].Should().ContainSingle()
+            .Which.Should().Be("Search results for 'hunter thompson' in 'some-id'");
+    }
+
+    [Fact]
+    public void ToSearchCollection_SeeAlsoPointsAtSearchedCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var seeAlso = searchCollection.SeeAlso.Should().ContainSingle().Subject;
+        seeAlso.Id.Should().Be("http://base/1/collections/some-id", "the flat id of the collection being searched");
+        seeAlso.Label!["en"].Should().Contain("repository root");
+    }
+
+    [Fact]
+    public void ToSearchCollection_CarriesTagsOfSearchedCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+        collection.Tags = "some, tags";
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Tags.Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToSearchCollection_OmitsPropertiesOfTheSearchedCollection()
+    {
+        // Arrange - a public storage collection, which would otherwise populate all of the below
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert - search results are synthetic, so properties describing the searched collection don't apply
+        searchCollection.FlatId.Should().BeNull();
+        searchCollection.PublicId.Should().BeNull();
+        searchCollection.Slug.Should().BeNull();
+        searchCollection.Parent.Should().BeNull();
+        searchCollection.PartOf.Should().BeNull();
+        searchCollection.Behavior.Should().BeNull();
+        searchCollection.Totals.Should().BeNull("descendant counts can't be derived from a page of results");
+        searchCollection.ItemsOrder.Should().BeNull();
+        searchCollection.Created.Should().BeNull();
+        searchCollection.Modified.Should().BeNull();
+        searchCollection.CreatedBy.Should().BeNull();
+        searchCollection.ModifiedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToSearchCollection_ViewPointsAtSearchEndpoint_PreservingSearchTerm()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+        const string searchPath = "http://base/1/collections/some-id/search";
+
+        // Act - page 2 of 3, so every paging link is generated
+        var searchCollection = collection.ToSearchCollection("hunter thompson", 1, 2, 3, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var view = searchCollection.View!;
+        view.Type.Should().Be(PresentationType.PartialCollectionView);
+        view.Page.Should().Be(2);
+        view.PageSize.Should().Be(1);
+        view.TotalPages.Should().Be(3);
+
+        view.Id.Should().Be($"{searchPath}?label=hunter%20thompson&page=2&pageSize=1");
+        view.First.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=1&pageSize=1"));
+        view.Previous.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=1&pageSize=1"));
+        view.Next.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=3&pageSize=1"));
+        view.Last.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=3&pageSize=1"));
+    }
+
+    [Fact]
+    public void ToSearchCollection_ViewHasNoPagingLinks_WhenSinglePageOfResults()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var view = searchCollection.View!;
+        view.TotalPages.Should().Be(1);
+        view.First.Should().BeNull();
+        view.Previous.Should().BeNull();
+        view.Next.Should().BeNull();
+        view.Last.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToSearchCollection_ReturnsEmptyResults_WhenNoMatches()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("kerouac", PageSize, 1, 0, [], pathGenerator);
+
+        // Assert
+        searchCollection.TotalItems.Should().Be(0);
+        searchCollection.Items.Should().BeEmpty();
+        searchCollection.View!.TotalPages.Should().Be(1);
+    }
 
     private static List<Hierarchy> CreateTestItems()
     {

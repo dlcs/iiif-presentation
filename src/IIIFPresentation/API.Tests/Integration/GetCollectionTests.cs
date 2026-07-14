@@ -18,12 +18,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private const int TotalDatabaseChildItems = 6;
-    private readonly IAmazonS3 amazonS3;
     private const int ExampleCustomer = 601;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
-        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         storageFixture.DbFixture.CleanUp();
@@ -307,7 +305,40 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var fifthItem = (Manifest)collection.Items[4];
         fifthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
     }
-    
+
+    [Fact]
+    public async Task Get_RootFlat_AdvertisesSearchService()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        var service = collection!.Service!.OfType<ExternalService>().Single();
+        service.Id.Should().Be("http://localhost/1/collections/root/search");
+        service.Type.Should().Be("IIIFCS-Search");
+        service.Profile.Should().Be("level0");
+    }
+
+    [Fact]
+    public async Task Get_ChildCollectionFlat_DoesNotAdvertiseSearchService()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        collection!.Service.Should().BeNull("search-across can only be run from root");
+    }
+
     [Fact]
     public async Task Get_ChildFlat_ReturnsEntryPointFlat_WhenCalledByChildId()
     {

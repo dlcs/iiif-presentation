@@ -2,12 +2,12 @@
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using AWS.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Repository;
 using Repository.Collections;
@@ -20,26 +20,23 @@ namespace API.Features.Storage.Requests;
 public class GetCollection(
     string id,
     IImmutableSet<Guid> eTags,
-    int page,
-    int pageSize,
+    int? page,
+    int? pageSize,
     string? orderBy = null,
-    bool descending = false) : IRequest<FetchEntityResult<PresentationCollection>>
+    bool descending = false) : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
 {
     public string Id { get; } = id;
 
     public IImmutableSet<Guid> IfNoneMatch { get; } = eTags;
 
-    public RequestModifiers RequestModifiers { get; } = new()
-    {
-        PageSize = pageSize,
-        Page = page,
-        OrderBy = orderBy,
-        Descending = descending
-    };
+    public int? Page { get; } = page;
+    public int? PageSize { get; } = pageSize;
+    public string? OrderBy { get; } = orderBy;
+    public bool Descending { get; } = descending;
 }
 
 public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator, 
-    SettingsBasedPathGenerator settingsBasedPathGenerator) 
+    SettingsBasedPathGenerator settingsBasedPathGenerator, IOptions<ApiSettings> options) 
     : IRequestHandler<GetCollection, FetchEntityResult<PresentationCollection>>
 {
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
@@ -51,15 +48,13 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
         if (request.IfNoneMatch.Contains(collection.Etag))
+        {
             return FetchEntityResult<PresentationCollection>.Matched(collection.Etag);
+        }
 
         var hierarchy = collection.Hierarchy.GetCanonical();
 
         var parentCollection = collection.Hierarchy?.SingleOrDefault()?.ParentCollection;
-
-        var orderByParameter = request.RequestModifiers.OrderBy != null
-            ? $"{(request.RequestModifiers.Descending ? "orderByDescending" : "orderBy")}={request.RequestModifiers.OrderBy}"
-            : null;
 
         if (hierarchy.Parent != null)
         {
@@ -69,23 +64,25 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
 
         if (collection.IsStorageCollection)
         {
+            var requestModifiers = request.GetRequestModifiers(options.Value);
+            
             var items = await dbContext.RetrieveCollectionItems(collection.Id)
-                .AsOrderedCollectionItemsQuery(request.RequestModifiers.OrderBy, request.RequestModifiers.Descending)
-                .Skip((request.RequestModifiers.Page - 1) * request.RequestModifiers.PageSize)
-                .Take(request.RequestModifiers.PageSize)
+                .AsOrderedCollectionItemsQuery(requestModifiers.OrderBy, requestModifiers.Descending)
+                .Skip((requestModifiers.Page - 1) * requestModifiers.PageSize)
+                .Take(requestModifiers.PageSize)
                 .ToListAsync(cancellationToken: cancellationToken);
 
             var total = await dbContext.GetTotalItemCountForCollection(collection, items.Count,
-                request.RequestModifiers.PageSize,
-                request.RequestModifiers.Page, cancellationToken);
+                requestModifiers.PageSize,
+                requestModifiers.Page, cancellationToken);
 
             // We know the fullPath of parent collection so we can use that as the base for child items
             items.ForEach(item =>
                 item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy));
 
-            var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
-                request.RequestModifiers.Page, total, items, parentCollection, pathGenerator,
-                settingsBasedPathGenerator, orderByParameter);
+            var presentationCollection = collection.ToPresentationCollection(requestModifiers.PageSize,
+                requestModifiers.Page, total, items, parentCollection, pathGenerator,
+                settingsBasedPathGenerator, requestModifiers.GetOrderByParameter());
 
             return FetchEntityResult<PresentationCollection>.Success(presentationCollection, collection.Etag);
         }

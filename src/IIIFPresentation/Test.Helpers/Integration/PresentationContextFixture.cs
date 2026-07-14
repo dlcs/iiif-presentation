@@ -354,10 +354,17 @@ public class PresentationContextFixture : IAsyncLifetime
         DbContext = GetNewPresentationContext(customerIdProvider, QueryTrackingBehavior.NoTracking);
     }
 
+    private const string PreservedCollections =
+        "'root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection'";
+
     public void CleanUp()
     {
+        // Remove hierarchy rows hanging off a collection that's about to be deleted first.
+        // hierarchy.parent=>collections does not cascade delete, hierarcy.collection_id=>collections does
         DbContext.Database.ExecuteSqlRaw(
-            "DELETE FROM collections WHERE customer_id != 1 AND id NOT IN ('root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection')");
+            $"DELETE FROM hierarchy WHERE customer_id != 1 AND parent IN (SELECT id FROM collections WHERE customer_id != 1 AND id NOT IN ({PreservedCollections}))");
+        DbContext.Database.ExecuteSqlRaw(
+            $"DELETE FROM collections WHERE customer_id != 1 AND id NOT IN ({PreservedCollections})");
         DbContext.Database.ExecuteSqlRaw(
             "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest', 'FirstChildManifestProcessing')");
     }

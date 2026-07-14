@@ -83,8 +83,8 @@ public class TestPresentation : IPresentation
     public string? FlatId { get; set; }
     public string? Slug { get; set; }
     public string? Parent { get; set; }
-    public DateTime Created { get; set; }
-    public DateTime Modified { get; set; }
+    public DateTime? Created { get; set; }
+    public DateTime? Modified { get; set; }
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
 }

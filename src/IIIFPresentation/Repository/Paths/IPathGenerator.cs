@@ -56,7 +56,19 @@ public interface IPathGenerator
         string orderQueryParam);
 
     /// <summary>
-    /// Get the FullPath of an item, using Canonical slug of attached Hierarchy collection and parent FullPath, if set 
+    /// Get the search endpoint for the given collection, e.g. {collection}/search
+    /// </summary>
+    string GenerateFlatCollectionSearchId(Collection collection);
+
+    /// <summary>
+    /// Get the id for a page of search results for the given collection, e.g.
+    /// {collection}/search?label=medicine&amp;page=1&amp;pageSize=100
+    /// </summary>
+    string GenerateFlatCollectionSearchView(Collection collection, string label, int page, int pageSize,
+        string? orderQueryParam);
+
+    /// <summary>
+    /// Get the FullPath of an item, using Canonical slug of attached Hierarchy collection and parent FullPath, if set
     /// </summary>
     string GenerateFullPath(Hierarchy collection, Hierarchy parent);
 

@@ -84,6 +84,8 @@ public class PresentationContext : DbContext
         modelBuilder.Entity<Manifest>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.CustomerId });
+            
+            entity.Property(e => e.Label).HasColumnType("jsonb");
 
             entity.HasMany(e => e.Hierarchy)
                 .WithOne(e => e.Manifest)

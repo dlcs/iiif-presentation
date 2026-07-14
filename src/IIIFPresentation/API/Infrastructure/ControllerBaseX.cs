@@ -24,23 +24,36 @@ public static class ControllerBaseX
     /// </summary>
     /// <param name="controller">Current controllerBase object</param>
     /// <param name="entityResult">Result to transform</param>
-    /// <typeparam name="T">Type of entity being upserted</typeparam>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+    /// <param name="errorTitle">The value for <see cref="Error.Title" />.</param>
+    /// <typeparam name="T">Type of entity being fetched</typeparam>
     /// <returns>
     ///     ActionResult generated from FetchEntityResult
     /// </returns>
     public static IActionResult FetchResultToHttpResult<T>(this ControllerBase controller,
-        FetchEntityResult<T> entityResult)
-        where T : class
+        FetchEntityResult<T> entityResult,
+        string? instance = null,
+        string? errorTitle = "Fetch failed")
+        where T : JsonLdBase
     {
+        // BadRequest is checked ahead of Error as FetchEntityResult.Invalid() sets both
+        if (entityResult.BadRequest)
+        {
+            return controller.PresentationProblem(entityResult.ErrorMessage, instance,
+                (int)HttpStatusCode.BadRequest, $"{errorTitle}: Bad request");
+        }
+
         if (entityResult.Error)
         {
-            return controller.PresentationProblem(detail: entityResult.ErrorMessage,
-                statusCode: (int)HttpStatusCode.InternalServerError);
+            return controller.PresentationProblem(entityResult.ErrorMessage, instance,
+                (int)HttpStatusCode.InternalServerError, errorTitle);
         }
+
+        if (entityResult is { ETagMatch: true, ETag: { } matchedETag }) return new NotModifiedResult(matchedETag);
 
         if (entityResult.EntityNotFound || entityResult.Entity == null) return controller.PresentationNotFound();
 
-        return controller.Ok(entityResult.Entity);
+        return controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag);
     }
 
     /// <summary>
@@ -188,12 +201,6 @@ public static class ControllerBaseX
 
         return result;
     }
-
-    /// <summary>
-    /// Create an <see cref="ObjectResult"/> that produced a 403 response
-    /// </summary>
-    public static ObjectResult Forbidden(this ControllerBase controller)
-        => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
 
     /// <summary>
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, specified status code and Location header set
