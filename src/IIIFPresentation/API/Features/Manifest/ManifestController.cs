@@ -63,6 +63,7 @@ public class ManifestController(
     /// Create a new Manifest on Flat URL
     /// </summary>
     [Authorize]
+    [RequireShowExtras]
     [HttpPost("manifests")]
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
@@ -79,6 +80,7 @@ public class ManifestController(
     /// If id exists valid E-Tag must be provided 
     /// </summary>
     [Authorize]
+    [RequireShowExtras]
     [HttpPut("manifests/{id}")]
     public async Task<IActionResult> UpsertManifest(
         [FromRoute] int customerId,
@@ -94,11 +96,10 @@ public class ManifestController(
             cancellationToken: cancellationToken);
 
     [Authorize]
+    [RequireShowExtras]
     [HttpDelete("manifests/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         return await HandleDelete(new DeleteManifest(customerId, id, Request.Headers.IfMatch));
     }
 
@@ -112,8 +113,6 @@ public class ManifestController(
         where T : JsonLdBase
         where TEnum : Enum
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
         var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
 

@@ -203,12 +203,6 @@ public static class ControllerBaseX
     }
 
     /// <summary>
-    /// Create an <see cref="ObjectResult"/> that produced a 403 response
-    /// </summary>
-    public static ObjectResult Forbidden(this ControllerBase controller)
-        => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-
-    /// <summary>
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, specified status code and Location header set
     /// </summary>
     public static ActionResult PresentationWithLocationHeader(this ControllerBase controller, string? uri,

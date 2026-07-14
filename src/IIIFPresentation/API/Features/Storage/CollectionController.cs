@@ -61,7 +61,9 @@ public class CollectionController(
     }
 
     [Authorize]
+    [RequireShowExtras]
     [HttpGet("collections/{id}/search")]
+    [VaryHeader]
     public async Task<IActionResult> Search(int customerId, string id, string? label = null, int? page = 1,
         int? pageSize = -1, string? orderBy = null, string? orderByDescending = null)
     {
@@ -86,6 +88,7 @@ public class CollectionController(
     }
 
     [Authorize]
+    [RequireShowExtras]
     [HttpPost("collections")]
     public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
@@ -97,6 +100,7 @@ public class CollectionController(
     }
 
     [Authorize]
+    [RequireShowExtras]
     [HttpPut("collections/{id}")]
     public async Task<IActionResult> Put(int customerId, string id,
         [FromServices] RootCollectionValidator rootValidator,
@@ -114,11 +118,6 @@ public class CollectionController(
     private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
         PresentationValidator presentationValidator, string? id, RootCollectionValidator? rootValidator)
     {
-        if (!Request.HasShowExtraHeader())
-        {
-            return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
-        }
-
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
         var deserializedCollection =
@@ -143,11 +142,10 @@ public class CollectionController(
 
 
     [Authorize]
+    [RequireShowExtras]
     [HttpDelete("collections/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         return await HandleDelete(new DeleteCollection(customerId, id, Request.Headers.IfMatch));
     }
 
