@@ -29,7 +29,7 @@ using Services.Manifests.Model;
 using Services.TextServices;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
+using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
@@ -115,7 +115,7 @@ public class ManifestWriteService(
         {
             logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} is already being processed, rejecting write",
                 request.ManifestId, request.CustomerId);
-            return UpsertErrorHelper.ManifestCurrentlyIngesting<PresentationManifest>();
+            return UpsertErrorHelper.ManifestCurrentlyIngesting();
         }
 
         try
@@ -126,7 +126,7 @@ public class ManifestWriteService(
 
             if (existingManifest == null)
             {
-                if (!string.IsNullOrEmpty(request.Etag)) return UpsertErrorHelper.EtagNotRequired<PresentationManifest>();
+                if (!string.IsNullOrEmpty(request.Etag)) return UpsertErrorHelper.EtagNotRequired();
 
                 logger.LogDebug("Manifest {ManifestId} for Customer {CustomerId} doesn't exist, creating",
                     request.ManifestId, request.CustomerId);
@@ -137,7 +137,7 @@ public class ManifestWriteService(
         }
         catch (DlcsException ex)
         {
-            return UpsertErrorHelper.DlcsError<PresentationManifest>(ex.Message);
+            return UpsertErrorHelper.DlcsError(ex.Message);
         }
         catch (Exception ex)
         {
@@ -159,7 +159,7 @@ public class ManifestWriteService(
         }
         catch (DlcsException ex)
         {
-            return UpsertErrorHelper.DlcsError<PresentationManifest>(ex.Message);
+            return UpsertErrorHelper.DlcsError(ex.Message);
         }
         catch (Exception ex)
         {
@@ -177,7 +177,7 @@ public class ManifestWriteService(
         {
             // Generate manifest ID before canvas painting resolution so it's available for stub asset naming
             manifestId ??= await GenerateUniqueManifestId(request, cancellationToken);
-            if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+            if (manifestId == null) return UpsertErrorHelper.CannotGenerateUniqueId();
 
             request.PresentationManifest.Id = manifestId;
             var resolved = await ResolveCanvasPaintingsAndParentSlug(request, manifestId, cancellationToken: cancellationToken);
@@ -211,7 +211,7 @@ public class ManifestWriteService(
     {
         if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
         {
-            return UpsertErrorHelper.EtagNonMatching<PresentationManifest>();
+            return UpsertErrorHelper.EtagNonMatching();
         }
 
         using (logger.BeginScope("Updating Manifest {ManifestId} for Customer {CustomerId}",
@@ -402,7 +402,7 @@ public class ManifestWriteService(
         CancellationToken cancellationToken)
     {
         var saveErrors =
-            await dbContext.TrySave<PresentationManifest>("manifest", request.CustomerId, logger, cancellationToken);
+            await dbContext.TrySave("manifest", request.CustomerId, logger, cancellationToken);
 
         if (saveErrors != null) return saveErrors;
 

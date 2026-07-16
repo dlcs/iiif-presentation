@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
+using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest.Helpers;
 
@@ -43,7 +43,7 @@ public static class AssetDuplicateValidator
                 if (!JToken.DeepEquals(existing, asset))
                 {
                     var cp = paintedResourceCanvasPaintings.FirstOrDefault(c => c.SuspectedAssetId == assetId);
-                    return UpsertErrorHelper.AssetsDataDoesNotMatch<PresentationManifest>(
+                    return UpsertErrorHelper.AssetsDataDoesNotMatch(
                         cp != null ? BuildAssetKey(cp) : assetId,
                         SerializeDiff(existing, asset));
                 }
@@ -66,7 +66,7 @@ public static class AssetDuplicateValidator
             {
                 var existing = seenAdjuncts[key];
                 if (!AdjunctsEqual(existing, adjuncts))
-                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch<PresentationManifest>(key,
+                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch(key,
                         SerializeDiff(new JArray(existing ?? []), new JArray(adjuncts ?? [])));
             }
         }

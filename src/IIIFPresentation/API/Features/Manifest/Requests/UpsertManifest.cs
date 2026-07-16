@@ -15,7 +15,7 @@ public class UpsertManifest(
     StringValues etag,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    bool createSpace) : IRequest<ModifyEntityResult<ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
@@ -26,9 +26,9 @@ public class UpsertManifest(
 }
 
 public class UpsertManifestHandler(IManifestWrite manifestService)
-    : IRequestHandler<UpsertManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    : IRequestHandler<UpsertManifest, ModifyEntityResult<ModifyCollectionType>>
 {
-    public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(UpsertManifest request,
+    public Task<ModifyEntityResult<ModifyCollectionType>> Handle(UpsertManifest request,
         CancellationToken cancellationToken)
     {
         var upsertRequest = new UpsertManifestRequest(

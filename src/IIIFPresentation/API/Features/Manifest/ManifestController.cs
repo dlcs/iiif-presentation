@@ -9,7 +9,6 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
-using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -103,14 +102,13 @@ public class ManifestController(
         return await HandleDelete(new DeleteManifest(customerId, id, Request.Headers.IfMatch));
     }
 
-    private async Task<IActionResult> ManifestUpsert<T, TEnum>(
-        Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
+    private async Task<IActionResult> ManifestUpsert<TEnum>(
+        Func<PresentationManifest, string, IRequest<ModifyEntityResult<TEnum>>> requestFactory,
         PresentationManifestValidator validator,
         string? instance = null,
         string? errorTitle = "Operation failed",
         string? invalidatesEtag = null,
         CancellationToken cancellationToken = default)
-        where T : JsonLdBase
         where TEnum : Enum
     {
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);

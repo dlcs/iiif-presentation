@@ -27,7 +27,7 @@ namespace API.Features.Storage.Requests;
 
 public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, string? eTag, 
     string rawRequestBody)
-    : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
+    : IRequest<ModifyEntityResult<ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -48,13 +48,13 @@ public class UpsertCollectionHandler(
     SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
-    : IRequestHandler<UpsertCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
+    : IRequestHandler<UpsertCollection, ModifyEntityResult<ModifyCollectionType>>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int DefaultCurrentPage = 1;
 
-    public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(UpsertCollection request, 
+    public async Task<ModifyEntityResult<ModifyCollectionType>> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
@@ -62,7 +62,7 @@ public class UpsertCollectionHandler(
         if (!isStorageCollection)
         {
             iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
-            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF<PresentationCollection>();
+            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF();
         }
         var databaseCollection =
             await dbContext.RetrieveCollectionWithParentAsync(request.CollectionId, true, cancellationToken);
@@ -77,7 +77,7 @@ public class UpsertCollectionHandler(
         if (databaseCollection == null)
         {
             // No existing collection = create
-            if (!string.IsNullOrEmpty(request.ETag)) return UpsertErrorHelper.EtagNotRequired<PresentationCollection>();
+            if (!string.IsNullOrEmpty(request.ETag)) return UpsertErrorHelper.EtagNotRequired();
 
             var createdDate = DateTime.UtcNow;
 
@@ -109,14 +109,14 @@ public class UpsertCollectionHandler(
         else
         {
             if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
-                return UpsertErrorHelper.EtagNonMatching<PresentationCollection>();
-            
+                return UpsertErrorHelper.EtagNonMatching();
+
             if (isStorageCollection != databaseCollection.IsStorageCollection)
             {
                 logger.LogError(
                     "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
                     request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
-                return UpsertErrorHelper.CannotChangeCollectionType<PresentationCollection>(isStorageCollection);
+                return UpsertErrorHelper.CannotChangeCollectionType(isStorageCollection);
             }
 
             var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
@@ -140,7 +140,7 @@ public class UpsertCollectionHandler(
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var saveErrors =
-            await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
+            await dbContext.TrySaveCollection(request.CustomerId, logger,
                 cancellationToken);
 
         if (saveErrors != null)
@@ -159,7 +159,7 @@ public class UpsertCollectionHandler(
             }
             catch (PresentationException)
             {
-                return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Failure(
+                return ModifyEntityResult<ModifyCollectionType>.Failure(
                     "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
                     ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
             }
@@ -187,7 +187,7 @@ public class UpsertCollectionHandler(
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
             parentCollection, pathGenerator, settingsBasedPathGenerator);
 
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
+        return ModifyEntityResult<ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }
 
     /// <summary>

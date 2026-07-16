@@ -18,7 +18,7 @@ using Repository;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using Batch = Models.Database.General.Batch;
-using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
+using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
@@ -111,7 +111,7 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(presentationException, "Error checking for the existence of assets");
 
-            return DlcsInteractionResult.Fail(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
+            return DlcsInteractionResult.Fail(UpsertErrorHelper.PaintableAssetError(presentationException.Message));
         }
 
         return null;
@@ -151,7 +151,7 @@ public class DlcsManifestCoordinator(
                 if (!spaceId.HasValue)
                 {
                     return DlcsInteractionResult.Fail(
-                        UpsertErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
+                        UpsertErrorHelper.DlcsError("Error creating DLCS space"));
                 }
 
                 // you wanted a space, and there are no assets, so no further work required

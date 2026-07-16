@@ -7,10 +7,8 @@ namespace API.Infrastructure.Requests;
 /// <summary>
 ///     Represents the result of a request to modify an entity
 /// </summary>
-/// <typeparam name="T">Type of entity being modified</typeparam>
 /// <typeparam name="TError">Type of error</typeparam>
-public class ModifyEntityResult<T, TError> : IModifyRequest
-    where T : JsonLdBase
+public class ModifyEntityResult<TError> : IModifyRequest
     where TError : Enum
 {
     /// <summary>
@@ -21,7 +19,7 @@ public class ModifyEntityResult<T, TError> : IModifyRequest
     /// <summary>
     /// Optional representation of entity
     /// </summary>
-    public T? Entity { get; private init; }
+    public JsonLdBase? Entity { get; private init; }
 
     /// <summary>
     /// Optional error message if didn't succeed
@@ -39,15 +37,15 @@ public class ModifyEntityResult<T, TError> : IModifyRequest
     
     public Guid? ETag { get; private init; }
 
-    public static ModifyEntityResult<T, TError> Failure(string error, TError errorType, WriteResult result = WriteResult.Unknown)
+    public static ModifyEntityResult<TError> Failure(string error, TError errorType, WriteResult result = WriteResult.Unknown)
     {
-        return new ModifyEntityResult<T, TError>
+        return new ModifyEntityResult<TError>
             { Error = error, WriteResult = result, IsSuccess = false, ErrorType = errorType };
     }
     
-    public static ModifyEntityResult<T, TError> Success(T entity, WriteResult result = WriteResult.Updated, Guid? etag = null)
+    public static ModifyEntityResult<TError> Success(JsonLdBase entity, WriteResult result = WriteResult.Updated, Guid? etag = null)
     {
-        return new ModifyEntityResult<T, TError>
+        return new ModifyEntityResult<TError>
             { Entity = entity, WriteResult = result, IsSuccess = true, ETag = etag };
     }
 

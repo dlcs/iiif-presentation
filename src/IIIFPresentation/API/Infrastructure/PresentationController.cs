@@ -48,19 +48,17 @@ public abstract class PresentationController : Controller
     /// </param>
     /// <param name="invalidatesEtag">string etag value used in this request, optional</param>
     /// <param name="cancellationToken">Current cancellation token</param>
-    /// <typeparam name="T">Type of entity being upserted</typeparam>
     /// <typeparam name="TEnum">An enum designating the error type</typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult. This will be the model + 200/201 on success. Or an
     /// error and appropriate status code if failed.
     /// </returns>
-    protected async Task<IActionResult> HandleUpsert<T, TEnum>(
-    IRequest<ModifyEntityResult<T, TEnum>> request,
+    protected async Task<IActionResult> HandleUpsert<TEnum>(
+    IRequest<ModifyEntityResult<TEnum>> request,
     string? instance = null,
     string? errorTitle = "Operation failed",
     string? invalidatesEtag = null,
     CancellationToken cancellationToken = default)
-    where T : JsonLdBase
     where TEnum : Enum
     {
         return await HandleRequest(async () =>

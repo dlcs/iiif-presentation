@@ -22,7 +22,7 @@ namespace API.Features.Storage.Requests;
 public class PostHierarchicalCollection(
     int customerId,
     string slug, 
-    string rawRequestBody) : IRequest<ModifyEntityResult<Collection, ModifyCollectionType>>
+    string rawRequestBody) : IRequest<ModifyEntityResult<ModifyCollectionType>>
 {
     public int CustomerId { get; } = customerId;
 
@@ -37,34 +37,34 @@ public class PostHierarchicalCollectionHandler(
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
-    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<Collection, ModifyCollectionType>>
+    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<ModifyCollectionType>>
 {
     
-    public async Task<ModifyEntityResult<Collection, ModifyCollectionType>> Handle(PostHierarchicalCollection request,
+    public async Task<ModifyEntityResult<ModifyCollectionType>> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         var convertResult = request.RawRequestBody.ConvertCollectionToIIIF(logger);
-        if (convertResult.Error) return UpsertErrorHelper.CannotValidateIIIF<Collection>();
+        if (convertResult.Error) return UpsertErrorHelper.CannotValidateIIIF();
         var collectionFromBody = convertResult.ConvertedIIIF!;
-        
+
         var splitSlug = request.Slug.Split('/');
 
         var parentSlug = string.Join("/", splitSlug.Take(..^1));
         var parentCollection =
             await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
-        
+
         var parentValidationError =
-            ParentValidator.ValidateParentCollection<Collection>(parentCollection?.Collection);
+            ParentValidator.ValidateParentCollection(parentCollection?.Collection);
         if (parentValidationError != null) return parentValidationError;
-        
+
         var id = await GenerateUniqueId(request, cancellationToken);
-        if (id == null) return UpsertErrorHelper.CannotGenerateUniqueId<Collection>();
+        if (id == null) return UpsertErrorHelper.CannotGenerateUniqueId();
 
         var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
         dbContext.Collections.Add(collection);
 
         var saveErrors =
-            await dbContext.TrySaveCollection<Collection>(request.CustomerId, logger,
+            await dbContext.TrySaveCollection(request.CustomerId, logger,
                 cancellationToken);
 
         if (saveErrors != null)
@@ -84,7 +84,7 @@ public class PostHierarchicalCollectionHandler(
         }
 
         collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
-        return ModifyEntityResult<Collection, ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
+        return ModifyEntityResult<ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
