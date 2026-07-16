@@ -27,8 +27,6 @@ public class ApiSettings
     /// </summary>
     public int SlowSearchThresholdMs { get; set; } = 1000;
     
-    public string? PathBase { get; set; }
-    
     /// <summary>
     /// Forces reingestion to always occur
     /// </summary>

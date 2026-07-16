@@ -100,7 +100,6 @@ public class HttpRequestXTests
         customerId.Should().BeNull();
     }
     
-    
     [Fact]
     public void GetCustomerId_ReturnsCustomerId_WhenCustomerRouteValueNotInteger()
     {
