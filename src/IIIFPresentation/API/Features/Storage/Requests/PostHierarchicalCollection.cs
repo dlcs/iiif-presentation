@@ -22,7 +22,7 @@ namespace API.Features.Storage.Requests;
 public class PostHierarchicalCollection(
     int customerId,
     string slug, 
-    string rawRequestBody) : IRequest<ModifyEntityResult<ModifyCollectionType>>
+    string rawRequestBody) : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
 
@@ -37,10 +37,10 @@ public class PostHierarchicalCollectionHandler(
     IdentityManager identityManager,
     IIIIFS3Service iiifS3,
     IPathGenerator pathGenerator)
-    : IRequestHandler<PostHierarchicalCollection, ModifyEntityResult<ModifyCollectionType>>
+    : IRequestHandler<PostHierarchicalCollection, PresentationResult>
 {
     
-    public async Task<ModifyEntityResult<ModifyCollectionType>> Handle(PostHierarchicalCollection request,
+    public async Task<PresentationResult> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         var convertResult = request.RawRequestBody.ConvertCollectionToIIIF(logger);
@@ -84,7 +84,7 @@ public class PostHierarchicalCollectionHandler(
         }
 
         collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
-        return ModifyEntityResult<ModifyCollectionType>.Success(collectionFromBody, WriteResult.Created, collection.Etag);
+        return PresentationResult.Success(collectionFromBody, WriteResult.Created, collection.Etag);
     }
 
     private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,

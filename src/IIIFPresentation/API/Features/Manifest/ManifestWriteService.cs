@@ -27,9 +27,9 @@ using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
 using Services.TextServices;
+using API.Infrastructure.Requests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
@@ -78,12 +78,12 @@ public interface IManifestWrite
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
-    Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken);
+    Task<PresentationResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Create new manifest, using details provided in request object
     /// </summary>
-    Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken);
+    Task<PresentationResult> Create(WriteManifestRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -108,7 +108,7 @@ public class ManifestWriteService(
     /// <summary>
     /// Create or update full manifest, using details provided in request object
     /// </summary>
-    public async Task<PresUpdateResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Upsert(UpsertManifestRequest request, CancellationToken cancellationToken)
     {
         using var manifestLock = manifestLockManager.TryAcquire($"M:{request.CustomerId}:{request.ManifestId}");
         if (manifestLock == null)
@@ -143,7 +143,7 @@ public class ManifestWriteService(
         {
             logger.LogError(ex, "Error upserting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,
                 request.CustomerId);
-            return PresUpdateResult.Failure($"Unexpected error upserting manifest {request.ManifestId}",
+            return PresentationResult.Failure($"Unexpected error upserting manifest {request.ManifestId}",
                 ModifyCollectionType.Unknown, WriteResult.Error);
         }
     }
@@ -151,7 +151,7 @@ public class ManifestWriteService(
     /// <summary>
     /// Create new manifest, using details provided in request object
     /// </summary>
-    public async Task<PresUpdateResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Create(WriteManifestRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -165,12 +165,12 @@ public class ManifestWriteService(
         {
             logger.LogError(ex, "Error creating manifest with slug '{Slug}' for customer {CustomerId}",
                 request.PresentationManifest.Slug, request.CustomerId);
-            return PresUpdateResult.Failure("Unexpected error creating manifest", ModifyCollectionType.Unknown,
+            return PresentationResult.Failure("Unexpected error creating manifest", ModifyCollectionType.Unknown,
                 WriteResult.Error);
         }
     }
 
-    private async Task<PresUpdateResult> CreateInternal(WriteManifestRequest request, string? manifestId,
+    private async Task<PresentationResult> CreateInternal(WriteManifestRequest request, string? manifestId,
         CancellationToken cancellationToken)
     {
         using (logger.BeginScope("Creating Manifest for Customer {CustomerId}", request.CustomerId))
@@ -206,7 +206,7 @@ public class ManifestWriteService(
         }
     }
 
-    private async Task<PresUpdateResult> UpdateInternal(UpsertManifestRequest request,
+    private async Task<PresentationResult> UpdateInternal(UpsertManifestRequest request,
         DbManifest existingManifest, CancellationToken cancellationToken)
     {
         if (!EtagComparer.IsMatch(existingManifest.Etag, request.Etag))
@@ -298,7 +298,7 @@ public class ManifestWriteService(
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);
     }
 
-    private async Task<(PresUpdateResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
+    private async Task<(PresentationResult? error, ParsedManifestResult? records)> ResolveCanvasPaintings(
         WriteManifestRequest request, DbManifest? existingManifest, CancellationToken cancellationToken)
     {
         var isCreate = existingManifest == null;
@@ -311,7 +311,7 @@ public class ManifestWriteService(
         return result.Error != null ? (result.Error, null) : (null, result);
     }
 
-    private async Task<(PresUpdateResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
+    private async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
         WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var result = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, manifestId,
@@ -319,7 +319,7 @@ public class ManifestWriteService(
         return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
-    private async Task<PresUpdateResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
+    private async Task<PresentationResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
         DlcsInteractionResult dlcsInteractionResult, WriteResult writeResult, CancellationToken cancellationToken)
     {
         var saveError = await SaveToS3(dbManifest, request, dlcsInteractionResult.CanBeBuiltUpfront, cancellationToken);
@@ -329,7 +329,7 @@ public class ManifestWriteService(
             writeResult, cancellationToken);
     }
 
-    private async Task<PresUpdateResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
+    private async Task<PresentationResult> GeneratePresentationSuccessResult(PresentationManifest presentationManifest,
         int customerId, DbManifest dbManifest, WriteResult writeResult, CancellationToken cancellationToken)
     {
         var assets = await dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
@@ -339,14 +339,14 @@ public class ManifestWriteService(
             presentationManifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
         }
 
-        return PresUpdateResult.Success(
+        return PresentationResult.Success(
             presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets,
                 finishedPipelinesLimit: options.Value.FinishedPipelinesLimit),
             writeResult,
             dbManifest?.Etag);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
+    private async Task<(PresentationResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, int? spaceId, 
         List<CanvasPainting> canvasPaintings, CancellationToken cancellationToken)
     {
@@ -379,7 +379,7 @@ public class ManifestWriteService(
         return (saveErrors, dbManifest);
     }
 
-    private async Task<(PresUpdateResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
+    private async Task<(PresentationResult?, DbManifest?)> UpdateDatabaseRecord(WriteManifestRequest request,
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, int? manifestSpace, CancellationToken cancellationToken)
     {
         existingManifest.Label = request.PresentationManifest.Label;
@@ -398,7 +398,7 @@ public class ManifestWriteService(
         return (saveErrors, existingManifest);
     }
 
-    private async Task<PresUpdateResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest,
+    private async Task<PresentationResult?> SaveAndPopulateEntity(WriteManifestRequest request, DbManifest dbManifest,
         CancellationToken cancellationToken)
     {
         var saveErrors =
@@ -438,7 +438,7 @@ public class ManifestWriteService(
     /// This is relevant for painted resources + resource level adjuncts
     /// </param>
     /// <param name="cancellationToken">A cancellation token</param>
-    private async Task<PresUpdateResult?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
+    private async Task<PresentationResult?> SaveToS3(DbManifest dbManifest, WriteManifestRequest request, bool canBeBuiltUpfront,
         CancellationToken cancellationToken)
     {
         var iiifManifest = request.RawRequestBody.ToManifest()!;
@@ -515,13 +515,13 @@ public class ManifestWriteService(
     // Submits the given pipeline job to text-services.
     // The HTTP call runs while the DB transaction is still open — the HttpClient should be configured with a short
     // timeout to bound this window. On failure the staged manifest is cleaned up so the caller can retry cleanly.
-    private async Task<PresUpdateResult?> SubmitPipelineJob(DbManifest dbManifest, PipelineJob job,
+    private async Task<PresentationResult?> SubmitPipelineJob(DbManifest dbManifest, PipelineJob job,
         CancellationToken cancellationToken)
     {
         if (!await pipelineJobService.SubmitPipelineJob(dbManifest, job, cancellationToken))
         {
             await manifestStorageManager.DeleteStagedManifest(dbManifest);
-            return PresUpdateResult.Failure("Error submitting text pipeline job",
+            return PresentationResult.Failure("Error submitting text pipeline job",
                 ModifyCollectionType.CannotConnectToTextService, WriteResult.Error);
         }
 
@@ -549,7 +549,7 @@ public class ManifestWriteService(
         /// <summary>
         /// If canvas painting resolution or slug parsing failed.
         /// </summary>
-        public PresUpdateResult? Error { get; private init; }
+        public PresentationResult? Error { get; private init; }
         /// <summary>
         /// Canvas paintings resolved from the request
         /// </summary>
@@ -559,7 +559,7 @@ public class ManifestWriteService(
         /// </summary>
         public ParsedParentSlug? ParsedParentSlug { get; private init; }
 
-        public static ResolvedManifestData Failure(PresUpdateResult error) => new() { Error = error };
+        public static ResolvedManifestData Failure(PresentationResult error) => new() { Error = error };
 
         public static ResolvedManifestData Success(ParsedManifestResult records, ParsedParentSlug slug) =>
             new() { ParsedManifestResult = records, ParsedParentSlug = slug };
@@ -573,7 +573,7 @@ public class ManifestWriteService(
         /// <summary>
         /// If the DLCS interaction or canvas painting update failed.
         /// </summary>
-        public PresUpdateResult? Error { get; private init; }
+        public PresentationResult? Error { get; private init; }
         /// <summary>
         /// Result of the DLCS interaction, including space ID and ingested asset IDs.
         /// </summary>
@@ -583,7 +583,7 @@ public class ManifestWriteService(
         /// </summary>
         public List<CanvasPainting> CanvasPaintings { get; private init; } = [];
 
-        public static DlcsHandleResult Failure(PresUpdateResult error) => new() { Error = error };
+        public static DlcsHandleResult Failure(PresentationResult error) => new() { Error = error };
 
         public static DlcsHandleResult Success(DlcsInteractionResult interactionResult, List<CanvasPainting> canvasPaintings) =>
             new() { InteractionResult = interactionResult, CanvasPaintings = canvasPaintings };

@@ -27,7 +27,7 @@ namespace API.Features.Storage.Requests;
 /// Create a new Collection (storage or iiif) in DB and upload provided JSON to S3 if iiif-collection
 /// </summary>
 public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody)
-    : IRequest<ModifyEntityResult<ModifyCollectionType>>
+    : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
 
@@ -45,13 +45,13 @@ public class CreateCollectionHandler(
     SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
-    : IRequestHandler<CreateCollection, ModifyEntityResult<ModifyCollectionType>>
+    : IRequestHandler<CreateCollection, PresentationResult>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
     
-    public async Task<ModifyEntityResult<ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
@@ -126,7 +126,7 @@ public class CreateCollectionHandler(
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
             settings.PageSize, CurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator, settingsBasedPathGenerator); // there can be no items attached to this, as it's just been created
         
-        return ModifyEntityResult<ModifyCollectionType>.Success(
+        return PresentationResult.Success(
             enrichedPresentationCollection,
             WriteResult.Created,
             collection.Etag);

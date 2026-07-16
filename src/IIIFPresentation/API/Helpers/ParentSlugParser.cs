@@ -67,12 +67,12 @@ public class ParentSlugParser(PresentationContext dbContext,
     private static bool IsRoot<T>(T presentation, string? id)
         => presentation is PresentationCollection && id != null && KnownCollections.IsRoot(id);
 
-    private ModifyEntityResult<ModifyCollectionType>? TryValidateRoot(IPresentation presentation, int customer)
+    private PresentationResult? TryValidateRoot(IPresentation presentation, int customer)
         => string.IsNullOrEmpty(presentation.PublicId) || presentation.PublicIdIsRoot(GetBaseUrl(), customer)
             ? null
             : UpsertErrorHelper.IncorrectPublicId();
 
-    private (ModifyEntityResult<ModifyCollectionType>? errors, string? slug) TryGetSlug(IPresentation presentation)
+    private (PresentationResult? errors, string? slug) TryGetSlug(IPresentation presentation)
     {
         // Try and get slug from publicId and/or 'slug' property directly
         var publicIdSlug = presentation.PublicId?.GetLastPathElement();
@@ -181,9 +181,9 @@ public class ParentSlugParser(PresentationContext dbContext,
     {
         public Collection? Parent { get; private init; }
 
-        public ModifyEntityResult<ModifyCollectionType>? Errors { get; private init; }
+        public PresentationResult? Errors { get; private init; }
 
-        public static ParsedParent Fail(ModifyEntityResult<ModifyCollectionType> errors) =>
+        public static ParsedParent Fail(PresentationResult errors) =>
             new() { Errors = errors};
 
         public static ParsedParent Success(Collection? parent) => new() { Parent = parent };
@@ -217,7 +217,7 @@ public class ParsedParentSlug
 
 public class ParsedParentSlugResult
 {
-    public ModifyEntityResult<ModifyCollectionType>? Errors { get; private init; }
+    public PresentationResult? Errors { get; private init; }
 
     public ParsedParentSlug? ParsedParentSlug { get; private init; }
 
@@ -225,7 +225,7 @@ public class ParsedParentSlugResult
     [MemberNotNullWhen(false, nameof(ParsedParentSlug))]
     public bool IsError { get; private init; }
 
-    public static ParsedParentSlugResult Fail(ModifyEntityResult<ModifyCollectionType> errors) =>
+    public static ParsedParentSlugResult Fail(PresentationResult errors) =>
         new() { Errors = errors, IsError = true };
 
     public static ParsedParentSlugResult Success(ParsedParentSlug parsed) => new() { ParsedParentSlug = parsed };

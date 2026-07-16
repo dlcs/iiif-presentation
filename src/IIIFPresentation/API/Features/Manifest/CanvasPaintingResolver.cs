@@ -12,9 +12,9 @@ using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using API.Infrastructure.Requests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
@@ -191,7 +191,7 @@ public class CanvasPaintingResolver(
             : incoming.CanvasOriginalId?.ToString() ?? incoming.SuspectedAssetId ?? "unknown";
     }
     
-    private async Task<PresUpdateResult?> HandleInserts(List<InterimCanvasPainting> canvasPaintings, int customerId,
+    private async Task<PresentationResult?> HandleInserts(List<InterimCanvasPainting> canvasPaintings, int customerId,
         CancellationToken cancellationToken)
     {
         if (canvasPaintings.IsNullOrEmpty()) return null;
@@ -321,12 +321,12 @@ public class CanvasPaintingResolver(
     }
 
     private class ManifestParseResult(
-        PresUpdateResult? error = null,
+        PresentationResult? error = null,
         List<InterimCanvasPainting>? canvasPaintings = null,
         List<InterimCanvasPainting>? assetsIdentifiedInItems = null,
         List<AdjunctInteraction>? adjunctInteractions = null)
     {
-        public PresUpdateResult? Error { get; set; } = error;
+        public PresentationResult? Error { get; set; } = error;
 
         public List<InterimCanvasPainting>? CanvasPaintings { get; set; } = canvasPaintings;
 

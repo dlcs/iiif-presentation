@@ -14,14 +14,14 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static Task<ModifyEntityResult<ModifyCollectionType>?> TrySaveCollection(
+    public static Task<PresentationResult?> TrySaveCollection(
         this PresentationContext dbContext,
         int customerId,
         ILogger logger,
         CancellationToken cancellationToken)
         => dbContext.TrySave("collection", customerId, logger, cancellationToken);
 
-    public static async Task<ModifyEntityResult<ModifyCollectionType>?> TrySave(
+    public static async Task<PresentationResult?> TrySave(
         this PresentationContext dbContext,
         string resourceType,
         int customerId,
@@ -38,19 +38,19 @@ public static class PresentationContextX
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
-                return ModifyEntityResult<ModifyCollectionType>.Failure(
+                return PresentationResult.Failure(
                     $"The {resourceType} could not be created due to a duplicate slug value",
                     ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
             }
 
             if (ex.IsManifestPrimaryKeyViolation())
             {
-                return ModifyEntityResult<ModifyCollectionType>.Failure(
+                return PresentationResult.Failure(
                     "The manifest is currently being created",
                     ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
             }
 
-            return ModifyEntityResult<ModifyCollectionType>.Failure(
+            return PresentationResult.Failure(
                 $"The {resourceType} could not be created", ModifyCollectionType.Unknown);
         }
 

@@ -48,18 +48,16 @@ public abstract class PresentationController : Controller
     /// </param>
     /// <param name="invalidatesEtag">string etag value used in this request, optional</param>
     /// <param name="cancellationToken">Current cancellation token</param>
-    /// <typeparam name="TEnum">An enum designating the error type</typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult. This will be the model + 200/201 on success. Or an
     /// error and appropriate status code if failed.
     /// </returns>
-    protected async Task<IActionResult> HandleUpsert<TEnum>(
-    IRequest<ModifyEntityResult<TEnum>> request,
-    string? instance = null,
-    string? errorTitle = "Operation failed",
-    string? invalidatesEtag = null,
-    CancellationToken cancellationToken = default)
-    where TEnum : Enum
+    protected async Task<IActionResult> HandleUpsert(
+        IRequest<PresentationResult> request,
+        string? instance = null,
+        string? errorTitle = "Operation failed",
+        string? invalidatesEtag = null,
+        CancellationToken cancellationToken = default)
     {
         return await HandleRequest(async () =>
         {

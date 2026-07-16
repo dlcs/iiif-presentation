@@ -68,15 +68,13 @@ public static class ControllerBaseX
     /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
-    /// <typeparam name="TEnum">An enum used for error type</typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
-    public static IActionResult ModifyResultToHttpResult<TEnum>(this ControllerBase controller,
-        ModifyEntityResult<TEnum> entityResult,
+    public static IActionResult ModifyResultToHttpResult(this ControllerBase controller,
+        PresentationResult entityResult,
         string? instance,
-        string? errorTitle)
-        where TEnum : Enum =>
+        string? errorTitle) =>
         entityResult.WriteResult switch
         {
             WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),

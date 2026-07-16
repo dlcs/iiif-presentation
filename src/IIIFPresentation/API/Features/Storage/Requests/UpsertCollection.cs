@@ -27,7 +27,7 @@ namespace API.Features.Storage.Requests;
 
 public class UpsertCollection(int customerId, string collectionId, PresentationCollection collection, string? eTag, 
     string rawRequestBody)
-    : IRequest<ModifyEntityResult<ModifyCollectionType>>
+    : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
 
@@ -48,13 +48,13 @@ public class UpsertCollectionHandler(
     SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
-    : IRequestHandler<UpsertCollection, ModifyEntityResult<ModifyCollectionType>>
+    : IRequestHandler<UpsertCollection, PresentationResult>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int DefaultCurrentPage = 1;
 
-    public async Task<ModifyEntityResult<ModifyCollectionType>> Handle(UpsertCollection request, 
+    public async Task<PresentationResult> Handle(UpsertCollection request, 
         CancellationToken cancellationToken)
     {
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
@@ -159,7 +159,7 @@ public class UpsertCollectionHandler(
             }
             catch (PresentationException)
             {
-                return ModifyEntityResult<ModifyCollectionType>.Failure(
+                return PresentationResult.Failure(
                     "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
                     ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
             }
@@ -187,7 +187,7 @@ public class UpsertCollectionHandler(
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
             parentCollection, pathGenerator, settingsBasedPathGenerator);
 
-        return ModifyEntityResult<ModifyCollectionType>.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
+        return PresentationResult.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }
 
     /// <summary>
