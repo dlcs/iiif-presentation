@@ -131,7 +131,7 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var request =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}/search"); 
         var response = await httpClient.AsCustomer().SendAsync(request);
-
+        
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

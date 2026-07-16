@@ -78,7 +78,7 @@ public class CollectionController(
             return this.PresentationProblem(
                 $"At least one search term must be {Settings.MinSearchLength} characters or more",
                 null, (int)HttpStatusCode.BadRequest, "Bad request",
-                this.GetErrorType(ModifyCollectionType.ValidationFailed));
+                this.GetErrorType(ModifyCollectionType.InvalidSearchQuery));
         }
 
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);

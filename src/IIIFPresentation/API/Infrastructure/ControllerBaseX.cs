@@ -144,9 +144,10 @@ public static class ControllerBaseX
     /// <summary>
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response.
     /// </summary>
-    /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
+    /// <param name="controller">Current controller</param>
     /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
     /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+    /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
     /// <param name="title">The value for <see cref="Error.Title" />.</param>
     /// <param name="type">The value for <see cref="Type" />.</param>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
@@ -161,7 +162,7 @@ public static class ControllerBaseX
         var error = new Error
         {
             Detail = detail,
-            Instance = instance ?? controller.Request.GetDisplayUrl(),
+            Instance = instance ?? controller.Request.GetDisplayUrl(includeQueryParams: false),
             Status = statusCode ?? 500,
             Title = title,
             ErrorTypeUri = type
@@ -173,9 +174,12 @@ public static class ControllerBaseX
         };
     }
 
-    public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>
-        $"{controller.Request.GetDisplayUrl()}/errors/{type?.GetType().Name}/{type}";
-
+    /// <summary>
+    /// Generate URI for use as "type" in error response
+    /// </summary>
+    public static string GetErrorType<TType>(this ControllerBase controller, TType? type)
+        where TType : Enum
+        => controller.Request.GetDisplayUrl($"/errors/{type?.GetType().Name}/{type}", false);
 
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.

@@ -31,5 +31,6 @@ public enum ModifyCollectionType
     AssetsAdjunctsDoNotMatch = 27,
     ManifestCurrentlyIngesting = 28,
     CannotConnectToTextService = 29,
+    InvalidSearchQuery = 30,
     Unknown = 1000
 }

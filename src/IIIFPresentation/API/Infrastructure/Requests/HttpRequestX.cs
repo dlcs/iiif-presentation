@@ -43,10 +43,7 @@ public static class HttpRequestX
     /// <summary>
     /// Generate a display URL, deriving values from specified HttpRequest. Omitting path and query string
     /// </summary>
-    public static string GetBaseUrl(this HttpRequest request)
-    {
-        return request.GetDisplayUrl(null, false);
-    }
+    public static string GetBaseUrl(this HttpRequest request) => request.GetDisplayUrl(null, false);
 
     /// <summary>
     /// Get <see cref="HttpRequest"/> body as string
