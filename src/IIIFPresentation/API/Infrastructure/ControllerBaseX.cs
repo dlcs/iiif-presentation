@@ -174,9 +174,12 @@ public static class ControllerBaseX
         };
     }
 
-    public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>
-        $"{controller.Request.GetDisplayUrl()}/errors/{type?.GetType().Name}/{type}";
-
+    /// <summary>
+    /// Generate URI for use as "type" in error response
+    /// </summary>
+    public static string GetErrorType<TType>(this ControllerBase controller, TType? type)
+        where TType : Enum
+        => controller.Request.GetDisplayUrl($"/errors/{type?.GetType().Name}/{type}", false);
 
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.

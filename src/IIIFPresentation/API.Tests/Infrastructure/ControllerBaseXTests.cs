@@ -182,6 +182,34 @@ public class ControllerBaseXTests
         error.Instance.Should().Be("https://error-instance");
     }
 
+    [Fact]
+    public void GetErrorType_Correct_ForType_RequestHasPathBase()
+    {
+        var sut = GetController(request =>
+        {
+            request.Scheme = "https";
+            request.Host = new HostString("localhost");
+            request.Path = "/manifest/1234";
+            request.PathBase = "/v1";
+        });
+        var error = sut.GetErrorType(TestEnum.Value1); 
+        error.Should().Be("https://localhost/v1/errors/TestEnum/Value1");
+    }
+    
+    [Fact]
+    public void GetErrorType_Correct_ForType_RequestHasQueryParam()
+    {
+        var sut = GetController(request =>
+        {
+            request.Scheme = "https";
+            request.Host = new HostString("localhost");
+            request.Path = "/manifest/1234";
+            request.QueryString = new QueryString("?foo=bar");
+        });
+        var error = sut.GetErrorType(TestEnum.Value1); 
+        error.Should().Be("https://localhost/errors/TestEnum/Value1");
+    }
+
     private static Error GetError(IActionResult result, HttpStatusCode expectedStatus)
     {
         var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
@@ -190,4 +218,6 @@ public class ControllerBaseXTests
     }
 
     private class TestController : ControllerBase;
+
+    private enum TestEnum { Value1 = 1, }
 }
