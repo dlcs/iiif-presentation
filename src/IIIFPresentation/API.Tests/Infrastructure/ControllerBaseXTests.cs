@@ -119,7 +119,6 @@ public class ControllerBaseXTests
     [Fact]
     public void PresentationProblem_Correct_WithDefaults_RequestHasPathBase()
     {
-        // Setup a basic request with no query params
         var sut = GetController(request =>
         {
             request.Scheme = "https";
@@ -142,7 +141,6 @@ public class ControllerBaseXTests
     [Fact]
     public void PresentationProblem_Correct_WithDefaults_RequestHasQueryParam()
     {
-        // Setup a basic request with no query params
         var sut = GetController(request =>
         {
             request.Scheme = "https";
@@ -163,7 +161,6 @@ public class ControllerBaseXTests
     [Fact]
     public void PresentationProblem_Correct_AllValuesProvidedValues()
     {
-        // Setup a basic request with no query params
         var sut = GetController(request =>
         {
             request.Scheme = "https";
