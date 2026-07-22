@@ -12,9 +12,9 @@ using Services.Manifests;
 using Services.Manifests.Exceptions;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using API.Infrastructure.Requests;
 using CanvasPainting = Models.Database.CanvasPainting;
 using DbManifest = Models.Database.Collections.Manifest;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
@@ -48,13 +48,13 @@ public class CanvasPaintingResolver(
         {
             logger.LogDebug(cpId, "InvalidCanvasId '{CanvasId}' encountered in {ManifestId}", cpId.CanvasId,
                 presentationManifest.Id);
-            return ParsedManifestResult.Failure(UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message));
+            return ParsedManifestResult.Failure(UpsertErrorHelper.InvalidCanvasId(cpId.CanvasId, cpId.Message));
         }
         catch (PaintableAssetException paintableAssetException)
         {
             logger.LogError(paintableAssetException,
                 "Error retrieving details of an asset from items when generating canvas paintings");
-            return ParsedManifestResult.Failure(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message));
+            return ParsedManifestResult.Failure(UpsertErrorHelper.PaintableAssetError(paintableAssetException.Message));
         }
     }
 
@@ -191,7 +191,7 @@ public class CanvasPaintingResolver(
             : incoming.CanvasOriginalId?.ToString() ?? incoming.SuspectedAssetId ?? "unknown";
     }
     
-    private async Task<PresUpdateResult?> HandleInserts(List<InterimCanvasPainting> canvasPaintings, int customerId,
+    private async Task<PresentationResult?> HandleInserts(List<InterimCanvasPainting> canvasPaintings, int customerId,
         CancellationToken cancellationToken)
     {
         if (canvasPaintings.IsNullOrEmpty()) return null;
@@ -199,7 +199,7 @@ public class CanvasPaintingResolver(
         logger.LogTrace("Adding {CanvasCounts} to Manifest", canvasPaintings.Count);
         var requiredIds = canvasPaintings.GetRequiredNumberOfCanvasIds();
         var canvasPaintingIds = await GenerateUniqueCanvasPaintingIds(requiredIds, customerId, cancellationToken);
-        if (canvasPaintingIds == null) return UpsertErrorHelper.CannotGenerateUniqueId<PresentationManifest>();
+        if (canvasPaintingIds == null) return UpsertErrorHelper.CannotGenerateUniqueId();
 
         // Build a dictionary of canvas_grouping:canvas_id, this is populated as we iterate over canvas paintings.
         // We will also seed it with any 'new' items that are on the same canvas as these will have been prepopulated
@@ -283,13 +283,13 @@ public class CanvasPaintingResolver(
         {
             logger.LogDebug(cpId, "InvalidCanvasId encountered in {ManifestId}", presentationManifest.Id);
             return new ManifestParseResult(
-                UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpId.CanvasId, cpId.Message));
+                UpsertErrorHelper.InvalidCanvasId(cpId.CanvasId, cpId.Message));
         }
         catch (CanvasPaintingValidationException cpve)
         {
             logger.LogDebug(cpve, "Validation errors encountered in {ManifestId}", presentationManifest.Id);
             return new ManifestParseResult(
-                UpsertErrorHelper.InvalidCanvasId<PresentationManifest>(cpve.Errors));
+                UpsertErrorHelper.InvalidCanvasId(cpve.Errors));
         }
         catch (CanvasPaintingMergerException cpMergeError)
         {
@@ -297,36 +297,36 @@ public class CanvasPaintingResolver(
                 "Canvas painting merge exception encountered in {ManifestId} for id {Id} - expected: {Expected}, actual: {Actual}",
                 presentationManifest.Id, cpMergeError.Id, cpMergeError.Expected, cpMergeError.Actual);
             return new ManifestParseResult(
-                UpsertErrorHelper.ErrorMergingPaintedResourcesWithItems<PresentationManifest>(cpMergeError.Message));
+                UpsertErrorHelper.ErrorMergingPaintedResourcesWithItems(cpMergeError.Message));
         }
         catch (InvalidOperationException formatException)
         {
             logger.LogDebug(formatException,
                 "Canvas painting exception encountered in {ManifestId}, could not retrieve an asset id",
                 presentationManifest.Id);
-            return new ManifestParseResult(UpsertErrorHelper.CouldNotRetrieveAssetId<PresentationManifest>());
+            return new ManifestParseResult(UpsertErrorHelper.CouldNotRetrieveAssetId());
         }
         catch (AssetException assetException)
         {
             logger.LogDebug(assetException,
                 "Error when parsing asset - {AssetException}", assetException.Asset);
-            return new ManifestParseResult(UpsertErrorHelper.AssetError<PresentationManifest>(assetException));
+            return new ManifestParseResult(UpsertErrorHelper.AssetError(assetException));
         }
         catch (PaintableAssetException paintableAssetException)
         {
             logger.LogDebug(paintableAssetException,
                 "Error retrieving paintable assets from items");
-            return new ManifestParseResult(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(paintableAssetException.Message));
+            return new ManifestParseResult(UpsertErrorHelper.PaintableAssetError(paintableAssetException.Message));
         }
     }
 
     private class ManifestParseResult(
-        PresUpdateResult? error = null,
+        PresentationResult? error = null,
         List<InterimCanvasPainting>? canvasPaintings = null,
         List<InterimCanvasPainting>? assetsIdentifiedInItems = null,
         List<AdjunctInteraction>? adjunctInteractions = null)
     {
-        public PresUpdateResult? Error { get; set; } = error;
+        public PresentationResult? Error { get; set; } = error;
 
         public List<InterimCanvasPainting>? CanvasPaintings { get; set; } = canvasPaintings;
 

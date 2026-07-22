@@ -17,15 +17,15 @@ using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
+using API.Infrastructure.Requests;
 using Batch = Models.Database.General.Batch;
-using EntityResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
 
 namespace API.Features.Manifest;
 
-public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBeBuiltUpfront = false, 
+public class DlcsInteractionResult(PresentationResult? error, int? spaceId, bool canBeBuiltUpfront = false, 
     List<AssetId>? ingestedAssets = null)
 {
-    public EntityResult? Error { get; } = error;
+    public PresentationResult? Error { get; } = error;
     public int? SpaceId { get; } = spaceId;
     
     public bool CanBeBuiltUpfront { get; } = canBeBuiltUpfront;
@@ -34,7 +34,7 @@ public class DlcsInteractionResult(EntityResult? error, int? spaceId, bool canBe
 
     public static readonly DlcsInteractionResult NoInteraction = new(null, null, true);
 
-    public static DlcsInteractionResult Fail(EntityResult error) => new(error, null);
+    public static DlcsInteractionResult Fail(PresentationResult error) => new(error, null);
 }
 
 public class DlcsManifestCoordinator(
@@ -111,7 +111,7 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(presentationException, "Error checking for the existence of assets");
 
-            return DlcsInteractionResult.Fail(UpsertErrorHelper.PaintableAssetError<PresentationManifest>(presentationException.Message));
+            return DlcsInteractionResult.Fail(UpsertErrorHelper.PaintableAssetError(presentationException.Message));
         }
 
         return null;
@@ -151,7 +151,7 @@ public class DlcsManifestCoordinator(
                 if (!spaceId.HasValue)
                 {
                     return DlcsInteractionResult.Fail(
-                        UpsertErrorHelper.DlcsError<PresentationManifest>("Error creating DLCS space"));
+                        UpsertErrorHelper.DlcsError("Error creating DLCS space"));
                 }
 
                 // you wanted a space, and there are no assets, so no further work required
@@ -198,7 +198,7 @@ public class DlcsManifestCoordinator(
                 error += $" for canvas painting id '{assetIdException.Data[ExceptionDataType.CanvasPaintingId]}'";
             }
             
-            return new DlcsInteractionResult(EntityResult.Failure(error, ModifyCollectionType.AssetError,
+            return new DlcsInteractionResult(PresentationResult.Failure(error, ModifyCollectionType.AssetError,
                 WriteResult.BadRequest), spaceId);
         }
 
@@ -376,7 +376,7 @@ public class DlcsManifestCoordinator(
         return newSpace.Id;
     }
 
-    private async Task<EntityResult?> CreateBatches(int customerId, string manifestId,
+    private async Task<PresentationResult?> CreateBatches(int customerId, string manifestId,
         List<DlcsInteractionRequest> dlcsInteractionRequests, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         if (dlcsInteractionRequests.Count == 0) return null;
@@ -409,7 +409,7 @@ public class DlcsManifestCoordinator(
             collectedBatches, cancellationToken);
     }
 
-    private async Task<EntityResult?> IngestDeliverables(int customerId, string manifestId,
+    private async Task<PresentationResult?> IngestDeliverables(int customerId, string manifestId,
         List<JObject> deliverables, DeliverableType deliverableType, List<Batch> collectedBatches, CancellationToken cancellationToken)
     {
         try
@@ -428,7 +428,7 @@ public class DlcsManifestCoordinator(
         {
             logger.LogError(exception, "Error creating batch request for customer {CustomerId}, manifest {ManifestId}",
                 customerId, manifestId);
-            return EntityResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
+            return PresentationResult.Failure(exception.Message, ModifyCollectionType.DlcsException,
                 ErrorStatusCodeToWriteResult(exception.StatusCode));
         }
     }

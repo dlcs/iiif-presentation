@@ -27,7 +27,7 @@ namespace API.Features.Storage.Requests;
 /// Create a new Collection (storage or iiif) in DB and upload provided JSON to S3 if iiif-collection
 /// </summary>
 public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody)
-    : IRequest<ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
+    : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
 
@@ -45,27 +45,27 @@ public class CreateCollectionHandler(
     SettingsBasedPathGenerator settingsBasedPathGenerator,
     IParentSlugParser parentSlugParser,
     IOptions<ApiSettings> options)
-    : IRequestHandler<CreateCollection, ModifyEntityResult<PresentationCollection, ModifyCollectionType>>
+    : IRequestHandler<CreateCollection, PresentationResult>
 {
     private readonly ApiSettings settings = options.Value;
 
     private const int CurrentPage = 1;
     
-    public async Task<ModifyEntityResult<PresentationCollection, ModifyCollectionType>> Handle(CreateCollection request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
         TryConvertIIIFResult<IIIF.Presentation.V3.Collection>? iiifCollection = null;
         if (!isStorageCollection)
         {
             iiifCollection = request.RawRequestBody.ConvertCollectionToIIIF(logger);
-            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF<PresentationCollection>();
+            if (iiifCollection.Error) return UpsertErrorHelper.CannotValidateIIIF();
         }
-        
+
         var parsedParentSlugResult =
-            await parentSlugParser.Parse<PresentationCollection>(request.Collection, request.CustomerId, null, cancellationToken);
+            await parentSlugParser.Parse(request.Collection, request.CustomerId, null, cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
-            
+
         string id;
 
         try
@@ -75,7 +75,7 @@ public class CreateCollectionHandler(
         catch (ConstraintException ex)
         {
             logger.LogError(ex, "An exception occured while generating a unique id");
-            return UpsertErrorHelper.CannotGenerateUniqueId<PresentationCollection>();
+            return UpsertErrorHelper.CannotGenerateUniqueId();
         }
 
         var dateCreated = DateTime.UtcNow;
@@ -109,7 +109,7 @@ public class CreateCollectionHandler(
         dbContext.Collections.Add(collection);
 
         var saveErrors =
-            await dbContext.TrySaveCollection<PresentationCollection>(request.CustomerId, logger,
+            await dbContext.TrySaveCollection(request.CustomerId, logger,
                 cancellationToken);
 
         if (saveErrors != null)
@@ -126,7 +126,7 @@ public class CreateCollectionHandler(
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
             settings.PageSize, CurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator, settingsBasedPathGenerator); // there can be no items attached to this, as it's just been created
         
-        return ModifyEntityResult<PresentationCollection, ModifyCollectionType>.Success(
+        return PresentationResult.Success(
             enrichedPresentationCollection,
             WriteResult.Created,
             collection.Etag);

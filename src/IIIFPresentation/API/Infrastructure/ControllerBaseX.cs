@@ -57,7 +57,7 @@ public static class ControllerBaseX
     }
 
     /// <summary>
-    /// Create an IActionResult from specified ModifyEntityResult{T}.
+    /// Create an IActionResult from specified ModifyEntityResult{TEnum}.
     /// This will be the model + 200/201 on success. Or an
     /// error and appropriate status code if failed.
     /// </summary>
@@ -68,17 +68,13 @@ public static class ControllerBaseX
     /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
-    /// <typeparam name="T">Type of entity being upserted</typeparam>
-    /// <typeparam name="TEnum">An enum used for </typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
-    public static IActionResult ModifyResultToHttpResult<T, TEnum>(this ControllerBase controller,
-        ModifyEntityResult<T, TEnum> entityResult,
+    public static IActionResult ModifyResultToHttpResult(this ControllerBase controller,
+        PresentationResult entityResult,
         string? instance,
-        string? errorTitle)
-        where T : JsonLdBase
-        where TEnum : Enum =>
+        string? errorTitle) =>
         entityResult.WriteResult switch
         {
             WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),

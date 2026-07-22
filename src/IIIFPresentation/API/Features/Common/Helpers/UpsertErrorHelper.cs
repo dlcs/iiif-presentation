@@ -1,6 +1,5 @@
-﻿using API.Infrastructure.Requests;
+using API.Infrastructure.Requests;
 using Core;
-using IIIF;
 using Models.API.General;
 using Services.Manifests.Exceptions;
 
@@ -8,147 +7,124 @@ namespace API.Features.Common.Helpers;
 
 public static class UpsertErrorHelper
 {
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> NullParentResponse<TCollection>() 
-        where TCollection : JsonLdBase
+    public static PresentationResult NullParentResponse()
     {
-        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             "The parent collection could not be found", ModifyCollectionType.ParentCollectionNotFound, WriteResult.BadRequest);
     }
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotGenerateUniqueId<TCollection>() 
-        where TCollection : JsonLdBase
+
+    public static PresentationResult CannotGenerateUniqueId()
     {
-        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             "Could not generate a unique identifier.  Please try again",
             ModifyCollectionType.CannotGenerateUniqueId, WriteResult.Error);
     }
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotValidateIIIF<TCollection>() 
-        where TCollection : JsonLdBase
+
+    public static PresentationResult CannotValidateIIIF()
     {
-        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             "An error occurred while attempting to validate the collection as IIIF",
             ModifyCollectionType.CannotValidateIIIF, WriteResult.BadRequest);
     }
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CannotChangeCollectionType<TCollection>
-        (bool storageCollection) where TCollection : JsonLdBase
+
+    public static PresentationResult CannotChangeCollectionType(bool storageCollection)
     {
-        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             $"Cannot convert a {CollectionType(storageCollection)} collection to a {CollectionType(!storageCollection)} collection",
             ModifyCollectionType.CannotChangeCollectionType, WriteResult.BadRequest);
     }
 
-    public static ModifyEntityResult<T, ModifyCollectionType> EtagNotRequired<T>()
-        where T : JsonLdBase
+    public static PresentationResult EtagNotRequired()
     {
-        return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             "ETag should not be included in request when inserting via PUT", ModifyCollectionType.ETagNotAllowed,
             WriteResult.PreconditionFailed);
     }
-    
-    public static ModifyEntityResult<T, ModifyCollectionType> EtagNonMatching<T>()
-        where T : JsonLdBase
+
+    public static PresentationResult EtagNonMatching()
     {
-        return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+        return PresentationResult.Failure(
             "ETag does not match", ModifyCollectionType.ETagNotMatched, WriteResult.PreconditionFailed);
     }
-    
-    public static ModifyEntityResult<T, ModifyCollectionType> DlcsError<T>(string message)
-        where T : JsonLdBase
-        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+
+    public static PresentationResult DlcsError(string message)
+        => PresentationResult.Failure(
             message, ModifyCollectionType.DlcsError, WriteResult.Error);
 
-    public static ModifyEntityResult<T, ModifyCollectionType> SpaceRequired<T>()
-        where T : JsonLdBase
-        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+    public static PresentationResult SpaceRequired()
+        => PresentationResult.Failure(
             "A request with assets requires the space header to be set", ModifyCollectionType.RequiresSpaceHeader,
             WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<T, ModifyCollectionType> CouldNotRetrieveAssetId<T>()
-        where T : JsonLdBase
-        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+
+    public static PresentationResult CouldNotRetrieveAssetId()
+        => PresentationResult.Failure(
             "Could not retrieve an id from an attached asset", ModifyCollectionType.CouldNotRetrieveAssetId,
             WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ParentMustBeStorageCollection<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must be a storage collection",
+
+    public static PresentationResult ParentMustBeStorageCollection()
+        => PresentationResult.Failure("The parent must be a storage collection",
             ModifyCollectionType.ParentMustBeStorageCollection, WriteResult.Conflict);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ParentMustMatchPublicId<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The parent must match the one specified in the public id",
+
+    public static PresentationResult ParentMustMatchPublicId()
+        => PresentationResult.Failure("The parent must match the one specified in the public id",
             ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> SlugMustMatchPublicId<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("The slug must match the one specified in the public id",
+
+    public static PresentationResult SlugMustMatchPublicId()
+        => PresentationResult.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(string? canvasId, string reason) 
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas id {canvasId} is invalid - {reason}",
+
+    public static PresentationResult InvalidCanvasId(string? canvasId, string reason)
+        => PresentationResult.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> InvalidCanvasId<TCollection>(params (string canvasId, string reason)[] multiple) 
-        where TCollection : JsonLdBase
+
+    public static PresentationResult InvalidCanvasId(params (string canvasId, string reason)[] multiple)
     {
         var failures = string.Join(", ", multiple.Select(p => $"{p.canvasId}: {p.reason}"));
         var message = $"Errors encountered when parsing painted resources: {failures}.";
-        
-        return ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(message,
+
+        return PresentationResult.Failure(message,
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);
     }
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> ErrorMergingPaintedResourcesWithItems<TCollection>(string error) 
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+    public static PresentationResult ErrorMergingPaintedResourcesWithItems(string error)
+        => PresentationResult.Failure(error,
             ModifyCollectionType.ErrorMergingPaintedResourcesWithItems, WriteResult.BadRequest);
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> DuplicateCanvasId<TCollection>(string? canvasId)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The canvas ID {canvasId} cannot be a duplicate",
+    public static PresentationResult DuplicateCanvasId(string? canvasId)
+        => PresentationResult.Failure($"The canvas ID {canvasId} cannot be a duplicate",
             ModifyCollectionType.DuplicateCanvasId, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> IncorrectPublicId<TCollection>()
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure("publicId incorrect",
+
+    public static PresentationResult IncorrectPublicId()
+        => PresentationResult.Failure("publicId incorrect",
             ModifyCollectionType.PublicIdIncorrect, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> PaintableAssetError<TCollection>(string error)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(error,
+
+    public static PresentationResult PaintableAssetError(string error)
+        => PresentationResult.Failure(error,
             ModifyCollectionType.PaintableAssetError, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetError<TCollection>(AssetException exception)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(exception.Message,
+
+    public static PresentationResult AssetError(AssetException exception)
+        => PresentationResult.Failure(exception.Message,
             ModifyCollectionType.AssetError, WriteResult.BadRequest);
-    
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> CustomerIdDoesNotMatchCaller<TCollection>(string field)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure($"The {field} has a customer id that does not match the customer id found on the calling URL",
+
+    public static PresentationResult CustomerIdDoesNotMatchCaller(string field)
+        => PresentationResult.Failure($"The {field} has a customer id that does not match the customer id found on the calling URL",
             ModifyCollectionType.CustomerIdDoesNotMatchCaller, WriteResult.BadRequest);
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetAdjunctsDoNotMatch<TCollection>(string assetId, string diff)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+    public static PresentationResult AssetAdjunctsDoNotMatch(string assetId, string diff)
+        => PresentationResult.Failure(
             $"Asset {assetId} is specified multiple times with different adjuncts - diff: {diff}",
             ModifyCollectionType.AssetsAdjunctsDoNotMatch, WriteResult.BadRequest);
 
-    public static ModifyEntityResult<T, ModifyCollectionType> ManifestCurrentlyIngesting<T>()
-        where T : JsonLdBase
-        => ModifyEntityResult<T, ModifyCollectionType>.Failure(
+    public static PresentationResult ManifestCurrentlyIngesting()
+        => PresentationResult.Failure(
             "The manifest is currently being ingested and cannot be modified",
             ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
 
-    public static ModifyEntityResult<TCollection, ModifyCollectionType> AssetsDataDoesNotMatch<TCollection>(string assetId, string diff)
-        where TCollection : JsonLdBase
-        => ModifyEntityResult<TCollection, ModifyCollectionType>.Failure(
+    public static PresentationResult AssetsDataDoesNotMatch(string assetId, string diff)
+        => PresentationResult.Failure(
             $"Asset {assetId} is specified multiple times, but has conflicting data - diff: {diff}",
             ModifyCollectionType.AssetsDoNotMatch, WriteResult.BadRequest);
-    
+
     private static string CollectionType(bool isStorageCollection)
     {
         return isStorageCollection ? "Storage" : "IIIF";

@@ -1,6 +1,4 @@
 ﻿using API.Infrastructure.Requests;
-using Models.API.General;
-using Models.API.Manifest;
 using Services.Manifests.Model;
 
 namespace API.Features.Manifest;
@@ -11,7 +9,7 @@ namespace API.Features.Manifest;
 /// </summary>
 public class ParsedManifestResult
 {
-    public static ParsedManifestResult Failure(ModifyEntityResult<PresentationManifest, ModifyCollectionType> updateResult) =>
+    public static ParsedManifestResult Failure(PresentationResult updateResult) =>
         new()
         {
             Error = updateResult
@@ -28,7 +26,7 @@ public class ParsedManifestResult
     /// <summary>
     /// An error that occurred during processing
     /// </summary>
-    public ModifyEntityResult<PresentationManifest, ModifyCollectionType>? Error { get; private init; }
+    public PresentationResult? Error { get; private init; }
 
     /// <summary>
     /// Details of all canvas paintings that are considered to be "new"

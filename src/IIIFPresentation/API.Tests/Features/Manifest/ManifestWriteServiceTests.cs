@@ -151,7 +151,7 @@ public class ManifestWriteServiceTests
                 A<CancellationToken>._)).ReturnsLazily(
             (PresentationManifest presentationManifest, int customerId, string data,
                     CancellationToken cancellationToken) =>
-                ParsedParentSlugResult<PresentationManifest>.Success(new ParsedParentSlug(parentCollection,
+                ParsedParentSlugResult.Success(new ParsedParentSlug(parentCollection,
                     presentationManifest.Slug!)));
         
         // Always return Space 500 when call to create space
@@ -200,10 +200,11 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(2);
-        
+        var entityManifest = (PresentationManifest)ingestedManifest.Entity!;
+        entityManifest.PaintedResources.Should().HaveCount(2);
+
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
-            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+            .First(x => x.Id == entityManifest.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
 
         // Saved to staging with an original payload stored - must not attempt to delete any original payload
@@ -301,10 +302,11 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(2);
-        
+        var entityManifest = (PresentationManifest)ingestedManifest.Entity!;
+        entityManifest.PaintedResources.Should().HaveCount(2);
+
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
-            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+            .First(x => x.Id == entityManifest.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(2);
         dbManifest.CanvasPaintings.Count(cp=>cp.AssetId.Equals(imageAssetId)).Should().Be(1);
 
@@ -486,10 +488,11 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(1);
+        var entityManifest = (PresentationManifest)ingestedManifest.Entity!;
+        entityManifest.PaintedResources.Should().HaveCount(1);
 
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
-            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+            .First(x => x.Id == entityManifest.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(1);
     }
     
@@ -591,9 +594,10 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity!.PaintedResources.Should().HaveCount(1);
-        ingestedManifest.Entity.Items!.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
-        var paintedResource = ingestedManifest.Entity.PaintedResources!.First();
+        var entityManifest = (PresentationManifest)ingestedManifest.Entity!;
+        entityManifest.PaintedResources.Should().HaveCount(1);
+        entityManifest.Items!.First().Id.Should().Be("https://presentation.api/1/canvases/shortCanvas");
+        var paintedResource = entityManifest.PaintedResources!.First();
         paintedResource.CanvasPainting!.CanvasId.Should().Be($"https://localhost:5000/{Customer}/canvases/shortCanvas");
         paintedResource.CanvasPainting.CanvasOriginalId.Should().BeNull();
     }
@@ -743,16 +747,17 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.Error.Should().BeNull();
-        result.Entity.SeeAlso.Should()
+        var entityManifest = (PresentationManifest)result.Entity!;
+        entityManifest.SeeAlso.Should()
             .Contain(s => s.Id == userSeeAlsoId, "user-set seeAlso must not be lost when stub canvas adjuncts are merged").And
             .Contain(s => s.Id == stubSeeAlsoId, "stub canvas seeAlso must be added alongside user-set values");
-        result.Entity.Rendering.Should()
+        entityManifest.Rendering.Should()
             .Contain(r => r.Id == userRenderingId, "user-set rendering must not be lost when stub canvas adjuncts are merged").And
             .Contain(r => r.Id == stubRenderingId, "stub canvas rendering must be added alongside user-set values");
-        result.Entity.Annotations.Should()
+        entityManifest.Annotations.Should()
             .Contain(a => a.Id == userAnnotationId, "user-set annotations must not be lost when stub canvas adjuncts are merged").And
             .Contain(a => a.Id == stubAnnotationId, "stub canvas annotations must be added alongside user-set values");
-        result.Entity.Adjuncts.Should().ContainSingle()
+        entityManifest.Adjuncts.Should().ContainSingle()
             .Which.Value<string>("id").Should().Be(stubManifestAdjunctId,
                 "manifest-level adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
     }
@@ -812,10 +817,11 @@ public class ManifestWriteServiceTests
 
         // Assert: empty lists from the base manifest are passed through unchanged
         result.Error.Should().BeNull();
-        result.Entity.SeeAlso.Should().BeEmpty();
-        result.Entity.Rendering.Should().BeEmpty();
-        result.Entity.Annotations.Should().BeEmpty();
-        result.Entity.Adjuncts.Should().BeNull("no stub asset carries adjuncts so Adjuncts should not be populated");
+        var entityManifest = (PresentationManifest)result.Entity!;
+        entityManifest.SeeAlso.Should().BeEmpty();
+        entityManifest.Rendering.Should().BeEmpty();
+        entityManifest.Annotations.Should().BeEmpty();
+        entityManifest.Adjuncts.Should().BeNull("no stub asset carries adjuncts so Adjuncts should not be populated");
     }
 
     [Fact]
@@ -859,7 +865,8 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.Error.Should().BeNull();
-        result.Entity.Adjuncts.Should().ContainSingle()
+        var entityManifest = (PresentationManifest)result.Entity!;
+        entityManifest.Adjuncts.Should().ContainSingle()
             .Which.Value<string>("id").Should().Be(existingAdjunctId,
                 "existing adjuncts from the DLCS stub asset must be returned when Adjuncts was null on the request");
         A.CallTo(() => dlcsManifestMerger.Augment(
@@ -890,7 +897,8 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.Error.Should().BeNull();
-        result.Entity.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
+        var entityManifest = (PresentationManifest)result.Entity!;
+        entityManifest.Adjuncts.Should().BeNull("no DLCS content exists so the stub asset has no adjuncts to return");
         A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
@@ -930,7 +938,8 @@ public class ManifestWriteServiceTests
 
         // Assert
         result.Error.Should().BeNull();
-        result.Entity.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
+        var entityManifest = (PresentationManifest)result.Entity!;
+        entityManifest.Adjuncts.Should().BeEmpty("Adjuncts=[] (explicit clear) is preserved — stub lookup finds no adjuncts so the value is unchanged");
         A.CallTo(() => dlcsManifestMerger.Augment(
                 A<IIIFManifest>._, A<DbManifest>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
@@ -1133,10 +1142,11 @@ public class ManifestWriteServiceTests
         // Assert
         ingestedManifest.Should().NotBeNull();
         ingestedManifest.Error.Should().BeNull();
-        ingestedManifest.Entity.PaintedResources.Should().HaveCount(4);
-        
+        var entityManifest = (PresentationManifest)ingestedManifest.Entity!;
+        entityManifest.PaintedResources.Should().HaveCount(4);
+
         var dbManifest = presentationContext.Manifests.Include(m => m.CanvasPaintings)
-            .First(x => x.Id == ingestedManifest.Entity.FlatId);
+            .First(x => x.Id == entityManifest.FlatId);
         dbManifest.CanvasPaintings.Should().HaveCount(4);
         dbManifest.CanvasPaintings[0].CanvasOriginalId.Should().Be( $"https://base/0/canvases/{canvasId}_1");
         dbManifest.CanvasPaintings[1].Id.Should().Be( $"{canvasId}_2");
@@ -1182,13 +1192,14 @@ public class ManifestWriteServiceTests
         A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
-        var flatId = result.Entity.FlatId;
+        var entityManifest = (PresentationManifest)result.Entity!;
+        var flatId = entityManifest.FlatId;
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
         pipelineJob.Should().NotBeNull();
         pipelineJob!.Status.Should().Be(PipelineJobStatus.Waiting);
         pipelineJob.Config!.Action.Should().Be("Index");
         pipelineJob.GetJobId().ToString().Should().Be($"{Customer}/iiif/{flatId}");
-        result.Entity.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+        entityManifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
     }
 
     [Fact]
@@ -1247,7 +1258,7 @@ public class ManifestWriteServiceTests
             .MustNotHaveHappened();
 
         // Pipeline job must be persisted so the batch-completion handler can submit it later
-        var flatId = result.Entity.FlatId;
+        var flatId = ((PresentationManifest)result.Entity!).FlatId;
         var pipelineJob = presentationContext.PipelineJobs.FirstOrDefault(p => p.ManifestId == flatId);
         pipelineJob.Should().NotBeNull("pipeline job must be registered even when submission is deferred");
         pipelineJob!.Status.Should().Be(PipelineJobStatus.NotSubmitted);
@@ -1262,7 +1273,7 @@ public class ManifestWriteServiceTests
         var createManifest = new PresentationManifest { Slug = slug };
         var createRequest = new UpsertManifestRequest(resourceId, null, Customer, createManifest, createManifest.AsJson(), true);
         var createResult = await sut.Create(createRequest, CancellationToken.None);
-        var flatId = createResult.Entity.FlatId;
+        var flatId = ((PresentationManifest)createResult.Entity!).FlatId;
         var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
 
         // Return an ingesting batch so canBeBuiltUpfront=false — the asset is being processed by DLCS
@@ -1410,7 +1421,7 @@ public class ManifestWriteServiceTests
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
         var firstResult = await sut.Create(request, CancellationToken.None);
-        var flatId = firstResult.Entity.FlatId;
+        var flatId = ((PresentationManifest)firstResult.Entity!).FlatId;
 
         // Second create (update path) — resubmit the same manifest with pipeline
         var updateManifest = new PresentationManifest

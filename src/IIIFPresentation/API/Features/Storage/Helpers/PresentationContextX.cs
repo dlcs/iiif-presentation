@@ -2,7 +2,6 @@
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
-using IIIF;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
@@ -15,24 +14,22 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySaveCollection<T>(
+    public static Task<PresentationResult?> TrySaveCollection(
         this PresentationContext dbContext,
         int customerId,
         ILogger logger,
         CancellationToken cancellationToken)
-        where T : JsonLdBase
-        => dbContext.TrySave<T>("collection", customerId, logger, cancellationToken);
-    
-    public static async Task<ModifyEntityResult<T, ModifyCollectionType>?> TrySave<T>(
-        this PresentationContext dbContext, 
+        => dbContext.TrySave("collection", customerId, logger, cancellationToken);
+
+    public static async Task<PresentationResult?> TrySave(
+        this PresentationContext dbContext,
         string resourceType,
-        int customerId, 
+        int customerId,
         ILogger logger,
         CancellationToken cancellationToken)
-        where T : JsonLdBase
     {
         try
-        { 
+        {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
@@ -41,19 +38,19 @@ public static class PresentationContextX
 
             if (ex.IsCustomerIdSlugParentViolation())
             {
-                return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+                return PresentationResult.Failure(
                     $"The {resourceType} could not be created due to a duplicate slug value",
                     ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
             }
 
             if (ex.IsManifestPrimaryKeyViolation())
             {
-                return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+                return PresentationResult.Failure(
                     "The manifest is currently being created",
                     ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
             }
 
-            return ModifyEntityResult<T, ModifyCollectionType>.Failure(
+            return PresentationResult.Failure(
                 $"The {resourceType} could not be created", ModifyCollectionType.Unknown);
         }
 
