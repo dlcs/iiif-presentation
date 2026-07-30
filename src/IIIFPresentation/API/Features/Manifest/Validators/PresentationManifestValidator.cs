@@ -1,5 +1,4 @@
 using API.Features.Storage.Validators;
-using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
@@ -14,13 +13,23 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 {
     private readonly ServicesSettings servicesSettings;
 
-    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, IOptions<ApiSettings> apiOptions)
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
+        : this(servicesOptions, isFlatRequest: true)
+    {
+    }
+
+    /// <param name="servicesOptions"></param>
+    /// <param name="isFlatRequest">
+    /// Whether a 'parent'/'slug' or 'publicId' must be present in the body - see <see cref="PresentationValidator"/>.
+    /// Hierarchical manifest write requests construct this with <c>false</c>.
+    /// </param>
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, bool isFlatRequest)
     {
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
-        RuleFor(c => c).SetValidator(new PresentationValidator(apiOptions));
-        
+        RuleFor(c => c).SetValidator(new PresentationValidator(isFlatRequest));
+
         RuleFor(m => m.Items)
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
             .When(m => !m.Items.IsNullOrEmpty())

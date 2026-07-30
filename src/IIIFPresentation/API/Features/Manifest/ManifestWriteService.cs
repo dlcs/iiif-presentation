@@ -42,7 +42,10 @@ public class UpsertManifestRequest(
     int customerId,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace)
+    bool createSpace,
+    string? urlParentPath = null,
+    string? urlSlug = null)
+    : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace, urlParentPath, urlSlug)
 {
     public string ManifestId { get; } = manifestId;
     public string? Etag { get; } = etag;
@@ -56,21 +59,46 @@ public class WriteManifestRequest
     public WriteManifestRequest(int customerId,
         PresentationManifest presentationManifest,
         string rawRequestBody,
-        bool createSpace)
+        bool createSpace,
+        string? urlParentPath = null,
+        string? urlSlug = null,
+        string? clientProvidedId = null)
     {
         // removes presentation behaviors that aren't required for a manifest
         presentationManifest.RemovePresentationBehaviours();
-        
+
         CustomerId = customerId;
         PresentationManifest = presentationManifest;
         RawRequestBody = rawRequestBody;
         CreateSpace = createSpace;
+        UrlParentPath = urlParentPath;
+        UrlSlug = urlSlug;
+        ClientProvidedId = clientProvidedId;
     }
-    
+
     public int CustomerId { get; }
     public PresentationManifest PresentationManifest { get; }
     public string RawRequestBody { get; }
     public bool CreateSpace { get; }
+
+    /// <summary>
+    /// Hierarchical parent path derived from the request URL - set only for hierarchical POST/PUT (the full path
+    /// for POST, everything but the last segment for PUT)
+    /// </summary>
+    public string? UrlParentPath { get; }
+
+    /// <summary>
+    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// </summary>
+    public string? UrlSlug { get; }
+
+    /// <summary>
+    /// A trusted, internal flat id resolved from the request body's "id" property (create only). When set, this is
+    /// used as the new manifest's id instead of minting a new one - the caller is responsible for having already
+    /// recognised this as belonging to us (<see cref="API.Helpers.IRequestIdResolver"/>); <see cref="ManifestWriteService.Create"/>
+    /// still checks it isn't already in use
+    /// </summary>
+    public string? ClientProvidedId { get; }
 }
 
 public interface IManifestWrite
@@ -155,7 +183,17 @@ public class ManifestWriteService(
     {
         try
         {
-            return await CreateInternal(request, null, cancellationToken);
+            string? manifestId = null;
+            if (request.ClientProvidedId != null)
+            {
+                var existing = await dbContext.RetrieveManifestAsync(request.ClientProvidedId,
+                    cancellationToken: cancellationToken);
+                if (existing != null) return UpsertErrorHelper.IdAlreadyExists();
+
+                manifestId = request.ClientProvidedId;
+            }
+
+            return await CreateInternal(request, manifestId, cancellationToken);
         }
         catch (DlcsException ex)
         {
@@ -315,7 +353,7 @@ public class ManifestWriteService(
         WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
     {
         var result = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, manifestId,
-            cancellationToken);
+            urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
         return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 

@@ -1,4 +1,4 @@
-﻿using API.Features.Manifest;
+﻿ using API.Features.Manifest;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.IdGenerator;
@@ -148,9 +148,9 @@ public class ManifestWriteServiceTests
 
         A.CallTo(() =>
             parentSlugParser.Parse(A<PresentationManifest>._, A<int>._, A<string>._,
-                A<CancellationToken>._)).ReturnsLazily(
-            (PresentationManifest presentationManifest, int customerId, string data,
-                    CancellationToken cancellationToken) =>
+                A<string>._, A<string>._, A<CancellationToken>._)).ReturnsLazily(
+            (PresentationManifest presentationManifest, int customerId, string data, string? urlParentPath,
+                    string? urlSlug, CancellationToken cancellationToken) =>
                 ParsedParentSlugResult.Success(new ParsedParentSlug(parentCollection,
                     presentationManifest.Slug!)));
         

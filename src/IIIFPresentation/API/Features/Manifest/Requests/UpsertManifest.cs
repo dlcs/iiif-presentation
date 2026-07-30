@@ -14,7 +14,9 @@ public class UpsertManifest(
     StringValues etag,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) : IRequest<PresentationResult>
+    bool createSpace,
+    string? urlParentPath = null,
+    string? urlSlug = null) : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
@@ -22,6 +24,17 @@ public class UpsertManifest(
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
     public bool CreateSpace { get; } = createSpace;
+
+    /// <summary>
+    /// Hierarchical parent path derived from the request URL - set only for hierarchical PUT (everything but the
+    /// last segment of the path)
+    /// </summary>
+    public string? UrlParentPath { get; } = urlParentPath;
+
+    /// <summary>
+    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// </summary>
+    public string? UrlSlug { get; } = urlSlug;
 }
 
 public class UpsertManifestHandler(IManifestWrite manifestService)
@@ -36,7 +49,9 @@ public class UpsertManifestHandler(IManifestWrite manifestService)
             request.CustomerId,
             request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
-            request.CreateSpace);
+            request.CreateSpace,
+            request.UrlParentPath,
+            request.UrlSlug);
 
         return manifestService.Upsert(upsertRequest, cancellationToken);
     }

@@ -32,5 +32,8 @@ public enum ModifyCollectionType
     ManifestCurrentlyIngesting = 28,
     CannotConnectToTextService = 29,
     InvalidSearchQuery = 30,
+    IdMustMatchUrl = 31,
+    IdAlreadyExists = 32,
+    MissingSlug = 33,
     Unknown = 1000
 }

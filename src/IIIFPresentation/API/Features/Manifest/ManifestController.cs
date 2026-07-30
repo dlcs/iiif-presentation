@@ -1,8 +1,10 @@
 ﻿using System.Net;
 using API.Auth;
+using API.Features.Common.Helpers;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
@@ -67,16 +69,20 @@ public class ManifestController(
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
         [FromServices] PresentationManifestValidator validator,
+        [FromServices] IRequestIdResolver requestIdResolver,
         CancellationToken cancellationToken)
         => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) => new CreateManifest(customerId, presentationManifest,
-                rawRequestBody, Request.HasCreateSpaceHeader()),
+            customerId,
+            requestIdResolver,
+            (presentationManifest, rawRequestBody, resolvedId) => new CreateManifest(customerId, presentationManifest,
+                rawRequestBody, Request.HasCreateSpaceHeader(),
+                urlParentPath: resolvedId.HierarchicalParentPath, clientProvidedId: resolvedId.FlatId),
             validator,
             cancellationToken: cancellationToken);
 
     /// <summary>
     /// Create or upsert Manifest with specific id.
-    /// If id exists valid E-Tag must be provided 
+    /// If id exists valid E-Tag must be provided
     /// </summary>
     [Authorize]
     [RequireShowExtras]
@@ -85,12 +91,17 @@ public class ManifestController(
         [FromRoute] int customerId,
         [FromRoute] string id,
         [FromServices] PresentationManifestValidator validator,
+        [FromServices] IRequestIdResolver requestIdResolver,
         CancellationToken cancellationToken)
         => await ManifestUpsert(
-            (presentationManifest, rawRequestBody) =>
+            customerId,
+            requestIdResolver,
+            (presentationManifest, rawRequestBody, resolvedId) =>
                 new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
-                    Request.HasCreateSpaceHeader()),
+                    Request.HasCreateSpaceHeader(), urlParentPath: resolvedId.HierarchicalParentPath,
+                    urlSlug: resolvedId.Slug),
             validator,
+            urlId: id,
             invalidatesEtag:Request.Headers.IfMatch,
             cancellationToken: cancellationToken);
 
@@ -103,8 +114,11 @@ public class ManifestController(
     }
 
     private async Task<IActionResult> ManifestUpsert(
-        Func<PresentationManifest, string, IRequest<PresentationResult>> requestFactory,
+        int customerId,
+        IRequestIdResolver requestIdResolver,
+        Func<PresentationManifest, string, ResolvedRequestId, IRequest<PresentationResult>> requestFactory,
         PresentationManifestValidator validator,
+        string? urlId = null,
         string? instance = null,
         string? errorTitle = "Operation failed",
         string? invalidatesEtag = null,
@@ -125,7 +139,12 @@ public class ManifestController(
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance,
-            errorTitle, invalidatesEtag, cancellationToken);
+        var resolvedId = requestIdResolver.Resolve(customerId, presentationManifest.ConvertedIIIF!.Id);
+        if (resolvedId.IsError) return this.ModifyResultToHttpResult(resolvedId.Error!, instance, errorTitle);
+        if (urlId != null && resolvedId.FlatId != null && resolvedId.FlatId != urlId)
+            return this.ModifyResultToHttpResult(UpsertErrorHelper.IdMustMatchUrl(), instance, errorTitle);
+
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody, resolvedId),
+            instance, errorTitle, invalidatesEtag, cancellationToken);
     }
 }

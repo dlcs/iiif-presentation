@@ -1,136 +1,73 @@
-﻿using System.Data;
 using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
-using API.Infrastructure.IdGenerator;
+using API.Features.Storage.Validators;
+using API.Helpers;
 using API.Infrastructure.Requests;
-using AWS.Helpers;
-using Core;
-using Core.Auth;
-using Core.IIIF;
-using IIIF.Presentation.V3;
-using IIIF.Presentation.V3.Content;
+using Core.Helpers;
+using IIIF.Presentation;
 using MediatR;
-using Models.API.General;
-using Models.Database.General;
+using Models.API.Collection;
 using Repository;
 using Repository.Helpers;
 using Repository.Paths;
-using DatabaseCollection = Models.Database.Collections;
+using DbCollection = Models.Database.Collections.Collection;
 
 namespace API.Features.Storage.Requests;
 
+/// <summary>
+/// Create a new Collection (storage or iiif) as a child of the container addressed by the request URL
+/// (POST /{customer}/{parent-path}), and upload provided JSON to S3 if iiif-collection.
+/// </summary>
 public class PostHierarchicalCollection(
     int customerId,
-    string slug, 
+    string parentPath,
     string rawRequestBody) : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
 
-    public string Slug { get; } = slug;
-    
+    /// <summary>
+    /// Full hierarchical path this request was POSTed to - the parent container for the new resource
+    /// </summary>
+    public string ParentPath { get; } = parentPath;
+
     public string RawRequestBody { get; } = rawRequestBody;
 }
 
 public class PostHierarchicalCollectionHandler(
-    PresentationContext dbContext,    
     ILogger<PostHierarchicalCollectionHandler> logger,
-    IdentityManager identityManager,
-    IIIIFS3Service iiifS3,
+    IRequestIdResolver requestIdResolver,
+    ICollectionWrite collectionService,
+    PresentationContext dbContext,
     IPathGenerator pathGenerator)
     : IRequestHandler<PostHierarchicalCollection, PresentationResult>
 {
-    
     public async Task<PresentationResult> Handle(PostHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
-        var convertResult = request.RawRequestBody.ConvertCollectionToIIIF(logger);
-        if (convertResult.Error) return UpsertErrorHelper.CannotValidateIIIF();
-        var collectionFromBody = convertResult.ConvertedIIIF!;
+        var (error, context) = await HierarchicalRequestHelper.PrepareForPost<PresentationCollection>(
+            request.RawRequestBody, request.ParentPath, request.CustomerId, logger, requestIdResolver,
+            new PresentationValidator(isFlatRequest: false), UpsertErrorHelper.CannotValidateIIIF(),
+            cancellationToken);
+        if (error != null) return error;
 
-        var splitSlug = request.Slug.Split('/');
+        var writeRequest = new WriteCollectionRequest(request.CustomerId, context!.Presentation,
+            request.RawRequestBody, urlParentPath: context.ParentPath, urlSlug: context.Slug,
+            clientProvidedId: context.ClientProvidedId);
 
-        var parentSlug = string.Join("/", splitSlug.Take(..^1));
-        var parentCollection =
-            await dbContext.RetrieveHierarchy(request.CustomerId, parentSlug, cancellationToken);
+        var result = await collectionService.Create(writeRequest, cancellationToken);
+        if (!result.IsSuccess || result.Entity is not PresentationCollection collection) return result;
 
-        var parentValidationError =
-            ParentValidator.ValidateParentCollection(parentCollection?.Collection);
-        if (parentValidationError != null) return parentValidationError;
-
-        var id = await GenerateUniqueId(request, cancellationToken);
-        if (id == null) return UpsertErrorHelper.CannotGenerateUniqueId();
-
-        var collection = CreateDatabaseCollection(request, collectionFromBody, id, parentCollection, splitSlug);
-        dbContext.Collections.Add(collection);
-
-        var saveErrors =
-            await dbContext.TrySaveCollection(request.CustomerId, logger,
-                cancellationToken);
-
-        if (saveErrors != null)
+        var dbCollection = new DbCollection
         {
-            return saveErrors;
-        }
-        
-        await iiifS3.SaveIIIFToS3(collectionFromBody, collection, pathGenerator.GenerateFlatCollectionId(collection),
-            false, cancellationToken);
-
-        var hierarchy = collection.Hierarchy.GetCanonical();
-        
-        if (hierarchy.Parent != null)
-        {
-            hierarchy.FullPath =
-                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
-        }
-
-        collectionFromBody.Id = pathGenerator.GenerateHierarchicalId(hierarchy);
-        return PresentationResult.Success(collectionFromBody, WriteResult.Created, collection.Etag);
-    }
-
-    private static DatabaseCollection.Collection CreateDatabaseCollection(PostHierarchicalCollection request, Collection collectionFromBody, string id,
-        Hierarchy parentHierarchy, string[] splitSlug)
-    {
-        var thumbnails = collectionFromBody.Thumbnail?.OfType<Image>().ToList();    
-        
-        var dateCreated = DateTime.UtcNow;
-        var collection = new DatabaseCollection.Collection
-        {
-            Id = id,
-            Created = dateCreated,
-            Modified = dateCreated,
-            CreatedBy = Authorizer.GetUser(),
-            CustomerId = request.CustomerId,
-            IsPublic = collectionFromBody.Behavior != null && collectionFromBody.Behavior.IsPublic(),
-            IsStorageCollection = false,
-            Label = collectionFromBody.Label,
-            Thumbnail = thumbnails?.GetThumbnailPath(),
-            Hierarchy = [
-                new Hierarchy
-                {
-                    CollectionId = id,
-                    Type = ResourceType.IIIFCollection,
-                    Slug = splitSlug.Last(),
-                    CustomerId = request.CustomerId,
-                    Canonical = true,
-                    ItemsOrder = 0,
-                    Parent = parentHierarchy.CollectionId
-                }
-            ]
+            Id = collection.FlatId.ThrowIfNull(nameof(collection.FlatId)), CustomerId = request.CustomerId
         };
-        
-        return collection;
-    }
+        var fullPath =
+            await CollectionRetrieval.RetrieveFullPathForCollection(dbCollection, dbContext, cancellationToken);
+        var hierarchicalId = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, fullPath);
 
-    private async Task<string?> GenerateUniqueId(PostHierarchicalCollection request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await identityManager.GenerateUniqueId<DatabaseCollection.Collection>(request.CustomerId, cancellationToken);
-        }
-        catch (ConstraintException ex)
-        {
-            logger.LogError(ex, "An exception occured while generating a unique id");
-            return null;
-        }
+        var responseCollection = HierarchicalCollectionResponse.Build(context.Presentation.Behavior.IsStorageCollection(),
+            request.RawRequestBody, collection.Label, hierarchicalId, logger);
+
+        return PresentationResult.Success(responseCollection, result.WriteResult, result.ETag);
     }
 }

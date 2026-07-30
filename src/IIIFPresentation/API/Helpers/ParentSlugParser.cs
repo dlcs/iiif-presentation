@@ -20,10 +20,23 @@ namespace API.Helpers;
 /// </summary>
 public interface IParentSlugParser
 {
+    /// <summary>
+    /// Parse the parent and slug values for a write request.
+    /// </summary>
+    /// <param name="presentation">The deserialized request body</param>
+    /// <param name="customerId">Customer id from the request URL</param>
+    /// <param name="id">Internal id from the request URL, for flat PUT only</param>
+    /// <param name="urlParentPath">
+    /// Hierarchical parent path derived from the request URL - the full path for hierarchical POST (the container
+    /// being POSTed into), or everything but the last segment for hierarchical PUT
+    /// </param>
+    /// <param name="urlSlug">Slug derived from the request URL - the last segment, for hierarchical PUT only</param>
     public Task<ParsedParentSlugResult> Parse<T>(
         T presentation,
         int customerId,
         string? id,
+        string? urlParentPath = null,
+        string? urlSlug = null,
         CancellationToken cancellationToken = default)
         where T : JsonLdBase, IPresentation;
 }
@@ -34,7 +47,8 @@ public class ParentSlugParser(PresentationContext dbContext,
     ILogger<ParentSlugParser> logger) : IParentSlugParser
 {
     public async Task<ParsedParentSlugResult> Parse<T>(T presentation,
-        int customerId, string? id, CancellationToken cancellationToken = default)
+        int customerId, string? id, string? urlParentPath = null, string? urlSlug = null,
+        CancellationToken cancellationToken = default)
         where T : JsonLdBase, IPresentation
     {
         if (IsRoot(presentation, id))
@@ -47,20 +61,28 @@ public class ParentSlugParser(PresentationContext dbContext,
         }
 
         // Try and match slug, if invalid this is cheaper than parent validation so do first
-        var (slugErrors, slug) = TryGetSlug(presentation);
+        var (slugErrors, slug) = TryGetSlug(presentation, urlSlug);
         if (slugErrors != null)
         {
             return ParsedParentSlugResult.Fail(slugErrors);
         }
 
-        var parent = await TryGetParent(presentation, customerId, cancellationToken);
+        // For flat requests, PresentationValidator already guarantees a slug/parent or publicId is present. Hierarchical
+        // requests don't run that validator (the URL can legitimately supply what the body doesn't), so a missing
+        // slug is only caught here.
+        if (string.IsNullOrEmpty(slug))
+        {
+            return ParsedParentSlugResult.Fail(UpsertErrorHelper.MissingSlug());
+        }
+
+        var parent = await TryGetParent(presentation, customerId, urlParentPath, cancellationToken);
         if (parent.Errors != null)
         {
             return ParsedParentSlugResult.Fail(parent.Errors);
         }
 
         return ParsedParentSlugResult.Success(
-            new ParsedParentSlug(parent.Parent.ThrowIfNull(nameof(parent)), slug.ThrowIfNull(nameof(slug)))
+            new ParsedParentSlug(parent.Parent.ThrowIfNull(nameof(parent)), slug)
         );
     }
 
@@ -72,28 +94,66 @@ public class ParentSlugParser(PresentationContext dbContext,
             ? null
             : UpsertErrorHelper.IncorrectPublicId();
 
-    private (PresentationResult? errors, string? slug) TryGetSlug(IPresentation presentation)
+    private (PresentationResult? errors, string? slug) TryGetSlug(IPresentation presentation, string? urlSlug)
     {
         // Try and get slug from publicId and/or 'slug' property directly
         var publicIdSlug = presentation.PublicId?.GetLastPathElement();
         var slug = presentation.Slug;
 
-        if (string.IsNullOrEmpty(slug)) return (null, publicIdSlug);
-
-        if (publicIdSlug != null && publicIdSlug != slug)
+        string? resolvedSlug;
+        if (string.IsNullOrEmpty(slug))
+        {
+            resolvedSlug = publicIdSlug;
+        }
+        else if (publicIdSlug != null && publicIdSlug != slug)
         {
             logger.LogDebug("PublicId slug '{PublicIdSlug}' and explicit slug {Slug} do not match",
                 presentation.PublicId, presentation.Slug);
             return (UpsertErrorHelper.SlugMustMatchPublicId(), null);
         }
+        else
+        {
+            resolvedSlug = slug;
+        }
 
-        return (null, slug);
+        // Reconcile against slug derived from the request URL (hierarchical PUT only)
+        if (urlSlug != null)
+        {
+            if (resolvedSlug != null && resolvedSlug != urlSlug)
+            {
+                logger.LogDebug("URL-derived slug '{UrlSlug}' and body-derived slug '{ResolvedSlug}' do not match",
+                    urlSlug, resolvedSlug);
+                return (UpsertErrorHelper.SlugSourcesDoNotMatch(), null);
+            }
+
+            resolvedSlug = urlSlug;
+        }
+
+        return (null, resolvedSlug);
     }
 
-    private async Task<ParsedParent> TryGetParent(IPresentation presentation, int customerId, CancellationToken cancellationToken)
+    private async Task<ParsedParent> TryGetParent(IPresentation presentation, int customerId, string? urlParentPath,
+        CancellationToken cancellationToken)
     {
         var parent = await TryGetParentFromPresentation(presentation, customerId, cancellationToken);
         if (parent.Errors != null) return parent;
+
+        // Reconcile against parent derived from the request URL (hierarchical POST/PUT only)
+        if (urlParentPath != null)
+        {
+            var urlParentHierarchy = await dbContext.RetrieveHierarchy(customerId, urlParentPath, cancellationToken);
+            var urlParentCollection = urlParentHierarchy?.Collection;
+
+            if (parent.Parent != null && urlParentCollection != null && parent.Parent.Id != urlParentCollection.Id)
+            {
+                logger.LogDebug(
+                    "URL-derived parent '{UrlParentPath}' and body-derived parent '{BodyParent}' do not match",
+                    urlParentPath, parent.Parent.Id);
+                return ParsedParent.Fail(UpsertErrorHelper.ParentSourcesDoNotMatch());
+            }
+
+            parent = ParsedParent.Success(parent.Parent ?? urlParentCollection);
+        }
 
         // Passed values match, validate parent can be used
         var parentValidationError = ParentValidator.ValidateParentCollection(parent.Parent);

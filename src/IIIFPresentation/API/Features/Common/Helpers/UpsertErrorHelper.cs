@@ -1,5 +1,7 @@
 using API.Infrastructure.Requests;
 using Core;
+using FluentValidation;
+using FluentValidation.Results;
 using Models.API.General;
 using Services.Manifests.Exceptions;
 
@@ -7,6 +9,26 @@ namespace API.Features.Common.Helpers;
 
 public static class UpsertErrorHelper
 {
+    /// <summary>
+    /// Converts a FluentValidation failure into a <see cref="PresentationResult"/> - used by handlers that run
+    /// validation themselves (rather than in a controller, where <c>ControllerBaseX.ValidationFailed</c> is used)
+    /// </summary>
+    public static PresentationResult ValidationFailed(ValidationResult validationResult)
+        => PresentationResult.Failure(
+            string.Join(". ", validationResult.Errors.Select(e => e.ErrorMessage).Distinct()),
+            ModifyCollectionType.ValidationFailed, WriteResult.BadRequest);
+
+    /// <summary>
+    /// Runs a validator and converts a failure into a <see cref="PresentationResult"/> - used by hierarchical write
+    /// handlers, which run validation themselves rather than in a controller. Returns null when valid.
+    /// </summary>
+    public static async Task<PresentationResult?> ValidateAsync<T>(IValidator<T> validator, T model,
+        CancellationToken cancellationToken)
+    {
+        var result = await validator.ValidateAsync(model, cancellationToken);
+        return result.IsValid ? null : ValidationFailed(result);
+    }
+
     public static PresentationResult NullParentResponse()
     {
         return PresentationResult.Failure(
@@ -72,6 +94,27 @@ public static class UpsertErrorHelper
     public static PresentationResult SlugMustMatchPublicId()
         => PresentationResult.Failure("The slug must match the one specified in the public id",
             ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
+
+    public static PresentationResult ParentSourcesDoNotMatch()
+        => PresentationResult.Failure("The parent derived from the request URL does not match the parent specified in the request body",
+            ModifyCollectionType.ParentMustMatchPublicId, WriteResult.BadRequest);
+
+    public static PresentationResult SlugSourcesDoNotMatch()
+        => PresentationResult.Failure("The slug derived from the request URL does not match the slug specified in the request body",
+            ModifyCollectionType.SlugMustMatchPublicId, WriteResult.BadRequest);
+
+    public static PresentationResult IdMustMatchUrl()
+        => PresentationResult.Failure("The 'id' specified in the request body does not match the id in the request URL",
+            ModifyCollectionType.IdMustMatchUrl, WriteResult.BadRequest);
+
+    public static PresentationResult IdAlreadyExists()
+        => PresentationResult.Failure("A resource with the 'id' specified in the request body already exists",
+            ModifyCollectionType.IdAlreadyExists, WriteResult.Conflict);
+
+    public static PresentationResult MissingSlug()
+        => PresentationResult.Failure(
+            "Could not determine a 'slug' for this resource from the request URL, body, or 'publicId'",
+            ModifyCollectionType.MissingSlug, WriteResult.BadRequest);
 
     public static PresentationResult InvalidCanvasId(string? canvasId, string reason)
         => PresentationResult.Failure($"The canvas id {canvasId} is invalid - {reason}",
