@@ -57,13 +57,9 @@ public class PutHierarchicalCollectionHandler(
 
         var result = await collectionService.Upsert(upsertRequest, cancellationToken);
 
-        if (!result.IsSuccess || result.Entity is not PresentationCollection presentationCollection) return result;
-
         var hierarchicalId = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, request.FullPath);
 
-        var responseCollection = HierarchicalCollectionResponse.Build(context.Presentation.Behavior.IsStorageCollection(),
-            request.RawRequestBody, presentationCollection.Label, hierarchicalId, logger);
-
-        return PresentationResult.Success(responseCollection, result.WriteResult, result.ETag);
+        return HierarchicalCollectionResponse.Build(result, request.RawRequestBody,
+            context.Presentation.Behavior.IsStorageCollection(), hierarchicalId, logger);
     }
 }

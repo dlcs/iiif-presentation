@@ -65,9 +65,7 @@ public class PostHierarchicalCollectionHandler(
             await CollectionRetrieval.RetrieveFullPathForCollection(dbCollection, dbContext, cancellationToken);
         var hierarchicalId = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, fullPath);
 
-        var responseCollection = HierarchicalCollectionResponse.Build(context.Presentation.Behavior.IsStorageCollection(),
-            request.RawRequestBody, collection.Label, hierarchicalId, logger);
-
-        return PresentationResult.Success(responseCollection, result.WriteResult, result.ETag);
+        return HierarchicalCollectionResponse.Build(result, request.RawRequestBody,
+            context.Presentation.Behavior.IsStorageCollection(), hierarchicalId, logger);
     }
 }

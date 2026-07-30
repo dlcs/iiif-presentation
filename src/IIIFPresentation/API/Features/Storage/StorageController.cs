@@ -105,7 +105,7 @@ public class StorageController(
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
-        IRequest<PresentationResult>? request = JsonPropertyReader.ReadTopLevelString(rawRequestBody, "type", logger) switch
+        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
         {
             "Manifest" => new PostHierarchicalManifest(customerId, slug, rawRequestBody,
                 Request.HasCreateSpaceHeader()),
@@ -128,7 +128,7 @@ public class StorageController(
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
-        IRequest<PresentationResult>? request = JsonPropertyReader.ReadTopLevelString(rawRequestBody, "type", logger) switch
+        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
         {
             "Manifest" => new PutHierarchicalManifest(customerId, slug, rawRequestBody, Request.Headers.IfMatch,
                 Request.HasCreateSpaceHeader()),
