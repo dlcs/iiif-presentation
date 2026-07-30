@@ -34,10 +34,9 @@ public static class PresentationContextX
         }
         catch (DbUpdateException ex)
         {
-            logger.LogError(ex, "DB Error saving {ResourceType} for customer {Customer}", resourceType, customerId);
-
             if (ex.IsCustomerIdSlugParentViolation())
             {
+                logger.LogError("CustomerIdSlugParent error saving {ResourceType} for customer {Customer}", resourceType, customerId);
                 return PresentationResult.Failure(
                     $"The {resourceType} could not be created due to a duplicate slug value",
                     ModifyCollectionType.DuplicateSlugValue, WriteResult.Conflict);
@@ -45,11 +44,13 @@ public static class PresentationContextX
 
             if (ex.IsManifestPrimaryKeyViolation())
             {
+                logger.LogError("ManifestPK error saving {ResourceType} for customer {Customer}", resourceType, customerId);
                 return PresentationResult.Failure(
                     "The manifest is currently being created",
                     ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
             }
 
+            logger.LogError(ex, "DB Error saving {ResourceType} for customer {Customer}", resourceType, customerId);
             return PresentationResult.Failure(
                 $"The {resourceType} could not be created", ModifyCollectionType.Unknown);
         }
