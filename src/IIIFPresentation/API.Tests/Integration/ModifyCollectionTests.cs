@@ -2709,9 +2709,11 @@ $$"""
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
 
-        // Assert
+        // Assert - pin the specific error, not just the status code (several distinct 400 paths could produce it)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/SlugMustMatchPublicId");
     }
 
     [Fact]
@@ -2925,4 +2927,117 @@ $$"""
             "the existing child should be reflected, not an unconditional empty placeholder");
     }
 
+    [Fact]
+    public async Task CreateCollection_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
+    {
+        // Arrange - create a collection with a client-chosen id, then attempt to create a second one re-using it
+        var existingId = nameof(CreateCollection_ReturnsConflict_WhenClientProvidedIdAlreadyExists) + "-existing";
+
+        var firstCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["first"]),
+            Slug = $"{existingId}-1",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/collections/{existingId}"
+        };
+        var firstRequest = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            firstCollection.AsJson());
+        var firstResponse = await httpClient.AsCustomer().SendAsync(firstRequest);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var secondCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["second"]),
+            Slug = $"{existingId}-2",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/collections/{existingId}"
+        };
+        var secondRequest = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            secondCollection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(secondRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/IdAlreadyExists");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsPreconditionFailed_WhenIfMatchDoesNotMatchExistingResource()
+    {
+        // Arrange - only the happy-path update was previously covered; a wrong If-Match on an existing resource
+        // must still be rejected for hierarchical PUT, same as flat PUT
+        var slug = nameof(PutHierarchical_ReturnsPreconditionFailed_WhenIfMatchDoesNotMatchExistingResource);
+        var initialCollection = new Collection
+        {
+            Id = slug,
+            Label = new LanguageMap("en", ["before update"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["after update"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            updatedCollection.AsJson(), Guid.NewGuid()); // wrong etag
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == slug);
+        fromDatabase.Label!.Values.First()[0].Should().Be("before update", "the update must not have been applied");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsConflict_WhenPathAlreadyHoldsAManifest()
+    {
+        // Arrange - seed a Manifest at a hierarchical path, then PUT a Collection body to the same path. Pins
+        // current behaviour: a new Collection id is minted (the existing hierarchy row is a Manifest, not a
+        // Collection), and inserting a second hierarchy row for the same (customer, slug, parent) hits the
+        // hierarchy's own unique index
+        var slug = nameof(PutHierarchical_ReturnsConflict_WhenPathAlreadyHoldsAManifest);
+        await dbContext.Manifests.AddTestManifest(slug, slug: slug, parent: parent);
+        await dbContext.SaveChangesAsync();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["collection body over manifest path"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

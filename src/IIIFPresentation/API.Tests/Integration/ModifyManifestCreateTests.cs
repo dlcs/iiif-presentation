@@ -2113,31 +2113,74 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        if (!isHierarchical)
-        {
-            // flat responses are the enriched PresentationManifest, with .Id ending in the flat internal id
-            var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-            responseManifest!.Slug.Should().Be(uniqueSlug);
-        }
-        else
-        {
-            // hierarchical responses are always plain IIIF, with .Id ending in the slug rather than the internal id
-            var responseManifest = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Manifest>();
-            responseManifest!.Id.Should().EndWith($"/{uniqueSlug}");
-        }
-
-        // resolve the actual internal id via DB (robust to flat vs hierarchical response shape differences)
+        // Resolve the actual internal id via DB (robust to flat vs hierarchical response shape differences) before
+        // any further assertions, so cleanup can still run via finally if one of them fails - otherwise a single
+        // failed case leaves its slug behind and cascades into unrelated case failures
         var hierarchyFromDatabase = dbContext.Hierarchy.Single(h => h.Slug == uniqueSlug && h.Parent == parentId);
         var createdId = hierarchyFromDatabase.ManifestId!;
 
-        if (includeId || !isPost)
+        try
         {
-            createdId.Should().Be(manifestId, "the id from the URL/body should be honoured");
-        }
+            if (!isHierarchical)
+            {
+                // flat responses are the enriched PresentationManifest, with .Id ending in the flat internal id
+                var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+                responseManifest!.Slug.Should().Be(uniqueSlug);
+            }
+            else
+            {
+                // hierarchical responses are always plain IIIF, with .Id ending in the slug rather than the
+                // internal id
+                var responseManifest = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Manifest>();
+                responseManifest!.Id.Should().EndWith($"/{uniqueSlug}");
+            }
 
-        // Cleanup so the shared parent/slug space stays clean for other cases
-        var deleteRequest =
-            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{createdId}");
-        await httpClient.AsCustomer().SendAsync(deleteRequest);
+            if (includeId || !isPost)
+            {
+                createdId.Should().Be(manifestId, "the id from the URL/body should be honoured");
+            }
+        }
+        finally
+        {
+            // Cleanup so the shared parent/slug space stays clean for other cases
+            var deleteRequest =
+                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{createdId}");
+            await httpClient.AsCustomer().SendAsync(deleteRequest);
+        }
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
+    {
+        // Arrange - create a manifest with a client-chosen id, then attempt to create a second one re-using it
+        var existingId = nameof(CreateManifest_ReturnsConflict_WhenClientProvidedIdAlreadyExists) + "-existing";
+
+        var firstManifest = new PresentationManifest
+        {
+            Slug = $"{existingId}-1",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/manifests/{existingId}"
+        };
+        var firstRequest =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", firstManifest.AsJson());
+        var firstResponse = await httpClient.AsCustomer().SendAsync(firstRequest);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var secondManifest = new PresentationManifest
+        {
+            Slug = $"{existingId}-2",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/manifests/{existingId}"
+        };
+        var secondRequest =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", secondManifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(secondRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/IdAlreadyExists");
     }
 }
