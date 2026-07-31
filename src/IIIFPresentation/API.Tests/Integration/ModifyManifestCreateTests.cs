@@ -435,6 +435,47 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
 
     [Fact]
+    public async Task PostHierarchical_WithAsset_IngestsAsset_WithoutShowExtrasHeader()
+    {
+        // Arrange - hierarchical POST has no [RequireShowExtras] gate at all (contrast with
+        // CreateManifest_Forbidden_IfNoShowExtraHeader, which 403s on the flat endpoint for the exact same
+        // omission), so a "paintedResources" body still triggers the same DLCS asset-ingestion pipeline.
+        var (slug, _, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            PaintedResources =
+            [
+                new()
+                {
+                    Asset = new(new JProperty("id", assetId))
+                }
+            ]
+        };
+
+        SetupApiClientWithBatchReturn(assetId);
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}")
+            .WithJsonContent(manifest.AsJson());
+        // deliberately no X-IIIF-CS-Show-Extras header
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        var manifestId = hierarchyFromDatabase.ManifestId!;
+
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"staging/{Customer}/manifests/{manifestId}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest.Id.Should().EndWith(manifestId, "the DLCS ingestion pipeline ran, proving paintedResources ");
+    }
+
+    [Fact]
     public async Task PutManifest_ViaHierarchicalPut_CreatesManifest_WhenNoneExistsAtPath()
     {
         // Arrange - hierarchical PUT to a path that doesn't exist yet
