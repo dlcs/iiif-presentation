@@ -26,6 +26,22 @@ public record HierarchicalPostContext<T>(T Presentation, string ParentPath, stri
 public record HierarchicalPutContext<T>(T Presentation, string ParentPath, string Slug, string ResourceId);
 
 /// <summary>
+/// Result of deserializing, validating, and resolving the body's "id" property - the part of the hierarchical
+/// POST/PUT prologue that's identical for both.
+/// </summary>
+public class DeserializedRequest<T>
+{
+    public PresentationResult? Error { get; private init; }
+    public T? Presentation { get; private init; }
+    public ResolvedRequestId? ResolvedId { get; private init; }
+
+    public static DeserializedRequest<T> Failure(PresentationResult error) => new() { Error = error };
+
+    public static DeserializedRequest<T> Success(T presentation, ResolvedRequestId resolvedId) =>
+        new() { Presentation = presentation, ResolvedId = resolvedId };
+}
+
+/// <summary>
 /// Shared orchestration for hierarchical POST/PUT request handling, used identically by the Collection and Manifest
 /// hierarchical handlers. Centralising this here means any future rule that should apply to hierarchical writes of
 /// both resource types (a new validation step, a new id/parent/slug source, etc.) only needs to be added once.
@@ -55,15 +71,17 @@ public static class HierarchicalRequestHelper
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
     {
-        var (error, presentation, resolvedId) = await DeserializeValidateAndResolveId(rawRequestBody, customerId,
+        var deserialized = await DeserializeValidateAndResolveId(rawRequestBody, customerId,
             logger, requestIdResolver, validator, deserializeError, cancellationToken);
-        if (error != null) return (error, null);
+        if (deserialized.Error != null) return (deserialized.Error, null);
+        var resolvedId = deserialized.ResolvedId!;
 
-        var (parentPathError, parentPath) = ReconcileId(urlParentPath, resolvedId!.HierarchicalParentPath,
+        var (parentPathError, parentPath) = ReconcileId(urlParentPath, resolvedId.HierarchicalParentPath,
             UpsertErrorHelper.ParentSourcesDoNotMatch());
         if (parentPathError != null) return (parentPathError, null);
 
-        return (null, new HierarchicalPostContext<T>(presentation!, parentPath!, resolvedId.Slug, resolvedId.FlatId));
+        return (null,
+            new HierarchicalPostContext<T>(deserialized.Presentation!, parentPath!, resolvedId.Slug, resolvedId.FlatId));
     }
 
     /// <summary>
@@ -101,13 +119,14 @@ public static class HierarchicalRequestHelper
         where T : ResourceBase, IPresentation, new()
         where TDbEntity : class, IIdentifiable
     {
-        var (error, presentation, resolvedId) = await DeserializeValidateAndResolveId(rawRequestBody, customerId,
+        var deserialized = await DeserializeValidateAndResolveId(rawRequestBody, customerId,
             logger, requestIdResolver, validator, deserializeError, cancellationToken);
-        if (error != null) return (error, null);
+        if (deserialized.Error != null) return (deserialized.Error, null);
+        var resolvedId = deserialized.ResolvedId!;
 
         var (urlParentPath, urlSlug) = SplitPath(fullPath);
 
-        var (parentPathError, parentPath) = ReconcileId(urlParentPath, resolvedId!.HierarchicalParentPath,
+        var (parentPathError, parentPath) = ReconcileId(urlParentPath, resolvedId.HierarchicalParentPath,
             UpsertErrorHelper.ParentSourcesDoNotMatch());
         if (parentPathError != null) return (parentPathError, null);
 
@@ -120,35 +139,34 @@ public static class HierarchicalRequestHelper
             resolvedId.FlatId, identityManager, logger, customerId, cancellationToken);
         if (idError != null) return (idError, null);
 
-        return (null, new HierarchicalPutContext<T>(presentation!, parentPath!, slug!, resourceId!));
+        return (null, new HierarchicalPutContext<T>(deserialized.Presentation!, parentPath!, slug!, resourceId!));
     }
 
     /// <summary>
     /// Deserializes the body, validates it, and resolves its "id" property - the part of the prologue that's
     /// identical for both hierarchical POST and PUT.
     /// </summary>
-    private static async Task<(PresentationResult? error, T? presentation, ResolvedRequestId? resolvedId)>
-        DeserializeValidateAndResolveId<T>(
-            string rawRequestBody,
-            int customerId,
-            ILogger logger,
-            IRequestIdResolver requestIdResolver,
-            IValidator<T> validator,
-            PresentationResult deserializeError,
-            CancellationToken cancellationToken)
+    private static async Task<DeserializedRequest<T>> DeserializeValidateAndResolveId<T>(
+        string rawRequestBody,
+        int customerId,
+        ILogger logger,
+        IRequestIdResolver requestIdResolver,
+        IValidator<T> validator,
+        PresentationResult deserializeError,
+        CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
     {
         var deserialized = await rawRequestBody.TryDeserializePresentation<T>(logger);
-        if (deserialized.Error) return (deserializeError, null, null);
+        if (deserialized.Error) return DeserializedRequest<T>.Failure(deserializeError);
         var presentation = deserialized.ConvertedIIIF!;
 
         var validationError = await UpsertErrorHelper.ValidateAsync(validator, presentation, cancellationToken);
-        if (validationError != null) return (validationError, null, null);
+        if (validationError != null) return DeserializedRequest<T>.Failure(validationError);
 
         var resolvedId = requestIdResolver.Resolve(customerId, presentation.Id);
-        if (resolvedId.IsError) return (resolvedId.Error!, null, null);
+        if (resolvedId.IsError) return DeserializedRequest<T>.Failure(resolvedId.Error!);
 
-        return (null, presentation, resolvedId);
+        return DeserializedRequest<T>.Success(presentation, resolvedId);
     }
 
     /// <summary>

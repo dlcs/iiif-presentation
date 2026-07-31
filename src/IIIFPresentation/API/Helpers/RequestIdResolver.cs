@@ -8,9 +8,8 @@ namespace API.Helpers;
 
 /// <summary>
 /// Resolves the base IIIF <c>"id"</c> property supplied in a write request body into an internal flat id, or a
-/// hierarchical parent path + slug, mirroring the host-recognition pattern used for canvas ids
-/// (<see cref="Services.Manifests.ManifestItemsParser"/>). An id that does not resolve to a recognised host, or
-/// isn't a well-formed absolute URI, is treated as external/opaque and ignored.
+/// hierarchical parent path + slug. An id that isn't a well-formed absolute URI, or doesn't resolve to a
+/// recognised host for the customer, is treated as external/opaque and ignored.
 /// </summary>
 public interface IRequestIdResolver
 {

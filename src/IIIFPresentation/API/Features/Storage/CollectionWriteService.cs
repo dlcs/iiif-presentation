@@ -149,14 +149,13 @@ public class CollectionWriteService(
     private async Task<PresentationResult> CreateInternal(WriteCollectionRequest request, string? id,
         CancellationToken cancellationToken)
     {
-        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
-        var (convertError, iiifCollection) = ConvertIfRequired(request.RawRequestBody, isStorageCollection);
-        if (convertError != null) return convertError;
+        var prepared = PrepareCollection(request);
+        if (prepared.Error != null) return prepared.Error;
+        var isStorageCollection = prepared.IsStorageCollection;
+        var iiifCollection = prepared.IiifCollection;
 
-        var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId, id,
-            urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
-        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
-        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
+        var (slugError, parsedParentSlug) = await ParseParentSlug(request, id, cancellationToken);
+        if (slugError != null) return slugError;
 
         if (id == null)
         {
@@ -201,17 +200,8 @@ public class CollectionWriteService(
         var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
         if (saveErrors != null) return saveErrors;
 
-        try
-        {
-            collection.Hierarchy.GetCanonical().FullPath =
-                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
-        }
-        catch (PresentationException)
-        {
-            return PresentationResult.Failure(
-                "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
-                ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
-        }
+        var fullPathError = await TrySetFullPath(collection, collection.Hierarchy.GetCanonical(), cancellationToken);
+        if (fullPathError != null) return fullPathError;
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -227,15 +217,13 @@ public class CollectionWriteService(
     private async Task<PresentationResult> UpdateInternal(UpsertCollectionRequest request,
         Collection databaseCollection, CancellationToken cancellationToken)
     {
-        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
-        var (convertError, iiifCollection) = ConvertIfRequired(request.RawRequestBody, isStorageCollection);
-        if (convertError != null) return convertError;
+        var prepared = PrepareCollection(request);
+        if (prepared.Error != null) return prepared.Error;
+        var isStorageCollection = prepared.IsStorageCollection;
+        var iiifCollection = prepared.IiifCollection;
 
-        var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId,
-            request.CollectionId, urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug,
-            cancellationToken: cancellationToken);
-        if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
-        var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
+        var (slugError, parsedParentSlug) = await ParseParentSlug(request, request.CollectionId, cancellationToken);
+        if (slugError != null) return slugError;
 
         if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
             return UpsertErrorHelper.EtagNonMatching();
@@ -271,18 +259,8 @@ public class CollectionWriteService(
         var hierarchy = databaseCollection.Hierarchy.Single();
         if (hierarchy.Parent != null)
         {
-            try
-            {
-                hierarchy.FullPath =
-                    await CollectionRetrieval.RetrieveFullPathForCollection(databaseCollection, dbContext,
-                        cancellationToken);
-            }
-            catch (PresentationException)
-            {
-                return PresentationResult.Failure(
-                    "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
-                    ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
-            }
+            var fullPathError = await TrySetFullPath(databaseCollection, hierarchy, cancellationToken);
+            if (fullPathError != null) return fullPathError;
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -309,13 +287,67 @@ public class CollectionWriteService(
         return PresentationResult.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }
 
-    private (PresentationResult? error, IIIF.Presentation.V3.Collection? iiifCollection) ConvertIfRequired(
-        string rawRequestBody, bool isStorageCollection)
+    /// <summary>
+    /// Recomputes and sets a collection's canonical hierarchy full path, converting the recursive-CTE's
+    /// too-many-records guard into a client-facing error (a sign the parent chain no longer resolves to root -
+    /// e.g. an ancestor was moved under one of its own descendants).
+    /// </summary>
+    private async Task<PresentationResult?> TrySetFullPath(Collection collection, Hierarchy hierarchy,
+        CancellationToken cancellationToken)
     {
-        if (isStorageCollection) return (null, null);
+        try
+        {
+            hierarchy.FullPath =
+                await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
+            return null;
+        }
+        catch (PresentationException)
+        {
+            return PresentationResult.Failure(
+                "New slug exceeds 1000 records.  This could mean an item no longer belongs to the root collection.",
+                ModifyCollectionType.PossibleCircularReference, WriteResult.BadRequest);
+        }
+    }
 
-        var converted = rawRequestBody.ConvertCollectionToIIIF(logger);
-        return converted.Error ? (UpsertErrorHelper.CannotValidateIIIF(), null) : (null, converted.ConvertedIIIF);
+    /// <summary>
+    /// Determines whether the request is for a storage collection and, if not, converts the raw body to plain IIIF
+    /// </summary>
+    private PreparedCollection PrepareCollection(WriteCollectionRequest request)
+    {
+        var isStorageCollection = request.Collection.Behavior.IsStorageCollection();
+        if (isStorageCollection) return PreparedCollection.Success(true, null);
+
+        var converted = request.RawRequestBody.ConvertCollectionToIIIF(logger);
+        return converted.Error
+            ? PreparedCollection.Failure(UpsertErrorHelper.CannotValidateIIIF())
+            : PreparedCollection.Success(false, converted.ConvertedIIIF);
+    }
+
+    /// <summary>
+    /// Result of <see cref="PrepareCollection"/>
+    /// </summary>
+    private class PreparedCollection
+    {
+        public PresentationResult? Error { get; private init; }
+        public bool IsStorageCollection { get; private init; }
+        public IIIF.Presentation.V3.Collection? IiifCollection { get; private init; }
+
+        public static PreparedCollection Failure(PresentationResult error) => new() { Error = error };
+
+        public static PreparedCollection Success(bool isStorageCollection,
+            IIIF.Presentation.V3.Collection? iiifCollection) =>
+            new() { IsStorageCollection = isStorageCollection, IiifCollection = iiifCollection };
+    }
+
+    /// <summary>
+    /// Resolves the parent/slug for a write request, unwrapping the result into an error-or-value pair
+    /// </summary>
+    private async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
+        WriteCollectionRequest request, string? id, CancellationToken cancellationToken)
+    {
+        var result = await parentSlugParser.Parse(request.Collection, request.CustomerId, id,
+            urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
+        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
     /// <summary>

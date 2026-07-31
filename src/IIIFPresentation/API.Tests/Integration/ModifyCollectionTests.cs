@@ -17,6 +17,7 @@ using Models.API.General;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Collection = Models.Database.Collections.Collection;
@@ -2515,7 +2516,7 @@ $$"""
     {
         // Arrange - hierarchical POST with "is-storage-collection" in the body's behavior; the previous
         // hierarchical POST handler hardcoded IsStorageCollection = false regardless of what the body said
-        var slug = nameof(PostHierarchical_CreatesStorageCollection);
+        var slug = TestIdentifiers.Slug();
 
         var collection = new PresentationCollection
         {
@@ -2544,7 +2545,7 @@ $$"""
     public async Task PutHierarchical_CreatesStorageCollection_WhenNoneExistsAtPath()
     {
         // Arrange - hierarchical PUT create with "is-storage-collection" in the body's behavior
-        var slug = nameof(PutHierarchical_CreatesStorageCollection_WhenNoneExistsAtPath);
+        var slug = TestIdentifiers.Slug();
 
         var collection = new PresentationCollection
         {
@@ -2570,7 +2571,7 @@ $$"""
     {
         // Arrange - hierarchical PUT to a path that doesn't exist yet: parent is everything but the last segment,
         // slug is the last segment, both derived purely from the URL
-        var slug = nameof(PutHierarchical_CreatesCollection_WhenNoneExistsAtPath);
+        var slug = TestIdentifiers.Slug();
 
         var collection = new PresentationCollection
         {
@@ -2595,7 +2596,7 @@ $$"""
     public async Task PutHierarchical_UpdatesExistingCollection_WhenOneExistsAtPath()
     {
         // Arrange - seed an existing collection directly, then PUT to its hierarchical path
-        var slug = nameof(PutHierarchical_UpdatesExistingCollection_WhenOneExistsAtPath);
+        var slug = TestIdentifiers.Slug();
         var initialCollection = new Collection
         {
             Id = slug,
@@ -2644,8 +2645,8 @@ $$"""
     {
         // Arrange - seed an intermediate storage collection directly under root, then PUT two segments deep, so
         // the parent path actually needs splitting off the last segment (not just defaulting to root)
-        var intermediateSlug = nameof(PutHierarchical_CreatesCollection_AtMultiSegmentPath) + "-intermediate";
-        var targetSlug = nameof(PutHierarchical_CreatesCollection_AtMultiSegmentPath) + "-target";
+        var intermediateSlug = TestIdentifiers.IdWithSuffix(suffix: "-intermediate");
+        var targetSlug = TestIdentifiers.IdWithSuffix(suffix: "-target");
 
         var intermediateCollection = new Collection
         {
@@ -2694,7 +2695,7 @@ $$"""
     public async Task PutHierarchical_ReturnsBadRequest_WhenBodyIdSlugConflictsWithUrl()
     {
         // Arrange - body "id" resolves (hierarchical form) to the same parent as the URL, but a different slug
-        var urlSlug = nameof(PutHierarchical_ReturnsBadRequest_WhenBodyIdSlugConflictsWithUrl);
+        var urlSlug = TestIdentifiers.Slug();
         var bodySlug = urlSlug + "-different";
 
         var collection = new PresentationCollection
@@ -2720,7 +2721,7 @@ $$"""
     public async Task PutHierarchical_UsesBodyId_WhenCreatingAtNewPath()
     {
         // Arrange - flat-form body "id" (no existing resource at this path to take precedence over it)
-        var slug = nameof(PutHierarchical_UsesBodyId_WhenCreatingAtNewPath);
+        var slug = TestIdentifiers.Slug();
         var clientChosenId = slug + "-client-chosen-id";
 
         var collection = new PresentationCollection
@@ -2750,8 +2751,8 @@ $$"""
         // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
         // something different - these must be reconciled and rejected, not let one silently win (previously the
         // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
-        var idSlug = nameof(CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-id";
-        var bodySlug = nameof(CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-body";
+        var idSlug = TestIdentifiers.IdWithSuffix(suffix: "-from-id");
+        var bodySlug = TestIdentifiers.IdWithSuffix(suffix: "-from-body");
 
         var collection = new PresentationCollection
         {
@@ -2790,7 +2791,7 @@ $$"""
     {
         // Arrange - the URL parent path doesn't exist, but the body supplies a valid parent (root). The URL parent
         // must win - a valid body-derived parent must not silently paper over a URL that doesn't resolve
-        var slug = nameof(PostHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent);
+        var slug = TestIdentifiers.Slug();
 
         var collection = new PresentationCollection
         {
@@ -2815,7 +2816,7 @@ $$"""
     public async Task PutHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent()
     {
         // Arrange - same as the POST case above, but for hierarchical PUT-create
-        var slug = nameof(PutHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent);
+        var slug = TestIdentifiers.Slug();
 
         var collection = new PresentationCollection
         {
@@ -2860,8 +2861,8 @@ $$"""
     {
         // Arrange - seed a storage collection with an existing child, then PUT-update it hierarchically. The
         // response must reflect the real children, not an unconditional empty placeholder
-        var slug = nameof(PutHierarchical_UpdatesExistingStorageCollection_AndReturnsExistingChildren);
-        var childSlug = $"{slug}-child";
+        var slug = TestIdentifiers.Slug();
+        var childSlug = TestIdentifiers.IdWithSuffix(suffix: "-child");
 
         var initialCollection = new Collection
         {
@@ -2931,7 +2932,7 @@ $$"""
     public async Task CreateCollection_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
     {
         // Arrange - create a collection with a client-chosen id, then attempt to create a second one re-using it
-        var existingId = nameof(CreateCollection_ReturnsConflict_WhenClientProvidedIdAlreadyExists) + "-existing";
+        var existingId = TestIdentifiers.IdWithSuffix(suffix: "-existing");
 
         var firstCollection = new PresentationCollection
         {
@@ -2971,7 +2972,7 @@ $$"""
     {
         // Arrange - only the happy-path update was previously covered; a wrong If-Match on an existing resource
         // must still be rejected for hierarchical PUT, same as flat PUT
-        var slug = nameof(PutHierarchical_ReturnsPreconditionFailed_WhenIfMatchDoesNotMatchExistingResource);
+        var slug = TestIdentifiers.Slug();
         var initialCollection = new Collection
         {
             Id = slug,
@@ -3021,7 +3022,7 @@ $$"""
         // current behaviour: a new Collection id is minted (the existing hierarchy row is a Manifest, not a
         // Collection), and inserting a second hierarchy row for the same (customer, slug, parent) hits the
         // hierarchy's own unique index
-        var slug = nameof(PutHierarchical_ReturnsConflict_WhenPathAlreadyHoldsAManifest);
+        var slug = TestIdentifiers.Slug();
         await dbContext.Manifests.AddTestManifest(slug, slug: slug, parent: parent);
         await dbContext.SaveChangesAsync();
 

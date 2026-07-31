@@ -2004,8 +2004,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
         // something different - these must be reconciled and rejected, not let one silently win (previously the
         // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
-        var idSlug = nameof(CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-id";
-        var bodySlug = nameof(CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-body";
+        var idSlug = TestIdentifiers.IdWithSuffix(suffix: "-from-id");
+        var bodySlug = TestIdentifiers.IdWithSuffix(suffix: "-from-body");
 
         var manifest = new PresentationManifest
         {
@@ -2038,6 +2038,21 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     }
 
     /// <summary>
+    /// Which form the body's "parent" property takes in <see cref="ManifestPaths_ResolveIdParentSlug_FromAllDocumentedSources"/>
+    /// </summary>
+    public enum ParentForm
+    {
+        /// <summary>No explicit parent - rely on publicId</summary>
+        None,
+
+        /// <summary>Explicit flat parent, e.g. "/1/collections/{id}"</summary>
+        Flat,
+
+        /// <summary>Explicit hierarchical parent, e.g. "/1/grandparent/parent"</summary>
+        Hierarchical
+    }
+
+    /// <summary>
     /// Exercises every id/parent/slug source combination documented on issue #464 (see the first comment's table),
     /// for flat PUT, flat POST, and hierarchical POST, using the pre-seeded FirstChildCollection/SecondChildCollection
     /// ("first-child/second-child") as the target parent.
@@ -2046,31 +2061,30 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     /// <param name="isHierarchical">true = hierarchical POST to the parent path, rather than flat POST to /manifests</param>
     /// <param name="includeId">whether the body also carries a flat-form "id" (matching the URL for PUT, or the
     /// client's chosen id for POST)</param>
-    /// <param name="parentForm">0 = no explicit parent (rely on publicId), 1 = explicit flat parent,
-    /// 2 = explicit hierarchical parent</param>
+    /// <param name="parentForm">Which form the body's "parent" property takes, if any</param>
     /// <param name="includeSlug">whether the body also carries an explicit "slug"</param>
     /// <param name="includePublicId">whether the body also carries a "publicId" pointing at the same resource</param>
     [Theory]
     // Flat PUT
-    [InlineData(false, false, false, 0, false, true)]
-    [InlineData(false, false, false, 1, true, false)]
-    [InlineData(false, false, false, 2, true, false)]
-    [InlineData(false, false, true, 1, true, true)]
-    [InlineData(false, false, true, 2, true, true)]
+    [InlineData(false, false, false, ParentForm.None, false, true)]
+    [InlineData(false, false, false, ParentForm.Flat, true, false)]
+    [InlineData(false, false, false, ParentForm.Hierarchical, true, false)]
+    [InlineData(false, false, true, ParentForm.Flat, true, true)]
+    [InlineData(false, false, true, ParentForm.Hierarchical, true, true)]
     // Flat POST
-    [InlineData(true, false, true, 0, false, true)]
-    [InlineData(true, false, true, 1, true, false)]
-    [InlineData(true, false, true, 2, true, false)]
-    [InlineData(true, false, true, 1, true, true)]
-    [InlineData(true, false, true, 2, true, true)]
+    [InlineData(true, false, true, ParentForm.None, false, true)]
+    [InlineData(true, false, true, ParentForm.Flat, true, false)]
+    [InlineData(true, false, true, ParentForm.Hierarchical, true, false)]
+    [InlineData(true, false, true, ParentForm.Flat, true, true)]
+    [InlineData(true, false, true, ParentForm.Hierarchical, true, true)]
     // Hierarchical POST
-    [InlineData(true, true, true, 0, false, true)]
-    [InlineData(true, true, true, 1, true, false)]
-    [InlineData(true, true, true, 2, true, false)]
-    [InlineData(true, true, true, 1, true, true)]
-    [InlineData(true, true, true, 2, true, true)]
+    [InlineData(true, true, true, ParentForm.None, false, true)]
+    [InlineData(true, true, true, ParentForm.Flat, true, false)]
+    [InlineData(true, true, true, ParentForm.Hierarchical, true, false)]
+    [InlineData(true, true, true, ParentForm.Flat, true, true)]
+    [InlineData(true, true, true, ParentForm.Hierarchical, true, true)]
     public async Task ManifestPaths_ResolveIdParentSlug_FromAllDocumentedSources(bool isPost, bool isHierarchical,
-        bool includeId, int parentForm, bool includeSlug, bool includePublicId)
+        bool includeId, ParentForm parentForm, bool includeSlug, bool includePublicId)
     {
         // Arrange
         const string grandparentSlug = "first-child";
@@ -2088,8 +2102,8 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         if (includeSlug) manifest.Slug = uniqueSlug;
         manifest.Parent = parentForm switch
         {
-            1 => $"http://localhost/{Customer}/collections/{parentId}",
-            2 => $"http://localhost/{Customer}/{grandparentSlug}/{parentSlug}",
+            ParentForm.Flat => $"http://localhost/{Customer}/collections/{parentId}",
+            ParentForm.Hierarchical => $"http://localhost/{Customer}/{grandparentSlug}/{parentSlug}",
             _ => null
         };
         if (includePublicId)
@@ -2153,7 +2167,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task CreateManifest_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
     {
         // Arrange - create a manifest with a client-chosen id, then attempt to create a second one re-using it
-        var existingId = nameof(CreateManifest_ReturnsConflict_WhenClientProvidedIdAlreadyExists) + "-existing";
+        var existingId = TestIdentifiers.IdWithSuffix(suffix: "-existing");
 
         var firstManifest = new PresentationManifest
         {
