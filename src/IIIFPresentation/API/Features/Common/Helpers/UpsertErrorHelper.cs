@@ -116,6 +116,10 @@ public static class UpsertErrorHelper
             "Could not determine a 'slug' for this resource from the request URL, body, or 'publicId'",
             ModifyCollectionType.MissingSlug, WriteResult.BadRequest);
 
+    public static PresentationResult ProhibitedSlug(string slug)
+        => PresentationResult.Failure($"'slug' cannot be one of prohibited terms: '{slug}'",
+            ModifyCollectionType.ProhibitedSlug, WriteResult.BadRequest);
+
     public static PresentationResult InvalidCanvasId(string? canvasId, string reason)
         => PresentationResult.Failure($"The canvas id {canvasId} is invalid - {reason}",
             ModifyCollectionType.InvalidCanvasId, WriteResult.BadRequest);

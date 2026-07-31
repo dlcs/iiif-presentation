@@ -103,7 +103,8 @@ public class CollectionController(
 
         return await HandleUpsert(new CreateCollection(customerId,
             deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody,
-            urlParentPath: resolvedId.HierarchicalParentPath, clientProvidedId: resolvedId.FlatId));
+            urlParentPath: resolvedId.HierarchicalParentPath, urlSlug: resolvedId.Slug,
+            clientProvidedId: resolvedId.FlatId));
     }
 
     [Authorize]

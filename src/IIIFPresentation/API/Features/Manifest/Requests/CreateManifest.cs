@@ -13,6 +13,7 @@ public class CreateManifest(
     string rawRequestBody,
     bool createSpace,
     string? urlParentPath = null,
+    string? urlSlug = null,
     string? clientProvidedId = null)
     : IRequest<PresentationResult>
 {
@@ -26,6 +27,11 @@ public class CreateManifest(
     /// path being POSTed into is the parent container for the new resource
     /// </summary>
     public string? UrlParentPath { get; } = urlParentPath;
+
+    /// <summary>
+    /// Slug derived from the request body's "id" property, when it resolves to an own-host hierarchical id
+    /// </summary>
+    public string? UrlSlug { get; } = urlSlug;
 
     /// <summary>
     /// A trusted, internal flat id resolved from the request body's "id" property
@@ -45,6 +51,7 @@ public class CreateManifestHandler(
             request.RawRequestBody,
             request.CreateSpace,
             request.UrlParentPath,
+            urlSlug: request.UrlSlug,
             clientProvidedId: request.ClientProvidedId);
 
         return manifestService.Create(upsertRequest, cancellationToken);

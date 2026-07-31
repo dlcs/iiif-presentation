@@ -2743,6 +2743,33 @@ $$"""
     }
 
     [Fact]
+    public async Task CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug()
+    {
+        // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
+        // something different - these must be reconciled and rejected, not let one silently win (previously the
+        // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
+        var idSlug = nameof(CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-id";
+        var bodySlug = nameof(CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-body";
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["conflicting slug"]),
+            Id = $"http://localhost/{Customer}/first-child/{idSlug}",
+            Slug = bodySlug
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task PostHierarchical_ReturnsBadRequest_WhenTypeUnrecognised()
     {
         // Arrange
@@ -2754,5 +2781,75 @@ $$"""
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent()
+    {
+        // Arrange - the URL parent path doesn't exist, but the body supplies a valid parent (root). The URL parent
+        // must win - a valid body-derived parent must not silently paper over a URL that doesn't resolve
+        var slug = nameof(PostHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent);
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Slug = slug,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/this-parent-path-does-not-exist", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent()
+    {
+        // Arrange - same as the POST case above, but for hierarchical PUT-create
+        var slug = nameof(PutHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent);
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/this-parent-path-does-not-exist/{slug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsBadRequest_WhenSlugIsProhibitedTerm()
+    {
+        // Arrange - "manifests" is a prohibited slug (would shadow the flat API namespace); this PUT has no
+        // segments before it, so it falls through to the hierarchical catch-all route with slug "manifests" and no
+        // body "slug" to be caught by PresentationValidator's own (body-only) prohibited-slug rule
+        var collection = new PresentationCollection { Behavior = [Behavior.IsPublic] };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/manifests", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ProhibitedSlug");
     }
 }

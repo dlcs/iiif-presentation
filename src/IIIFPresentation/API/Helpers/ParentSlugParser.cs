@@ -75,6 +75,11 @@ public class ParentSlugParser(PresentationContext dbContext,
             return ParsedParentSlugResult.Fail(UpsertErrorHelper.MissingSlug());
         }
 
+        if (SpecConstants.ProhibitedSlugs.Contains(slug))
+        {
+            return ParsedParentSlugResult.Fail(UpsertErrorHelper.ProhibitedSlug(slug));
+        }
+
         var parent = await TryGetParent(presentation, customerId, urlParentPath, cancellationToken);
         if (parent.Errors != null)
         {
@@ -152,7 +157,9 @@ public class ParentSlugParser(PresentationContext dbContext,
                 return ParsedParent.Fail(UpsertErrorHelper.ParentSourcesDoNotMatch());
             }
 
-            parent = ParsedParent.Success(parent.Parent ?? urlParentCollection);
+            // The URL always wins here - if it doesn't resolve to anything, that's a real error (the caller asked
+            // for a specific container), not something a body-derived parent should be allowed to paper over
+            parent = ParsedParent.Success(urlParentCollection);
         }
 
         // Passed values match, validate parent can be used

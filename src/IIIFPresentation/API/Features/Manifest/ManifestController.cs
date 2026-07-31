@@ -76,7 +76,8 @@ public class ManifestController(
             requestIdResolver,
             (presentationManifest, rawRequestBody, resolvedId) => new CreateManifest(customerId, presentationManifest,
                 rawRequestBody, Request.HasCreateSpaceHeader(),
-                urlParentPath: resolvedId.HierarchicalParentPath, clientProvidedId: resolvedId.FlatId),
+                urlParentPath: resolvedId.HierarchicalParentPath, urlSlug: resolvedId.Slug,
+                clientProvidedId: resolvedId.FlatId),
             validator,
             cancellationToken: cancellationToken);
 

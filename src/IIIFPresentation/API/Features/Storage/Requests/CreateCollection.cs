@@ -8,7 +8,7 @@ namespace API.Features.Storage.Requests;
 /// Create a new Collection (storage or iiif) in DB and upload provided JSON to S3 if iiif-collection
 /// </summary>
 public class CreateCollection(int customerId, PresentationCollection collection, string rawRequestBody,
-    string? urlParentPath = null, string? clientProvidedId = null)
+    string? urlParentPath = null, string? urlSlug = null, string? clientProvidedId = null)
     : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
@@ -24,6 +24,11 @@ public class CreateCollection(int customerId, PresentationCollection collection,
     public string? UrlParentPath { get; } = urlParentPath;
 
     /// <summary>
+    /// Slug derived from the request body's "id" property, when it resolves to an own-host hierarchical id
+    /// </summary>
+    public string? UrlSlug { get; } = urlSlug;
+
+    /// <summary>
     /// A trusted, internal flat id resolved from the request body's "id" property
     /// </summary>
     public string? ClientProvidedId { get; } = clientProvidedId;
@@ -35,7 +40,7 @@ public class CreateCollectionHandler(ICollectionWrite collectionService)
     public Task<PresentationResult> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var writeRequest = new WriteCollectionRequest(request.CustomerId, request.Collection, request.RawRequestBody,
-            request.UrlParentPath, clientProvidedId: request.ClientProvidedId);
+            request.UrlParentPath, urlSlug: request.UrlSlug, clientProvidedId: request.ClientProvidedId);
 
         return collectionService.Create(writeRequest, cancellationToken);
     }

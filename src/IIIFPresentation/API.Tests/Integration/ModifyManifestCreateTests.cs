@@ -1997,6 +1997,31 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug()
+    {
+        // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
+        // something different - these must be reconciled and rejected, not let one silently win (previously the
+        // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
+        var idSlug = nameof(CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-id";
+        var bodySlug = nameof(CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug) + "-from-body";
+
+        var manifest = new PresentationManifest
+        {
+            Id = $"http://localhost/{Customer}/first-child/{idSlug}",
+            Slug = bodySlug
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
     
     /// <summary>
     /// Configure dlcsApiClient fake for batch creation

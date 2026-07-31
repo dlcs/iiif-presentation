@@ -35,5 +35,6 @@ public enum ModifyCollectionType
     IdMustMatchUrl = 31,
     IdAlreadyExists = 32,
     MissingSlug = 33,
+    ProhibitedSlug = 34,
     Unknown = 1000
 }
