@@ -154,7 +154,8 @@ public class CollectionWriteService(
         var isStorageCollection = prepared.IsStorageCollection;
         var iiifCollection = prepared.IiifCollection;
 
-        var (slugError, parsedParentSlug) = await ParseParentSlug(request, id, cancellationToken);
+        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
+            request.CustomerId, id, request.UrlParentPath, request.UrlSlug, cancellationToken);
         if (slugError != null) return slugError;
 
         if (id == null)
@@ -222,7 +223,8 @@ public class CollectionWriteService(
         var isStorageCollection = prepared.IsStorageCollection;
         var iiifCollection = prepared.IiifCollection;
 
-        var (slugError, parsedParentSlug) = await ParseParentSlug(request, request.CollectionId, cancellationToken);
+        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
+            request.CustomerId, request.CollectionId, request.UrlParentPath, request.UrlSlug, cancellationToken);
         if (slugError != null) return slugError;
 
         if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
@@ -337,17 +339,6 @@ public class CollectionWriteService(
         public static PreparedCollection Success(bool isStorageCollection,
             IIIF.Presentation.V3.Collection? iiifCollection) =>
             new() { IsStorageCollection = isStorageCollection, IiifCollection = iiifCollection };
-    }
-
-    /// <summary>
-    /// Resolves the parent/slug for a write request, unwrapping the result into an error-or-value pair
-    /// </summary>
-    private async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
-        WriteCollectionRequest request, string? id, CancellationToken cancellationToken)
-    {
-        var result = await parentSlugParser.Parse(request.Collection, request.CustomerId, id,
-            urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
-        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
     /// <summary>

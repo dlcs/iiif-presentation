@@ -332,7 +332,8 @@ public class ManifestWriteService(
         var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, cancellationToken);
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
 
-        var (slugError, parsedParentSlug) = await ParseParentSlug(request, manifestId, cancellationToken);
+        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.PresentationManifest,
+            request.CustomerId, manifestId, request.UrlParentPath, request.UrlSlug, cancellationToken);
         if (slugError != null) return ResolvedManifestData.Failure(slugError);
 
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);
@@ -349,14 +350,6 @@ public class ManifestWriteService(
             : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 existingManifest!, cancellationToken);
         return result.Error != null ? (result.Error, null) : (null, result);
-    }
-
-    private async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
-        WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
-    {
-        var result = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, manifestId,
-            urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
-        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
     private async Task<PresentationResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,
