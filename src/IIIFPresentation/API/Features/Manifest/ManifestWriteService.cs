@@ -82,13 +82,15 @@ public class WriteManifestRequest
     public bool CreateSpace { get; }
 
     /// <summary>
-    /// Hierarchical parent path derived from the request URL - set only for hierarchical POST/PUT (the full path
-    /// for POST, everything but the last segment for PUT)
+    /// Parent path for the resource - the full path for hierarchical POST, everything but the last segment for
+    /// hierarchical PUT, or derived from the request body's "id" property for a flat request (see
+    /// <see cref="IRequestIdResolver"/>)
     /// </summary>
     public string? UrlParentPath { get; }
 
     /// <summary>
-    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// Slug for the resource - the last segment of the path for hierarchical PUT, or derived from the request
+    /// body's "id" property for a flat request
     /// </summary>
     public string? UrlSlug { get; }
 

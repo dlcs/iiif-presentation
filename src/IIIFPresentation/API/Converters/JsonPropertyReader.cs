@@ -11,8 +11,8 @@ namespace API.Converters;
 /// </summary>
 /// <remarks>
 /// Uses <see cref="Utf8JsonReader"/> to scan tokens directly rather than parsing the body into a full JSON DOM -
-/// for a large manifest body (many canvases/items) this is orders of magnitude faster, since it stops as soon as
-/// the target property is found instead of allocating a node for every property/array element in the document.
+/// for a large manifest body (many canvases/items) this is significantly cheaper, since it stops as soon as the
+/// target property is found instead of allocating a node for every property/array element in the document.
 /// </remarks>
 public static class JsonPropertyReader
 {
@@ -31,12 +31,11 @@ public static class JsonPropertyReader
         {
             var utf8 = Encoding.UTF8.GetBytes(rawJson);
             var reader = new Utf8JsonReader(utf8, isFinalBlock: true, state: default);
-            var targetUtf8 = Encoding.UTF8.GetBytes(propertyName);
 
             while (reader.Read())
             {
                 if (reader.TokenType != JsonTokenType.PropertyName || reader.CurrentDepth != level) continue;
-                if (!reader.ValueTextEquals(targetUtf8)) continue;
+                if (!reader.ValueTextEquals(propertyName)) continue;
 
                 if (!reader.Read()) return null;
                 return reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
@@ -44,7 +43,7 @@ public static class JsonPropertyReader
 
             return null;
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
             logger?.LogDebug(ex, "Could not read property '{PropertyName}' at level {Level} from request body",
                 propertyName, level);

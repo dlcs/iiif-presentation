@@ -58,13 +58,15 @@ public class WriteCollectionRequest(
     public string RawRequestBody { get; } = rawRequestBody;
 
     /// <summary>
-    /// Hierarchical parent path derived from the request URL - set only for hierarchical POST/PUT (the full path
-    /// for POST, everything but the last segment for PUT)
+    /// Parent path for the resource - the full path for hierarchical POST, everything but the last segment for
+    /// hierarchical PUT, or derived from the request body's "id" property for a flat request (see
+    /// <see cref="IRequestIdResolver"/>)
     /// </summary>
     public string? UrlParentPath { get; } = urlParentPath;
 
     /// <summary>
-    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// Slug for the resource - the last segment of the path for hierarchical PUT, or derived from the request
+    /// body's "id" property for a flat request
     /// </summary>
     public string? UrlSlug { get; } = urlSlug;
 
@@ -151,7 +153,7 @@ public class CollectionWriteService(
         var (convertError, iiifCollection) = ConvertIfRequired(request.RawRequestBody, isStorageCollection);
         if (convertError != null) return convertError;
 
-        var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId, null,
+        var parsedParentSlugResult = await parentSlugParser.Parse(request.Collection, request.CustomerId, id,
             urlParentPath: request.UrlParentPath, urlSlug: request.UrlSlug, cancellationToken: cancellationToken);
         if (parsedParentSlugResult.IsError) return parsedParentSlugResult.Errors;
         var parsedParentSlug = parsedParentSlugResult.ParsedParentSlug;
@@ -174,14 +176,8 @@ public class CollectionWriteService(
         {
             Id = id,
             Created = dateCreated,
-            Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = request.CustomerId,
-            Tags = request.Collection.Tags,
-            IsPublic = request.Collection.Behavior.IsPublic(),
-            IsStorageCollection = isStorageCollection,
-            Label = request.Collection.Label,
-            Thumbnail = request.Collection.GetThumbnail(),
             Hierarchy =
             [
                 new Hierarchy
@@ -196,6 +192,7 @@ public class CollectionWriteService(
                 }
             ]
         };
+        SetCommonProperties(collection, request.Collection, dateCreated);
 
         dbContext.Collections.Add(collection);
 
@@ -253,7 +250,6 @@ public class CollectionWriteService(
 
         var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
 
-        databaseCollection.Modified = DateTime.UtcNow;
         databaseCollection.ModifiedBy = Authorizer.GetUser();
         SetCommonProperties(databaseCollection, request.Collection);
 

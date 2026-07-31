@@ -4,11 +4,9 @@ using API.Helpers;
 using API.Features.Storage.Validators;
 using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
-using IIIF.Presentation;
 using MediatR;
 using Models.API.Collection;
 using Repository;
-using Repository.Paths;
 using DbCollection = Models.Database.Collections.Collection;
 
 namespace API.Features.Storage.Requests;
@@ -40,8 +38,7 @@ public class PutHierarchicalCollectionHandler(
     ILogger<PutHierarchicalCollectionHandler> logger,
     IdentityManager identityManager,
     IRequestIdResolver requestIdResolver,
-    ICollectionWrite collectionService,
-    IPathGenerator pathGenerator)
+    ICollectionWrite collectionService)
     : IRequestHandler<PutHierarchicalCollection, PresentationResult>
 {
     public async Task<PresentationResult> Handle(PutHierarchicalCollection request, CancellationToken cancellationToken)
@@ -57,9 +54,7 @@ public class PutHierarchicalCollectionHandler(
 
         var result = await collectionService.Upsert(upsertRequest, cancellationToken);
 
-        var hierarchicalId = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, request.FullPath);
-
         return HierarchicalCollectionResponse.Build(result, request.RawRequestBody,
-            context.Presentation.Behavior.IsStorageCollection(), hierarchicalId, logger);
+            context.Presentation.Behavior.IsStorageCollection(), logger);
     }
 }

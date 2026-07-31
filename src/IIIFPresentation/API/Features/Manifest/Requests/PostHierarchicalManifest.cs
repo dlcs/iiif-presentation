@@ -1,16 +1,12 @@
-using API.Converters;
+using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using Core;
-using Core.Helpers;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
-using Repository;
-using Repository.Helpers;
-using Repository.Paths;
 using Services.Manifests.Settings;
 
 namespace API.Features.Manifest.Requests;
@@ -41,8 +37,6 @@ public class PostHierarchicalManifestHandler(
     ILogger<PostHierarchicalManifestHandler> logger,
     IRequestIdResolver requestIdResolver,
     IManifestWrite manifestService,
-    PresentationContext dbContext,
-    IPathGenerator pathGenerator,
     IOptions<ServicesSettings> servicesOptions)
     : IRequestHandler<PostHierarchicalManifest, PresentationResult>
 {
@@ -62,14 +56,7 @@ public class PostHierarchicalManifestHandler(
             clientProvidedId: context.ClientProvidedId);
 
         var result = await manifestService.Create(writeRequest, cancellationToken);
-        if (!result.IsSuccess || result.Entity is not PresentationManifest manifest) return result;
 
-        var fullPath = await ManifestRetrieval.RetrieveFullPathForManifest(
-            manifest.FlatId.ThrowIfNull(nameof(manifest.FlatId)), request.CustomerId, dbContext, cancellationToken);
-
-        var plainManifest = PresentationIIIFCleaner.OnlyIIIFProperties(manifest);
-        plainManifest.Id = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, fullPath);
-
-        return PresentationResult.Success(plainManifest, result.WriteResult, result.ETag);
+        return HierarchicalManifestResponse.Build(result);
     }
 }

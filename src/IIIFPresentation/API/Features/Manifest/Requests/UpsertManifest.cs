@@ -26,13 +26,14 @@ public class UpsertManifest(
     public bool CreateSpace { get; } = createSpace;
 
     /// <summary>
-    /// Hierarchical parent path derived from the request URL - set only for hierarchical PUT (everything but the
-    /// last segment of the path)
+    /// Parent path for the resource - everything but the last segment of the URL for hierarchical PUT, or derived
+    /// from the request body's "id" property when it resolves to an own-host hierarchical id (flat PUT)
     /// </summary>
     public string? UrlParentPath { get; } = urlParentPath;
 
     /// <summary>
-    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// Slug for the resource - the last segment of the URL for hierarchical PUT, or derived from the request
+    /// body's "id" property when it resolves to an own-host hierarchical id (flat PUT)
     /// </summary>
     public string? UrlSlug { get; } = urlSlug;
 }

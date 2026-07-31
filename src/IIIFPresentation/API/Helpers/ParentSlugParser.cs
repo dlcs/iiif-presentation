@@ -27,10 +27,14 @@ public interface IParentSlugParser
     /// <param name="customerId">Customer id from the request URL</param>
     /// <param name="id">Internal id from the request URL, for flat PUT only</param>
     /// <param name="urlParentPath">
-    /// Hierarchical parent path derived from the request URL - the full path for hierarchical POST (the container
-    /// being POSTed into), or everything but the last segment for hierarchical PUT
+    /// Parent path for the resource - for hierarchical requests, the full path for POST (the container being
+    /// POSTed into) or everything but the last segment for PUT; for flat requests, derived from the body's "id"
+    /// property when it resolves to an own-host hierarchical id (see <see cref="IRequestIdResolver"/>)
     /// </param>
-    /// <param name="urlSlug">Slug derived from the request URL - the last segment, for hierarchical PUT only</param>
+    /// <param name="urlSlug">
+    /// Slug for the resource - for hierarchical PUT, the last segment of the path; for flat requests, derived from
+    /// the body's "id" property when it resolves to an own-host hierarchical id
+    /// </param>
     public Task<ParsedParentSlugResult> Parse<T>(
         T presentation,
         int customerId,

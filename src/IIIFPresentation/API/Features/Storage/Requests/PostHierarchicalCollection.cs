@@ -3,14 +3,8 @@ using API.Features.Storage.Helpers;
 using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Core.Helpers;
-using IIIF.Presentation;
 using MediatR;
 using Models.API.Collection;
-using Repository;
-using Repository.Helpers;
-using Repository.Paths;
-using DbCollection = Models.Database.Collections.Collection;
 
 namespace API.Features.Storage.Requests;
 
@@ -36,9 +30,7 @@ public class PostHierarchicalCollection(
 public class PostHierarchicalCollectionHandler(
     ILogger<PostHierarchicalCollectionHandler> logger,
     IRequestIdResolver requestIdResolver,
-    ICollectionWrite collectionService,
-    PresentationContext dbContext,
-    IPathGenerator pathGenerator)
+    ICollectionWrite collectionService)
     : IRequestHandler<PostHierarchicalCollection, PresentationResult>
 {
     public async Task<PresentationResult> Handle(PostHierarchicalCollection request,
@@ -55,17 +47,8 @@ public class PostHierarchicalCollectionHandler(
             clientProvidedId: context.ClientProvidedId);
 
         var result = await collectionService.Create(writeRequest, cancellationToken);
-        if (!result.IsSuccess || result.Entity is not PresentationCollection collection) return result;
-
-        var dbCollection = new DbCollection
-        {
-            Id = collection.FlatId.ThrowIfNull(nameof(collection.FlatId)), CustomerId = request.CustomerId
-        };
-        var fullPath =
-            await CollectionRetrieval.RetrieveFullPathForCollection(dbCollection, dbContext, cancellationToken);
-        var hierarchicalId = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, fullPath);
 
         return HierarchicalCollectionResponse.Build(result, request.RawRequestBody,
-            context.Presentation.Behavior.IsStorageCollection(), hierarchicalId, logger);
+            context.Presentation.Behavior.IsStorageCollection(), logger);
     }
 }

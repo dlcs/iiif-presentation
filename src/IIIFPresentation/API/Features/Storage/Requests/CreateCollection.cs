@@ -18,8 +18,8 @@ public class CreateCollection(int customerId, PresentationCollection collection,
     public string RawRequestBody { get; } = rawRequestBody;
 
     /// <summary>
-    /// Hierarchical parent path derived from the request URL - set only for hierarchical POST, where the whole
-    /// path being POSTed into is the parent container for the new resource
+    /// Parent path for the new resource - the whole path being POSTed into for hierarchical POST, or derived from
+    /// the request body's "id" property when it resolves to an own-host hierarchical id (flat POST)
     /// </summary>
     public string? UrlParentPath { get; } = urlParentPath;
 

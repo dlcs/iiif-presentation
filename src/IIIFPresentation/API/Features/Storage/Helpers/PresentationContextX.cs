@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using API.Features.Common.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -48,6 +49,11 @@ public static class PresentationContextX
                 return PresentationResult.Failure(
                     "The manifest is currently being created",
                     ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
+            }
+
+            if (ex.IsCollectionPrimaryKeyViolation())
+            {
+                return UpsertErrorHelper.IdAlreadyExists();
             }
 
             return PresentationResult.Failure(

@@ -13,17 +13,12 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 {
     private readonly ServicesSettings servicesSettings;
 
-    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
-        : this(servicesOptions, isFlatRequest: true)
-    {
-    }
-
     /// <param name="servicesOptions"></param>
     /// <param name="isFlatRequest">
     /// Whether a 'parent'/'slug' or 'publicId' must be present in the body - see <see cref="PresentationValidator"/>.
     /// Hierarchical manifest write requests construct this with <c>false</c>.
     /// </param>
-    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, bool isFlatRequest)
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, bool isFlatRequest = true)
     {
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);

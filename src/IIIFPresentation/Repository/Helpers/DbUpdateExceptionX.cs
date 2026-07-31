@@ -16,4 +16,10 @@ public static class DbUpdateExceptionX
         return exception.InnerException?.Message.Contains(
             "duplicate key value violates unique constraint \"pk_manifests\"") == true;
     }
+
+    public static bool IsCollectionPrimaryKeyViolation(this DbUpdateException exception)
+    {
+        return exception.InnerException?.Message.Contains(
+            "duplicate key value violates unique constraint \"pk_collections\"") == true;
+    }
 }

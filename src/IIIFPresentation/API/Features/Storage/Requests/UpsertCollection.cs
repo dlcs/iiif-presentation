@@ -22,13 +22,12 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
     public string RawRequestBody { get; } = rawRequestBody;
 
     /// <summary>
-    /// Hierarchical parent path derived from the request URL - set only for hierarchical PUT (everything but the
-    /// last segment of the path)
+    /// Parent path for the resource
     /// </summary>
     public string? UrlParentPath { get; } = urlParentPath;
 
     /// <summary>
-    /// Slug derived from the request URL - set only for hierarchical PUT (the last segment of the path)
+    /// Slug for the resource
     /// </summary>
     public string? UrlSlug { get; } = urlSlug;
 }

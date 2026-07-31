@@ -1,5 +1,5 @@
-using API.Converters;
 using API.Features.Common.Helpers;
+using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
 using API.Helpers;
@@ -12,8 +12,6 @@ using Microsoft.Extensions.Primitives;
 using Models.API.General;
 using Models.API.Manifest;
 using Repository;
-using Repository.Helpers;
-using Repository.Paths;
 using Services.Manifests.Settings;
 using DbManifest = Models.Database.Collections.Manifest;
 
@@ -50,7 +48,6 @@ public class PutHierarchicalManifestHandler(
     IdentityManager identityManager,
     IRequestIdResolver requestIdResolver,
     IManifestWrite manifestService,
-    IPathGenerator pathGenerator,
     IOptions<ServicesSettings> servicesOptions)
     : IRequestHandler<PutHierarchicalManifest, PresentationResult>
 {
@@ -70,11 +67,7 @@ public class PutHierarchicalManifestHandler(
             urlSlug: context.Slug);
 
         var result = await manifestService.Upsert(upsertRequest, cancellationToken);
-        if (!result.IsSuccess || result.Entity is not PresentationManifest manifest) return result;
 
-        var plainManifest = PresentationIIIFCleaner.OnlyIIIFProperties(manifest);
-        plainManifest.Id = pathGenerator.GenerateHierarchicalFromFullPath(request.CustomerId, request.FullPath);
-
-        return PresentationResult.Success(plainManifest, result.WriteResult, result.ETag);
+        return HierarchicalManifestResponse.Build(result);
     }
 }

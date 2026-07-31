@@ -2852,4 +2852,77 @@ $$"""
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ProhibitedSlug");
     }
+
+    [Fact]
+    public async Task PutHierarchical_UpdatesExistingStorageCollection_AndReturnsExistingChildren()
+    {
+        // Arrange - seed a storage collection with an existing child, then PUT-update it hierarchically. The
+        // response must reflect the real children, not an unconditional empty placeholder
+        var slug = nameof(PutHierarchical_UpdatesExistingStorageCollection_AndReturnsExistingChildren);
+        var childSlug = $"{slug}-child";
+
+        var initialCollection = new Collection
+        {
+            Id = slug,
+            Label = new LanguageMap("en", ["before update"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(initialCollection);
+
+        var childCollection = new Collection
+        {
+            Id = childSlug,
+            Label = new LanguageMap("en", ["child"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = childSlug,
+            Slug = childSlug,
+            Parent = slug,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(childCollection);
+        await dbContext.SaveChangesAsync();
+
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["after update"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        responseCollection!.Items.Should().ContainSingle(i => i.As<ResourceBase>().Id!.EndsWith(childSlug),
+            "the existing child should be reflected, not an unconditional empty placeholder");
+    }
+
 }
