@@ -1,11 +1,9 @@
 ﻿using System.Net;
 using API.Auth;
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
 using API.Features.Storage.Validators;
-using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Filters;
 using API.Infrastructure.Helpers;
@@ -92,19 +90,13 @@ public class CollectionController(
     [Authorize]
     [RequireShowExtras]
     [HttpPost("collections")]
-    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator,
-        [FromServices] IRequestIdResolver requestIdResolver)
+    public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(validator, null, null);
         if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
-        var resolvedId = requestIdResolver.Resolve(customerId, deserializeValidationResult.ConvertedIIIF.Id);
-        if (resolvedId.IsError) return this.ModifyResultToHttpResult(resolvedId.Error!, null, "Operation failed");
-
         return await HandleUpsert(new CreateCollection(customerId,
-            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody,
-            urlParentPath: resolvedId.HierarchicalParentPath, urlSlug: resolvedId.Slug,
-            clientProvidedId: resolvedId.FlatId));
+            deserializeValidationResult.ConvertedIIIF, deserializeValidationResult.RawRequestBody));
     }
 
     [Authorize]
@@ -112,21 +104,14 @@ public class CollectionController(
     [HttpPut("collections/{id}")]
     public async Task<IActionResult> Put(int customerId, string id,
         [FromServices] RootCollectionValidator rootValidator,
-        [FromServices] PresentationValidator presentationValidator,
-        [FromServices] IRequestIdResolver requestIdResolver)
+        [FromServices] PresentationValidator presentationValidator)
     {
         var deserializeValidationResult = await DeserializeAndValidate(presentationValidator, id, rootValidator);
         if (deserializeValidationResult.HasError) return deserializeValidationResult.Error;
 
-        var resolvedId = requestIdResolver.Resolve(customerId, deserializeValidationResult.ConvertedIIIF.Id);
-        if (resolvedId.IsError) return this.ModifyResultToHttpResult(resolvedId.Error!, null, "Operation failed");
-        if (resolvedId.FlatId != null && resolvedId.FlatId != id)
-            return this.ModifyResultToHttpResult(UpsertErrorHelper.IdMustMatchUrl(), null, "Operation failed");
-
         return await HandleUpsert(new UpsertCollection(customerId, id,
             deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
-            deserializeValidationResult.RawRequestBody,
-            urlParentPath: resolvedId.HierarchicalParentPath, urlSlug: resolvedId.Slug),
+            deserializeValidationResult.RawRequestBody),
             invalidatesEtag: Request.Headers.IfMatch);
     }
 

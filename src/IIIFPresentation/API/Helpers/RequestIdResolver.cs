@@ -82,6 +82,11 @@ public class ResolvedRequestId
 
     public bool IsError => Error != null;
 
+    /// <summary>
+    /// Converts this into the <see cref="ResolvedLocation"/> shape write services accept
+    /// </summary>
+    public ResolvedLocation ToLocation() => new(HierarchicalParentPath, Slug, FlatId);
+
     public static readonly ResolvedRequestId None = new();
 
     public static ResolvedRequestId ForFlatId(string flatId) => new() { FlatId = flatId };

@@ -43,9 +43,8 @@ public class UpsertManifestRequest(
     PresentationManifest presentationManifest,
     string rawRequestBody,
     bool createSpace,
-    string? urlParentPath = null,
-    string? urlSlug = null)
-    : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace, urlParentPath, urlSlug)
+    ResolvedLocation? location = null)
+    : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace, location)
 {
     public string ManifestId { get; } = manifestId;
     public string? Etag { get; } = etag;
@@ -60,9 +59,7 @@ public class WriteManifestRequest
         PresentationManifest presentationManifest,
         string rawRequestBody,
         bool createSpace,
-        string? urlParentPath = null,
-        string? urlSlug = null,
-        string? clientProvidedId = null)
+        ResolvedLocation? location = null)
     {
         // removes presentation behaviors that aren't required for a manifest
         presentationManifest.RemovePresentationBehaviours();
@@ -71,36 +68,14 @@ public class WriteManifestRequest
         PresentationManifest = presentationManifest;
         RawRequestBody = rawRequestBody;
         CreateSpace = createSpace;
-        UrlParentPath = urlParentPath;
-        UrlSlug = urlSlug;
-        ClientProvidedId = clientProvidedId;
+        Location = location ?? ResolvedLocation.None;
     }
 
     public int CustomerId { get; }
     public PresentationManifest PresentationManifest { get; }
     public string RawRequestBody { get; }
     public bool CreateSpace { get; }
-
-    /// <summary>
-    /// Parent path for the resource - the full path for hierarchical POST, everything but the last segment for
-    /// hierarchical PUT, or derived from the request body's "id" property for a flat request (see
-    /// <see cref="IRequestIdResolver"/>)
-    /// </summary>
-    public string? UrlParentPath { get; }
-
-    /// <summary>
-    /// Slug for the resource - the last segment of the path for hierarchical PUT, or derived from the request
-    /// body's "id" property for a flat request
-    /// </summary>
-    public string? UrlSlug { get; }
-
-    /// <summary>
-    /// A trusted, internal flat id resolved from the request body's "id" property (create only). When set, this is
-    /// used as the new manifest's id instead of minting a new one - the caller is responsible for having already
-    /// recognised this as belonging to us (<see cref="API.Helpers.IRequestIdResolver"/>); <see cref="ManifestWriteService.Create"/>
-    /// still checks it isn't already in use
-    /// </summary>
-    public string? ClientProvidedId { get; }
+    public ResolvedLocation Location { get; }
 }
 
 public interface IManifestWrite
@@ -186,13 +161,13 @@ public class ManifestWriteService(
         try
         {
             string? manifestId = null;
-            if (request.ClientProvidedId != null)
+            if (request.Location.ClientProvidedId != null)
             {
-                var existing = await dbContext.RetrieveManifestAsync(request.ClientProvidedId,
+                var existing = await dbContext.RetrieveManifestAsync(request.Location.ClientProvidedId,
                     cancellationToken: cancellationToken);
                 if (existing != null) return UpsertErrorHelper.IdAlreadyExists();
 
-                manifestId = request.ClientProvidedId;
+                manifestId = request.Location.ClientProvidedId;
             }
 
             return await CreateInternal(request, manifestId, cancellationToken);
@@ -333,7 +308,7 @@ public class ManifestWriteService(
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
 
         var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.PresentationManifest,
-            request.CustomerId, manifestId, request.UrlParentPath, request.UrlSlug, cancellationToken);
+            request.CustomerId, manifestId, request.Location.ParentPath, request.Location.Slug, cancellationToken);
         if (slugError != null) return ResolvedManifestData.Failure(slugError);
 
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);

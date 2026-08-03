@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Requests;
+using API.Helpers;
+using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
@@ -14,9 +15,7 @@ public class UpsertManifest(
     StringValues etag,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace,
-    string? urlParentPath = null,
-    string? urlSlug = null) : IRequest<PresentationResult>
+    bool createSpace) : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
@@ -24,26 +23,17 @@ public class UpsertManifest(
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
     public bool CreateSpace { get; } = createSpace;
-
-    /// <summary>
-    /// Parent path for the resource - everything but the last segment of the URL for hierarchical PUT, or derived
-    /// from the request body's "id" property when it resolves to an own-host hierarchical id (flat PUT)
-    /// </summary>
-    public string? UrlParentPath { get; } = urlParentPath;
-
-    /// <summary>
-    /// Slug for the resource - the last segment of the URL for hierarchical PUT, or derived from the request
-    /// body's "id" property when it resolves to an own-host hierarchical id (flat PUT)
-    /// </summary>
-    public string? UrlSlug { get; } = urlSlug;
 }
 
-public class UpsertManifestHandler(IManifestWrite manifestService)
+public class UpsertManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<UpsertManifest, PresentationResult>
 {
-    public Task<PresentationResult> Handle(UpsertManifest request,
-        CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertManifest request, CancellationToken cancellationToken)
     {
+        var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
+            request.PresentationManifest.Id, request.ManifestId);
+        if (error != null) return error;
+
         var upsertRequest = new UpsertManifestRequest(
             request.ManifestId,
             request.Etag,
@@ -51,9 +41,8 @@ public class UpsertManifestHandler(IManifestWrite manifestService)
             request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
             request.CreateSpace,
-            request.UrlParentPath,
-            request.UrlSlug);
+            resolvedId.ToLocation());
 
-        return manifestService.Upsert(upsertRequest, cancellationToken);
+        return await manifestService.Upsert(upsertRequest, cancellationToken);
     }
 }

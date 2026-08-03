@@ -34,8 +34,7 @@ public class UpsertCollectionRequest(
     int customerId,
     PresentationCollection collection,
     string rawRequestBody,
-    string? urlParentPath = null,
-    string? urlSlug = null) : WriteCollectionRequest(customerId, collection, rawRequestBody, urlParentPath, urlSlug)
+    ResolvedLocation? location = null) : WriteCollectionRequest(customerId, collection, rawRequestBody, location)
 {
     public string CollectionId { get; } = collectionId;
     public string? ETag { get; } = etag;
@@ -49,34 +48,12 @@ public class WriteCollectionRequest(
     int customerId,
     PresentationCollection collection,
     string rawRequestBody,
-    string? urlParentPath = null,
-    string? urlSlug = null,
-    string? clientProvidedId = null)
+    ResolvedLocation? location = null)
 {
     public int CustomerId { get; } = customerId;
     public PresentationCollection Collection { get; } = collection;
     public string RawRequestBody { get; } = rawRequestBody;
-
-    /// <summary>
-    /// Parent path for the resource - the full path for hierarchical POST, everything but the last segment for
-    /// hierarchical PUT, or derived from the request body's "id" property for a flat request (see
-    /// <see cref="IRequestIdResolver"/>)
-    /// </summary>
-    public string? UrlParentPath { get; } = urlParentPath;
-
-    /// <summary>
-    /// Slug for the resource - the last segment of the path for hierarchical PUT, or derived from the request
-    /// body's "id" property for a flat request
-    /// </summary>
-    public string? UrlSlug { get; } = urlSlug;
-
-    /// <summary>
-    /// A trusted, internal flat id resolved from the request body's "id" property (create only). When set, this is
-    /// used as the new collection's id instead of minting a new one - the caller is responsible for having already
-    /// recognised this as belonging to us (<see cref="IRequestIdResolver"/>); <see cref="CollectionWriteService.Create"/>
-    /// still checks it isn't already in use
-    /// </summary>
-    public string? ClientProvidedId { get; } = clientProvidedId;
+    public ResolvedLocation Location { get; } = location ?? ResolvedLocation.None;
 }
 
 public interface ICollectionWrite
@@ -115,13 +92,13 @@ public class CollectionWriteService(
     public async Task<PresentationResult> Create(WriteCollectionRequest request, CancellationToken cancellationToken)
     {
         string? id = null;
-        if (request.ClientProvidedId != null)
+        if (request.Location.ClientProvidedId != null)
         {
-            var existing = await dbContext.RetrieveCollectionAsync(request.CustomerId, request.ClientProvidedId,
-                cancellationToken: cancellationToken);
+            var existing = await dbContext.RetrieveCollectionAsync(request.CustomerId,
+                request.Location.ClientProvidedId, cancellationToken: cancellationToken);
             if (existing != null) return UpsertErrorHelper.IdAlreadyExists();
 
-            id = request.ClientProvidedId;
+            id = request.Location.ClientProvidedId;
         }
 
         return await CreateInternal(request, id, cancellationToken);
@@ -155,7 +132,7 @@ public class CollectionWriteService(
         var iiifCollection = prepared.IiifCollection;
 
         var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
-            request.CustomerId, id, request.UrlParentPath, request.UrlSlug, cancellationToken);
+            request.CustomerId, id, request.Location.ParentPath, request.Location.Slug, cancellationToken);
         if (slugError != null) return slugError;
 
         if (id == null)
@@ -224,7 +201,8 @@ public class CollectionWriteService(
         var iiifCollection = prepared.IiifCollection;
 
         var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
-            request.CustomerId, request.CollectionId, request.UrlParentPath, request.UrlSlug, cancellationToken);
+            request.CustomerId, request.CollectionId, request.Location.ParentPath, request.Location.Slug,
+            cancellationToken);
         if (slugError != null) return slugError;
 
         if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))

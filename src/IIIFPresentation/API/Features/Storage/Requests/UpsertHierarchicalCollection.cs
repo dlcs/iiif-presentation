@@ -46,7 +46,7 @@ public class UpsertHierarchicalCollectionHandler(
         if (error != null) return error;
 
         var upsertRequest = new UpsertCollectionRequest(context!.ResourceId, request.ETag, request.CustomerId,
-            context.Presentation, request.RawRequestBody, urlParentPath: context.ParentPath, urlSlug: context.Slug);
+            context.Presentation, request.RawRequestBody, new ResolvedLocation(context.ParentPath, context.Slug));
 
         var result = await collectionService.Upsert(upsertRequest, cancellationToken);
 

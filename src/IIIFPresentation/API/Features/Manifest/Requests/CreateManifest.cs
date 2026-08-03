@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Requests;
+using API.Helpers;
+using API.Infrastructure.Requests;
 using MediatR;
 using Models.API.Manifest;
 
@@ -11,49 +12,30 @@ public class CreateManifest(
     int customerId,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace,
-    string? urlParentPath = null,
-    string? urlSlug = null,
-    string? clientProvidedId = null)
+    bool createSpace)
     : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
     public PresentationManifest PresentationManifest { get; } = presentationManifest;
     public string RawRequestBody { get; } = rawRequestBody;
     public bool CreateSpace { get; } = createSpace;
-
-    /// <summary>
-    /// Parent path for the new resource - the whole path being POSTed into for hierarchical POST, or derived from
-    /// the request body's "id" property when it resolves to an own-host hierarchical id (flat POST)
-    /// </summary>
-    public string? UrlParentPath { get; } = urlParentPath;
-
-    /// <summary>
-    /// Slug derived from the request body's "id" property, when it resolves to an own-host hierarchical id
-    /// </summary>
-    public string? UrlSlug { get; } = urlSlug;
-
-    /// <summary>
-    /// A trusted, internal flat id resolved from the request body's "id" property
-    /// </summary>
-    public string? ClientProvidedId { get; } = clientProvidedId;
 }
 
-public class CreateManifestHandler(
-    IManifestWrite manifestService) : IRequestHandler<CreateManifest,
-    PresentationResult>
+public class CreateManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
+    : IRequestHandler<CreateManifest, PresentationResult>
 {
-    public Task<PresentationResult> Handle(CreateManifest request,
-        CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateManifest request, CancellationToken cancellationToken)
     {
+        var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
+            request.PresentationManifest.Id);
+        if (error != null) return error;
+
         var upsertRequest = new WriteManifestRequest(request.CustomerId,
             request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
             request.CreateSpace,
-            request.UrlParentPath,
-            urlSlug: request.UrlSlug,
-            clientProvidedId: request.ClientProvidedId);
+            resolvedId.ToLocation());
 
-        return manifestService.Create(upsertRequest, cancellationToken);
+        return await manifestService.Create(upsertRequest, cancellationToken);
     }
 }

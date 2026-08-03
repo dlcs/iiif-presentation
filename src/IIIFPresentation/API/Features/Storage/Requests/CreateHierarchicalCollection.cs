@@ -43,8 +43,7 @@ public class CreateHierarchicalCollectionHandler(
         if (error != null) return error;
 
         var writeRequest = new WriteCollectionRequest(request.CustomerId, context!.Presentation,
-            request.RawRequestBody, urlParentPath: context.ParentPath, urlSlug: context.Slug,
-            clientProvidedId: context.ClientProvidedId);
+            request.RawRequestBody, new ResolvedLocation(context.ParentPath, context.Slug, context.ClientProvidedId));
 
         var result = await collectionService.Create(writeRequest, cancellationToken);
 

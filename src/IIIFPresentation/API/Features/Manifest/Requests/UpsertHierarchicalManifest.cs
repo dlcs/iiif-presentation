@@ -56,8 +56,8 @@ public class UpsertHierarchicalManifestHandler(
         if (error != null) return error;
 
         var upsertRequest = new UpsertManifestRequest(context!.ResourceId, request.ETag, request.CustomerId,
-            context.Presentation, request.RawRequestBody, request.CreateSpace, urlParentPath: context.ParentPath,
-            urlSlug: context.Slug);
+            context.Presentation, request.RawRequestBody, request.CreateSpace,
+            new ResolvedLocation(context.ParentPath, context.Slug));
 
         var result = await manifestService.Upsert(upsertRequest, cancellationToken);
 

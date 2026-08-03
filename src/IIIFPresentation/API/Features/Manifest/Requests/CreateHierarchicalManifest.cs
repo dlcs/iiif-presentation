@@ -51,8 +51,8 @@ public class CreateHierarchicalManifestHandler(
         if (error != null) return error;
 
         var writeRequest = new WriteManifestRequest(request.CustomerId, context!.Presentation,
-            request.RawRequestBody, request.CreateSpace, urlParentPath: context.ParentPath, urlSlug: context.Slug,
-            clientProvidedId: context.ClientProvidedId);
+            request.RawRequestBody, request.CreateSpace,
+            new ResolvedLocation(context.ParentPath, context.Slug, context.ClientProvidedId));
 
         var result = await manifestService.Create(writeRequest, cancellationToken);
 
