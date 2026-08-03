@@ -7,9 +7,7 @@ namespace API.Helpers;
 public static class ParentSlugParserX
 {
     /// <summary>
-    /// Resolves the parent/slug for a write request, unwrapping the result into an error-or-value pair - shared by
-    /// <c>CollectionWriteService</c> and <c>ManifestWriteService</c>, whose write requests differ in type but both
-    /// carry the same URL-derived parent path/slug hints.
+    /// Resolves the parent/slug for a write request, unwrapping the result into an error-or-value pair.
     /// </summary>
     public static async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug<T>(
         this IParentSlugParser parentSlugParser,

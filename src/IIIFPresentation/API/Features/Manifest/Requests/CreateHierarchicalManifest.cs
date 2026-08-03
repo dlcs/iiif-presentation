@@ -12,10 +12,9 @@ using Services.Manifests.Settings;
 namespace API.Features.Manifest.Requests;
 
 /// <summary>
-/// Create a new Manifest as a child of the container addressed by the request URL
-/// (POST /{customer}/{parent-path}).
+/// Creates a new Manifest as a child of a given parent container.
 /// </summary>
-public class PostHierarchicalManifest(
+public class CreateHierarchicalManifest(
     int customerId,
     string parentPath,
     string rawRequestBody,
@@ -24,7 +23,7 @@ public class PostHierarchicalManifest(
     public int CustomerId { get; } = customerId;
 
     /// <summary>
-    /// Full hierarchical path this request was POSTed to - the parent container for the new resource
+    /// Path of the parent container the new resource is created inside
     /// </summary>
     public string ParentPath { get; } = parentPath;
 
@@ -33,20 +32,20 @@ public class PostHierarchicalManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class PostHierarchicalManifestHandler(
-    ILogger<PostHierarchicalManifestHandler> logger,
-    IRequestIdResolver requestIdResolver,
+public class CreateHierarchicalManifestHandler(
+    IHierarchicalRequestHelper hierarchicalRequestHelper,
     IManifestWrite manifestService,
     IOptions<ServicesSettings> servicesOptions)
-    : IRequestHandler<PostHierarchicalManifest, PresentationResult>
+    : IRequestHandler<CreateHierarchicalManifest, PresentationResult>
 {
     private static readonly PresentationResult DeserializeError = PresentationResult.Failure(
         "Could not deserialize manifest", ModifyCollectionType.CannotDeserialize, WriteResult.BadRequest);
 
-    public async Task<PresentationResult> Handle(PostHierarchicalManifest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateHierarchicalManifest request,
+        CancellationToken cancellationToken)
     {
-        var (error, context) = await HierarchicalRequestHelper.PrepareForPost<PresentationManifest>(
-            request.RawRequestBody, request.ParentPath, request.CustomerId, logger, requestIdResolver,
+        var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationManifest>(
+            request.RawRequestBody, request.ParentPath, request.CustomerId,
             new PresentationManifestValidator(servicesOptions, isFlatRequest: false), DeserializeError,
             cancellationToken);
         if (error != null) return error;

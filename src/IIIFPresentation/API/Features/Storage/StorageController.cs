@@ -107,9 +107,9 @@ public class StorageController(
 
         IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
         {
-            "Manifest" => new PostHierarchicalManifest(customerId, slug, rawRequestBody,
+            nameof(IIIF.Presentation.V3.Manifest) => new CreateHierarchicalManifest(customerId, slug, rawRequestBody,
                 Request.HasCreateSpaceHeader()),
-            "Collection" => new PostHierarchicalCollection(customerId, slug, rawRequestBody),
+            nameof(IIIF.Presentation.V3.Collection) => new CreateHierarchicalCollection(customerId, slug, rawRequestBody),
             _ => null
         };
 
@@ -130,9 +130,10 @@ public class StorageController(
 
         IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
         {
-            "Manifest" => new PutHierarchicalManifest(customerId, slug, rawRequestBody, Request.Headers.IfMatch,
-                Request.HasCreateSpaceHeader()),
-            "Collection" => new PutHierarchicalCollection(customerId, slug, rawRequestBody, Request.Headers.IfMatch),
+            nameof(IIIF.Presentation.V3.Manifest) => new UpsertHierarchicalManifest(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch, Request.HasCreateSpaceHeader()),
+            nameof(IIIF.Presentation.V3.Collection) => new UpsertHierarchicalCollection(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch),
             _ => null
         };
 
@@ -142,7 +143,7 @@ public class StorageController(
     }
 
     private ObjectResult UnrecognisedTypeProblem() =>
-        this.PresentationProblem(
-            "Could not determine resource 'type' from the request body - expected 'Collection' or 'Manifest'", null,
-            (int)HttpStatusCode.BadRequest, "Bad request", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
+        this.PresentationBadRequest(
+            "Could not determine resource 'type' from the request body - expected 'Collection' or 'Manifest'",
+            ModifyCollectionType.CannotDeserialize);
 }

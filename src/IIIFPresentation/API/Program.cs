@@ -94,6 +94,7 @@ builder.Services
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
     .AddScoped<IRequestIdResolver, RequestIdResolver>()
+    .AddScoped<IHierarchicalRequestHelper, HierarchicalRequestHelper>()
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
     .AddScoped<ServicesSettings>()

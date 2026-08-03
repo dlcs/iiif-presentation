@@ -15,13 +15,6 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static Task<PresentationResult?> TrySaveCollection(
-        this PresentationContext dbContext,
-        int customerId,
-        ILogger logger,
-        CancellationToken cancellationToken)
-        => dbContext.TrySave("collection", customerId, logger, cancellationToken);
-
     public static async Task<PresentationResult?> TrySave(
         this PresentationContext dbContext,
         string resourceType,

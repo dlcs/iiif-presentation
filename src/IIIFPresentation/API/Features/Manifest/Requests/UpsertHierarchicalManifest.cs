@@ -1,9 +1,6 @@
-using API.Features.Common.Helpers;
 using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
-using API.Features.Storage.Helpers;
 using API.Helpers;
-using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests;
 using Core;
 using MediatR;
@@ -11,17 +8,15 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Models.API.General;
 using Models.API.Manifest;
-using Repository;
 using Services.Manifests.Settings;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace API.Features.Manifest.Requests;
 
 /// <summary>
-/// Create or update a Manifest at the specific hierarchical path addressed by the request URL
-/// (PUT /{customer}/{parent-path}/{slug}).
+/// Creates or updates a Manifest at a specific hierarchical path.
 /// </summary>
-public class PutHierarchicalManifest(
+public class UpsertHierarchicalManifest(
     int customerId,
     string fullPath,
     string rawRequestBody,
@@ -31,7 +26,7 @@ public class PutHierarchicalManifest(
     public int CustomerId { get; } = customerId;
 
     /// <summary>
-    /// Full hierarchical path this request was PUT to, including the slug of the resource itself
+    /// Full hierarchical path of the resource, including its own slug
     /// </summary>
     public string FullPath { get; } = fullPath;
 
@@ -42,24 +37,22 @@ public class PutHierarchicalManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class PutHierarchicalManifestHandler(
-    PresentationContext dbContext,
-    ILogger<PutHierarchicalManifestHandler> logger,
-    IdentityManager identityManager,
-    IRequestIdResolver requestIdResolver,
+public class UpsertHierarchicalManifestHandler(
+    IHierarchicalRequestHelper hierarchicalRequestHelper,
     IManifestWrite manifestService,
     IOptions<ServicesSettings> servicesOptions)
-    : IRequestHandler<PutHierarchicalManifest, PresentationResult>
+    : IRequestHandler<UpsertHierarchicalManifest, PresentationResult>
 {
     private static readonly PresentationResult DeserializeError = PresentationResult.Failure(
         "Could not deserialize manifest", ModifyCollectionType.CannotDeserialize, WriteResult.BadRequest);
 
-    public async Task<PresentationResult> Handle(PutHierarchicalManifest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertHierarchicalManifest request,
+        CancellationToken cancellationToken)
     {
-        var (error, context) = await HierarchicalRequestHelper.PrepareForPut<PresentationManifest, DbManifest>(
-            request.RawRequestBody, request.FullPath, request.CustomerId, logger, dbContext, identityManager,
-            requestIdResolver, new PresentationManifestValidator(servicesOptions, isFlatRequest: false),
-            DeserializeError, h => h?.ManifestId, cancellationToken);
+        var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationManifest, DbManifest>(
+            request.RawRequestBody, request.FullPath, request.CustomerId,
+            new PresentationManifestValidator(servicesOptions, isFlatRequest: false), DeserializeError,
+            h => h?.ManifestId, cancellationToken);
         if (error != null) return error;
 
         var upsertRequest = new UpsertManifestRequest(context!.ResourceId, request.ETag, request.CustomerId,

@@ -6,7 +6,7 @@ using Models.API.Manifest;
 namespace API.Features.Manifest.Helpers;
 
 /// <summary>
-/// Builds the plain-IIIF response shared by the hierarchical Manifest POST/PUT handlers.
+/// Builds the plain-IIIF response body for a hierarchical Manifest write.
 /// </summary>
 public static class HierarchicalManifestResponse
 {

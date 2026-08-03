@@ -7,7 +7,7 @@ using Models.API.Collection;
 namespace API.Features.Storage.Helpers;
 
 /// <summary>
-/// Builds the plain-IIIF response shared by the hierarchical Collection POST/PUT handlers.
+/// Builds the plain-IIIF response body for a hierarchical Collection write.
 /// </summary>
 public static class HierarchicalCollectionResponse
 {

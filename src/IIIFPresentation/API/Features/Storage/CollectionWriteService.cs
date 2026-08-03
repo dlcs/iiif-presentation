@@ -198,7 +198,7 @@ public class CollectionWriteService(
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
+        var saveErrors = await dbContext.TrySave("collection", request.CustomerId, logger, cancellationToken);
         if (saveErrors != null) return saveErrors;
 
         var fullPathError = await TrySetFullPath(collection, collection.Hierarchy.GetCanonical(), cancellationToken);
@@ -255,7 +255,7 @@ public class CollectionWriteService(
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var saveErrors = await dbContext.TrySaveCollection(request.CustomerId, logger, cancellationToken);
+        var saveErrors = await dbContext.TrySave("collection", request.CustomerId, logger, cancellationToken);
         if (saveErrors != null) return saveErrors;
 
         var hierarchy = databaseCollection.Hierarchy.Single();

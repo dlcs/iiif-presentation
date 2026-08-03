@@ -9,10 +9,10 @@ using Models.API.Collection;
 namespace API.Features.Storage.Requests;
 
 /// <summary>
-/// Create a new Collection (storage or iiif) as a child of the container addressed by the request URL
-/// (POST /{customer}/{parent-path}), and upload provided JSON to S3 if iiif-collection.
+/// Creates a new Collection (storage or iiif) as a child of a given parent container, uploading the provided JSON
+/// to S3 if it's an iiif-collection.
 /// </summary>
-public class PostHierarchicalCollection(
+public class CreateHierarchicalCollection(
     int customerId,
     string parentPath,
     string rawRequestBody) : IRequest<PresentationResult>
@@ -20,24 +20,24 @@ public class PostHierarchicalCollection(
     public int CustomerId { get; } = customerId;
 
     /// <summary>
-    /// Full hierarchical path this request was POSTed to - the parent container for the new resource
+    /// Path of the parent container the new resource is created inside
     /// </summary>
     public string ParentPath { get; } = parentPath;
 
     public string RawRequestBody { get; } = rawRequestBody;
 }
 
-public class PostHierarchicalCollectionHandler(
-    ILogger<PostHierarchicalCollectionHandler> logger,
-    IRequestIdResolver requestIdResolver,
+public class CreateHierarchicalCollectionHandler(
+    ILogger<CreateHierarchicalCollectionHandler> logger,
+    IHierarchicalRequestHelper hierarchicalRequestHelper,
     ICollectionWrite collectionService)
-    : IRequestHandler<PostHierarchicalCollection, PresentationResult>
+    : IRequestHandler<CreateHierarchicalCollection, PresentationResult>
 {
-    public async Task<PresentationResult> Handle(PostHierarchicalCollection request,
+    public async Task<PresentationResult> Handle(CreateHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
-        var (error, context) = await HierarchicalRequestHelper.PrepareForPost<PresentationCollection>(
-            request.RawRequestBody, request.ParentPath, request.CustomerId, logger, requestIdResolver,
+        var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationCollection>(
+            request.RawRequestBody, request.ParentPath, request.CustomerId,
             new PresentationValidator(isFlatRequest: false), UpsertErrorHelper.CannotValidateIIIF(),
             cancellationToken);
         if (error != null) return error;
