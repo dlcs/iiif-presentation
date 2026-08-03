@@ -2,11 +2,8 @@ using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Core;
 using MediatR;
 using Microsoft.Extensions.Options;
-using Models.API.General;
-using Models.API.Manifest;
 using Services.Manifests.Settings;
 
 namespace API.Features.Manifest.Requests;
@@ -38,16 +35,12 @@ public class CreateHierarchicalManifestHandler(
     IOptions<ServicesSettings> servicesOptions)
     : IRequestHandler<CreateHierarchicalManifest, PresentationResult>
 {
-    private static readonly PresentationResult DeserializeError = PresentationResult.Failure(
-        "Could not deserialize manifest", ModifyCollectionType.CannotDeserialize, WriteResult.BadRequest);
-
     public async Task<PresentationResult> Handle(CreateHierarchicalManifest request,
         CancellationToken cancellationToken)
     {
-        var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationManifest>(
+        var (error, context) = await hierarchicalRequestHelper.PrepareForCreate(
             request.RawRequestBody, request.ParentPath, request.CustomerId,
-            new PresentationManifestValidator(servicesOptions, isFlatRequest: false), DeserializeError,
-            cancellationToken);
+            new PresentationManifestValidator(servicesOptions, isFlatRequest: false), cancellationToken);
         if (error != null) return error;
 
         var writeRequest = new WriteManifestRequest(request.CustomerId, context!.Presentation,

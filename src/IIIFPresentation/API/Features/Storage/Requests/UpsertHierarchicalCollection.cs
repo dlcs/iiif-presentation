@@ -1,4 +1,3 @@
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Features.Storage.Validators;
@@ -41,8 +40,7 @@ public class UpsertHierarchicalCollectionHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationCollection, DbCollection>(
             request.RawRequestBody, request.FullPath, request.CustomerId,
-            new PresentationValidator(isFlatRequest: false), UpsertErrorHelper.CannotValidateIIIF(),
-            h => h?.CollectionId, cancellationToken);
+            new PresentationValidator(isFlatRequest: false), h => h?.CollectionId, cancellationToken);
         if (error != null) return error;
 
         var upsertRequest = new UpsertCollectionRequest(context!.ResourceId, request.ETag, request.CustomerId,

@@ -1,4 +1,3 @@
-using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Validators;
 using API.Helpers;
@@ -38,8 +37,7 @@ public class CreateHierarchicalCollectionHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationCollection>(
             request.RawRequestBody, request.ParentPath, request.CustomerId,
-            new PresentationValidator(isFlatRequest: false), UpsertErrorHelper.CannotValidateIIIF(),
-            cancellationToken);
+            new PresentationValidator(isFlatRequest: false), cancellationToken);
         if (error != null) return error;
 
         var writeRequest = new WriteCollectionRequest(request.CustomerId, context!.Presentation,

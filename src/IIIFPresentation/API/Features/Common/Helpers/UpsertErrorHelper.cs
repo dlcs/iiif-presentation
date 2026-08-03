@@ -48,6 +48,13 @@ public static class UpsertErrorHelper
             "An error occurred while attempting to validate the collection as IIIF",
             ModifyCollectionType.CannotValidateIIIF, WriteResult.BadRequest);
     }
+    
+    public static PresentationResult CannotDeserialize(string resourceType)
+    {
+        return PresentationResult.Failure(
+            $"Could not deserialize {resourceType.ToLowerInvariant()}",
+            ModifyCollectionType.CannotDeserialize, WriteResult.BadRequest);
+    }
 
     public static PresentationResult CannotChangeCollectionType(bool storageCollection)
     {

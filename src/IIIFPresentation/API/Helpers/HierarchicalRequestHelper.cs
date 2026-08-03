@@ -56,14 +56,12 @@ public interface IHierarchicalRequestHelper
     /// <param name="urlParentPath">Parent path derived from the request URL - the container being posted into</param>
     /// <param name="customerId">Customer id from the request URL</param>
     /// <param name="validator">Validator to run against the deserialized body</param>
-    /// <param name="deserializeError">Error to return if the body can't be deserialized</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<(PresentationResult? error, HierarchicalPostContext<T>? context)> PrepareForCreate<T>(
         string rawRequestBody,
         string urlParentPath,
         int customerId,
         IValidator<T> validator,
-        PresentationResult deserializeError,
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new();
 
@@ -77,7 +75,6 @@ public interface IHierarchicalRequestHelper
     /// <param name="fullPath">Full hierarchical path the request was PUT to, including the resource's own slug</param>
     /// <param name="customerId">Customer id from the request URL</param>
     /// <param name="validator">Validator to run against the deserialized body</param>
-    /// <param name="deserializeError">Error to return if the body can't be deserialized</param>
     /// <param name="existingResourceId">Selects the relevant id (CollectionId/ManifestId) off an existing hierarchy row</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <typeparam name="T">The Presentation model (PresentationCollection/PresentationManifest)</typeparam>
@@ -87,7 +84,6 @@ public interface IHierarchicalRequestHelper
         string fullPath,
         int customerId,
         IValidator<T> validator,
-        PresentationResult deserializeError,
         Func<Hierarchy?, string?> existingResourceId,
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
@@ -105,12 +101,11 @@ public class HierarchicalRequestHelper(
         string urlParentPath,
         int customerId,
         IValidator<T> validator,
-        PresentationResult deserializeError,
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
     {
         var deserialized = await DeserializeValidateAndResolveId(rawRequestBody, customerId, validator,
-            deserializeError, cancellationToken);
+            cancellationToken);
         if (deserialized.Error != null) return (deserialized.Error, null);
         var resolvedId = deserialized.ResolvedId!;
 
@@ -127,14 +122,13 @@ public class HierarchicalRequestHelper(
         string fullPath,
         int customerId,
         IValidator<T> validator,
-        PresentationResult deserializeError,
         Func<Hierarchy?, string?> existingResourceId,
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
         where TDbEntity : class, IIdentifiable
     {
         var deserialized = await DeserializeValidateAndResolveId(rawRequestBody, customerId, validator,
-            deserializeError, cancellationToken);
+            cancellationToken);
         if (deserialized.Error != null) return (deserialized.Error, null);
         var resolvedId = deserialized.ResolvedId!;
 
@@ -164,12 +158,11 @@ public class HierarchicalRequestHelper(
         string rawRequestBody,
         int customerId,
         IValidator<T> validator,
-        PresentationResult deserializeError,
         CancellationToken cancellationToken)
         where T : ResourceBase, IPresentation, new()
     {
         var deserialized = await rawRequestBody.TryDeserializePresentation<T>(logger);
-        if (deserialized.Error) return DeserializedRequest<T>.Failure(deserializeError);
+        if (deserialized.Error) return DeserializedRequest<T>.Failure(UpsertErrorHelper.CannotDeserialize(new T().Type));
         var presentation = deserialized.ConvertedIIIF!;
 
         var validationError = await UpsertErrorHelper.ValidateAsync(validator, presentation, cancellationToken);
