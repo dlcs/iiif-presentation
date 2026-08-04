@@ -1,14 +1,17 @@
-﻿using API.Infrastructure.Validation;
-using FluentValidation;
+﻿using FluentValidation;
+using Microsoft.Extensions.Options;
 using Models.API;
 using Models.API.General;
+using Services.Manifests.Settings;
 
 namespace API.Features.Storage.Validators;
 
 public class PresentationValidator : AbstractValidator<IPresentation>
 {
-    public PresentationValidator()
+    public PresentationValidator(IOptions<ServicesSettings> servicesOptions)
     {
+        var settings = servicesOptions.Value;
+
         RuleFor(f => f.Parent).Must(p => Uri.IsWellFormedUriString(p, UriKind.Absolute))
             .When(f => f.Parent != null)
             .WithMessage("'parent' must be a well formed URI");
@@ -23,8 +26,8 @@ public class PresentationValidator : AbstractValidator<IPresentation>
             .WithMessage("'slug' cannot be one of prohibited terms: '{PropertyValue}'");
 
         RuleFor(f => f.Slug)
-            .Must(slug => !slug!.Contains('/'))
-            .WithMessage("'slug' cannot contain '/'")
+            .Must(slug => !settings.ProhibitedSlugCharacters.Any(slug!.Contains))
+            .WithMessage($"'slug' contains a prohibited character. Cannot contain any of: {settings.ProhibitedSlugCharactersDisplay}")
             .Must(slug => !Uri.IsWellFormedUriString(slug, UriKind.Absolute))
             .WithMessage("'slug' cannot be a fully qualified URI")
             .When(f => !string.IsNullOrEmpty(f.Slug));

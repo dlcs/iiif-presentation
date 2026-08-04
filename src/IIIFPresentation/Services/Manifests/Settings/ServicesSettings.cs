@@ -14,4 +14,9 @@ public class ServicesSettings
 
     public string ProhibitedAdjunctIdCharactersDisplay =>
         string.Join(", ", ProhibitedAdjunctIdCharacters.Select(p => $"'{p}'"));
+
+    public string[] ProhibitedSlugCharacters { get; set; } = ["/"];
+
+    public string ProhibitedSlugCharactersDisplay =>
+        string.Join(", ", ProhibitedSlugCharacters.Select(p => $"'{p}'"));
 }

@@ -18,7 +18,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
-        RuleFor(c => c).SetValidator(new PresentationValidator());
+        RuleFor(c => c).SetValidator(new PresentationValidator(servicesOptions));
         
         RuleFor(m => m.Items)
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
