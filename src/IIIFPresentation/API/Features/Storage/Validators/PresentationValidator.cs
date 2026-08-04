@@ -22,6 +22,13 @@ public class PresentationValidator : AbstractValidator<IPresentation>
             .Must(slug => !SpecConstants.ProhibitedSlugs.Contains(slug!))
             .WithMessage("'slug' cannot be one of prohibited terms: '{PropertyValue}'");
 
+        RuleFor(f => f.Slug)
+            .Must(slug => !slug!.Contains('/'))
+            .WithMessage("'slug' cannot contain '/'")
+            .Must(slug => !Uri.IsWellFormedUriString(slug, UriKind.Absolute))
+            .WithMessage("'slug' cannot be a fully qualified URI")
+            .When(f => !string.IsNullOrEmpty(f.Slug));
+
         RuleFor(f => f.PublicId)
             .NotEmpty()
             .When(f => f.Parent == null && f.Slug == null)
