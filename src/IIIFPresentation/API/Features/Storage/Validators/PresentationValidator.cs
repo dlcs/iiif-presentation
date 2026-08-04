@@ -1,16 +1,16 @@
-﻿using FluentValidation;
+﻿using API.Settings;
+using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API;
 using Models.API.General;
-using Services.Manifests.Settings;
 
 namespace API.Features.Storage.Validators;
 
 public class PresentationValidator : AbstractValidator<IPresentation>
 {
-    public PresentationValidator(IOptions<ServicesSettings> servicesOptions)
+    public PresentationValidator(IOptions<ApiSettings> apiOptions)
     {
-        var settings = servicesOptions.Value;
+        var settings = apiOptions.Value;
 
         RuleFor(f => f.Parent).Must(p => Uri.IsWellFormedUriString(p, UriKind.Absolute))
             .When(f => f.Parent != null)

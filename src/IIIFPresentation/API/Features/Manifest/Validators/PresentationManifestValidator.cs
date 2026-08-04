@@ -1,4 +1,5 @@
 using API.Features.Storage.Validators;
+using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
@@ -13,12 +14,12 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 {
     private readonly ServicesSettings servicesSettings;
 
-    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, IOptions<ApiSettings> apiOptions)
     {
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
-        RuleFor(c => c).SetValidator(new PresentationValidator(servicesOptions));
+        RuleFor(c => c).SetValidator(new PresentationValidator(apiOptions));
         
         RuleFor(m => m.Items)
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)

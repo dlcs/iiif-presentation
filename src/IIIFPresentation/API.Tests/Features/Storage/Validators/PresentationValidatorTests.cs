@@ -1,15 +1,21 @@
 ﻿using API.Features.Storage.Validators;
+using API.Settings;
+using AWS.Settings;
+using DLCS;
 using FluentValidation.TestHelper;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
-using Services.Manifests.Settings;
 
 namespace API.Tests.Features.Storage.Validators;
 
 public class PresentationValidatorTests
 {
-    private readonly PresentationValidator sut = new(Options.Create(new ServicesSettings()));
+    private readonly PresentationValidator sut = new(Options.Create(new ApiSettings
+    {
+        AWS = new AWSSettings(),
+        DLCS = new DlcsSettings { ApiUri = new Uri("https://localhost") }
+    }));
 
     [Theory]
     [InlineData(null)]
