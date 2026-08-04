@@ -179,13 +179,31 @@ public class ManifestPaintedResourceParser(
         var adjuncts = asset.TryGetCollectionValue<JObject>(AssetProperties.Adjuncts);
         asset.Remove(AssetProperties.Adjuncts);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
-        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var space = GetSpace(asset, id);
         return new AssetDetails
         {
             Space = space,
             AdjunctInteraction = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
             Id = id
         };
+    }
+
+    /// <summary>
+    /// Parse the "space" property of an asset, throwing an <see cref="AssetException"/> rather than an
+    /// unhandled <see cref="FormatException"/> if a non-numeric value (e.g. a string) is supplied
+    /// </summary>
+    private static int? GetSpace(JObject asset, string assetId)
+    {
+        try
+        {
+            return asset.TryGetValue<int?>(AssetProperties.Space);
+        }
+        catch (FormatException)
+        {
+            var value = asset[AssetProperties.Space]?.ToString();
+            throw new AssetException($"The space for asset '{assetId}' is '{value}' and is not a valid integer",
+                assetId);
+        }
     }
 
     private static AdjunctInteraction HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)

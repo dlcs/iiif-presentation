@@ -254,7 +254,45 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         
         errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' is '{space}' and cannot be negative");
     }
-    
+
+    [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_WithStringSpace()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting": {
+                                            "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "space": "",
+                                     }
+                                 }
+                             ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' is '' and is not a valid integer");
+    }
+
     [Theory]
     [InlineData("first", "", "Error parsing the asset id from an attached asset - AssetId '1/999/' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]
     [InlineData("first", "extra/slash", "Error parsing the asset id from an attached asset - AssetId '1/999/extra/slash' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]

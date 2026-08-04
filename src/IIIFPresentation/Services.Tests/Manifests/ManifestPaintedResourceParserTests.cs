@@ -965,6 +965,30 @@ public class ManifestPaintedResourceParserTests
         action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-number")]
+    public void Parse_SingleItem_AssetOnly_WithStringSpace_ThrowsError(string space)
+    {
+        // Arrange
+        var asset = GetAsset();
+        asset["space"] = space;
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource { Asset = asset }
+            ]
+        };
+
+        // Act
+        Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
+
+        // Assert
+        action.Should().ThrowAsync<AssetException>()
+            .Where(e => e.Message == $"The space for asset '{assetIds[0]}' is '{space}' and is not a valid integer");
+    }
+
     [Fact]
     public async Task Parse_WithAdjuncts_ThrowsAssetException_WhenAdjunctAssetDoesNotMatchParent()
     {
