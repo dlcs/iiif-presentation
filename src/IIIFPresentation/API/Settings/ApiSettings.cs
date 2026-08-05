@@ -38,7 +38,7 @@ public class ApiSettings
     public int FinishedPipelinesLimit { get; set; } = 20;
 
     /// <summary>
-    /// Characters that are not permitted in a 'slug'
+    /// Strings that are not permitted in a 'slug'
     /// </summary>
     public string[] ProhibitedSlugCharacters { get; set; } = ["/"];
 
