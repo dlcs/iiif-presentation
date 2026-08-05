@@ -261,13 +261,22 @@ public static class ManifestConverter
                 [AssetProperties.Error] = "Unable to retrieve asset details"
             };
 
-        return assets.TryGetValue(fullAssetId, out var asset)
-            ? asset
-            : new()
+        if (!assets.TryGetValue(fullAssetId, out var asset))
+        {
+            return new()
             {
                 [AssetProperties.FullId] = fullAssetId,
                 [AssetProperties.Error] = "Asset not found"
             };
+        }
+
+        // `"adjuncts": []` should be stripped out
+        if (asset[AssetProperties.Adjuncts] is JArray { Count: 0 })
+        {
+            asset.Remove(AssetProperties.Adjuncts);
+        }
+
+        return asset;
     }
     
     private static IngestingAssets? GenerateIngesting(Dictionary<string, JObject>? assets)

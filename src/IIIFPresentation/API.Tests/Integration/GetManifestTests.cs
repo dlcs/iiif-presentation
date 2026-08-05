@@ -107,6 +107,55 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
                 A<string>.That.Matches(l => l.EndsWith("_ingestingAssets")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
+
+        var emptyAdjunctsAsset = JObject.Parse(
+            """
+            {
+                   "@context": "https://localhost/contexts/Image.jsonld",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/emptyAdjunctsPaintedResource",
+                   "@type": "vocab:Image",
+                   "id": "emptyAdjunctsPaintedResource",
+                   "ingesting": false,
+                   "space": 1,
+                   "adjuncts": []
+                 }
+            """
+        );
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+                A<string>.That.Matches(l => l.EndsWith("_emptyAdjuncts")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() => [emptyAdjunctsAsset]);
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_OmitsEmptyAdjuncts_OnCanvasAsset()
+    {
+        // Arrange - asset-level adjuncts is an empty array; response should omit it, not echo "adjuncts": []
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_emptyAdjuncts");
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
+        var assetId = new AssetId(1, 2, "emptyAdjunctsPaintedResource");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
+            assetId: assetId);
+        await dbContext.SaveChangesAsync();
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson,
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        var paintedResource = manifest.PaintedResources.Single();
+        paintedResource.Asset!.ContainsKey("adjuncts").Should()
+            .BeFalse("an empty adjuncts array should be omitted, consistent with manifest-level adjuncts");
     }
     
     [Fact]
