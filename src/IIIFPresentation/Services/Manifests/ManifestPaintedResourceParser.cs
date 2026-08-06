@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -190,19 +191,31 @@ public class ManifestPaintedResourceParser(
 
     /// <summary>
     /// Parse the "space" property of an asset, throwing an <see cref="AssetException"/> rather than an
-    /// unhandled <see cref="FormatException"/> if a non-numeric value (e.g. a string) is supplied
+    /// unhandled <see cref="FormatException"/>/<see cref="OverflowException"/> if a non-integer value (e.g. a
+    /// string, decimal, boolean, array, object, or a number too large to fit in an int) is supplied
     /// </summary>
     private static int? GetSpace(JObject asset, string assetId)
     {
+        var spaceToken = asset[AssetProperties.Space];
+
+        // Only whole numbers, numeric strings, or an absent/null value are valid. Other JSON types - decimals
+        // (e.g. 1.5, silently rounded), booleans (silently coerced to 0/1), arrays, and objects - are otherwise
+        // silently coerced or ignored by the cast below rather than raising an error, so reject them explicitly
+        if (spaceToken != null && spaceToken.Type is not (JTokenType.Integer or JTokenType.String or JTokenType.Null))
+        {
+            throw new AssetException(
+                $"The space for asset '{assetId}' is '{spaceToken.ToString(Formatting.None)}' and is not a valid integer",
+                assetId);
+        }
+
         try
         {
             return asset.TryGetValue<int?>(AssetProperties.Space);
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or OverflowException)
         {
-            var value = asset[AssetProperties.Space]?.ToString();
-            throw new AssetException($"The space for asset '{assetId}' is '{value}' and is not a valid integer",
-                assetId);
+            throw new AssetException(
+                $"The space for asset '{assetId}' is '{spaceToken}' and is not a valid integer", assetId);
         }
     }
 

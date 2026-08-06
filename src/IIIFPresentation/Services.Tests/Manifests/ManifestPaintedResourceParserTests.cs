@@ -965,10 +965,24 @@ public class ManifestPaintedResourceParserTests
         action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
     }
 
+    public static IEnumerable<object[]> InvalidSpaceValues =>
+        new List<object[]>
+        {
+            new object[] { (JToken)"", "" },
+            new object[] { (JToken)"not-a-number", "not-a-number" },
+            new object[] { (JToken)1.5, "1.5" },
+            new object[] { (JToken)(-3.7), "-3.7" },
+            new object[] { (JToken)99999999999, "99999999999" },
+            new object[] { (JToken)2147483648, "2147483648" },
+            new object[] { (JToken)(-2147483649), "-2147483649" },
+            new object[] { (JToken)true, "true" },
+            new object[] { (JToken)false, "false" },
+            new object[] { new JArray(1, 2), "[1,2]" },
+        };
+
     [Theory]
-    [InlineData("")]
-    [InlineData("not-a-number")]
-    public void Parse_SingleItem_AssetOnly_WithStringSpace_ThrowsError(string space)
+    [MemberData(nameof(InvalidSpaceValues))]
+    public void Parse_SingleItem_AssetOnly_WithInvalidTypeSpace_ThrowsError(JToken space, string expected)
     {
         // Arrange
         var asset = GetAsset();
@@ -986,7 +1000,7 @@ public class ManifestPaintedResourceParserTests
 
         // Assert
         action.Should().ThrowAsync<AssetException>()
-            .Where(e => e.Message == $"The space for asset '{assetIds[0]}' is '{space}' and is not a valid integer");
+            .Where(e => e.Message == $"The space for asset '{assetIds[0]}' is '{expected}' and is not a valid integer");
     }
 
     [Fact]

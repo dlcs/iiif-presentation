@@ -255,8 +255,15 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' is '{space}' and cannot be negative");
     }
 
-    [Fact]
-    public async Task CreateManifest_ReturnsErrorAsset_WithStringSpace()
+    [Theory]
+    [InlineData("\"\"", "")]
+    [InlineData("1.5", "1.5")]
+    [InlineData("-3.7", "-3.7")]
+    [InlineData("2147483648", "2147483648")]
+    [InlineData("-2147483649", "-2147483649")]
+    [InlineData("true", "true")]
+    [InlineData("false", "false")]
+    public async Task CreateManifest_ReturnsErrorAsset_WithNonIntegerSpace(string jsonValue, string expected)
     {
         // Arrange
         var (slug, assetId) = TestIdentifiers.SlugResource();
@@ -272,7 +279,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
                                     },
                                      "asset": {
                                          "id": "{{assetId}}",
-                                         "space": "",
+                                         "space": {{jsonValue}},
                                      }
                                  }
                              ]
@@ -290,7 +297,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
-        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' is '' and is not a valid integer");
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' is '{expected}' and is not a valid integer");
     }
 
     [Theory]
