@@ -198,9 +198,9 @@ public class ManifestPaintedResourceParser(
     {
         var spaceToken = asset[AssetProperties.Space];
 
-        // Only whole numbers, numeric strings, or an absent/null value are valid. Other JSON types - decimals
-        // (e.g. 1.5, silently rounded), booleans (silently coerced to 0/1), arrays, and objects - are otherwise
-        // silently coerced or ignored by the cast below rather than raising an error, so reject them explicitly
+        // Only whole numbers, numeric strings (which is cast to an int), or an absent/null value are valid.
+        // Without this check, other JSON types would silently pass through the cast below instead of raising an error.
+        // Decimals (e.g. 1.5) get rounded, and booleans get coerced to 0/1 - so reject them explicitly here first
         if (spaceToken != null && spaceToken.Type is not (JTokenType.Integer or JTokenType.String or JTokenType.Null))
         {
             throw new AssetException(
