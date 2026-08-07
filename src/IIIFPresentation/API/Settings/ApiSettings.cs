@@ -36,7 +36,15 @@ public class ApiSettings
     /// The maximum number of historical pipeline jobs returned in a Manifest's "finishedPipelines" property
     /// </summary>
     public int FinishedPipelinesLimit { get; set; } = 20;
-    
+
+    /// <summary>
+    /// Strings that are not permitted in a 'slug'
+    /// </summary>
+    public string[] ProhibitedSlugCharacters { get; set; } = ["/"];
+
+    public string ProhibitedSlugCharactersDisplay =>
+        string.Join(", ", ProhibitedSlugCharacters.Select(p => $"'{p}'"));
+
     public required AWSSettings AWS { get; set; }
 
     public required DlcsSettings DLCS { get; set; }

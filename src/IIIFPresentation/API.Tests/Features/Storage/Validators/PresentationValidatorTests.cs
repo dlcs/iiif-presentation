@@ -1,5 +1,9 @@
 ﻿using API.Features.Storage.Validators;
+using API.Settings;
+using AWS.Settings;
+using DLCS;
 using FluentValidation.TestHelper;
+using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
 
@@ -7,7 +11,11 @@ namespace API.Tests.Features.Storage.Validators;
 
 public class PresentationValidatorTests
 {
-    private readonly PresentationValidator sut = new();
+    private readonly PresentationValidator sut = new(Options.Create(new ApiSettings
+    {
+        AWS = new AWSSettings(),
+        DLCS = new DlcsSettings { ApiUri = new Uri("https://localhost") }
+    }));
 
     [Theory]
     [InlineData(null)]
@@ -33,6 +41,40 @@ public class PresentationValidatorTests
         result.ShouldHaveValidationErrorFor(m => m.Slug);
     }
     
+    [Theory]
+    [InlineData("foo/bar")]
+    [InlineData("/foo")]
+    [InlineData("foo/")]
+    public void Slug_CannotContainForwardSlash(string slug)
+    {
+        var manifest = new PresentationManifest { Slug = slug };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.Slug);
+    }
+
+    [Theory]
+    [InlineData("https://example.com/foo")]
+    [InlineData("http://example.org")]
+    public void Slug_CannotBeFullyQualifiedUri(string slug)
+    {
+        var manifest = new PresentationManifest { Slug = slug };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.Slug);
+    }
+
+    [Theory]
+    [InlineData("normal-slug")]
+    [InlineData("example.com")]
+    public void Slug_ValidValues_NoValidationError(string slug)
+    {
+        var manifest = new PresentationManifest { Slug = slug, PublicId = "https://example.com/1/manifests/foo" };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldNotHaveValidationErrorFor(m => m.Slug);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
