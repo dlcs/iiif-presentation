@@ -472,7 +472,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
             $"staging/{Customer}/manifests/{manifestId}");
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
-        s3Manifest.Id.Should().EndWith(manifestId, "the DLCS ingestion pipeline ran, proving paintedResources ");
+        s3Manifest!.Id.Should().EndWith(manifestId, "the DLCS ingestion pipeline ran, proving paintedResources ");
     }
 
     [Fact]
