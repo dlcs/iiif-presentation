@@ -2,7 +2,9 @@ using API.Features.Storage.Helpers;
 using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using MediatR;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 
 namespace API.Features.Storage.Requests;
@@ -29,7 +31,8 @@ public class CreateHierarchicalCollection(
 public class CreateHierarchicalCollectionHandler(
     ILogger<CreateHierarchicalCollectionHandler> logger,
     IHierarchicalRequestHelper hierarchicalRequestHelper,
-    ICollectionWrite collectionService)
+    ICollectionWrite collectionService,
+    IOptions<ApiSettings> apiOptions)
     : IRequestHandler<CreateHierarchicalCollection, PresentationResult>
 {
     public async Task<PresentationResult> Handle(CreateHierarchicalCollection request,
@@ -37,7 +40,7 @@ public class CreateHierarchicalCollectionHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationCollection>(
             request.RawRequestBody, request.ParentPath, request.CustomerId,
-            new PresentationValidator(isFlatRequest: false), cancellationToken);
+            new PresentationValidator(apiOptions, isFlatRequest: false), cancellationToken);
         if (error != null) return error;
 
         var writeRequest = new WriteCollectionRequest(request.CustomerId, context!.Presentation,

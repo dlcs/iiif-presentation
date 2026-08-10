@@ -2,6 +2,7 @@ using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
@@ -38,7 +39,8 @@ public class UpsertHierarchicalManifest(
 public class UpsertHierarchicalManifestHandler(
     IHierarchicalRequestHelper hierarchicalRequestHelper,
     IManifestWrite manifestService,
-    IOptions<ServicesSettings> servicesOptions)
+    IOptions<ServicesSettings> servicesOptions,
+    IOptions<ApiSettings> apiOptions)
     : IRequestHandler<UpsertHierarchicalManifest, PresentationResult>
 {
     public async Task<PresentationResult> Handle(UpsertHierarchicalManifest request,
@@ -46,7 +48,7 @@ public class UpsertHierarchicalManifestHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationManifest, DbManifest>(
             request.RawRequestBody, request.FullPath, request.CustomerId,
-            new PresentationManifestValidator(servicesOptions, isFlatRequest: false), h => h?.ManifestId,
+            new PresentationManifestValidator(servicesOptions, apiOptions, isFlatRequest: false), h => h?.ManifestId,
             cancellationToken);
         if (error != null) return error;
 

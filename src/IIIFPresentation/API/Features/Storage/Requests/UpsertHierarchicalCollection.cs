@@ -2,7 +2,9 @@ using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Features.Storage.Validators;
 using API.Infrastructure.Requests;
+using API.Settings;
 using MediatR;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using DbCollection = Models.Database.Collections.Collection;
 
@@ -32,7 +34,8 @@ public class UpsertHierarchicalCollection(
 public class UpsertHierarchicalCollectionHandler(
     ILogger<UpsertHierarchicalCollectionHandler> logger,
     IHierarchicalRequestHelper hierarchicalRequestHelper,
-    ICollectionWrite collectionService)
+    ICollectionWrite collectionService,
+    IOptions<ApiSettings> apiOptions)
     : IRequestHandler<UpsertHierarchicalCollection, PresentationResult>
 {
     public async Task<PresentationResult> Handle(UpsertHierarchicalCollection request,
@@ -40,7 +43,7 @@ public class UpsertHierarchicalCollectionHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationCollection, DbCollection>(
             request.RawRequestBody, request.FullPath, request.CustomerId,
-            new PresentationValidator(isFlatRequest: false), h => h?.CollectionId, cancellationToken);
+            new PresentationValidator(apiOptions, isFlatRequest: false), h => h?.CollectionId, cancellationToken);
         if (error != null) return error;
 
         var upsertRequest = new UpsertCollectionRequest(context!.ResourceId, request.ETag, request.CustomerId,

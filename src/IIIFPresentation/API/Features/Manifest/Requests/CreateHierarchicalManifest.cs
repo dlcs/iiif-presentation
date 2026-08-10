@@ -2,6 +2,7 @@ using API.Features.Manifest.Helpers;
 using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Services.Manifests.Settings;
@@ -32,7 +33,8 @@ public class CreateHierarchicalManifest(
 public class CreateHierarchicalManifestHandler(
     IHierarchicalRequestHelper hierarchicalRequestHelper,
     IManifestWrite manifestService,
-    IOptions<ServicesSettings> servicesOptions)
+    IOptions<ServicesSettings> servicesOptions,
+    IOptions<ApiSettings> apiOptions)
     : IRequestHandler<CreateHierarchicalManifest, PresentationResult>
 {
     public async Task<PresentationResult> Handle(CreateHierarchicalManifest request,
@@ -40,7 +42,7 @@ public class CreateHierarchicalManifestHandler(
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForCreate(
             request.RawRequestBody, request.ParentPath, request.CustomerId,
-            new PresentationManifestValidator(servicesOptions, isFlatRequest: false), cancellationToken);
+            new PresentationManifestValidator(servicesOptions, apiOptions, isFlatRequest: false), cancellationToken);
         if (error != null) return error;
 
         var writeRequest = new WriteManifestRequest(request.CustomerId, context!.Presentation,
