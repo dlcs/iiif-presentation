@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Requests;
+using API.Helpers;
+using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
@@ -24,20 +25,24 @@ public class UpsertManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class UpsertManifestHandler(IManifestWrite manifestService)
+public class UpsertManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<UpsertManifest, PresentationResult>
 {
-    public Task<PresentationResult> Handle(UpsertManifest request,
-        CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertManifest request, CancellationToken cancellationToken)
     {
+        var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
+            request.PresentationManifest.Id, request.ManifestId);
+        if (error != null) return error;
+
         var upsertRequest = new UpsertManifestRequest(
             request.ManifestId,
             request.Etag,
             request.CustomerId,
             request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
-            request.CreateSpace);
+            request.CreateSpace,
+            resolvedId.ToLocation());
 
-        return manifestService.Upsert(upsertRequest, cancellationToken);
+        return await manifestService.Upsert(upsertRequest, cancellationToken);
     }
 }

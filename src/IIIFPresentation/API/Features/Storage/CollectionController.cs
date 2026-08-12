@@ -111,7 +111,8 @@ public class CollectionController(
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
             deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
-            deserializeValidationResult.RawRequestBody), invalidatesEtag:Request.Headers.IfMatch);
+            deserializeValidationResult.RawRequestBody),
+            invalidatesEtag: Request.Headers.IfMatch);
     }
 
 

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using API.Features.Common.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -14,13 +15,6 @@ namespace API.Features.Storage.Helpers;
 
 public static class PresentationContextX
 {
-    public static Task<PresentationResult?> TrySaveCollection(
-        this PresentationContext dbContext,
-        int customerId,
-        ILogger logger,
-        CancellationToken cancellationToken)
-        => dbContext.TrySave("collection", customerId, logger, cancellationToken);
-
     public static async Task<PresentationResult?> TrySave(
         this PresentationContext dbContext,
         string resourceType,
@@ -48,6 +42,11 @@ public static class PresentationContextX
                 return PresentationResult.Failure(
                     "The manifest is currently being created",
                     ModifyCollectionType.ManifestCurrentlyIngesting, WriteResult.Conflict);
+            }
+
+            if (ex.IsCollectionPrimaryKeyViolation())
+            {
+                return UpsertErrorHelper.IdAlreadyExists();
             }
 
             return PresentationResult.Failure(

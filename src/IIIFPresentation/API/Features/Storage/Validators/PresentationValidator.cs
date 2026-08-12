@@ -8,7 +8,12 @@ namespace API.Features.Storage.Validators;
 
 public class PresentationValidator : AbstractValidator<IPresentation>
 {
-    public PresentationValidator(IOptions<ApiSettings> apiOptions)
+    /// <param name="isFlatRequest">
+    /// Flat requests always require a 'parent'/'slug' or 'publicId' to be present in the body, since the URL alone
+    /// can't identify where the resource lives. Hierarchical requests can legitimately omit these from the body -
+    /// the URL supplies what's needed - so hierarchical callers construct this with <c>false</c>.
+    /// </param>
+    public PresentationValidator(IOptions<ApiSettings> apiOptions, bool isFlatRequest = true)
     {
         var settings = apiOptions.Value;
 
@@ -17,12 +22,14 @@ public class PresentationValidator : AbstractValidator<IPresentation>
             .WithMessage("'parent' must be a well formed URI");
 
         RuleFor(f => f.Parent).NotEmpty()
-            .When(f => f.PublicId == null).WithMessage("Requires a 'parent' to be set");
+            .When(f => isFlatRequest && f.PublicId == null).WithMessage("Requires a 'parent' to be set");
 
         RuleFor(f => f.Slug).NotEmpty()
-            .When(f => f.PublicId == null)
-            .WithMessage("Requires a 'slug' to be set")
-            .Must(slug => !SpecConstants.ProhibitedSlugs.Contains(slug!))
+            .When(f => isFlatRequest && f.PublicId == null)
+            .WithMessage("Requires a 'slug' to be set");
+
+        RuleFor(f => f.Slug).Must(slug => !SpecConstants.ProhibitedSlugs.Contains(slug!))
+            .When(f => f.Slug != null)
             .WithMessage("'slug' cannot be one of prohibited terms: '{PropertyValue}'");
 
         RuleFor(f => f.Slug)
@@ -34,7 +41,7 @@ public class PresentationValidator : AbstractValidator<IPresentation>
 
         RuleFor(f => f.PublicId)
             .NotEmpty()
-            .When(f => f.Parent == null && f.Slug == null)
+            .When(f => isFlatRequest && f.Parent == null && f.Slug == null)
             .WithMessage("'public ID' is required if the 'slug' and 'parent' are not specified");
     }
 }

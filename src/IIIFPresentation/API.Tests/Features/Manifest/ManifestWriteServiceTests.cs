@@ -2,6 +2,7 @@
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.IdGenerator;
+using API.Infrastructure.Requests;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
@@ -147,12 +148,11 @@ public class ManifestWriteServiceTests
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
 
         A.CallTo(() =>
-            parentSlugParser.Parse(A<PresentationManifest>._, A<int>._, A<string>._,
-                A<CancellationToken>._)).ReturnsLazily(
-            (PresentationManifest presentationManifest, int customerId, string data,
+            parentSlugParser.ParseParentSlug(A<PresentationManifest>._, A<int>._, A<string>._,
+                A<ResolvedLocation>._, A<CancellationToken>._)).ReturnsLazily(
+            (PresentationManifest presentationManifest, int customerId, string? data, ResolvedLocation location,
                     CancellationToken cancellationToken) =>
-                ParsedParentSlugResult.Success(new ParsedParentSlug(parentCollection,
-                    presentationManifest.Slug!)));
+                ((PresentationResult?)null, new ParsedParentSlug(parentCollection, presentationManifest.Slug!)));
         
         // Always return Space 500 when call to create space
         A.CallTo(() => dlcsClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))
@@ -192,7 +192,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -224,7 +225,8 @@ public class ManifestWriteServiceTests
             Items = [new Canvas { Id = "https://base/0/canvases/canvas-1" }]
         };
 
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -294,7 +296,8 @@ public class ManifestWriteServiceTests
                 )
             ]);
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -348,7 +351,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -390,7 +394,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -437,7 +442,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -480,7 +486,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -539,7 +546,8 @@ public class ManifestWriteServiceTests
             ]
         };
 
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -586,7 +594,8 @@ public class ManifestWriteServiceTests
             ]
         };
 
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -647,7 +656,8 @@ public class ManifestWriteServiceTests
             ]
         };
 
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -740,7 +750,7 @@ public class ManifestWriteServiceTests
         };
 
         var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), true);
+            manifest.AsJson(), true, ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -810,7 +820,7 @@ public class ManifestWriteServiceTests
         };
 
         var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), true);
+            manifest.AsJson(), true, ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -858,7 +868,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest { Slug = slug, Adjuncts = null };
 
         var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), false);
+            manifest.AsJson(), false, ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -890,7 +900,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest { Slug = slug, Adjuncts = null };
 
         var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), false);
+            manifest.AsJson(), false, ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -931,7 +941,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest { Slug = slug, Adjuncts = [] };
 
         var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
-            manifest.AsJson(), false);
+            manifest.AsJson(), false, ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -993,7 +1003,8 @@ public class ManifestWriteServiceTests
             ]
         };
 
-        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, dbManifest.Entity.Etag.ToString(), Customer, manifest,
+            manifest.AsJson(), true, ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Upsert(request, CancellationToken.None);
@@ -1014,7 +1025,8 @@ public class ManifestWriteServiceTests
         using var heldLock = manifestLockManager.TryAcquire($"M:{Customer}:{resourceId}");
 
         var manifest = new PresentationManifest { Slug = slug };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), false,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(request, CancellationToken.None);
@@ -1069,7 +1081,8 @@ public class ManifestWriteServiceTests
             ]
         };
 
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -1134,7 +1147,8 @@ public class ManifestWriteServiceTests
             ]
         };
         
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         
         // Act
         var ingestedManifest = await sut.Create(request, CancellationToken.None);
@@ -1164,7 +1178,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Create(request, CancellationToken.None);
@@ -1183,7 +1198,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Create(request, CancellationToken.None);
@@ -1244,7 +1260,8 @@ public class ManifestWriteServiceTests
             ],
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Create(request, CancellationToken.None);
@@ -1271,7 +1288,8 @@ public class ManifestWriteServiceTests
         var (slug, resourceId, assetId, canvasId) = TestIdentifiers.SlugResourceAssetCanvas();
 
         var createManifest = new PresentationManifest { Slug = slug };
-        var createRequest = new UpsertManifestRequest(resourceId, null, Customer, createManifest, createManifest.AsJson(), true);
+        var createRequest = new UpsertManifestRequest(resourceId, null, Customer, createManifest, createManifest.AsJson(), true,
+            ResolvedLocation.None);
         var createResult = await sut.Create(createRequest, CancellationToken.None);
         var flatId = ((PresentationManifest)createResult.Entity!).FlatId;
         var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
@@ -1312,7 +1330,8 @@ public class ManifestWriteServiceTests
             ],
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(updateRequest, CancellationToken.None);
@@ -1341,7 +1360,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         A.CallTo(() => textBuilderClient.UpsertJob(A<DbManifest>._, A<PipelineJob>._, A<CancellationToken>._))
             .Returns(false);
 
@@ -1372,7 +1392,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Items = [new Canvas { Id = "https://base/0/canvases/canvas-1" }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         await sut.Create(request, CancellationToken.None);
@@ -1392,7 +1413,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
 
         // Act
         await sut.Create(request, CancellationToken.None);
@@ -1419,7 +1441,8 @@ public class ManifestWriteServiceTests
             Slug = slug,
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
-        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true);
+        var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
+            ResolvedLocation.None);
         var firstResult = await sut.Create(request, CancellationToken.None);
         var flatId = ((PresentationManifest)firstResult.Entity!).FlatId;
 
@@ -1430,7 +1453,8 @@ public class ManifestWriteServiceTests
             Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
         };
         var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
-        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false);
+        var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false,
+            ResolvedLocation.None);
 
         // Act
         var result = await sut.Upsert(updateRequest, CancellationToken.None);

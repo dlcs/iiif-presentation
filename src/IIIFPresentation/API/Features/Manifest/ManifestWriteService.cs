@@ -42,7 +42,9 @@ public class UpsertManifestRequest(
     int customerId,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace)
+    bool createSpace,
+    ResolvedLocation location)
+    : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace, location)
 {
     public string ManifestId { get; } = manifestId;
     public string? Etag { get; } = etag;
@@ -56,21 +58,24 @@ public class WriteManifestRequest
     public WriteManifestRequest(int customerId,
         PresentationManifest presentationManifest,
         string rawRequestBody,
-        bool createSpace)
+        bool createSpace,
+        ResolvedLocation location)
     {
         // removes presentation behaviors that aren't required for a manifest
         presentationManifest.RemovePresentationBehaviours();
-        
+
         CustomerId = customerId;
         PresentationManifest = presentationManifest;
         RawRequestBody = rawRequestBody;
         CreateSpace = createSpace;
+        Location = location;
     }
-    
+
     public int CustomerId { get; }
     public PresentationManifest PresentationManifest { get; }
     public string RawRequestBody { get; }
     public bool CreateSpace { get; }
+    public ResolvedLocation Location { get; }
 }
 
 public interface IManifestWrite
@@ -155,7 +160,17 @@ public class ManifestWriteService(
     {
         try
         {
-            return await CreateInternal(request, null, cancellationToken);
+            string? manifestId = null;
+            if (request.Location.ClientProvidedId != null)
+            {
+                var existing = await dbContext.RetrieveManifestAsync(request.Location.ClientProvidedId,
+                    cancellationToken: cancellationToken);
+                if (existing != null) return UpsertErrorHelper.IdAlreadyExists();
+
+                manifestId = request.Location.ClientProvidedId;
+            }
+
+            return await CreateInternal(request, manifestId, cancellationToken);
         }
         catch (DlcsException ex)
         {
@@ -292,7 +307,8 @@ public class ManifestWriteService(
         var (canvasError, canvasPaintingRecords) = await ResolveCanvasPaintings(request, existingManifest, cancellationToken);
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
 
-        var (slugError, parsedParentSlug) = await ParseParentSlug(request, manifestId, cancellationToken);
+        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.PresentationManifest,
+            request.CustomerId, manifestId, request.Location, cancellationToken);
         if (slugError != null) return ResolvedManifestData.Failure(slugError);
 
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);
@@ -309,14 +325,6 @@ public class ManifestWriteService(
             : await canvasPaintingResolver.UpdateCanvasPaintings(request.CustomerId, request.PresentationManifest,
                 existingManifest!, cancellationToken);
         return result.Error != null ? (result.Error, null) : (null, result);
-    }
-
-    private async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug(
-        WriteManifestRequest request, string? manifestId, CancellationToken cancellationToken)
-    {
-        var result = await parentSlugParser.Parse(request.PresentationManifest, request.CustomerId, manifestId,
-            cancellationToken);
-        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
     private async Task<PresentationResult> SaveToS3AndGenerateResult(WriteManifestRequest request, DbManifest dbManifest,

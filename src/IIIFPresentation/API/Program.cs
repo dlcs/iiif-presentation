@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using API.Auth;
 using API.Features.Common.Helpers;
 using API.Features.Manifest;
+using API.Features.Storage;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Http;
@@ -73,6 +74,7 @@ builder.Services
     .ConfigureSwagger()
     .AddSingleton<ILockManager, LockManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<ICollectionWrite, CollectionWriteService>()
     .AddScoped<IManagedAssetResultFinder, ManagedAssetResultFinder>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
@@ -91,6 +93,8 @@ builder.Services
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
+    .AddScoped<IRequestIdResolver, RequestIdResolver>()
+    .AddScoped<IHierarchicalRequestHelper, HierarchicalRequestHelper>()
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
     .AddScoped<ServicesSettings>()

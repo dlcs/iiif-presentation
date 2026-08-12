@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
+using Models.API.General;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
@@ -94,12 +95,55 @@ public class StorageController(
         }
     }
 
+    /// <summary>
+    /// Create a new Manifest or Collection as a child of the container addressed by this path
+    /// </summary>
     [Authorize]
     [HttpPost("{*slug}")]
-    public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
+    public async Task<IActionResult> PostHierarchical(int customerId, string slug = "")
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, rawRequestBody));
+
+        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => new CreateHierarchicalManifest(customerId, slug, rawRequestBody,
+                Request.HasCreateSpaceHeader()),
+            nameof(IIIF.Presentation.V3.Collection) => new CreateHierarchicalCollection(customerId, slug, rawRequestBody),
+            _ => null
+        };
+
+        if (request == null) return UnrecognisedTypeProblem();
+
+        return await HandleUpsert(request);
     }
+
+    /// <summary>
+    /// Create or update the Manifest or Collection at the specific hierarchical path addressed by this URL
+    /// </summary>
+    [Authorize]
+    [HttpPut("{*slug}")]
+    public async Task<IActionResult> PutHierarchical(int customerId, string slug = "")
+    {
+        // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
+        var rawRequestBody = await Request.GetRawRequestBodyAsync();
+
+        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => new UpsertHierarchicalManifest(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch, Request.HasCreateSpaceHeader()),
+            nameof(IIIF.Presentation.V3.Collection) => new UpsertHierarchicalCollection(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch),
+            _ => null
+        };
+
+        if (request == null) return UnrecognisedTypeProblem();
+
+        return await HandleUpsert(request, invalidatesEtag: Request.Headers.IfMatch);
+    }
+
+    private ObjectResult UnrecognisedTypeProblem() =>
+        this.PresentationBadRequest(
+            "Could not determine resource 'type' from the request body - expected 'Collection' or 'Manifest'",
+            ModifyCollectionType.CannotDeserialize);
 }

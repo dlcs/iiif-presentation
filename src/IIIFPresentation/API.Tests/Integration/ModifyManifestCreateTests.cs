@@ -405,7 +405,96 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         responseManifest.Slug.Should().Be(slug);
         responseManifest.Parent.Should().Be($"http://localhost/1/collections/{RootCollection.Id}");
     }
-    
+
+    [Fact]
+    public async Task CreateManifest_ViaHierarchicalPost_CreatesManifest()
+    {
+        // Arrange - hierarchical POST: the URL is the parent (root here), the manifest's own slug comes from the
+        // body, and the request body's "type" is used to route this to Manifest rather than Collection handling
+        var slug = TestIdentifiers.Slug();
+        var manifest = new PresentationManifest
+        {
+            Slug = slug
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}",
+            manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // hierarchical responses are always plain IIIF, regardless of the show-extras header
+        var responseManifest = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Manifest>();
+        responseManifest!.Id.Should().Be($"http://localhost/{Customer}/{slug}");
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        hierarchyFromDatabase.Parent.Should().Be(RootCollection.Id);
+    }
+
+    [Fact]
+    public async Task PostHierarchical_WithAsset_IngestsAsset_WithoutShowExtrasHeader()
+    {
+        // Arrange - hierarchical POST has no [RequireShowExtras] gate at all (contrast with
+        // CreateManifest_Forbidden_IfNoShowExtraHeader, which 403s on the flat endpoint for the exact same
+        // omission), so a "paintedResources" body still triggers the same DLCS asset-ingestion pipeline.
+        var (slug, _, assetId) = TestIdentifiers.SlugResourceAsset();
+
+        var manifest = new PresentationManifest
+        {
+            Slug = slug,
+            PaintedResources =
+            [
+                new()
+                {
+                    Asset = new(new JProperty("id", assetId))
+                }
+            ]
+        };
+
+        SetupApiClientWithBatchReturn(assetId);
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{Customer}")
+            .WithJsonContent(manifest.AsJson());
+        // deliberately no X-IIIF-CS-Show-Extras header
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        var manifestId = hierarchyFromDatabase.ManifestId!;
+
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"staging/{Customer}/manifests/{manifestId}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest!.Id.Should().EndWith(manifestId, "the DLCS ingestion pipeline ran, proving paintedResources ");
+    }
+
+    [Fact]
+    public async Task PutManifest_ViaHierarchicalPut_CreatesManifest_WhenNoneExistsAtPath()
+    {
+        // Arrange - hierarchical PUT to a path that doesn't exist yet
+        var slug = nameof(PutManifest_ViaHierarchicalPut_CreatesManifest_WhenNoneExistsAtPath);
+        var manifest = new PresentationManifest();
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        hierarchyFromDatabase.Parent.Should().Be(RootCollection.Id);
+    }
+
     [Fact]
     public async Task CreateManifest_CreatesManifest_WhileRemovingPresentationBehaviors()
     {
@@ -1949,6 +2038,31 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug()
+    {
+        // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
+        // something different - these must be reconciled and rejected, not let one silently win (previously the
+        // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
+        var idSlug = TestIdentifiers.IdWithSuffix(suffix: "-from-id");
+        var bodySlug = TestIdentifiers.IdWithSuffix(suffix: "-from-body");
+
+        var manifest = new PresentationManifest
+        {
+            Id = $"http://localhost/{Customer}/first-child/{idSlug}",
+            Slug = bodySlug
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
     
     /// <summary>
     /// Configure dlcsApiClient fake for batch creation
@@ -1962,5 +2076,166 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
                 false,
                 A<CancellationToken>._))
             .Returns([new Batch { Finished = null, ResourceId = TestIdentifiers.BatchId().ToString() }]);
+    }
+
+    /// <summary>
+    /// Which form the body's "parent" property takes in <see cref="ManifestPaths_ResolveIdParentSlug_FromAllDocumentedSources"/>
+    /// </summary>
+    public enum ParentForm
+    {
+        /// <summary>No explicit parent - rely on publicId</summary>
+        None,
+
+        /// <summary>Explicit flat parent, e.g. "/1/collections/{id}"</summary>
+        Flat,
+
+        /// <summary>Explicit hierarchical parent, e.g. "/1/grandparent/parent"</summary>
+        Hierarchical
+    }
+
+    /// <summary>
+    /// Exercises every id/parent/slug source combination documented on issue #464 (see the first comment's table),
+    /// for flat PUT, flat POST, and hierarchical POST, using the pre-seeded FirstChildCollection/SecondChildCollection
+    /// ("first-child/second-child") as the target parent.
+    /// </summary>
+    /// <param name="isPost">false = flat PUT (id always from URL); true = POST (flat or hierarchical)</param>
+    /// <param name="isHierarchical">true = hierarchical POST to the parent path, rather than flat POST to /manifests</param>
+    /// <param name="includeId">whether the body also carries a flat-form "id" (matching the URL for PUT, or the
+    /// client's chosen id for POST)</param>
+    /// <param name="parentForm">Which form the body's "parent" property takes, if any</param>
+    /// <param name="includeSlug">whether the body also carries an explicit "slug"</param>
+    /// <param name="includePublicId">whether the body also carries a "publicId" pointing at the same resource</param>
+    [Theory]
+    // Flat PUT
+    [InlineData(false, false, false, ParentForm.None, false, true)]
+    [InlineData(false, false, false, ParentForm.Flat, true, false)]
+    [InlineData(false, false, false, ParentForm.Hierarchical, true, false)]
+    [InlineData(false, false, true, ParentForm.Flat, true, true)]
+    [InlineData(false, false, true, ParentForm.Hierarchical, true, true)]
+    // Flat POST
+    [InlineData(true, false, true, ParentForm.None, false, true)]
+    [InlineData(true, false, true, ParentForm.Flat, true, false)]
+    [InlineData(true, false, true, ParentForm.Hierarchical, true, false)]
+    [InlineData(true, false, true, ParentForm.Flat, true, true)]
+    [InlineData(true, false, true, ParentForm.Hierarchical, true, true)]
+    // Hierarchical POST
+    [InlineData(true, true, true, ParentForm.None, false, true)]
+    [InlineData(true, true, true, ParentForm.Flat, true, false)]
+    [InlineData(true, true, true, ParentForm.Hierarchical, true, false)]
+    [InlineData(true, true, true, ParentForm.Flat, true, true)]
+    [InlineData(true, true, true, ParentForm.Hierarchical, true, true)]
+    public async Task ManifestPaths_ResolveIdParentSlug_FromAllDocumentedSources(bool isPost, bool isHierarchical,
+        bool includeId, ParentForm parentForm, bool includeSlug, bool includePublicId)
+    {
+        // Arrange
+        const string grandparentSlug = "first-child";
+        const string parentSlug = "second-child";
+        const string parentId = "SecondChildCollection";
+
+        // TestIdentifiers.Slug() returns a value stable per calling *test method* (via [CallerMemberName]), not a
+        // fresh value per call - so each of the 15 theory cases needs its own distinguishing suffix to avoid
+        // colliding with one another on slug/id
+        var caseSuffix = $"{isPost}{isHierarchical}{includeId}{parentForm}{includeSlug}{includePublicId}";
+        var uniqueSlug = $"{TestIdentifiers.Slug()}-{caseSuffix}";
+        var manifestId = $"{TestIdentifiers.Slug()}-id-{caseSuffix}";
+
+        var manifest = new PresentationManifest();
+        if (includeSlug) manifest.Slug = uniqueSlug;
+        manifest.Parent = parentForm switch
+        {
+            ParentForm.Flat => $"http://localhost/{Customer}/collections/{parentId}",
+            ParentForm.Hierarchical => $"http://localhost/{Customer}/{grandparentSlug}/{parentSlug}",
+            _ => null
+        };
+        if (includePublicId)
+            manifest.PublicId = $"http://localhost/{Customer}/{grandparentSlug}/{parentSlug}/{uniqueSlug}";
+        if (includeId)
+            manifest.Id = $"http://localhost/{Customer}/manifests/{manifestId}";
+
+        var httpMethod = isPost ? HttpMethod.Post : HttpMethod.Put;
+        var url = (isPost, isHierarchical) switch
+        {
+            (false, _) => $"{Customer}/manifests/{manifestId}",
+            (true, true) => $"{Customer}/{grandparentSlug}/{parentSlug}",
+            (true, false) => $"{Customer}/manifests"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(httpMethod, url, manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Resolve the actual internal id via DB (robust to flat vs hierarchical response shape differences) before
+        // any further assertions, so cleanup can still run via finally if one of them fails - otherwise a single
+        // failed case leaves its slug behind and cascades into unrelated case failures
+        var hierarchyFromDatabase = dbContext.Hierarchy.Single(h => h.Slug == uniqueSlug && h.Parent == parentId);
+        var createdId = hierarchyFromDatabase.ManifestId!;
+
+        try
+        {
+            if (!isHierarchical)
+            {
+                // flat responses are the enriched PresentationManifest, with .Id ending in the flat internal id
+                var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+                responseManifest!.Slug.Should().Be(uniqueSlug);
+            }
+            else
+            {
+                // hierarchical responses are always plain IIIF, with .Id ending in the slug rather than the
+                // internal id
+                var responseManifest = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Manifest>();
+                responseManifest!.Id.Should().EndWith($"/{uniqueSlug}");
+            }
+
+            if (includeId || !isPost)
+            {
+                createdId.Should().Be(manifestId, "the id from the URL/body should be honoured");
+            }
+        }
+        finally
+        {
+            // Cleanup so the shared parent/slug space stays clean for other cases
+            var deleteRequest =
+                HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, $"{Customer}/manifests/{createdId}");
+            await httpClient.AsCustomer().SendAsync(deleteRequest);
+        }
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
+    {
+        // Arrange - create a manifest with a client-chosen id, then attempt to create a second one re-using it
+        var existingId = TestIdentifiers.IdWithSuffix(suffix: "-existing");
+
+        var firstManifest = new PresentationManifest
+        {
+            Slug = $"{existingId}-1",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/manifests/{existingId}"
+        };
+        var firstRequest =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", firstManifest.AsJson());
+        var firstResponse = await httpClient.AsCustomer().SendAsync(firstRequest);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var secondManifest = new PresentationManifest
+        {
+            Slug = $"{existingId}-2",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/manifests/{existingId}"
+        };
+        var secondRequest =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", secondManifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(secondRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/IdAlreadyExists");
     }
 }

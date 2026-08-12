@@ -110,8 +110,7 @@ public static class ControllerBaseX
     public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
     {
         var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
-        return controller.PresentationProblem(message, null, (int)HttpStatusCode.BadRequest, "Bad request",
-            GetErrorType(controller, ModifyCollectionType.ValidationFailed));
+        return controller.PresentationBadRequest(message, ModifyCollectionType.ValidationFailed);
     }
 
     /// <summary>
@@ -184,6 +183,17 @@ public static class ControllerBaseX
     public static ObjectResult PresentationNotFound(this ControllerBase controller, string? detail = null)
     {
         return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 400 status code.
+    /// </summary>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    public static ObjectResult PresentationBadRequest<TType>(this ControllerBase controller, string detail,
+        TType errorType) where TType : Enum
+    {
+        return controller.PresentationProblem(detail, null, (int)HttpStatusCode.BadRequest, "Bad request",
+            controller.GetErrorType(errorType));
     }
 
     /// <summary>

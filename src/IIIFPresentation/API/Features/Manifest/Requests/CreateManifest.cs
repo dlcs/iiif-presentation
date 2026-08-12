@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Requests;
+using API.Helpers;
+using API.Infrastructure.Requests;
 using MediatR;
 using Models.API.Manifest;
 
@@ -11,7 +12,7 @@ public class CreateManifest(
     int customerId,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) 
+    bool createSpace)
     : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
@@ -20,18 +21,21 @@ public class CreateManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class CreateManifestHandler(
-    IManifestWrite manifestService) : IRequestHandler<CreateManifest,
-    PresentationResult>
+public class CreateManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
+    : IRequestHandler<CreateManifest, PresentationResult>
 {
-    public Task<PresentationResult> Handle(CreateManifest request,
-        CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateManifest request, CancellationToken cancellationToken)
     {
-        var upsertRequest = new WriteManifestRequest(request.CustomerId, 
+        var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
+            request.PresentationManifest.Id);
+        if (error != null) return error;
+
+        var upsertRequest = new WriteManifestRequest(request.CustomerId,
             request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
-            request.CreateSpace);
+            request.CreateSpace,
+            resolvedId.ToLocation());
 
-        return manifestService.Create(upsertRequest, cancellationToken);
+        return await manifestService.Create(upsertRequest, cancellationToken);
     }
 }

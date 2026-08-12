@@ -76,7 +76,7 @@ public class ManifestController(
 
     /// <summary>
     /// Create or upsert Manifest with specific id.
-    /// If id exists valid E-Tag must be provided 
+    /// If id exists valid E-Tag must be provided
     /// </summary>
     [Authorize]
     [RequireShowExtras]
@@ -91,7 +91,7 @@ public class ManifestController(
                 new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
                     Request.HasCreateSpaceHeader()),
             validator,
-            invalidatesEtag:Request.Headers.IfMatch,
+            invalidatesEtag: Request.Headers.IfMatch,
             cancellationToken: cancellationToken);
 
     [Authorize]
@@ -125,7 +125,7 @@ public class ManifestController(
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance,
-            errorTitle, invalidatesEtag, cancellationToken);
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody),
+            instance, errorTitle, invalidatesEtag, cancellationToken);
     }
 }

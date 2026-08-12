@@ -17,6 +17,7 @@ using Models.API.General;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Collection = Models.Database.Collections.Collection;
@@ -1587,7 +1588,7 @@ $$"""
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Should().Be("createFromUpdate");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
@@ -2223,7 +2224,7 @@ $$"""
         var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.CollectionId == id);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         fromDatabase.Id.Should().Be(collectionId);
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("test collection - create from update");
@@ -2246,11 +2247,14 @@ $$"""
     [Fact]
     public async Task CreateCollection_CreatesMinimalCollection_ViaHierarchicalCollection()
     {
-        // Arrange
+        // Arrange - hierarchical POST: the URL is the *parent* container, the new resource's own slug comes from
+        // the body (see issue #464 - hierarchical POST previously, wrongly, treated the whole URL as the new
+        // resource's own location instead of the parent it should be created inside)
         var slug = "iiif-collection-post";
 
         var collection = @"{
    ""type"": ""Collection"",
+   ""slug"": ""iiif-collection-post"",
    ""behavior"": [
        ""public-iiif""
    ],
@@ -2262,11 +2266,11 @@ $$"""
 }";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+            $"{Customer}", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-        
+
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
@@ -2279,7 +2283,7 @@ $$"""
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         responseCollection!.Items.Should().BeNull();
-        responseCollection.Id.Should().Be(requestMessage.RequestUri!.AbsoluteUri);
+        responseCollection.Id.Should().Be($"http://localhost/{Customer}/{slug}");
         hierarchyFromDatabase.Parent.Should().Be(parent);
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
@@ -2290,31 +2294,33 @@ $$"""
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
-    
+
     [Fact]
     public async Task CreateCollection_CreatesMultipleNestedIIIFCollection_ViaHierarchicalCollection()
     {
-        // Arrange
+        // Arrange - POST to the (already existing) nested parent path; the new resource's own slug comes from the
+        // body
         var slug = nameof(CreateCollection_CreatesMultipleNestedIIIFCollection_ViaHierarchicalCollection);
 
-        var collection = @"{
+        var collection = $@"{{
    ""type"": ""Collection"",
+   ""slug"": ""{slug}"",
    ""behavior"": [
        ""public-iiif""
    ],
-   ""label"": {
+   ""label"": {{
        ""en"": [
            ""iiif hierarchical post""
        ]
-   }
-}";
+   }}
+}}";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/first-child/second-child/{slug}", collection);
+            $"{Customer}/first-child/second-child", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-        
+
         var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
@@ -2341,11 +2347,12 @@ $$"""
     [Fact]
     public async Task CreateCollection_CreatesCollectionWithThumbnailAndItems_ViaHierarchicalCollection()
     {
-        // Arrange
+        // Arrange - POST to root (the parent); own slug comes from the body
         var slug = "iiif-collection-post-2";
 
         var collection = @"{
    ""type"": ""Collection"",
+   ""slug"": ""iiif-collection-post-2"",
    ""behavior"": [
        ""public-iiif""
    ],
@@ -2387,7 +2394,7 @@ $$"""
 }";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+            $"{Customer}", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -2424,55 +2431,55 @@ $$"""
     [Fact]
     public async Task CreateCollection_CreatesCollection_SavesInS3Correctly()
     {
-        // Arrange
+        // Arrange - POST to root (the parent); the body's slug is honoured for the new resource (see issue #464 -
+        // hierarchical POST previously ignored body slug/parent entirely)
         var slug = nameof(CreateCollection_CreatesCollection_SavesInS3Correctly);
 
-        var collection = @"{
+        var collection = $@"{{
    ""type"": ""Collection"",
-   ""slug"": ""should-be-stripped"",
-   ""parent"": ""should-also-be-stripped"",
+   ""slug"": ""{slug}"",
    ""behavior"": [
        ""public-iiif"", ""auto-advance""
    ],
-   ""label"": {
+   ""label"": {{
        ""en"": [
            ""iiif hierarchical post""
        ]
-   },
+   }},
     ""thumbnail"": [
-        {
+        {{
           ""id"": ""https://example.org/img/thumb.jpg"",
           ""type"": ""Image"",
           ""format"": ""image/jpeg"",
           ""width"": 300,
           ""height"": 200
-        }
+        }}
     ],
     ""items"": [
-        {
+        {{
         ""id"": ""https://some.id/iiif/collection"",
         ""type"": ""Collection"",
-        }
+        }}
     ],
 ""homepage"": [
-  {
+  {{
     ""id"": ""https://presentation.example.com"",
     ""type"": ""Text"",
-    ""label"": {
+    ""label"": {{
       ""en"": [
         ""Foo""
       ]
-    },
+    }},
     ""format"": ""text/html"",
     ""language"": [
       ""en""
     ]
-  }
+  }}
 ]
-}";
+}}";
 
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
-            $"{Customer}/{slug}", collection);
+            $"{Customer}", collection);
 
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
@@ -2502,5 +2509,536 @@ $$"""
             .Be("http://iiif.io/api/presentation/3/context.json", "Context set automatically");
         s3Manifest.AdditionalProperties?.Keys.Should()
             .NotIntersectWith(PresentationCollection.PresentationPropertyKeys);
+    }
+
+    [Fact]
+    public async Task PostHierarchical_CreatesStorageCollection()
+    {
+        // Arrange - hierarchical POST with "is-storage-collection" in the body's behavior; the previous
+        // hierarchical POST handler hardcoded IsStorageCollection = false regardless of what the body said
+        var slug = TestIdentifiers.Slug();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Slug = slug,
+            Label = new LanguageMap("en", ["storage collection via hierarchical post"])
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
+        responseCollection!.Items.Should().BeNull("an empty 'items' array round-trips as absent over JSON");
+
+        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PutHierarchical_CreatesStorageCollection_WhenNoneExistsAtPath()
+    {
+        // Arrange - hierarchical PUT create with "is-storage-collection" in the body's behavior
+        var slug = TestIdentifiers.Slug();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["storage collection via hierarchical put"])
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
+        fromDatabase.IsStorageCollection.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PutHierarchical_CreatesCollection_WhenNoneExistsAtPath()
+    {
+        // Arrange - hierarchical PUT to a path that doesn't exist yet: parent is everything but the last segment,
+        // slug is the last segment, both derived purely from the URL
+        var slug = TestIdentifiers.Slug();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["hierarchical put create"])
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        hierarchyFromDatabase.Parent.Should().Be(parent);
+    }
+
+    [Fact]
+    public async Task PutHierarchical_UpdatesExistingCollection_WhenOneExistsAtPath()
+    {
+        // Arrange - seed an existing collection directly, then PUT to its hierarchical path
+        var slug = TestIdentifiers.Slug();
+        var initialCollection = new Collection
+        {
+            Id = slug,
+            Label = new LanguageMap("en", ["before update"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["after update"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == slug);
+        fromDatabase.Label!.Values.First()[0].Should().Be("after update");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_CreatesCollection_AtMultiSegmentPath()
+    {
+        // Arrange - seed an intermediate storage collection directly under root, then PUT two segments deep, so
+        // the parent path actually needs splitting off the last segment (not just defaulting to root)
+        var intermediateSlug = TestIdentifiers.IdWithSuffix(suffix: "-intermediate");
+        var targetSlug = TestIdentifiers.IdWithSuffix(suffix: "-target");
+
+        var intermediateCollection = new Collection
+        {
+            Id = intermediateSlug,
+            Label = new LanguageMap("en", ["intermediate"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = intermediateSlug,
+            Slug = intermediateSlug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(intermediateCollection);
+        await dbContext.SaveChangesAsync();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["multi segment put create"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/{intermediateSlug}/{targetSlug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == targetSlug);
+        hierarchyFromDatabase.Parent.Should().Be(intermediateSlug,
+            "the parent path should be everything but the last path segment");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsBadRequest_WhenBodyIdSlugConflictsWithUrl()
+    {
+        // Arrange - body "id" resolves (hierarchical form) to the same parent as the URL, but a different slug
+        var urlSlug = TestIdentifiers.Slug();
+        var bodySlug = urlSlug + "-different";
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["conflicting id"]),
+            Id = $"http://localhost/{Customer}/{bodySlug}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/{urlSlug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert - pin the specific error, not just the status code (several distinct 400 paths could produce it)
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/SlugMustMatchPublicId");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_UsesBodyId_WhenCreatingAtNewPath()
+    {
+        // Arrange - flat-form body "id" (no existing resource at this path to take precedence over it)
+        var slug = TestIdentifiers.Slug();
+        var clientChosenId = slug + "-client-chosen-id";
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["client chosen id"]),
+            Id = $"http://localhost/{Customer}/collections/{clientChosenId}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/{slug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var hierarchyFromDatabase = dbContext.Hierarchy.First(h => h.Slug == slug);
+        hierarchyFromDatabase.CollectionId.Should().Be(clientChosenId,
+            "the client-chosen id from the body should be honoured when creating");
+    }
+
+    [Fact]
+    public async Task CreateCollection_ReturnsBadRequest_WhenBodySlugConflictsWithIdDerivedSlug()
+    {
+        // Arrange - body "id" resolves (hierarchical form) to one slug, but the body's own explicit "slug" says
+        // something different - these must be reconciled and rejected, not let one silently win (previously the
+        // id-derived slug wasn't reconciled against the body slug at all on flat POST, unlike flat PUT)
+        var idSlug = TestIdentifiers.IdWithSuffix(suffix: "-from-id");
+        var bodySlug = TestIdentifiers.IdWithSuffix(suffix: "-from-body");
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["conflicting slug"]),
+            Id = $"http://localhost/{Customer}/first-child/{idSlug}",
+            Slug = bodySlug
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostHierarchical_ReturnsBadRequest_WhenTypeUnrecognised()
+    {
+        // Arrange
+        var body = @"{""label"": {""en"": [""no type here""]}}";
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}", body);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent()
+    {
+        // Arrange - the URL parent path doesn't exist, but the body supplies a valid parent (root). The URL parent
+        // must win - a valid body-derived parent must not silently paper over a URL that doesn't resolve
+        var slug = TestIdentifiers.Slug();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Slug = slug,
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post,
+            $"{Customer}/this-parent-path-does-not-exist", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsBadRequest_WhenUrlParentPathDoesNotExist_EvenWithValidBodyParent()
+    {
+        // Arrange - same as the POST case above, but for hierarchical PUT-create
+        var slug = TestIdentifiers.Slug();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}"
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/this-parent-path-does-not-exist/{slug}", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentCollectionNotFound");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsBadRequest_WhenSlugIsProhibitedTerm()
+    {
+        // Arrange - "manifests" is a prohibited slug (would shadow the flat API namespace); this PUT has no
+        // segments before it, so it falls through to the hierarchical catch-all route with slug "manifests" and no
+        // body "slug" to be caught by PresentationValidator's own (body-only) prohibited-slug rule
+        var collection = new PresentationCollection { Behavior = [Behavior.IsPublic] };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
+            $"{Customer}/manifests", collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ProhibitedSlug");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_UpdatesExistingStorageCollection_AndReturnsExistingChildren()
+    {
+        // Arrange - seed a storage collection with an existing child, then PUT-update it hierarchically. The
+        // response must reflect the real children, not an unconditional empty placeholder
+        var slug = TestIdentifiers.Slug();
+        var childSlug = TestIdentifiers.IdWithSuffix(suffix: "-child");
+
+        var initialCollection = new Collection
+        {
+            Id = slug,
+            Label = new LanguageMap("en", ["before update"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(initialCollection);
+
+        var childCollection = new Collection
+        {
+            Id = childSlug,
+            Label = new LanguageMap("en", ["child"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = childSlug,
+            Slug = childSlug,
+            Parent = slug,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(childCollection);
+        await dbContext.SaveChangesAsync();
+
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["after update"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            updatedCollection.AsJson(), dbContext.GetETag(initialCollection));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var responseCollection = await response.ReadAsPresentationJsonAsync<IIIF.Presentation.V3.Collection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        responseCollection!.Items.Should().ContainSingle(i => i.As<ResourceBase>().Id!.EndsWith(childSlug),
+            "the existing child should be reflected, not an unconditional empty placeholder");
+    }
+
+    [Fact]
+    public async Task CreateCollection_ReturnsConflict_WhenClientProvidedIdAlreadyExists()
+    {
+        // Arrange - create a collection with a client-chosen id, then attempt to create a second one re-using it
+        var existingId = TestIdentifiers.IdWithSuffix(suffix: "-existing");
+
+        var firstCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["first"]),
+            Slug = $"{existingId}-1",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/collections/{existingId}"
+        };
+        var firstRequest = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            firstCollection.AsJson());
+        var firstResponse = await httpClient.AsCustomer().SendAsync(firstRequest);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var secondCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["second"]),
+            Slug = $"{existingId}-2",
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Id = $"http://localhost/{Customer}/collections/{existingId}"
+        };
+        var secondRequest = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            secondCollection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(secondRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        error!.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/IdAlreadyExists");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsPreconditionFailed_WhenIfMatchDoesNotMatchExistingResource()
+    {
+        // Arrange - only the happy-path update was previously covered; a wrong If-Match on an existing resource
+        // must still be rejected for hierarchical PUT, same as flat PUT
+        var slug = TestIdentifiers.Slug();
+        var initialCollection = new Collection
+        {
+            Id = slug,
+            Label = new LanguageMap("en", ["before update"]),
+            Created = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            CreatedBy = "admin",
+            IsStorageCollection = true,
+            IsPublic = true,
+            CustomerId = Customer
+        };
+        await dbContext.Hierarchy.AddAsync(new Hierarchy
+        {
+            CollectionId = slug,
+            Slug = slug,
+            Parent = parent,
+            Type = ResourceType.StorageCollection,
+            CustomerId = Customer,
+            Canonical = true
+        });
+        await dbContext.Collections.AddAsync(initialCollection);
+        await dbContext.SaveChangesAsync();
+
+        var updatedCollection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
+            Label = new LanguageMap("en", ["after update"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            updatedCollection.AsJson(), Guid.NewGuid()); // wrong etag
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+
+        var fromDatabase = dbContext.Collections.First(c => c.Id == slug);
+        fromDatabase.Label!.Values.First()[0].Should().Be("before update", "the update must not have been applied");
+    }
+
+    [Fact]
+    public async Task PutHierarchical_ReturnsConflict_WhenPathAlreadyHoldsAManifest()
+    {
+        // Arrange - seed a Manifest at a hierarchical path, then PUT a Collection body to the same path. Pins
+        // current behaviour: a new Collection id is minted (the existing hierarchy row is a Manifest, not a
+        // Collection), and inserting a second hierarchy row for the same (customer, slug, parent) hits the
+        // hierarchy's own unique index
+        var slug = TestIdentifiers.Slug();
+        await dbContext.Manifests.AddTestManifest(slug, slug: slug, parent: parent);
+        await dbContext.SaveChangesAsync();
+
+        var collection = new PresentationCollection
+        {
+            Behavior = [Behavior.IsPublic],
+            Label = new LanguageMap("en", ["collection body over manifest path"])
+        };
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/{slug}",
+            collection.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

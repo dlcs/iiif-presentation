@@ -162,7 +162,7 @@ public static class CollectionRetrieval
         """)
             .Include(h => h.Collection)
             .Include(h => h.Manifest)
-            .ThenInclude(m => m.Batches)
+            .ThenInclude(m => m!.Batches)
             .FirstOrDefaultAsync(cancellationToken);
     }
 }
