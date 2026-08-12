@@ -941,9 +941,11 @@ public class ManifestPaintedResourceParserTests
     }
     
     [Theory]
-    [InlineData(null, "The space for asset 'frodo' is '-1' and cannot be negative")]
-    [InlineData("first", "The space for asset 'frodo' with canvas id 'first' is '-1' and cannot be negative")]
-    public void Parse_SingleItem_AssetOnly_WithNegativeSpace_ThrowsError(string? canvasId, string errorMessage)
+    [InlineData(-1, null, "The space for asset 'frodo' must be a positive integer, but was '-1'")]
+    [InlineData(-1, "first", "The space for asset 'frodo' with canvas id 'first' must be a positive integer, but was '-1'")]
+    [InlineData(0, null, "The space for asset 'frodo' must be a positive integer, but was '0'")]
+    [InlineData(0, "first", "The space for asset 'frodo' with canvas id 'first' must be a positive integer, but was '0'")]
+    public async Task Parse_SingleItem_AssetOnly_WithNonPositiveSpace_ThrowsError(int space, string? canvasId, string errorMessage)
     {
         // Arrange
         var manifest = new PresentationManifest
@@ -953,16 +955,16 @@ public class ManifestPaintedResourceParserTests
                 new PaintedResource
                 {
                     CanvasPainting = new PresCanvasPainting { CanvasId = canvasId },
-                    Asset = GetAsset(space: -1)
+                    Asset = GetAsset(space: space)
                 }
             ]
         };
-        
+
         // Act
         Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
-        
+
         // Assert
-        action.Should().ThrowAsync<AssetException>() .Where(e => e.Message == errorMessage);
+        await action.Should().ThrowAsync<AssetException>().Where(e => e.Message == errorMessage);
     }
 
     public static IEnumerable<object[]> InvalidSpaceValues =>
@@ -982,7 +984,7 @@ public class ManifestPaintedResourceParserTests
 
     [Theory]
     [MemberData(nameof(InvalidSpaceValues))]
-    public void Parse_SingleItem_AssetOnly_WithInvalidTypeSpace_ThrowsError(JToken space, string expected)
+    public async Task Parse_SingleItem_AssetOnly_WithInvalidTypeSpace_ThrowsError(JToken space, string expected)
     {
         // Arrange
         var asset = GetAsset();
@@ -999,8 +1001,8 @@ public class ManifestPaintedResourceParserTests
         Func<Task> action = async () => await sut.ParseToCanvasPainting(manifest, CustomerId);
 
         // Assert
-        action.Should().ThrowAsync<AssetException>()
-            .Where(e => e.Message == $"The space for asset '{assetIds[0]}' is '{expected}' and is not a valid integer");
+        await action.Should().ThrowAsync<AssetException>()
+            .Where(e => e.Message == $"The space for asset '{assetIds[0]}' must be a positive integer, but was '{expected}'");
     }
 
     [Fact]

@@ -252,7 +252,46 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
         
-        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' is '{space}' and cannot be negative");
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{space}'");
+    }
+
+    [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_WithZeroSpace()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        const int space = 0;
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting": {
+                                            "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "space": {{space}},
+                                     }
+                                 }
+                             ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{space}'");
     }
 
     [Theory]
@@ -297,7 +336,7 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
 
-        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' is '{expected}' and is not a valid integer");
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{expected}'");
     }
 
     [Theory]
