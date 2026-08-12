@@ -43,7 +43,7 @@ public class UpsertManifestRequest(
     PresentationManifest presentationManifest,
     string rawRequestBody,
     bool createSpace,
-    ResolvedLocation? location = null)
+    ResolvedLocation location)
     : WriteManifestRequest(customerId, presentationManifest, rawRequestBody, createSpace, location)
 {
     public string ManifestId { get; } = manifestId;
@@ -59,7 +59,7 @@ public class WriteManifestRequest
         PresentationManifest presentationManifest,
         string rawRequestBody,
         bool createSpace,
-        ResolvedLocation? location = null)
+        ResolvedLocation location)
     {
         // removes presentation behaviors that aren't required for a manifest
         presentationManifest.RemovePresentationBehaviours();
@@ -68,7 +68,7 @@ public class WriteManifestRequest
         PresentationManifest = presentationManifest;
         RawRequestBody = rawRequestBody;
         CreateSpace = createSpace;
-        Location = location ?? ResolvedLocation.None;
+        Location = location;
     }
 
     public int CustomerId { get; }
