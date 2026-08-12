@@ -2,6 +2,7 @@
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.IdGenerator;
+using API.Infrastructure.Requests;
 using API.Settings;
 using API.Tests.Integration.Infrastructure;
 using AWS.Settings;
@@ -147,12 +148,11 @@ public class ManifestWriteServiceTests
             presentationContext.Collections.First(x => x.Id == RootCollection.Id);
 
         A.CallTo(() =>
-            parentSlugParser.Parse(A<PresentationManifest>._, A<int>._, A<string>._,
-                A<string>._, A<string>._, A<CancellationToken>._)).ReturnsLazily(
-            (PresentationManifest presentationManifest, int customerId, string data, string? urlParentPath,
-                    string? urlSlug, CancellationToken cancellationToken) =>
-                ParsedParentSlugResult.Success(new ParsedParentSlug(parentCollection,
-                    presentationManifest.Slug!)));
+            parentSlugParser.ParseParentSlug(A<PresentationManifest>._, A<int>._, A<string>._,
+                A<ResolvedLocation>._, A<CancellationToken>._)).ReturnsLazily(
+            (PresentationManifest presentationManifest, int customerId, string? data, ResolvedLocation location,
+                    CancellationToken cancellationToken) =>
+                ((PresentationResult?)null, new ParsedParentSlug(parentCollection, presentationManifest.Slug!)));
         
         // Always return Space 500 when call to create space
         A.CallTo(() => dlcsClient.CreateSpace(Customer, A<string>._, A<CancellationToken>._))

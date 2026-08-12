@@ -43,6 +43,17 @@ public interface IParentSlugParser
         string? urlSlug = null,
         CancellationToken cancellationToken = default)
         where T : JsonLdBase, IPresentation;
+
+    /// <summary>
+    /// Resolves the parent/slug for a write request, unwrapping the result into an error-or-value pair.
+    /// </summary>
+    public Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug<T>(
+        T presentation,
+        int customerId,
+        string? id,
+        ResolvedLocation location,
+        CancellationToken cancellationToken)
+        where T : JsonLdBase, IPresentation;
 }
 
 public class ParentSlugParser(PresentationContext dbContext,
@@ -93,6 +104,15 @@ public class ParentSlugParser(PresentationContext dbContext,
         return ParsedParentSlugResult.Success(
             new ParsedParentSlug(parent.Parent.ThrowIfNull(nameof(parent)), slug)
         );
+    }
+
+    public async Task<(PresentationResult? error, ParsedParentSlug? parsedParentSlug)> ParseParentSlug<T>(
+        T presentation, int customerId, string? id, ResolvedLocation location, CancellationToken cancellationToken)
+        where T : JsonLdBase, IPresentation
+    {
+        var result = await Parse(presentation, customerId, id, urlParentPath: location.ParentPath,
+            urlSlug: location.Slug, cancellationToken: cancellationToken);
+        return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 
     private static bool IsRoot<T>(T presentation, string? id)
