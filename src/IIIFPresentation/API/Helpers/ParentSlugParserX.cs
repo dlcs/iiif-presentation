@@ -14,13 +14,12 @@ public static class ParentSlugParserX
         T presentation,
         int customerId,
         string? id,
-        string? urlParentPath,
-        string? urlSlug,
+        ResolvedLocation location,
         CancellationToken cancellationToken)
         where T : JsonLdBase, IPresentation
     {
-        var result = await parentSlugParser.Parse(presentation, customerId, id, urlParentPath: urlParentPath,
-            urlSlug: urlSlug, cancellationToken: cancellationToken);
+        var result = await parentSlugParser.Parse(presentation, customerId, id, urlParentPath: location.ParentPath,
+            urlSlug: location.Slug, cancellationToken: cancellationToken);
         return result.IsError ? (result.Errors, null) : (null, result.ParsedParentSlug);
     }
 }

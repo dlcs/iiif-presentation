@@ -15,14 +15,14 @@ public static class PresentationIIIFCleaner
     private static readonly PropertyInfo[] ManifestProperties = GetCopyableProperties(typeof(Manifest));
     private static readonly PropertyInfo[] CollectionProperties = GetCopyableProperties(typeof(Collection));
 
-    public static Manifest OnlyIIIFProperties(PresentationManifest presentationManifest)
+    public static Manifest ToManifest(this PresentationManifest presentationManifest)
     {
         var manifest = new Manifest();
         CopyProperties(presentationManifest, manifest, ManifestProperties);
         return manifest;
     }
 
-    public static Collection OnlyIIIFProperties(PresentationCollection presentationCollection)
+    public static Collection ToCollection(this PresentationCollection presentationCollection)
     {
         var collection = new Collection();
         CopyProperties(presentationCollection, collection, CollectionProperties);

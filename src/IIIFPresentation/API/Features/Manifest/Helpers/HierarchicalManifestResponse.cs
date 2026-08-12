@@ -11,10 +11,10 @@ namespace API.Features.Manifest.Helpers;
 public static class HierarchicalManifestResponse
 {
     /// <summary>
-    /// Guards a <see cref="ManifestWriteService"/> result and, on success, strips it down to plain IIIF via
-    /// <see cref="PresentationIIIFCleaner"/>. The response id is taken from the enriched entity's <c>PublicId</c>
-    /// (read before stripping - <c>PublicId</c> is a Presentation-only property, not carried over by the cleaner),
-    /// which already accounts for customers with a configured
+    /// Passes failed or non-manifest results through unchanged; on success, strips the result down to plain IIIF
+    /// via <see cref="PresentationIIIFCleaner"/>. The response id is taken from the enriched entity's
+    /// <c>PublicId</c> (read before stripping - <c>PublicId</c> is a Presentation-only property, not carried over
+    /// by the cleaner), which already accounts for customers with a configured
     /// <see cref="Repository.Paths.SettingsBasedPathGenerator"/> path.
     /// </summary>
     /// <param name="result">Result of the underlying <see cref="IManifestWrite"/> call</param>
@@ -22,7 +22,7 @@ public static class HierarchicalManifestResponse
     {
         if (!result.IsSuccess || result.Entity is not PresentationManifest manifest) return result;
 
-        var plainManifest = PresentationIIIFCleaner.OnlyIIIFProperties(manifest);
+        var plainManifest = manifest.ToManifest();
         plainManifest.Id = manifest.PublicId.ThrowIfNull(nameof(manifest.PublicId));
 
         return PresentationResult.Success(plainManifest, result.WriteResult, result.ETag);

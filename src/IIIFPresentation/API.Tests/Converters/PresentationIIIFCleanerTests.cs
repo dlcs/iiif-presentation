@@ -9,7 +9,7 @@ namespace API.Tests.Converters;
 public class PresentationIIIFCleanerTests
 {
     [Fact]
-    public void OnlyIIIFProperties_Manifest_PreservesBaseIIIFProperties()
+    public void ToManifest_PreservesBaseIIIFProperties()
     {
         var manifest = new PresentationManifest
         {
@@ -24,7 +24,7 @@ public class PresentationIIIFCleanerTests
             FlatId = "internal-id"
         };
 
-        var cleaned = PresentationIIIFCleaner.OnlyIIIFProperties(manifest);
+        var cleaned = manifest.ToManifest();
 
         cleaned.Should().BeOfType<Manifest>("the result is the plain base type, not a PresentationManifest");
         cleaned.Label.Should().BeEquivalentTo(manifest.Label);
@@ -35,7 +35,7 @@ public class PresentationIIIFCleanerTests
     }
 
     [Fact]
-    public void OnlyIIIFProperties_Collection_PreservesBaseIIIFProperties()
+    public void ToCollection_PreservesBaseIIIFProperties()
     {
         var collection = new PresentationCollection
         {
@@ -50,7 +50,7 @@ public class PresentationIIIFCleanerTests
             FlatId = "internal-id"
         };
 
-        var cleaned = PresentationIIIFCleaner.OnlyIIIFProperties(collection);
+        var cleaned = collection.ToCollection();
 
         cleaned.Should().BeOfType<Collection>("the result is the plain base type, not a PresentationCollection");
         cleaned.Label.Should().BeEquivalentTo(collection.Label);

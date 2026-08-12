@@ -126,14 +126,39 @@ public class CollectionWriteService(
     private async Task<PresentationResult> CreateInternal(WriteCollectionRequest request, string? id,
         CancellationToken cancellationToken)
     {
+        var (error, built) = await BuildCollectionForCreate(request, id, cancellationToken);
+        if (error != null) return error;
+        var collection = built!.Collection;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var saveErrors = await dbContext.TrySave("collection", request.CustomerId, logger, cancellationToken);
+        if (saveErrors != null) return saveErrors;
+
+        var fullPathError = await TrySetFullPath(collection, collection.Hierarchy.GetCanonical(), cancellationToken);
+        if (fullPathError != null) return fullPathError;
+
+        await transaction.CommitAsync(cancellationToken);
+
+        await UploadToS3IfRequiredAsync(collection, built.IiifCollection, collection.IsStorageCollection,
+            cancellationToken);
+
+        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
+            settings.PageSize, DefaultCurrentPage, 0, [], built.ParsedParentSlug.Parent, pathGenerator,
+            settingsBasedPathGenerator); // there can be no items attached to this, as it's just been created
+
+        return PresentationResult.Success(enrichedPresentationCollection, WriteResult.Created, collection.Etag);
+    }
+
+    private async Task<(PresentationResult? error, BuiltCollection? built)> BuildCollectionForCreate(
+        WriteCollectionRequest request, string? id, CancellationToken cancellationToken)
+    {
         var prepared = PrepareCollection(request);
-        if (prepared.Error != null) return prepared.Error;
-        var isStorageCollection = prepared.IsStorageCollection;
-        var iiifCollection = prepared.IiifCollection;
+        if (prepared.Error != null) return (prepared.Error, null);
 
         var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
-            request.CustomerId, id, request.Location.ParentPath, request.Location.Slug, cancellationToken);
-        if (slugError != null) return slugError;
+            request.CustomerId, id, request.Location, cancellationToken);
+        if (slugError != null) return (slugError, null);
 
         if (id == null)
         {
@@ -144,7 +169,7 @@ public class CollectionWriteService(
             catch (ConstraintException ex)
             {
                 logger.LogError(ex, "An exception occured while generating a unique id");
-                return UpsertErrorHelper.CannotGenerateUniqueId();
+                return (UpsertErrorHelper.CannotGenerateUniqueId(), null);
             }
         }
 
@@ -159,7 +184,7 @@ public class CollectionWriteService(
             [
                 new Hierarchy
                 {
-                    Type = isStorageCollection
+                    Type = prepared.IsStorageCollection
                         ? ResourceType.StorageCollection
                         : ResourceType.IIIFCollection,
                     Slug = parsedParentSlug!.Slug,
@@ -173,63 +198,14 @@ public class CollectionWriteService(
 
         dbContext.Collections.Add(collection);
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        var saveErrors = await dbContext.TrySave("collection", request.CustomerId, logger, cancellationToken);
-        if (saveErrors != null) return saveErrors;
-
-        var fullPathError = await TrySetFullPath(collection, collection.Hierarchy.GetCanonical(), cancellationToken);
-        if (fullPathError != null) return fullPathError;
-
-        await transaction.CommitAsync(cancellationToken);
-
-        await UploadToS3IfRequiredAsync(collection, iiifCollection, isStorageCollection, cancellationToken);
-
-        var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
-            settings.PageSize, DefaultCurrentPage, 0, [], parsedParentSlug.Parent, pathGenerator,
-            settingsBasedPathGenerator); // there can be no items attached to this, as it's just been created
-
-        return PresentationResult.Success(enrichedPresentationCollection, WriteResult.Created, collection.Etag);
+        return (null, new BuiltCollection(collection, prepared.IiifCollection, parsedParentSlug));
     }
 
     private async Task<PresentationResult> UpdateInternal(UpsertCollectionRequest request,
         Collection databaseCollection, CancellationToken cancellationToken)
     {
-        var prepared = PrepareCollection(request);
-        if (prepared.Error != null) return prepared.Error;
-        var isStorageCollection = prepared.IsStorageCollection;
-        var iiifCollection = prepared.IiifCollection;
-
-        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
-            request.CustomerId, request.CollectionId, request.Location.ParentPath, request.Location.Slug,
-            cancellationToken);
-        if (slugError != null) return slugError;
-
-        if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
-            return UpsertErrorHelper.EtagNonMatching();
-
-        if (isStorageCollection != databaseCollection.IsStorageCollection)
-        {
-            logger.LogError(
-                "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
-                request.CustomerId, request.CollectionId, isStorageCollection ? "storage" : "iiif");
-            return UpsertErrorHelper.CannotChangeCollectionType(isStorageCollection);
-        }
-
-        var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
-
-        databaseCollection.ModifiedBy = Authorizer.GetUser();
-        SetCommonProperties(databaseCollection, request.Collection);
-
-        // 'root' collection hierarchy can't change
-        if (!databaseCollection.IsRoot())
-        {
-            existingHierarchy.Parent = parsedParentSlug.Parent!.Id;
-            existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
-            existingHierarchy.Slug = parsedParentSlug.Slug;
-            existingHierarchy.Type =
-                isStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
-        }
+        var (error, built) = await BuildCollectionForUpdate(request, databaseCollection, cancellationToken);
+        if (error != null) return error;
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -258,14 +234,62 @@ public class CollectionWriteService(
             item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy);
         }
 
-        await UploadToS3IfRequiredAsync(databaseCollection, iiifCollection, isStorageCollection, cancellationToken);
+        await UploadToS3IfRequiredAsync(databaseCollection, built!.IiifCollection,
+            databaseCollection.IsStorageCollection, cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
-            parsedParentSlug.Parent, pathGenerator, settingsBasedPathGenerator);
+            built.ParsedParentSlug.Parent, pathGenerator, settingsBasedPathGenerator);
 
         return PresentationResult.Success(enrichedPresentationCollection, etag: databaseCollection.Etag);
     }
+
+    private async Task<(PresentationResult? error, BuiltCollection? built)> BuildCollectionForUpdate(
+        UpsertCollectionRequest request, Collection databaseCollection, CancellationToken cancellationToken)
+    {
+        var prepared = PrepareCollection(request);
+        if (prepared.Error != null) return (prepared.Error, null);
+
+        var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.Collection,
+            request.CustomerId, request.CollectionId, request.Location, cancellationToken);
+        if (slugError != null) return (slugError, null);
+
+        if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
+            return (UpsertErrorHelper.EtagNonMatching(), null);
+
+        if (prepared.IsStorageCollection != databaseCollection.IsStorageCollection)
+        {
+            logger.LogError(
+                "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
+                request.CustomerId, request.CollectionId, prepared.IsStorageCollection ? "storage" : "iiif");
+            return (UpsertErrorHelper.CannotChangeCollectionType(prepared.IsStorageCollection), null);
+        }
+
+        var existingHierarchy = databaseCollection.Hierarchy!.Single(c => c.Canonical);
+
+        databaseCollection.ModifiedBy = Authorizer.GetUser();
+        SetCommonProperties(databaseCollection, request.Collection);
+
+        // 'root' collection hierarchy can't change
+        if (!databaseCollection.IsRoot())
+        {
+            existingHierarchy.Parent = parsedParentSlug!.Parent!.Id;
+            existingHierarchy.ItemsOrder = request.Collection.ItemsOrder;
+            existingHierarchy.Slug = parsedParentSlug.Slug;
+            existingHierarchy.Type =
+                prepared.IsStorageCollection ? ResourceType.StorageCollection : ResourceType.IIIFCollection;
+        }
+
+        return (null, new BuiltCollection(databaseCollection, prepared.IiifCollection, parsedParentSlug!));
+    }
+
+    /// <summary>
+    /// Result of <see cref="BuildCollectionForCreate"/>/<see cref="BuildCollectionForUpdate"/> - the collection
+    /// entity (tracked, not yet saved) together with the extra state the rest of the write needs once it's
+    /// persisted.
+    /// </summary>
+    private record BuiltCollection(Collection Collection, IIIF.Presentation.V3.Collection? IiifCollection,
+        ParsedParentSlug ParsedParentSlug);
 
     /// <summary>
     /// Recomputes and sets a collection's canonical hierarchy full path, converting the recursive-CTE's

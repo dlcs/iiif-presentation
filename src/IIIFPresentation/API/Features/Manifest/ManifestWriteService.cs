@@ -308,7 +308,7 @@ public class ManifestWriteService(
         if (canvasError != null) return ResolvedManifestData.Failure(canvasError);
 
         var (slugError, parsedParentSlug) = await parentSlugParser.ParseParentSlug(request.PresentationManifest,
-            request.CustomerId, manifestId, request.Location.ParentPath, request.Location.Slug, cancellationToken);
+            request.CustomerId, manifestId, request.Location, cancellationToken);
         if (slugError != null) return ResolvedManifestData.Failure(slugError);
 
         return ResolvedManifestData.Success(canvasPaintingRecords!, parsedParentSlug!);

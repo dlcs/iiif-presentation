@@ -12,7 +12,7 @@ namespace API.Features.Storage.Helpers;
 public static class HierarchicalCollectionResponse
 {
     /// <summary>
-    /// Guards a <see cref="CollectionWriteService"/> result and, on success, builds the hierarchical response: a
+    /// Passes failed or non-collection results through unchanged; on success, builds the hierarchical response: a
     /// minimal placeholder for storage collections, or the client's own submitted body (re-parsed) for IIIF
     /// collections - preserving any custom behaviors that the write service's enriched entity would otherwise have
     /// discarded (see <see cref="API.Converters.CollectionConverter.EnrichPresentationCollection"/>). The response
