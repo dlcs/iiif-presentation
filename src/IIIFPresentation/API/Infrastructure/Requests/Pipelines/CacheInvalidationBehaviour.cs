@@ -17,20 +17,13 @@ public interface IInvalidateCaches
 /// <summary>
 ///     Mediator behaviour that will clear cacheKeys specified in request if request was successful
 /// </summary>
-public class CacheInvalidationBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public class CacheInvalidationBehaviour<TRequest, TResponse>(
+    IAppCache appCache,
+    ILogger<CacheInvalidationBehaviour<TRequest, TResponse>> logger)
+    : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IInvalidateCaches, IRequest<TResponse>
     where TResponse : IModifyRequest
 {
-    private readonly IAppCache appCache;
-    private readonly ILogger<CacheInvalidationBehaviour<TRequest, TResponse>> logger;
-
-    public CacheInvalidationBehaviour(IAppCache appCache,
-        ILogger<CacheInvalidationBehaviour<TRequest, TResponse>> logger)
-    {
-        this.appCache = appCache;
-        this.logger = logger;
-    }
-
     public async ValueTask<TResponse> Handle(TRequest request, MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {

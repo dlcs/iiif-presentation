@@ -7,16 +7,10 @@ namespace API.Infrastructure.Requests.Pipelines;
 ///     Mediator pipeline behaviour that logs requests with timings.
 ///     Will use ToString() property to log details
 /// </summary>
-public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
+    : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>, IBaseRequest
 {
-    private readonly ILogger<LoggingBehavior<TRequest, TResponse>> logger;
-
-    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
-    {
-        this.logger = logger;
-    }
-
     public async ValueTask<TResponse> Handle(TRequest request, MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {

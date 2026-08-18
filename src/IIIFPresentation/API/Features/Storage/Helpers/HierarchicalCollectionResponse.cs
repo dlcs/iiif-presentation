@@ -3,6 +3,7 @@ using API.Infrastructure.Requests;
 using Core.Helpers;
 using IIIF.Presentation;
 using Models.API.Collection;
+using Services.Manifests.Helpers;
 
 namespace API.Features.Storage.Helpers;
 
@@ -17,7 +18,7 @@ public static class HierarchicalCollectionResponse
     /// collections - preserving any custom behaviors that the write service's enriched entity would otherwise have
     /// discarded (see <see cref="API.Converters.CollectionConverter.EnrichPresentationCollection"/>). The response
     /// id is taken from the enriched entity's <c>PublicId</c>, which already accounts for customers with a
-    /// configured <see cref="Repository.Paths.SettingsBasedPathGenerator"/> path.
+    /// configured <see cref="SettingsBasedPathGenerator"/> path.
     /// </summary>
     /// <param name="result">Result of the underlying <see cref="ICollectionWrite"/> call</param>
     /// <param name="rawRequestBody">The raw request body, re-parsed for non-storage collections</param>

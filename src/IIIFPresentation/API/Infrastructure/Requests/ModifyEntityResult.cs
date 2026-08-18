@@ -36,17 +36,4 @@ public class ModifyEntityResult<TError> : IModifyRequest
     public TError? ErrorType { get; protected init; }
 
     public Guid? ETag { get; protected init; }
-
-    public static ModifyEntityResult<TError> Failure(string error, TError errorType, WriteResult result = WriteResult.Unknown)
-    {
-        return new ModifyEntityResult<TError>
-            { Error = error, WriteResult = result, IsSuccess = false, ErrorType = errorType };
-    }
-    
-    public static ModifyEntityResult<TError> Success(JsonLdBase entity, WriteResult result = WriteResult.Updated, Guid? etag = null)
-    {
-        return new ModifyEntityResult<TError>
-            { Entity = entity, WriteResult = result, IsSuccess = true, ETag = etag };
-    }
-
 }

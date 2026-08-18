@@ -212,7 +212,7 @@ public class CollectionWriteService(
         var saveErrors = await dbContext.TrySave("collection", request.CustomerId, logger, cancellationToken);
         if (saveErrors != null) return saveErrors;
 
-        var hierarchy = databaseCollection.Hierarchy.Single();
+        var hierarchy = databaseCollection.Hierarchy!.Single();
         if (hierarchy.Parent != null)
         {
             var fullPathError = await TrySetFullPath(databaseCollection, hierarchy, cancellationToken);

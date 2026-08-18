@@ -37,7 +37,7 @@ public class CanvasPaintingResolver(
             var manifestParseResult = await ParseManifest(customerId, presentationManifest);
             if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
 
-            Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
+            Debug.Assert(manifestParseResult.CanvasPaintings is not null);
 
             var insertCanvasPaintingsError = await HandleInserts(manifestParseResult.CanvasPaintings, customerId, cancellationToken);
             if (insertCanvasPaintingsError != null) return ParsedManifestResult.Failure(insertCanvasPaintingsError);
@@ -71,7 +71,7 @@ public class CanvasPaintingResolver(
         if (manifestParseResult.Error != null) return ParsedManifestResult.Failure(manifestParseResult.Error);
         
         existingManifest.CanvasPaintings ??= [];
-        Debug.Assert(manifestParseResult.CanvasPaintings is not null, "manifestParseResult.CanvasPaintings is not null");
+        Debug.Assert(manifestParseResult.CanvasPaintings is not null);
 
         var toInsert = UpdateCanvasPaintingRecords(existingManifest.CanvasPaintings,
             manifestParseResult.CanvasPaintings, existingManifest.SpaceId);
