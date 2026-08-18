@@ -7,7 +7,7 @@ using AWS.Configuration;
 using AWS.Helpers;
 using AWS.S3;
 using MediatR;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Repository;
 using Sqids;
 
@@ -117,22 +117,9 @@ public static class ServiceCollectionX
                     Description = "Basic Authorization header",
                 });
 
-            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            c.AddSecurityRequirement((document) => new OpenApiSecurityRequirement
             {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "basic",
-                        },
-                        Scheme = "basic",
-                        Name = "Authorization",
-                        In = ParameterLocation.Header
-                    },
-                    []
-                },
+                [new OpenApiSecuritySchemeReference("basic", document)] = []
             });
         });
 }

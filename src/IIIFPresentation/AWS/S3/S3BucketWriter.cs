@@ -87,7 +87,7 @@ public class S3BucketWriter : IBucketWriter
 
                     listObjectsRequest.Marker = item.Key;
                 }
-            } while (listObjectsResponse.IsTruncated);
+            } while (listObjectsResponse.IsTruncated == true);
             
             if (deleteObjectsRequest.Objects.Count > 0)
             {

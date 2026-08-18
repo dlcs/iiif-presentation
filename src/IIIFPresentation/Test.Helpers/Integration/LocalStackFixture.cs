@@ -32,7 +32,11 @@ public class LocalStackFixture : IAsyncLifetime
             .WithEnvironment("SERVICES", "s3,sqs,sns")
             .WithEnvironment("DOCKER_HOST", "unix:///var/run/docker.sock")
             .WithEnvironment("DEBUG", "1")
-            .WithPortBinding(0, LocalStackContainerPort);
+            .WithPortBinding(0, LocalStackContainerPort)
+            // The port accepts connections well before LocalStack's internal services have
+            // finished booting; wait for the health endpoint to actually respond instead.
+            .WithWaitStrategy(Wait.ForUnixContainer()
+                .UntilHttpRequestIsSucceeded(request => request.ForPath("/_localstack/health").ForPort(LocalStackContainerPort)));
 
         localStackContainer = localStackBuilder.Build();
     }
@@ -60,7 +64,9 @@ public class LocalStackFixture : IAsyncLifetime
             RegionEndpoint = RegionEndpoint.EUWest1,
             UseHttp = true,
             ForcePathStyle = true,
-            ServiceURL = localStackUrl
+            ServiceURL = localStackUrl,
+            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED
         };
 
         AWSS3ClientFactory = () => new AmazonS3Client(new BasicAWSCredentials("foo", "bar"), s3Config);

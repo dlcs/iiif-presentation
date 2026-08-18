@@ -63,9 +63,9 @@ public static class S3Extensions
             ContentLength = headersCollection.ContentLength == -1L ? null : headersCollection.ContentLength,
             ContentMD5 = headersCollection.ContentMD5,
             ContentType = headersCollection.ContentType,
-            ExpiresUtc = headersCollection.ExpiresUtc,
+            ExpiresUtc = headersCollection.Expires,
             ETag = getObjectResponse.ETag,
-            LastModified = getObjectResponse.LastModified,
+            LastModified = getObjectResponse.LastModified.GetValueOrDefault(),
         };
         return fromHeaders;
     }
