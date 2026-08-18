@@ -3,7 +3,7 @@ using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using MediatR;
+using Mediator;
 using Microsoft.Extensions.Options;
 using Services.Manifests.Settings;
 
@@ -37,7 +37,7 @@ public class CreateHierarchicalManifestHandler(
     IOptions<ApiSettings> apiOptions)
     : IRequestHandler<CreateHierarchicalManifest, PresentationResult>
 {
-    public async Task<PresentationResult> Handle(CreateHierarchicalManifest request,
+    public async ValueTask<PresentationResult> Handle(CreateHierarchicalManifest request,
         CancellationToken cancellationToken)
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForCreate(

@@ -4,7 +4,7 @@ using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.Requests;
 using API.Settings;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -51,7 +51,7 @@ public class SearchCollectionHandler(
 {
     private readonly ApiSettings settings = options.Value;
 
-    public async Task<FetchEntityResult<PresentationCollection>> Handle(SearchCollection request,
+    public async ValueTask<FetchEntityResult<PresentationCollection>> Handle(SearchCollection request,
         CancellationToken cancellationToken)
     {
         // Only the collection itself is required - the search result is synthetic, so it carries none of the

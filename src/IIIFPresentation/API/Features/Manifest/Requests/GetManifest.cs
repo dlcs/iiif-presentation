@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
-using MediatR;
+using Mediator;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
 
@@ -26,8 +26,8 @@ public class GetManifest(
 public class GetManifestHandler(IManifestRead manifestRead) :
     IRequestHandler<GetManifest, FetchEntityResult<PresentationManifest>>
 {
-    public Task<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
+    public ValueTask<FetchEntityResult<PresentationManifest>> Handle(GetManifest request,
         CancellationToken cancellationToken)
-        => manifestRead.GetManifest(request.CustomerId, request.Id, request.IfNoneMatch, request.PathOnly,
-            cancellationToken);
+        => new(manifestRead.GetManifest(request.CustomerId, request.Id, request.IfNoneMatch, request.PathOnly,
+            cancellationToken));
 }

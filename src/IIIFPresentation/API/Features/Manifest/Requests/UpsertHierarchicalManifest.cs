@@ -3,7 +3,7 @@ using API.Features.Manifest.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using MediatR;
+using Mediator;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
@@ -43,7 +43,7 @@ public class UpsertHierarchicalManifestHandler(
     IOptions<ApiSettings> apiOptions)
     : IRequestHandler<UpsertHierarchicalManifest, PresentationResult>
 {
-    public async Task<PresentationResult> Handle(UpsertHierarchicalManifest request,
+    public async ValueTask<PresentationResult> Handle(UpsertHierarchicalManifest request,
         CancellationToken cancellationToken)
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationManifest, DbManifest>(

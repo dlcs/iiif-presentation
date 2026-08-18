@@ -11,7 +11,7 @@ using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core.Helpers;
-using MediatR;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;

@@ -3,7 +3,7 @@ using API.Helpers;
 using API.Features.Storage.Validators;
 using API.Infrastructure.Requests;
 using API.Settings;
-using MediatR;
+using Mediator;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using DbCollection = Models.Database.Collections.Collection;
@@ -38,7 +38,7 @@ public class UpsertHierarchicalCollectionHandler(
     IOptions<ApiSettings> apiOptions)
     : IRequestHandler<UpsertHierarchicalCollection, PresentationResult>
 {
-    public async Task<PresentationResult> Handle(UpsertHierarchicalCollection request,
+    public async ValueTask<PresentationResult> Handle(UpsertHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForUpsert<PresentationCollection, DbCollection>(

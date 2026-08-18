@@ -101,7 +101,7 @@ builder.Services
     .AddHttpContextAccessor()
     .AddScoped<ICustomerIdProvider, HttpContextCustomerIdProvider>()
     .AddOutgoingHeaders();
-builder.Services.ConfigureMediatR();
+builder.Services.ConfigureMediator();
 builder.Services.ConfigureIdGenerator();
 builder.Services
     .AddHealthChecks()

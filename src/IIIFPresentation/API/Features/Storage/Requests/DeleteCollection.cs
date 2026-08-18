@@ -1,7 +1,7 @@
 ﻿using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using Core;
-using MediatR;
+using Mediator;
 using Models;
 using Models.API.General;
 using Models.Database.Collections;
@@ -23,7 +23,7 @@ public class DeleteCollectionHandler(
     ILogger<DeleteCollectionHandler> logger)
     : IRequestHandler<DeleteCollection, ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
-    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteCollection request, CancellationToken cancellationToken)
+    public async ValueTask<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteCollection request, CancellationToken cancellationToken)
     {
         logger.LogDebug("Deleting collection {CollectionId} for customer {CustomerId}", request.CollectionId,
             request.CustomerId);

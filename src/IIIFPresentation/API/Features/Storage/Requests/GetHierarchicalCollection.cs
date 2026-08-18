@@ -7,7 +7,7 @@ using AWS.S3.Models;
 using AWS.Settings;
 using Core.Streams;
 using IIIF.Presentation.V3;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
@@ -32,7 +32,7 @@ public class GetHierarchicalCollectionHandler(
 {
     private readonly AWSSettings settings = options.Value;
     
-    public async Task<CollectionWithItems> Handle(GetHierarchicalCollection request,
+    public async ValueTask<CollectionWithItems> Handle(GetHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         if (request.Hierarchy.CollectionId == null || request.Hierarchy.Collection == null)

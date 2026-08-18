@@ -1,10 +1,10 @@
 ﻿using LazyCache;
-using MediatR;
+using Mediator;
 
 namespace API.Infrastructure.Requests.Pipelines;
 
 /// <summary>
-///     Interface for Mediatr requests that invalidate cache records on success
+///     Interface for Mediator requests that invalidate cache records on success
 /// </summary>
 public interface IInvalidateCaches
 {
@@ -15,7 +15,7 @@ public interface IInvalidateCaches
 }
 
 /// <summary>
-///     MediatR behaviour that will clear cacheKeys specified in request if request was successful
+///     Mediator behaviour that will clear cacheKeys specified in request if request was successful
 /// </summary>
 public class CacheInvalidationBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IInvalidateCaches, IRequest<TResponse>
@@ -31,10 +31,10 @@ public class CacheInvalidationBehaviour<TRequest, TResponse> : IPipelineBehavior
         this.logger = logger;
     }
 
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
+    public async ValueTask<TResponse> Handle(TRequest request, MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {
-        var nextResponse = await next();
+        var nextResponse = await next(request, cancellationToken);
 
         if (nextResponse.IsSuccess) InvalidateCacheKeys(request);
 

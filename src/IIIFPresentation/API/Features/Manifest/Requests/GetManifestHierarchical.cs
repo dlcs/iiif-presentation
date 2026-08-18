@@ -3,7 +3,7 @@ using AWS.Helpers;
 using AWS.S3;
 using AWS.Settings;
 using Core.Streams;
-using MediatR;
+using Mediator;
 using Microsoft.Extensions.Options;
 using Models.Database.General;
 using Repository.Paths;
@@ -24,7 +24,7 @@ public class GetManifestHierarchicalHandler(
 {
     private readonly AWSSettings settings = options.Value;
 
-    public async Task<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
+    public async ValueTask<IIIF.Presentation.V3.Manifest?> Handle(GetManifestHierarchical request,
         CancellationToken cancellationToken)
     {
         var manifest = request.Hierarchy.Manifest ??

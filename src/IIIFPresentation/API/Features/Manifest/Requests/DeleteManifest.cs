@@ -1,7 +1,7 @@
 ﻿using API.Features.Common.Helpers;
 using API.Features.Storage.Helpers;
 using Core;
-using MediatR;
+using Mediator;
 using Models.API.General;
 using Repository;
 
@@ -20,7 +20,7 @@ public class DeleteManifestHandler(
     ILogger<DeleteManifestHandler> logger)
     : IRequestHandler<DeleteManifest, ResultMessage<DeleteResult, DeleteResourceErrorType>>
 {
-    public async Task<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteManifest request,
+    public async ValueTask<ResultMessage<DeleteResult, DeleteResourceErrorType>> Handle(DeleteManifest request,
         CancellationToken cancellationToken)
     {
         logger.LogDebug("Deleting manifest {ManifestId} for customer {CustomerId}", request.ManifestId,

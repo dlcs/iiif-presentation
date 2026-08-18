@@ -10,7 +10,7 @@ using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Models.API.General;
-using MediatR;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
