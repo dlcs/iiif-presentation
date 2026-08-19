@@ -1,6 +1,6 @@
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Mediator;
+using MediatR;
 using Models.API.Collection;
 
 namespace API.Features.Storage.Requests;
@@ -25,7 +25,7 @@ public class UpsertCollection(int customerId, string collectionId, PresentationC
 public class UpsertCollectionHandler(ICollectionWrite collectionService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<UpsertCollection, PresentationResult>
 {
-    public async ValueTask<PresentationResult> Handle(UpsertCollection request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertCollection request, CancellationToken cancellationToken)
     {
         var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId, request.Collection.Id,
             request.CollectionId);

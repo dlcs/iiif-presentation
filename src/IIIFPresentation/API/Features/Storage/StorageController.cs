@@ -9,7 +9,7 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
-using Mediator;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;

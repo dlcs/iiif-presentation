@@ -3,7 +3,7 @@ using API.Features.Storage.Validators;
 using API.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
-using Mediator;
+using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
 
@@ -35,7 +35,7 @@ public class CreateHierarchicalCollectionHandler(
     IOptions<ApiSettings> apiOptions)
     : IRequestHandler<CreateHierarchicalCollection, PresentationResult>
 {
-    public async ValueTask<PresentationResult> Handle(CreateHierarchicalCollection request,
+    public async Task<PresentationResult> Handle(CreateHierarchicalCollection request,
         CancellationToken cancellationToken)
     {
         var (error, context) = await hierarchicalRequestHelper.PrepareForCreate<PresentationCollection>(

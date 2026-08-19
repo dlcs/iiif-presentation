@@ -4,7 +4,7 @@ using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
 using IIIF;
-using Mediator;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Models.API.General;
 
@@ -73,7 +73,7 @@ public abstract class PresentationController : Controller
     /// <summary>
     /// Handles a deletion
     /// </summary>
-    /// <param name="request">The request/response to be sent through Mediator</param>
+    /// <param name="request">The request/response to be sent through Mediatr</param>
     /// <param name="errorTitle">The title of the error</param>
     /// <param name="cancellationToken">Current cancellation token</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="DeleteResult" /> is not understood</exception>

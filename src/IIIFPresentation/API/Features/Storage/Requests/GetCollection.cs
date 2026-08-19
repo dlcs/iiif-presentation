@@ -5,7 +5,7 @@ using API.Features.Storage.Models;
 using API.Infrastructure.Requests;
 using API.Settings;
 using AWS.Helpers;
-using Mediator;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -39,7 +39,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
     SettingsBasedPathGenerator settingsBasedPathGenerator, IOptions<ApiSettings> options) 
     : IRequestHandler<GetCollection, FetchEntityResult<PresentationCollection>>
 {
-    public async ValueTask<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
+    public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
         CancellationToken cancellationToken)
     {
         var collection = await dbContext.RetrieveCollectionWithParentAsync(request.Id,

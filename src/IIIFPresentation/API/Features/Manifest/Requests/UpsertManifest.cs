@@ -1,6 +1,6 @@
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Mediator;
+using MediatR;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
 
@@ -28,7 +28,7 @@ public class UpsertManifest(
 public class UpsertManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<UpsertManifest, PresentationResult>
 {
-    public async ValueTask<PresentationResult> Handle(UpsertManifest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertManifest request, CancellationToken cancellationToken)
     {
         var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
             request.PresentationManifest.Id, request.ManifestId);

@@ -1,10 +1,11 @@
-﻿using API.Infrastructure.IdGenerator;
+﻿using System.Reflection;
+using API.Infrastructure.IdGenerator;
 using API.Infrastructure.Requests.Pipelines;
 using API.Settings;
 using AWS.Configuration;
 using AWS.Helpers;
 using AWS.S3;
-using Mediator;
+using MediatR;
 using Microsoft.OpenApi;
 using Repository;
 using Sqids;
@@ -37,18 +38,14 @@ public static class ServiceCollectionX
                 .AddLazyCache();
 
         /// <summary>
-        /// Add Mediator services and pipeline behaviours to service collection.
+        /// Add MediatR services and pipeline behaviours to service collection.
         /// </summary>
-        public IServiceCollection ConfigureMediator()
+        public IServiceCollection ConfigureMediatR()
         {
             return services
-                .AddMediator(options =>
-                {
-                    // Handlers depend on scoped services (PresentationContext etc); Mediator defaults to
-                    // Singleton, which would capture those as long-lived dependencies.
-                    options.ServiceLifetime = ServiceLifetime.Scoped;
-                    options.PipelineBehaviors = [typeof(LoggingBehavior<,>), typeof(CacheInvalidationBehaviour<,>)];
-                });
+                .AddMediatR(config => config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()))
+                .AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>))
+                .AddScoped(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehaviour<,>));
         }
 
         /// <summary>

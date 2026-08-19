@@ -1,6 +1,6 @@
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Mediator;
+using MediatR;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest.Requests;
@@ -24,7 +24,7 @@ public class CreateManifest(
 public class CreateManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<CreateManifest, PresentationResult>
 {
-    public async ValueTask<PresentationResult> Handle(CreateManifest request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateManifest request, CancellationToken cancellationToken)
     {
         var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
             request.PresentationManifest.Id);

@@ -1,6 +1,6 @@
 using API.Helpers;
 using API.Infrastructure.Requests;
-using Mediator;
+using MediatR;
 using Models.API.Collection;
 
 namespace API.Features.Storage.Requests;
@@ -21,7 +21,7 @@ public class CreateCollection(int customerId, PresentationCollection collection,
 public class CreateCollectionHandler(ICollectionWrite collectionService, IRequestIdResolver requestIdResolver)
     : IRequestHandler<CreateCollection, PresentationResult>
 {
-    public async ValueTask<PresentationResult> Handle(CreateCollection request, CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(CreateCollection request, CancellationToken cancellationToken)
     {
         var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId, request.Collection.Id);
         if (error != null) return error;
