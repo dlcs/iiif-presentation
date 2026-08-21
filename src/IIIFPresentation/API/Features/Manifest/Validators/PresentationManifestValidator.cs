@@ -76,7 +76,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
         
         RuleFor(m => m.PaintedResources)
-            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting!.CanvasOrder != null && pr.CanvasPainting.CanvasId != null && pr.CanvasPainting.ChoiceOrder == null)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting!.CanvasOrder != null && pr.CanvasPainting.ChoiceOrder == null)
                 .GroupBy(pr => new {pr.CanvasPainting!.CanvasId, pr.CanvasPainting.CanvasOrder})
                 .Any(grp => grp.Count() > 1))
             .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))

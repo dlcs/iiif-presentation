@@ -492,6 +492,37 @@ public class PresentationManifestValidatorTests
     }
     
     [Fact]
+    public void PaintedResource_Manifest_ErrorWhenNullChoiceOrder_InChoice_NoCanvasId()
+    {
+        // https://github.com/dlcs/iiif-presentation/issues/649 - resources sharing a 'canvasOrder' with no
+        // 'canvasId' set on either should still be rejected when 'choiceOrder' is missing
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasOrder = 0
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasOrder = 0
+                    }
+                }
+            ],
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
+    }
+
+    [Fact]
     public void PaintedResource_Manifest_Error_WhenDuplicateCanvasId()
     {
         var manifest = new PresentationManifest
