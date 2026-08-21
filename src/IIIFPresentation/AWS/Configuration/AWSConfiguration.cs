@@ -107,6 +107,8 @@ public class AwsBuilder
                     RegionEndpoint = RegionEndpoint.USEast1,
                     ServiceURL =
                         awsSettings.SQS?.ServiceUrl.ThrowIfNullOrWhiteSpace(nameof(awsSettings.SQS.ServiceUrl)),
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED
                 };
                 return new AmazonSQSClient(new BasicAWSCredentials("foo", "bar"), amazonS3Config);
             }, lifetime);

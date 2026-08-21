@@ -65,7 +65,7 @@ public static class S3Extensions
             ContentType = headersCollection.ContentType,
             ExpiresUtc = headersCollection.Expires,
             ETag = getObjectResponse.ETag,
-            LastModified = getObjectResponse.LastModified.GetValueOrDefault(),
+            LastModified = getObjectResponse.LastModified,
         };
         return fromHeaders;
     }

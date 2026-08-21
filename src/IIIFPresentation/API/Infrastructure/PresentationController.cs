@@ -81,7 +81,6 @@ public abstract class PresentationController : Controller
     /// ActionResult generated from DeleteResult. This will be 204 on success. Or an
     /// error and appropriate status code if failed.
     /// </returns>
-    /// <remarks>This will be replaced with overload that takes DeleteEntityResult in future</remarks>
     protected async Task<IActionResult> HandleDelete<T>(
         IRequest<ResultMessage<DeleteResult, T>> request,
         string? errorTitle = "Delete failed",
