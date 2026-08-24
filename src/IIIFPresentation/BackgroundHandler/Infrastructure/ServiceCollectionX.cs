@@ -8,65 +8,66 @@ using BackgroundHandler.CustomerCreation;
 using BackgroundHandler.Listener;
 using BackgroundHandler.TextCompletion;
 using Repository;
-using Repository.Helpers;
 
 namespace BackgroundHandler.Infrastructure;
 
 public static class ServiceCollectionX
 {
-    public static IServiceCollection AddAws(this IServiceCollection services,
-        IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
+    extension(IServiceCollection services)
     {
-        services
-            .AddSingleton<IBucketReader, S3BucketReader>()
-            .AddSingleton<IBucketWriter, S3BucketWriter>()
-            .AddSingleton<SqsListener>()
-            .AddSingleton<SqsQueueUtilities>()
-            .AddSingleton<IIIIFS3Service, IIIFS3Service>();
-        
-        services
-            .SetupAWS(configuration, webHostEnvironment)
-            .WithAmazonSQS()
-            .WithAmazonS3();
-        
-        return services;
-    }
-    
-    public static IServiceCollection AddBackgroundServices(this IServiceCollection services, AWSSettings aws)
-    {
-        if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
+        public IServiceCollection AddAws(IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
         {
             services
-                .AddHostedService(sp => 
-                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<CustomerCreatedMessageHandler>>(sp, aws.SQS.CustomerCreatedQueueName))
-                .AddScoped<CustomerCreatedMessageHandler>();
-        }
+                .AddSingleton<IBucketReader, S3BucketReader>()
+                .AddSingleton<IBucketWriter, S3BucketWriter>()
+                .AddSingleton<SqsListener>()
+                .AddSingleton<SqsQueueUtilities>()
+                .AddSingleton<IIIIFS3Service, IIIFS3Service>();
         
-        if (!string.IsNullOrEmpty(aws.SQS.BatchCompletionQueueName))
-        {
             services
-                .AddHostedService(sp =>
-                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<BatchCompletionMessageHandler>>(sp, aws.SQS.BatchCompletionQueueName))
-                .AddScoped<BatchCompletionMessageHandler>();
+                .SetupAWS(configuration, webHostEnvironment)
+                .WithAmazonSQS()
+                .WithAmazonS3();
+        
+            return services;
         }
 
-        if (!string.IsNullOrEmpty(aws.SQS.TextJobQueueName))
+        public IServiceCollection AddBackgroundServices(AWSSettings aws)
         {
-            services
-                .AddHostedService(sp =>
-                    ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<TextServiceJobCompletionMessageHandler>>(sp, aws.SQS.TextJobQueueName))
-                .AddScoped<TextServiceJobCompletionMessageHandler>();
+            if (!string.IsNullOrEmpty(aws.SQS.CustomerCreatedQueueName))
+            {
+                services
+                    .AddHostedService(sp => 
+                        ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<CustomerCreatedMessageHandler>>(sp, aws.SQS.CustomerCreatedQueueName))
+                    .AddScoped<CustomerCreatedMessageHandler>();
+            }
+        
+            if (!string.IsNullOrEmpty(aws.SQS.BatchCompletionQueueName))
+            {
+                services
+                    .AddHostedService(sp =>
+                        ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<BatchCompletionMessageHandler>>(sp, aws.SQS.BatchCompletionQueueName))
+                    .AddScoped<BatchCompletionMessageHandler>();
+            }
+
+            if (!string.IsNullOrEmpty(aws.SQS.TextJobQueueName))
+            {
+                services
+                    .AddHostedService(sp =>
+                        ActivatorUtilities.CreateInstance<CreateBackgroundListenerService<TextServiceJobCompletionMessageHandler>>(sp, aws.SQS.TextJobQueueName))
+                    .AddScoped<TextServiceJobCompletionMessageHandler>();
+            }
+
+            return services;
         }
 
-        return services;
-    }
-    
-    /// <summary>
-    /// Add all dataaccess dependencies, including repositories and presentation context
-    /// </summary>
-    public static IServiceCollection AddDataAccess(this IServiceCollection services, IConfiguration configuration)
-    {
-        return services
-            .AddPresentationContext(configuration);
+        /// <summary>
+        /// Add all dataaccess dependencies, including repositories and presentation context
+        /// </summary>
+        public IServiceCollection AddDataAccess(IConfiguration configuration)
+        {
+            return services
+                .AddPresentationContext(configuration);
+        }
     }
 }

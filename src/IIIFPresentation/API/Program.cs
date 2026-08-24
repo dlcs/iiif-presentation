@@ -112,7 +112,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(opts =>
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
 
     // https://github.com/dotnet/dotnet-docker/issues/6491
-    opts.KnownNetworks.Clear();
+    opts.KnownIPNetworks.Clear();
     opts.KnownProxies.Clear();
 });
 

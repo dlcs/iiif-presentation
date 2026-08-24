@@ -1,6 +1,5 @@
 ﻿using API.Helpers;
 using API.Infrastructure.Requests;
-using Core.Paths;
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
@@ -32,7 +31,7 @@ public class HostnameDrivenPresentationPathGenerator(
     {
         var request = GetHttpRequest();
         var host = request.Host.Value;
-        var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
+        var template = settings.GetPathTemplateForHostAndType(host!, presentationServiceType);
 
         var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
 

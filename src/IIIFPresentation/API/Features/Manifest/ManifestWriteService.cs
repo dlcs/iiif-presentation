@@ -351,7 +351,7 @@ public class ManifestWriteService(
             presentationManifest.SetGeneratedFields(dbManifest, pathGenerator, savedManifestPathGenerator, assets,
                 finishedPipelinesLimit: options.Value.FinishedPipelinesLimit),
             writeResult,
-            dbManifest?.Etag);
+            dbManifest.Etag);
     }
 
     private async Task<(PresentationResult?, DbManifest?)> CreateDatabaseRecord(WriteManifestRequest request,
@@ -414,7 +414,7 @@ public class ManifestWriteService(
 
         if (saveErrors != null) return saveErrors;
 
-        dbManifest.Hierarchy.Single().FullPath =
+        dbManifest.Hierarchy!.Single().FullPath =
             await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest.Id, dbManifest.CustomerId, dbContext,
                 cancellationToken);
         return null;

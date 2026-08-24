@@ -1,5 +1,4 @@
 using System.Net;
-using System.Runtime.InteropServices.JavaScript;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
@@ -63,9 +62,9 @@ public static class ControllerBaseX
     /// </summary>
     /// <param name="controller">Current controllerBase object</param>
     /// <param name="entityResult">Result to transform</param>
-    /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
     /// <param name="errorTitle">
-    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// The value for <see cref="Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <returns>
@@ -77,11 +76,11 @@ public static class ControllerBaseX
         string? errorTitle) =>
         entityResult.WriteResult switch
         {
-            WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
+            WriteResult.Updated => controller.PresentationContent(entityResult.Entity!, etag: entityResult.ETag),
             WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
-                entityResult.Entity, (int)HttpStatusCode.Accepted, null),
+                entityResult.Entity!, (int)HttpStatusCode.Accepted, null),
             WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
-                entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
+                entityResult.Entity!, (int)HttpStatusCode.Created, entityResult.ETag),
             WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
             WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),

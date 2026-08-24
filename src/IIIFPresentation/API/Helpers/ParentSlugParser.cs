@@ -35,6 +35,7 @@ public interface IParentSlugParser
     /// Slug for the resource - for hierarchical PUT, the last segment of the path; for flat requests, derived from
     /// the body's "id" property when it resolves to an own-host hierarchical id
     /// </param>
+    /// <param name="cancellationToken">Current cancellation token</param>
     public Task<ParsedParentSlugResult> Parse<T>(
         T presentation,
         int customerId,

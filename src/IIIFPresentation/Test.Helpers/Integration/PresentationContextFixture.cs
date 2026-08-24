@@ -355,18 +355,25 @@ public class PresentationContextFixture : IAsyncLifetime
     }
 
     private const string PreservedCollections =
-        "'root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection'";
+        "'root','FirstChildCollection','SecondChildCollection', 'NonPublic', 'IiifCollection', 'IiifCollectionWithItems'";
 
     public void CleanUp()
     {
+        // Cleanup covers every customer, including customer 1: tests create collections/manifests
+        // directly via DbContext, and those default to customer 1 unless a test overrides it.
         // Remove hierarchy rows hanging off a collection that's about to be deleted first.
         // hierarchy.parent=>collections does not cascade delete, hierarcy.collection_id=>collections does
         DbContext.Database.ExecuteSqlRaw(
-            $"DELETE FROM hierarchy WHERE customer_id != 1 AND parent IN (SELECT id FROM collections WHERE customer_id != 1 AND id NOT IN ({PreservedCollections}))");
+            $"DELETE FROM hierarchy WHERE parent IN (SELECT id FROM collections WHERE id NOT IN ({PreservedCollections}))");
         DbContext.Database.ExecuteSqlRaw(
-            $"DELETE FROM collections WHERE customer_id != 1 AND id NOT IN ({PreservedCollections})");
+            $"DELETE FROM collections WHERE id NOT IN ({PreservedCollections})");
         DbContext.Database.ExecuteSqlRaw(
-            "DELETE FROM manifests WHERE customer_id != 1 AND id NOT IN ('FirstChildManifest', 'FirstChildManifestProcessing')");
+            "DELETE FROM manifests WHERE id NOT IN ('FirstChildManifest', 'FirstChildManifestProcessing')");
+
+        // The raw SQL deletes above bypass the change tracker, so DbContext (a singleton shared across
+        // every test in the collection) can be left holding stale references to now-deleted rows. Clear it
+        // so a later test's SaveChangesAsync doesn't try to flush changes against rows that no longer exist.
+        DbContext.ChangeTracker.Clear();
     }
 }
 

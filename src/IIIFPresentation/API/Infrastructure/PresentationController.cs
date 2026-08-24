@@ -6,6 +6,7 @@ using Core;
 using IIIF;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Models.API.General;
 
 namespace API.Infrastructure;
 
@@ -41,9 +42,9 @@ public abstract class PresentationController : Controller
     /// The request is sent and result is transformed to an http result.
     /// </summary>
     /// <param name="request">IRequest to modify data</param>
-    /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
     /// <param name="errorTitle">
-    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// The value for <see cref="Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <param name="invalidatesEtag">string etag value used in this request, optional</param>
@@ -80,7 +81,6 @@ public abstract class PresentationController : Controller
     /// ActionResult generated from DeleteResult. This will be 204 on success. Or an
     /// error and appropriate status code if failed.
     /// </returns>
-    /// <remarks>This will be replaced with overload that takes DeleteEntityResult in future</remarks>
     protected async Task<IActionResult> HandleDelete<T>(
         IRequest<ResultMessage<DeleteResult, T>> request,
         string? errorTitle = "Delete failed",
@@ -92,30 +92,6 @@ public abstract class PresentationController : Controller
 
             return ConvertDeleteToHttp(result.Value, result.Message, result.Type);
             
-        }, errorTitle);
-    }
-
-    /// <summary>
-    /// Handles a deletion, turning DeleteResult to a http response
-    /// </summary>
-    /// <param name="request">The request/response to be sent through Mediatr</param>
-    /// <param name="errorTitle">The title of the error</param>
-    /// <param name="cancellationToken">Current cancellation token</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="DeleteResult" /> is not understood</exception>
-    /// <returns>
-    /// ActionResult generated from DeleteResult. This will be 204 on success. Or an
-    /// error and appropriate status code if failed.
-    /// </returns>
-    protected async Task<IActionResult> HandleDelete(
-        IRequest<DeleteEntityResult> request,
-        string? errorTitle = "Delete failed",
-        CancellationToken cancellationToken = default)
-    {
-        return await HandleRequest(async () =>
-        {
-            var result = await Mediator.Send(request, cancellationToken);
-
-            return ConvertDeleteToHttp(result.Value, result.Message, result.Type);
         }, errorTitle);
     }
 
@@ -140,9 +116,9 @@ public abstract class PresentationController : Controller
     /// The request is sent and result is transformed to an http result.
     /// </summary>
     /// <param name="request">IRequest to fetch data</param>
-    /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
     /// <param name="errorTitle">
-    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// The value for <see cref="Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
     /// <param name="cancellationToken">Current cancellation token</param>
