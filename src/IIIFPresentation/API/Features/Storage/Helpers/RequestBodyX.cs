@@ -3,6 +3,7 @@ using Core.IIIF;
 using IIIF;
 using IIIF.Presentation.V3;
 using Models.API;
+using Models.API.Manifest;
 using Services;
 
 namespace API.Features.Storage.Helpers;

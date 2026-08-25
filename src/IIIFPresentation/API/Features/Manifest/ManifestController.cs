@@ -119,13 +119,13 @@ public class ManifestController(
                 "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
         }
 
-        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
+        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF, cancellationToken);
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody),
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF, rawRequestBody),
             instance, errorTitle, invalidatesEtag, cancellationToken);
     }
 }

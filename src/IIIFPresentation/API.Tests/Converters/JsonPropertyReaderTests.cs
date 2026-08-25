@@ -1,4 +1,5 @@
 using API.Converters;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace API.Tests.Converters;
 
@@ -69,5 +70,38 @@ public class JsonPropertyReaderTests
         JsonPropertyReader.ReadJsonProperty(
                 """{"metadata": {"attributes": {"priority": "high"}}}""", "priority")
             .Should().BeNull();
+    }
+
+    [Fact]
+    public void TryGetValidType_ReturnsFalse_WhenMissing()
+    {
+        const string input = """{"foo": "bar"}""";
+        var result = JsonPropertyReader.TryGetValidType(input, new NullLogger<JsonPropertyReaderTests>(), out var type);
+        result.Should().BeFalse();
+        type.Should().BeNull();
+    }
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("Other")]
+    public void TryGetValidType_ReturnsFalse_WhenNullWhitespaceOrUnknown(string? inputType)
+    {
+        var input = $$"""{"foo": "bar", "type": "{{inputType}}"}""";
+        var result = JsonPropertyReader.TryGetValidType(input, new NullLogger<JsonPropertyReaderTests>(), out var type);
+        result.Should().BeFalse();
+        type.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("Manifest")]
+    [InlineData("Collection")]
+    public void TryGetValidType_ReturnsTrue_AndType_WhenFound(string? inputType)
+    {
+        var input = $$"""{"foo": "bar", "type": "{{inputType}}"}""";
+        var result = JsonPropertyReader.TryGetValidType(input, new NullLogger<JsonPropertyReaderTests>(), out var type);
+        result.Should().BeTrue();
+        type.Should().Be(inputType);
     }
 }
