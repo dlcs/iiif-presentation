@@ -57,19 +57,18 @@ public static class JsonPropertyReader
     /// Try and get the "type" property from raw string.
     /// </summary>
     /// <param name="rawJson">JSON to read</param>
+    /// <param name="logger">Current logger instance</param>
     /// <param name="type">
     /// Type value, if found. Will only be non-null if a value for type was "Manifest" or "Collection"
     /// </param>
-    /// <param name="logger">Current logger instance</param>
-    /// <returns>true if a valid found (ie "Manifest" or "Collection" found, else false</returns>
+    /// <returns>true if a valid value (ie "Manifest" or "Collection") found, else false</returns>
     public static bool TryGetValidType(string rawJson, ILogger? logger, [NotNullWhen(true)] out string? type)
     {
-        var validTypes = new[] { nameof(Manifest), nameof(Collection) };
         const string typeProperty = "type";
         
         type = ReadJsonProperty(rawJson, typeProperty, 1, logger);
         if (type == null) return false;
-        if (validTypes.Contains(type)) return true;
+        if (type is nameof(Manifest) or nameof(Collection)) return true;
         
         type = null;
         return false;

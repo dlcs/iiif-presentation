@@ -53,13 +53,13 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
             .ReturnsLazily(x => Task.FromResult(
                 new List<Batch> { new ()
                 {
-                    ResourceId =  x.Arguments.Get<List<JObject>>("deliverables").First().GetValue("batch").ToString(), 
+                    ResourceId =  x.Arguments.Get<List<JObject>>("deliverables")!.First().GetValue("batch")!.ToString(), 
                     Submitted = DateTime.Now
                 }}));
         
         A.CallTo(() => DLCSApiClient.GetCustomerImages(Customer, 
                 A<ICollection<string>>._, A<CancellationToken>._))
-            .ReturnsLazily(x =>
+            .ReturnsLazily(_ =>
                 Task.FromResult<IList<JObject>>(new List<JObject>()));
 
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
@@ -70,6 +70,34 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
                     .AddSingleton(DLCSOrchestratorClient));
         
         storageFixture.DbFixture.CleanUp();
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_BadRequest_IfNoType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/someId", """{"id":"hello"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task UpdateManifest_BadRequest_IfInvalidType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/someId", """{"id":"hello","type":"Collection"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
     
     [Fact]

@@ -107,7 +107,7 @@ public class StorageController(
         
         if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
         {
-            return UnrecognisedTypeProblem();
+            return this.UnrecognisedTypeProblem();
         }
 
         IRequest<PresentationResult> request = type switch
@@ -133,7 +133,7 @@ public class StorageController(
         
         if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
         {
-            return UnrecognisedTypeProblem();
+            return this.UnrecognisedTypeProblem();
         }
 
         IRequest<PresentationResult> request = type switch
@@ -147,9 +147,4 @@ public class StorageController(
 
         return await HandleUpsert(request, invalidatesEtag: Request.Headers.IfMatch);
     }
-
-    private ObjectResult UnrecognisedTypeProblem() =>
-        this.PresentationBadRequest(
-            "Could not determine resource 'type' from the request body - expected 'Collection' or 'Manifest'",
-            ModifyCollectionType.CannotDeserialize);
 }

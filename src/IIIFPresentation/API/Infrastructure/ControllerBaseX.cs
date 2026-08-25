@@ -223,4 +223,13 @@ public static class ControllerBaseX
 
         return PresentationContent(controller, descriptionResource, statusCode, etag);
     }
+
+    /// <summary>
+    /// Create a result for unrecognised type
+    /// </summary>
+    public static ObjectResult UnrecognisedTypeProblem(this ControllerBase controller,
+        string? expectedTypes = "'Collection' or 'Manifest'") =>
+        controller.PresentationBadRequest(
+            $"Could not determine resource 'type' from the request body - expected {expectedTypes}",
+            ModifyCollectionType.CannotDeserialize);
 }
