@@ -49,6 +49,36 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         storageFixture.DbFixture.CleanUp();
     }
+    
+    [Fact]
+    public async Task CreateCollection_BadRequest_IfNoType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+                """{"id":"hello"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task CreateCollection_BadRequest_IfInvalidType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+                """{"id":"hello","type":"Manifest"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 
     [Fact]
     public async Task CreateCollection_CreatesCollection_Location_Returns_Created()
@@ -541,32 +571,6 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
     }
     
     [Fact]
-    public async Task CreateCollection_ReturnsError_WhenInvalidPayload()
-    {
-        // Arrange
-        var collection = new PresentationCollection
-        {
-            Slug = "iiif-child",
-            Parent = $"http://localhost/{Customer}/collections/{parent}",
-        };
-
-        // Use built-in serialisation which results in invalid payload. "type": "Collection" is missing so unable,
-        // PascalCase properties used etc
-        var invalidCollection= JsonSerializer.Serialize(collection);
-        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
-            invalidCollection);
-
-        // Act
-        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
-
-        var error = await response.ReadAsPresentationResponseAsync<Error>();
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        error!.Detail.Should().Be("An error occurred while attempting to validate the collection as IIIF");
-    }
-    
-    [Fact]
     public async Task CreateCollection_ReturnsError_WhenIsStorageCollectionFalseAndUsingInvalidJson()
     {
         // Arrange
@@ -1026,6 +1030,36 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         error.ErrorTypeUri.Should().Be("http://localhost/errors/ModifyCollectionType/ParentMustMatchPublicId");
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_BadRequest_IfNoType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/collections/foo",
+                """{"id":"hello"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+    
+    [Fact]
+    public async Task UpdateCollection_BadRequest_IfInvalidType()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/collections/foo",
+                """{"id":"hello","type":"Manifest"}""");
+        
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -1689,7 +1723,8 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection), dbContext.GetETag(initialCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson(),
+            dbContext.GetETag(initialCollection));
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);
@@ -1879,7 +1914,7 @@ $$"""
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
-            $"{Customer}/collections/{initialCollection.Id}", JsonSerializer.Serialize(updatedCollection));
+            $"{Customer}/collections/{initialCollection.Id}", updatedCollection.AsJson());
         
         // Act
         var response = await httpClient.AsCustomer().SendAsync(updateRequestMessage);

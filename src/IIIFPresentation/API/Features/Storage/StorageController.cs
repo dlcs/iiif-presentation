@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using API.Auth;
 using API.Converters;
@@ -115,7 +116,7 @@ public class StorageController(
             nameof(IIIF.Presentation.V3.Manifest) => new CreateHierarchicalManifest(customerId, slug, rawRequestBody,
                 Request.HasCreateSpaceHeader()),
             nameof(IIIF.Presentation.V3.Collection) => new CreateHierarchicalCollection(customerId, slug, rawRequestBody),
-            _ => throw new ArgumentOutOfRangeException() // TryGetValidType prevents this
+            _ => throw new UnreachableException() // TryGetValidType prevents this
         };
 
         return await HandleUpsert(request);
@@ -142,7 +143,7 @@ public class StorageController(
                 Request.Headers.IfMatch, Request.HasCreateSpaceHeader()),
             nameof(IIIF.Presentation.V3.Collection) => new UpsertHierarchicalCollection(customerId, slug, rawRequestBody,
                 Request.Headers.IfMatch),
-            _ => throw new ArgumentOutOfRangeException() // TryGetValidType prevents this
+            _ => throw new UnreachableException() // TryGetValidType prevents this
         };
 
         return await HandleUpsert(request, invalidatesEtag: Request.Headers.IfMatch);

@@ -81,12 +81,20 @@ public class JsonPropertyReaderTests
         type.Should().BeNull();
     }
     
+    [Fact]
+    public void TryGetValidType_ReturnsFalse_WhenNull()
+    {
+        var input = """{"foo": "bar", "type": null}""";
+        var result = JsonPropertyReader.TryGetValidType(input, new NullLogger<JsonPropertyReaderTests>(), out var type);
+        result.Should().BeFalse();
+        type.Should().BeNull();
+    }
+    
     [Theory]
-    [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("Other")]
-    public void TryGetValidType_ReturnsFalse_WhenNullWhitespaceOrUnknown(string? inputType)
+    public void TryGetValidType_ReturnsFalse_WhenEmptyWhitespaceOrUnknown(string? inputType)
     {
         var input = $$"""{"foo": "bar", "type": "{{inputType}}"}""";
         var result = JsonPropertyReader.TryGetValidType(input, new NullLogger<JsonPropertyReaderTests>(), out var type);

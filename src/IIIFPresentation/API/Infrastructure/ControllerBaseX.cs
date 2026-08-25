@@ -228,7 +228,7 @@ public static class ControllerBaseX
     /// Create a result for unrecognised type
     /// </summary>
     public static ObjectResult UnrecognisedTypeProblem(this ControllerBase controller,
-        string? expectedTypes = "'Collection' or 'Manifest'") =>
+        string expectedTypes = "'Collection' or 'Manifest'") =>
         controller.PresentationBadRequest(
             $"Could not determine resource 'type' from the request body - expected {expectedTypes}",
             ModifyCollectionType.CannotDeserialize);
