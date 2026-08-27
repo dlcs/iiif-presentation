@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Auth;
+using API.Converters;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
@@ -111,6 +112,12 @@ public class ManifestController(
         CancellationToken cancellationToken = default)
     {
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
+
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type) || type != nameof(Manifest))
+        {
+            return this.UnrecognisedTypeProblem("'Manifest'");
+        }
+
         var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
 
         if (presentationManifest.Error)
@@ -119,13 +126,13 @@ public class ManifestController(
                 "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
         }
 
-        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
+        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF, cancellationToken);
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody),
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF, rawRequestBody),
             instance, errorTitle, invalidatesEtag, cancellationToken);
     }
 }

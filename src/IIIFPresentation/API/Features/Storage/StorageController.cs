@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using API.Auth;
 using API.Converters;
@@ -104,16 +105,19 @@ public class StorageController(
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
+        
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
+        {
+            return this.UnrecognisedTypeProblem();
+        }
 
-        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
+        IRequest<PresentationResult> request = type switch
         {
             nameof(IIIF.Presentation.V3.Manifest) => new CreateHierarchicalManifest(customerId, slug, rawRequestBody,
                 Request.HasCreateSpaceHeader()),
             nameof(IIIF.Presentation.V3.Collection) => new CreateHierarchicalCollection(customerId, slug, rawRequestBody),
-            _ => null
+            _ => throw new UnreachableException() // TryGetValidType prevents this
         };
-
-        if (request == null) return UnrecognisedTypeProblem();
 
         return await HandleUpsert(request);
     }
@@ -127,23 +131,21 @@ public class StorageController(
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
+        
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
+        {
+            return this.UnrecognisedTypeProblem();
+        }
 
-        IRequest<PresentationResult>? request = JsonPropertyReader.ReadJsonProperty(rawRequestBody, "type", logger: logger) switch
+        IRequest<PresentationResult> request = type switch
         {
             nameof(IIIF.Presentation.V3.Manifest) => new UpsertHierarchicalManifest(customerId, slug, rawRequestBody,
                 Request.Headers.IfMatch, Request.HasCreateSpaceHeader()),
             nameof(IIIF.Presentation.V3.Collection) => new UpsertHierarchicalCollection(customerId, slug, rawRequestBody,
                 Request.Headers.IfMatch),
-            _ => null
+            _ => throw new UnreachableException() // TryGetValidType prevents this
         };
-
-        if (request == null) return UnrecognisedTypeProblem();
 
         return await HandleUpsert(request, invalidatesEtag: Request.Headers.IfMatch);
     }
-
-    private ObjectResult UnrecognisedTypeProblem() =>
-        this.PresentationBadRequest(
-            "Could not determine resource 'type' from the request body - expected 'Collection' or 'Manifest'",
-            ModifyCollectionType.CannotDeserialize);
 }

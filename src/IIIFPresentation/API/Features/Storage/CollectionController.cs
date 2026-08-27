@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Auth;
+using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
@@ -11,6 +12,7 @@ using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core.Helpers;
+using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -121,6 +123,12 @@ public class CollectionController(
     {
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
 
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type) || type != nameof(Collection))
+        {
+            return DeserializeValidationResult<PresentationCollection>.Failure(
+                this.UnrecognisedTypeProblem("'Collection'"));
+        }
+
         var deserializedCollection =
             await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
         if (deserializedCollection.Error)
@@ -140,8 +148,7 @@ public class CollectionController(
         return DeserializeValidationResult<PresentationCollection>.Success(deserializedCollection.ConvertedIIIF,
             rawRequestBody);
     }
-
-
+    
     [Authorize]
     [RequireShowExtras]
     [HttpDelete("collections/{id}")]
