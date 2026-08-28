@@ -113,7 +113,7 @@ public interface IPathGenerator
     Uri? GenerateAssetUri(CanvasPainting canvasPainting);
 
     /// <summary>
-    /// Generate the hierarchical id for specified customer and path slugs 
+    /// Generate the hierarchical id for specified customer and path slugs
     /// </summary>
     string GenerateHierarchicalFromFullPath(int customerId, string? fullPath);
 

@@ -16,12 +16,14 @@ public class HostnameDrivenPresentationPathGenerator(
 {
     private readonly TypedPathTemplateOptions settings = settings.Value;
 
-    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
+        string hierarchyPath, DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
     }
 
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId,
+        DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
     }
