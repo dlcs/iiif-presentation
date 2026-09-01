@@ -39,10 +39,19 @@ Used for parsing incoming paths and id generation.
 
 * `PathSettings:PresentationApiUrl` - default.
 * `PathSettings:CustomerPresentationApiUrl:{customerId}` - customer specific override.
+* `PathSettings:LegacyPresentationApiUrl` - optional legacy default (e.g. `presentation-api.*`, while `PresentationApiUrl`
+  is moving to `iiif.*`). A deployment that has never had a legacy hostname can leave this unset.
+* `PathSettings:LegacyHostnameCutoffDate` - cut-off date used alongside `LegacyPresentationApiUrl`.
+
+When generating an id, the host is chosen with the following precedence:
+1. `CustomerPresentationApiUrl` override, if set for the customer.
+2. `LegacyPresentationApiUrl`, if set and the resource's `Created` date is before `LegacyHostnameCutoffDate`.
+3. `PresentationApiUrl`.
 
 Related reading:
 * `OrchestratorUrl` - https://github.com/dlcs/iiif-presentation/issues/367
 * `PresentationApiUrl` - https://github.com/dlcs/iiif-presentation/issues/370
+* `LegacyPresentationApiUrl` - https://github.com/dlcs/iiif-presentation/issues/654, [ADR 0004 - Moving `presentation-api.*` to `iiif.*`](https://github.com/dlcs/private-protagonist/blob/main/docs/adr/0004-move-presentation-url.md)
 
 ## Helpers
 
