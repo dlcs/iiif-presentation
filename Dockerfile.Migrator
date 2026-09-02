@@ -17,6 +17,8 @@ RUN dotnet publish "Migrator.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS base
 
+ENV PGAPPNAME=Migrator
+
 LABEL maintainer="Donald Gray <donald.gray@digirati.com>, Jack Lewis <jack.lewis@digirati.com>"
 LABEL org.opencontainers.image.source=https://github.com/dlcs/iiif-presentation
 LABEL org.opencontainers.image.description="EF Migration runner for iiif presentation DB"
