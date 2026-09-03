@@ -172,6 +172,41 @@ public class LegacyHostRedirectMiddlewareTests : IClassFixture<PresentationAppFa
     }
 
     [Fact]
+    public async Task Get_HierarchicalCollection_Authorised_WithQueryString_PreservesQueryString_OnFlatRedirect()
+    {
+        // Arrange - the root collection is a storage collection, so (matching StorageController.GetHierarchical)
+        // its pagination query params should carry over to the combined flat-url redirect; manifests have no such
+        // params, so they're deliberately not covered by this
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1?page=2&pageSize=2");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be(
+            $"https://localhost:7230/1/collections/{RootCollection.Id}?page=2&pageSize=2");
+    }
+
+    [Fact]
+    public async Task Get_FlatManifest_Anonymous_DifferentCasing_StillRedirectsStraightToHierarchicalPath()
+    {
+        // Arrange - "Manifests" rather than "manifests": still matches the flat manifest route once actually
+        // routed on the target host (ASP.NET Core route matching is case-insensitive), so the combined redirect
+        // needs to recognise it too, rather than misreading it as a hierarchical slug
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/Manifests/FirstChildManifest");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/iiif-manifest");
+    }
+
+    [Fact]
     public async Task Get_HierarchicalPath_Anonymous_FallsBackToPlainHostSwap()
     {
         // Arrange - anonymous requests to a hierarchical path already get full content directly on the new host,

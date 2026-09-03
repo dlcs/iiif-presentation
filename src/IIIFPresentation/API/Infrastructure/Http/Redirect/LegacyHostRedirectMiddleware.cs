@@ -6,6 +6,7 @@ using API.Features.Storage.Requests;
 using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
 using MediatR;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.Database.General;
@@ -65,9 +66,11 @@ public class LegacyHostRedirectMiddleware(
             ? parsedCustomerId
             : (int?)null;
 
-        var targetHost = customerId.HasValue &&
-                          settings.CustomerPresentationApiUrl.TryGetValue(customerId.Value, out var customerUrl)
-            ? customerUrl
+        // GetPresentationUrl(customerId, created: null) resolves to "customer override if set, else
+        // PresentationApiUrl" - the legacy-hostname branch it also handles never applies here, since we already
+        // know we're on the legacy host
+        var targetHost = customerId.HasValue
+            ? settings.GetPresentationUrl(customerId.Value)
             : settings.PresentationApiUrl;
 
         // Whether this needs to swap between hierarchical and flat, fallback to just returning the correct URL if not -
@@ -108,9 +111,15 @@ public class LegacyHostRedirectMiddleware(
     {
         if (customerId is not { } id) return null;
 
-        var isFlatResourcePath = pathElements.Length == 3 &&
-                                  (pathElements[1] == SpecConstants.ManifestsSlug ||
-                                   pathElements[1] == SpecConstants.CollectionsSlug);
+        // null (rather than the type segment) when the path isn't 3 elements long
+        var resourceTypeSegment = pathElements.Length == 3 ? pathElements[1] : null;
+
+        // Case-insensitive to match how this segment is matched once actually routed on the target host
+        var isManifestSlug =
+            string.Equals(resourceTypeSegment, SpecConstants.ManifestsSlug, StringComparison.OrdinalIgnoreCase);
+        var isCollectionSlug =
+            string.Equals(resourceTypeSegment, SpecConstants.CollectionsSlug, StringComparison.OrdinalIgnoreCase);
+        var isFlatResourcePath = isManifestSlug || isCollectionSlug;
 
         // Routing hasn't run yet at this point in the pipeline, so route values aren't populated - the
         // authenticator needs the customerId route value to validate credentials, so set it manually
@@ -131,16 +140,15 @@ public class LegacyHostRedirectMiddleware(
         {
             if (isFlatResourcePath) // anonymous/unauthorised flat manifest/collection -> its public hierarchical url
             {
-                var resourceType = pathElements[1];
                 var resourceId = pathElements[2];
-                return resourceType == SpecConstants.ManifestsSlug
+                return isManifestSlug
                     ? await GetManifestHierarchicalPath(mediator, id, resourceId)
                     : await GetCollectionHierarchicalPath(mediator, resourceId);
             }
 
             // authorised hierarchical manifest/collection -> its flat url
             var slug = string.Join('/', pathElements.Skip(1));
-            return await GetHierarchicalResourceFlatPath(dbContext, pathGenerator, id, slug);
+            return await GetHierarchicalResourceFlatPath(dbContext, pathGenerator, id, slug, context.Request.Query);
         }
         finally
         {
@@ -166,7 +174,7 @@ public class LegacyHostRedirectMiddleware(
     /// resolve its type/id is needed to build the flat url
     /// </summary>
     private static async Task<string?> GetHierarchicalResourceFlatPath(PresentationContext dbContext,
-        IPathGenerator pathGenerator, int customerId, string slug)
+        IPathGenerator pathGenerator, int customerId, string slug, IQueryCollection query)
     {
         var hierarchy = await dbContext.RetrieveHierarchy(customerId, slug);
 
@@ -174,7 +182,7 @@ public class LegacyHostRedirectMiddleware(
         {
             { Type: ResourceType.IIIFManifest, ManifestId: not null } => pathGenerator.GenerateFlatId(hierarchy),
             { Type: ResourceType.IIIFCollection or ResourceType.StorageCollection } =>
-                pathGenerator.GenerateFlatId(hierarchy),
+                QueryHelpers.AddQueryString(pathGenerator.GenerateFlatId(hierarchy), query),
             _ => null
         };
     }
