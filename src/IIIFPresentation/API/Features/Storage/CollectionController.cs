@@ -39,9 +39,10 @@ public class CollectionController(
         string? orderBy = null, string? orderByDescending = null)
     {
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
+        var pathOnly = !await Request.IsAuthorisedForExtras(authenticator);
 
         var entityResult = await Mediator.Send(new GetCollection(id, Request.Headers.IfNoneMatch.AsETagValues(), page,
-            pageSize, orderByField, descending));
+            pageSize, orderByField, descending, pathOnly));
 
         if (entityResult.ETagMatch)
             return new NotModifiedResult(entityResult.ETag!.Value);
@@ -50,16 +51,14 @@ public class CollectionController(
             return this.PresentationProblem(entityResult.ErrorMessage,
                 statusCode: (int)HttpStatusCode.InternalServerError);
 
-        if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
-        {
-            return entityResult.EntityNotFound
-                ? this.PresentationNotFound()
-                : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
-        }
-        
-        return entityResult.Entity?.Behavior.IsPublic() ?? false
-            ? SeeOther(entityResult.Entity.PublicId!)
-            : this.PresentationNotFound();
+        if (pathOnly) // only .Behavior/.PublicId are filled, this is to avoid the items query / S3 read
+            return entityResult.GetHierarchicalPath() is { } publicPath
+                ? SeeOther(publicPath)
+                : this.PresentationNotFound();
+
+        return entityResult.EntityNotFound
+            ? this.PresentationNotFound()
+            : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
     }
 
     [Authorize]

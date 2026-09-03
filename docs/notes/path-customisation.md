@@ -43,15 +43,37 @@ Used for parsing incoming paths and id generation.
   is moving to `iiif.*`). A deployment that has never had a legacy hostname can leave this unset.
 * `PathSettings:LegacyHostnameCutoffDate` - cut-off date used alongside `LegacyPresentationApiUrl`.
 
-When generating an id, the host is chosen with the following precedence:
+When generating the flat (private) `"id"` of a Manifest/Collection/Canvas, the host is chosen with the following
+precedence:
 1. `CustomerPresentationApiUrl` override, if set for the customer.
 2. `LegacyPresentationApiUrl`, if set and the resource's `Created` date is before `LegacyHostnameCutoffDate`.
 3. `PresentationApiUrl`.
+
+> [!NOTE]
+> The public hierarchical `"id"` always uses `CustomerPresentationApiUrl` if set, else `PresentationApiUrl` -
+> `LegacyPresentationApiUrl` is never used there, regardless of the resource's `Created` date. This keeps existing
+> flat ids stable (avoiding breaking changes for consumers who saved them) while still pushing everyone towards the
+> current hostname for the human/public-facing hierarchical paths.
+
+### Legacy Host Redirect
+
+When `PathSettings:LegacyPresentationApiUrl` is set, `LegacyHostRedirectMiddleware` redirects any request received on
+that hostname to the equivalent path on the current hostname (customer specific override, else `PresentationApiUrl`):
+* `GET` (and `HEAD`) requests get a `301 - Moved Permanently`.
+* `PUT`/`POST`/`DELETE`/`PATCH` requests get a `308 - Permanent Redirect`, since a `301` risks clients dropping the
+  request body and switching the verb to `GET`.
+
+Where possible, an anonymous/unauthorised `GET` of a flat Manifest/Collection is redirected straight to its public
+hierarchical url on the new hostname, rather than to the equivalent flat url there - this saves the extra
+`303 - See Other` hop that would otherwise happen when that flat url is requested again on the new hostname.
+
+No redirect happens if `LegacyPresentationApiUrl` is unset, or the request isn't for that hostname.
 
 Related reading:
 * `OrchestratorUrl` - https://github.com/dlcs/iiif-presentation/issues/367
 * `PresentationApiUrl` - https://github.com/dlcs/iiif-presentation/issues/370
 * `LegacyPresentationApiUrl` - https://github.com/dlcs/iiif-presentation/issues/654, [ADR 0004 - Moving `presentation-api.*` to `iiif.*`](https://github.com/dlcs/private-protagonist/blob/main/docs/adr/0004-move-presentation-url.md)
+* Legacy host redirects - https://github.com/dlcs/iiif-presentation/issues/653
 
 ## Helpers
 

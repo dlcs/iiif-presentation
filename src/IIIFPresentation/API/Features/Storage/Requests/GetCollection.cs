@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.Requests;
 using API.Settings;
@@ -23,7 +24,8 @@ public class GetCollection(
     int? page,
     int? pageSize,
     string? orderBy = null,
-    bool descending = false) : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
+    bool descending = false,
+    bool pathOnly = false) : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
 {
     public string Id { get; } = id;
 
@@ -33,6 +35,14 @@ public class GetCollection(
     public int? PageSize { get; } = pageSize;
     public string? OrderBy { get; } = orderBy;
     public bool Descending { get; } = descending;
+
+    /// <summary>
+    /// If true, only the fields required to redirect to this collection's public hierarchical location are
+    /// populated (<see cref="PresentationCollection.Behavior"/>/<see cref="PresentationCollection.PublicId"/>) -
+    /// this avoids the child-items query (storage collections) or S3 read (IIIF collections) that populating the
+    /// rest of the collection would otherwise require
+    /// </summary>
+    public bool PathOnly { get; } = pathOnly;
 }
 
 public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator, 
@@ -60,6 +70,16 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         {
             collection.Hierarchy.GetCanonical().FullPath =
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
+        }
+
+        // Shortcut to avoid retrieving S3 etc. when it's not required
+        if (request.PathOnly)
+        {
+            return FetchEntityResult<PresentationCollection>.Success(new PresentationCollection
+            {
+                Behavior = CollectionConverter.GenerateBehavior(collection),
+                PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy)
+            }, collection.Etag);
         }
 
         if (collection.IsStorageCollection)

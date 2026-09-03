@@ -245,7 +245,7 @@ public static class CollectionConverter
     /// </summary>
     /// <param name="collection">The database collection to use</param>
     /// <returns>A list of behaviors</returns>
-    private static List<string>? GenerateBehavior(DbCollection collection)
+    internal static List<string>? GenerateBehavior(DbCollection collection)
     {
         var behaviours = new List<string>()
             .AppendIf(collection.IsPublic, Behavior.IsPublic)

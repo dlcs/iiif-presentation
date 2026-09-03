@@ -703,7 +703,24 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             "falls back to using host based path generator for customer 1");
         collection.Id.Should().Be($"http://localhost/{url}");
     }
-    
+
+    [Fact]
+    public async Task Get_FlatIIIFCollection_ReturnsSeeOther_WhenNoAuthOrCsHeader()
+    {
+        // Arrange - an anonymous flat request for an IIIF (non-storage, S3-backed) collection - this should
+        // redirect straight to the public hierarchical path without ever reading the collection from S3
+        // (see Get_FlatIIIFCollection_ReturnsNullItemsWhenNoBackingCollection for the equivalent authenticated
+        // request, which does read from S3 and confirms the same PublicId)
+
+        // Act
+        var response = await httpClient.GetAsync("1/collections/IiifCollection");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1/iiif-collection",
+            "falls back to using host based path generator for customer 1");
+    }
+
     [Fact]
     public async Task Get_HierarchicalIIIFCollection_ReturnsCollectionFromS3()
     {

@@ -33,8 +33,7 @@ public class ManifestController(
     [VaryHeader]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
-        var pathOnly = !Request.HasShowExtraHeader() ||
-                       await authenticator.ValidateRequest(Request) != AuthResult.Success;
+        var pathOnly = !await Request.IsAuthorisedForExtras(authenticator);
 
         var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), pathOnly));
 
@@ -51,7 +50,7 @@ public class ManifestController(
         }
 
         if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
-            return entityResult.Entity.FullPath is { Length: > 0 } fullPath
+            return entityResult.GetHierarchicalPath() is { } fullPath
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
 

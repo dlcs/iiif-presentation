@@ -39,8 +39,10 @@ public class ManifestReadService(
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
         IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
-        var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withBatches: true,
-            withPipelineJobs: true, cancellationToken: cancellationToken);
+        // Batches/PipelineJobs/CanvasPaintings are only used by the full (non-pathOnly) read below, so skip
+        // loading them when only the redirect path is needed
+        var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withCanvasPaintings: !pathOnly,
+            withBatches: !pathOnly, withPipelineJobs: !pathOnly, cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
 

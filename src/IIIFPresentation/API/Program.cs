@@ -129,6 +129,7 @@ var app = builder.Build();
 app
     .UseForwardedHeaders()
     .UseMiddleware<CorrelationIdMiddleware>()
+    .UseMiddleware<LegacyHostRedirectMiddleware>()
     .UseMiddleware<TrailingSlashRedirectMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, new MigrationCustomerIdProvider(), app.Logger);
