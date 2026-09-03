@@ -20,12 +20,12 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> se
     }
 
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
-        string hierarchyPath, DateTime? created = null)
+        string? hierarchyPath, DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, created, hierarchyPath);
     }
 
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId,
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string? resourceId,
         DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, created, resourceId: resourceId);

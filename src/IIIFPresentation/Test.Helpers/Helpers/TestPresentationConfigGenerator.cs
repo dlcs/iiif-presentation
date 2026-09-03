@@ -8,12 +8,12 @@ public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTe
     : IPresentationPathGenerator
 {
     public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
-        string hierarchyPath, DateTime? created = null)
+        string? hierarchyPath, DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
     }
 
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId,
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string? resourceId,
         DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);

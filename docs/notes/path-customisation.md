@@ -39,7 +39,7 @@ Used for parsing incoming paths and id generation.
 
 * `PathSettings:PresentationApiUrl` - default.
 * `PathSettings:CustomerPresentationApiUrl:{customerId}` - customer specific override.
-* `PathSettings:LegacyPresentationApiUrl` - optional legacy default (e.g. `presentation-api.*`, while `PresentationApiUrl`
+* `PathSettings:LegacyPresentationApiUrl` - optional legacy hostname (e.g. `presentation-api.*`, while `PresentationApiUrl`
   is moving to `iiif.*`). A deployment that has never had a legacy hostname can leave this unset.
 * `PathSettings:LegacyHostnameCutoffDate` - cut-off date used alongside `LegacyPresentationApiUrl`.
 
