@@ -202,4 +202,21 @@ public class HostnameDrivenPresentationPathGeneratorTests
         // Assert
         path.Should().Be(expected);
     }
+
+    [Fact]
+    public void GetFlatPresentationPathForRequest_IgnoresCreatedDate_AlwaysMirrorsRequestHost()
+    {
+        // Arrange - this generator always mirrors whatever host the live request came in on, so a "created" date
+        // (used elsewhere to choose between legacy/default hostnames) has no effect on it
+        var sut = new HostnameDrivenPresentationPathGenerator(Options.Create(new TypedPathTemplateOptions()),
+            HttpContextAccessor);
+
+        // Act
+        var withoutCreated = sut.GetFlatPresentationPathForRequest(PresentationResourceType.ManifestPrivate, 1, "someId");
+        var withCreated = sut.GetFlatPresentationPathForRequest(PresentationResourceType.ManifestPrivate, 1, "someId",
+            new DateTime(2000, 1, 1));
+
+        // Assert
+        withCreated.Should().Be(withoutCreated);
+    }
 }

@@ -1,4 +1,5 @@
 ﻿using Core.Web;
+using FakeItEasy;
 using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
@@ -8,7 +9,10 @@ using Test.Helpers.Helpers;
 
 namespace Repository.Tests.Paths;
 
-public class PathGeneratorTests
+/// <summary>
+/// Tests for <see cref="PathGeneratorBase"/>, exercised via <see cref="TestPathGenerator"/>.
+/// </summary>
+public class PathGeneratorBaseTests
 {
     private readonly IPathGenerator pathGenerator =
         new TestPathGenerator(new TestPresentationConfigGenerator("http://base", new TypedPathTemplateOptions()));
@@ -62,7 +66,24 @@ public class PathGeneratorTests
         // Assert
         id.Should().Be("http://base/0/collections/test");
     }
-    
+
+    [Fact]
+    public void GenerateFlatCollectionId_PassesCollectionCreatedDate()
+    {
+        // Arrange
+        var presentationPathGenerator = A.Fake<IPresentationPathGenerator>();
+        var sut = new TestPathGenerator(presentationPathGenerator);
+        var created = new DateTime(2020, 1, 1);
+        var collection = new Collection { Id = "test", Created = created };
+
+        // Act
+        sut.GenerateFlatCollectionId(collection);
+
+        // Assert
+        A.CallTo(() => presentationPathGenerator.GetFlatPresentationPathForRequest(
+            PresentationResourceType.CollectionPrivate, 0, "test", created)).MustHaveHappened();
+    }
+
     [Theory]
     [InlineData(ResourceType.StorageCollection)]
     [InlineData(ResourceType.IIIFCollection)]
@@ -121,7 +142,23 @@ public class PathGeneratorTests
         // Assert
         id.Should().Be("http://base/0/collections/parent");
     }
-    
+
+    [Fact]
+    public void GenerateFlatParentId_PassesNullCreatedDate()
+    {
+        // Arrange
+        var presentationPathGenerator = A.Fake<IPresentationPathGenerator>();
+        var sut = new TestPathGenerator(presentationPathGenerator);
+        var hierarchy = new Hierarchy { Slug = "test", Parent = "parent" };
+
+        // Act
+        sut.GenerateFlatParentId(hierarchy);
+
+        // Assert
+        A.CallTo(() => presentationPathGenerator.GetFlatPresentationPathForRequest(
+            PresentationResourceType.CollectionPrivate, 0, "parent", null)).MustHaveHappened();
+    }
+
     [Fact]
     public void GenerateFlatCollectionViewId_CreatesViewId()
     {
@@ -307,7 +344,24 @@ public class PathGeneratorTests
         // Assert
         id.Should().Be("http://base/123/manifests/test");
     }
-    
+
+    [Fact]
+    public void GenerateFlatManifestId_PassesManifestCreatedDate()
+    {
+        // Arrange
+        var presentationPathGenerator = A.Fake<IPresentationPathGenerator>();
+        var sut = new TestPathGenerator(presentationPathGenerator);
+        var created = new DateTime(2020, 1, 1);
+        var manifest = new Manifest { Id = "test", CustomerId = 1, Created = created };
+
+        // Act
+        sut.GenerateFlatManifestId(manifest);
+
+        // Assert
+        A.CallTo(() => presentationPathGenerator.GetFlatPresentationPathForRequest(
+            PresentationResourceType.ManifestPrivate, 1, "test", created)).MustHaveHappened();
+    }
+
     [Fact]
     public void GenerateCanvasId_Correct()
     {
@@ -324,7 +378,24 @@ public class PathGeneratorTests
         // Assert
         id.Should().Be("http://base/123/canvases/test");
     }
-    
+
+    [Fact]
+    public void GenerateCanvasId_PassesCanvasPaintingCreatedDate()
+    {
+        // Arrange
+        var presentationPathGenerator = A.Fake<IPresentationPathGenerator>();
+        var sut = new TestPathGenerator(presentationPathGenerator);
+        var created = new DateTime(2020, 1, 1);
+        var canvasPainting = new CanvasPainting { Id = "test", CustomerId = 1, Created = created };
+
+        // Act
+        sut.GenerateCanvasId(canvasPainting);
+
+        // Assert
+        A.CallTo(() => presentationPathGenerator.GetFlatPresentationPathForRequest(
+            PresentationResourceType.Canvas, 1, "test", created)).MustHaveHappened();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
