@@ -126,10 +126,18 @@ builder.Services.AddOptionsWithValidateOnStart<Program>();
 
 var app = builder.Build();
 
+// Only add LegacyHostRedirectMiddleware to the pipeline if a legacy host is actually configured - otherwise every
+// request would pay for a no-op middleware invocation
+var legacyHostConfigured = !string.IsNullOrEmpty(
+    builder.Configuration[$"{PathSettings.SettingsName}:{nameof(PathSettings.LegacyPresentationApiUrl)}"]);
+
 app
     .UseForwardedHeaders()
-    .UseMiddleware<CorrelationIdMiddleware>()
-    .UseMiddleware<TrailingSlashRedirectMiddleware>();
+    .UseMiddleware<CorrelationIdMiddleware>();
+
+if (legacyHostConfigured) app.UseMiddleware<LegacyHostRedirectMiddleware>();
+
+app.UseMiddleware<TrailingSlashRedirectMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, new MigrationCustomerIdProvider(), app.Logger);
 
