@@ -20,7 +20,14 @@ public class PathSettings
     /// Cut-off date used alongside <see cref="LegacyPresentationApiUrl"/> - resources created before this date use
     /// the legacy hostname when generating ids, resources created on or after it use <see cref="PresentationApiUrl"/>.
     /// </summary>
-    public DateTime? LegacyHostnameCutoffDate { get; set; }
+    public DateTimeOffset? LegacyHostnameCutoffDate { get; set; }
+
+    /// <summary>
+    /// Optional date after which <see cref="LegacyPresentationApiUrl"/> is expected to stop serving requests
+    /// entirely. Surfaced to legacy-host callers via the "Sunset" response header (RFC 8594) - distinct from
+    /// <see cref="LegacyHostnameCutoffDate"/>, which only affects id generation.
+    /// </summary>
+    public DateTimeOffset? LegacyHostSunsetDate { get; set; }
 
     public Dictionary<int, Uri> CustomerPresentationApiUrl { get; set; } = new();
 
@@ -42,7 +49,7 @@ public class PathSettings
         if (CustomerPresentationApiUrl.TryGetValue(customerId, out var customerUrl)) return customerUrl;
 
         if (LegacyPresentationApiUrl != null && LegacyHostnameCutoffDate.HasValue &&
-            created is not null && created < LegacyHostnameCutoffDate)
+            created is not null && created < LegacyHostnameCutoffDate.Value.UtcDateTime)
         {
             return LegacyPresentationApiUrl;
         }

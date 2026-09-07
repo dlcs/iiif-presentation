@@ -1,4 +1,5 @@
-﻿using API.Infrastructure.Http;
+﻿using API.Auth;
+using API.Infrastructure.Http;
 
 namespace API.Infrastructure.Helpers;
 
@@ -18,6 +19,15 @@ public static class HttpRequestX
             return request.Headers.FirstOrDefault(h => string.Equals(h.Key, AdditionalPropertiesHeader.Key, StringComparison.OrdinalIgnoreCase)).Value ==
                    AdditionalPropertiesHeader.Value;
         }
+
+        /// <summary>
+        /// Checks whether this is an authorised request for additional (non-public) properties - i.e. it has the
+        /// show-extras header, and passes authentication
+        /// </summary>
+        public async Task<bool> IsAuthorisedForExtras(IAuthenticator authenticator,
+            CancellationToken cancellationToken = default)
+            => request.HasShowExtraHeader() &&
+               await authenticator.ValidateRequest(request, cancellationToken) == AuthResult.Success;
 
         /// <summary>
         /// Checks if the <see cref="HttpRequest"/> has header requesting a space be created 

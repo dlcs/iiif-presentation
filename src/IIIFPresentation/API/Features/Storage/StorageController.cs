@@ -51,7 +51,7 @@ public class StorageController(
         switch (hierarchy.Type)
         {
             case ResourceType.IIIFManifest:
-                if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+                if (await Request.IsAuthorisedForExtras(authenticator))
                 {
                     return hierarchy.ManifestId == null
                         ? this.PresentationNotFound()
@@ -74,7 +74,7 @@ public class StorageController(
 
                 if (storageRoot.Collection == null) return this.PresentationNotFound();
 
-                if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+                if (await Request.IsAuthorisedForExtras(authenticator))
                 {
                     var absoluteUri = pathGenerator.GenerateFlatId(hierarchy);
                     absoluteUri = QueryHelpers.AddQueryString(absoluteUri, Request.Query);

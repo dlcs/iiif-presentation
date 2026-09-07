@@ -1,0 +1,337 @@
+using System.Net;
+using API.Tests.Integration.Infrastructure;
+using Test.Helpers.Integration;
+
+namespace API.Tests.Integration;
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
+public class LegacyHostRedirectMiddlewareTests : IClassFixture<PresentationAppFactory<Program>>
+{
+    private const string LegacyHost = "legacy.example.com";
+
+    private readonly HttpClient httpClient;
+
+    public LegacyHostRedirectMiddlewareTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
+    {
+        // Deliberately no LegacyHostnameCutoffDate here - this class exercises the DefaultDeprecationDate fallback
+        // that LegacyHostRedirectMiddleware uses when it's unconfigured. LegacyHostRedirectMiddlewareDeprecationDatesTests/
+        // CutoffDateOnlyTests below cover it when actually configured
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}"));
+        storageFixture.DbFixture.CleanUp();
+    }
+
+    private static void AddLegacyHostHeader(HttpRequestMessage requestMessage) =>
+        requestMessage.Headers.Add("Host", LegacyHost);
+
+    [Fact]
+    public async Task Get_HierarchicalPath_RedirectsToDefaultHost()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/some/hierarchical/path");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/some/hierarchical/path");
+    }
+
+    [Fact]
+    public async Task Get_HierarchicalPath_WithQueryString_PreservesQueryString()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/some/hierarchical/path?foo=bar");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/some/hierarchical/path?foo=bar");
+    }
+
+    [Theory]
+    [InlineData("PUT")]
+    [InlineData("POST")]
+    [InlineData("DELETE")]
+    [InlineData("PATCH")]
+    public async Task MutatingMethods_Anonymous_RedirectWithPermanentRedirect(string method)
+    {
+        // Arrange - no Authorization header, so there's nothing at risk of being dropped on the client's redirect
+        // follow
+        var requestMessage = new HttpRequestMessage(new HttpMethod(method), "1/manifests/FirstChildManifest");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.PermanentRedirect);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/manifests/FirstChildManifest");
+    }
+
+    [Fact]
+    public async Task Delete_Authorised_ProcessesInPlace_WithDeprecationHeaders_InsteadOfRedirect()
+    {
+        // Arrange - carries an Authorization header, so this must not be redirected even though it's a mutating
+        // method: browsers/HttpClient/curl all strip Authorization when auto-following a redirect to a different
+        // host, which would silently drop the caller's credentials. Processed in place instead, with the legacy
+        // host flagged as deprecated via response headers
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Delete, "1/manifests/no-here");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert - never redirected (no Location header set by this middleware), regardless of what the
+        // downstream handler made of the request. No LegacyHostnameCutoffDate configured for this test class, so
+        // Deprecation falls back to LegacyHostRedirectMiddleware.DefaultDeprecationDate (2026-09-01T00:00:00Z =
+        // 1788220800) rather than being omitted - RFC 9745 has no "unknown date" form to omit it with
+        response.Headers.Location.Should().BeNull();
+        response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1788220800");
+        response.Headers.GetValues("Link").Should().ContainSingle()
+            .Which.Should().Be("<https://localhost:7230/1/manifests/no-here>; rel=\"successor-version\"");
+    }
+
+    [Fact]
+    public async Task Get_FlatManifest_Anonymous_RedirectsToSameFlatPath_OnDefaultHost()
+    {
+        // Arrange - a plain host swap, even though this itself would 303 to the hierarchical path once it lands
+        // on the new host; decided against combining the two hops into one (dlcs/iiif-presentation#653)
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/manifests/FirstChildManifest");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/manifests/FirstChildManifest");
+    }
+
+    [Fact]
+    public async Task Get_HierarchicalManifest_Authorised_ProcessesInPlace_WithDeprecationHeaders()
+    {
+        // Arrange - carries an Authorization header, so this must not be redirected - processed in place against
+        // the canonical host instead. StorageController.GetHierarchical still performs its own authorised
+        // hierarchical -> flat 303 redirect, just now against the canonical host rather than the legacy one
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert - LegacyHostSunsetDate isn't configured for this test class, so Sunset is omitted; Deprecation
+        // falls back to LegacyHostRedirectMiddleware.DefaultDeprecationDate (no LegacyHostnameCutoffDate configured)
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/manifests/FirstChildManifest");
+        response.Headers.GetValues("Link").Should().ContainSingle()
+            .Which.Should().Be("<https://localhost:7230/1/iiif-manifest>; rel=\"successor-version\"");
+        response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1788220800");
+        response.Headers.Should().NotContainKey("Sunset");
+    }
+
+    [Fact]
+    public async Task Get_NonExistentPath_StillRedirectsToSamePath_OnDefaultHost()
+    {
+        // Arrange - the middleware doesn't resolve the resource at all, so a not-found path redirects just the same
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/manifests/no-here");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/manifests/no-here");
+    }
+
+    [Fact]
+    public async Task Get_NonLegacyHost_IsNotRedirected()
+    {
+        // Act - no Host header override, so this hits the default test host rather than the configured legacy one
+        var response = await httpClient.GetAsync("1/manifests/no-here");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Get_Anonymous_RedirectResponse_HasNoDeprecationHeaders()
+    {
+        // Arrange - the deprecation-notice headers are only ever added on the in-place-processing branch (requests
+        // carrying an Authorization header) - a plain redirect response should carry none of them
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/some/hierarchical/path");
+        AddLegacyHostHeader(requestMessage);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Should().NotContainKey("Deprecation");
+        response.Headers.Should().NotContainKey("Sunset");
+        response.Headers.Should().NotContainKey("Link");
+    }
+}
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
+public class LegacyHostRedirectMiddlewareCustomerOverrideTests : IClassFixture<PresentationAppFactory<Program>>
+{
+    private const string LegacyHost = "legacy-with-customer-override.example.com";
+
+    private readonly HttpClient httpClient;
+
+    public LegacyHostRedirectMiddlewareCustomerOverrideTests(StorageFixture storageFixture,
+        PresentationAppFactory<Program> factory)
+    {
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}")
+                // Customer 1 has its own CustomerPresentationApiUrl override configured - this must NOT be where
+                // legacy-host requests for customer 1 get redirected to (see below)
+                .WithConfigValue("PathSettings:CustomerPresentationApiUrl:1", "https://customer-proxy.example.com"));
+        storageFixture.DbFixture.CleanUp();
+    }
+
+    [Fact]
+    public async Task Get_ForCustomerWithOverride_StillRedirectsToDefaultHost_NotTheOverride()
+    {
+        // Arrange - CustomerPresentationApiUrl overrides are reverse-proxy hosts with their own independent
+        // path-rewriting rules in front of this API, not something this app can redirect straight to a canonical
+        // path on - so even for a customer with one configured, legacy-host traffic redirects to the default
+        // PresentationApiUrl host, same as any other customer
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/some/hierarchical/path");
+        requestMessage.Headers.Add("Host", LegacyHost);
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.Should().Be("https://localhost:7230/1/some/hierarchical/path");
+    }
+}
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
+public class LegacyHostRedirectMiddlewareDeprecationDatesTests : IClassFixture<PresentationAppFactory<Program>>
+{
+    private const string LegacyHost = "legacy-with-dates.example.com";
+
+    private readonly HttpClient httpClient;
+
+    public LegacyHostRedirectMiddlewareDeprecationDatesTests(StorageFixture storageFixture,
+        PresentationAppFactory<Program> factory)
+    {
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}")
+                .WithConfigValue("PathSettings:LegacyHostnameCutoffDate", "2026-01-01T00:00:00Z")
+                .WithConfigValue("PathSettings:LegacyHostSunsetDate", "2027-01-01T00:00:00+00:00"));
+        storageFixture.DbFixture.CleanUp();
+    }
+
+    [Fact]
+    public async Task Get_Authorised_IncludesConfiguredDeprecationAndSunsetDates()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        requestMessage.Headers.Add("Host", LegacyHost);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert - Deprecation (RFC 9745) is a Structured-Fields Date: "@" + seconds since the Unix epoch for
+        // LegacyHostnameCutoffDate (2026-01-01T00:00:00Z = 1767225600). Sunset (RFC 8594) stays an HTTP-date
+        // (IMF-fixdate) for LegacyHostSunsetDate. Link is unaffected by either setting, checked here for
+        // completeness
+        response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1767225600");
+        response.Headers.GetValues("Sunset").Should().ContainSingle()
+            .Which.Should().Be("Fri, 01 Jan 2027 00:00:00 GMT");
+        response.Headers.GetValues("Link").Should().ContainSingle()
+            .Which.Should().Be("<https://localhost:7230/1/iiif-manifest>; rel=\"successor-version\"");
+    }
+}
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
+public class LegacyHostRedirectMiddlewareCutoffDateOnlyTests : IClassFixture<PresentationAppFactory<Program>>
+{
+    private const string LegacyHost = "legacy-with-cutoff-only.example.com";
+
+    private readonly HttpClient httpClient;
+
+    public LegacyHostRedirectMiddlewareCutoffDateOnlyTests(StorageFixture storageFixture,
+        PresentationAppFactory<Program> factory)
+    {
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}")
+                // LegacyHostnameCutoffDate is a DateTimeOffset, so this always needs an explicit offset (here "Z")
+                // - omitting it wouldn't be an error, but would be read using the *local server's* offset rather
+                // than UTC (standard DateTimeOffset parsing behaviour), making the value environment-dependent
+                .WithConfigValue("PathSettings:LegacyHostnameCutoffDate", "2026-01-01T00:00:00Z"));
+        storageFixture.DbFixture.CleanUp();
+    }
+
+    [Fact]
+    public async Task Get_Authorised_IncludesCutoffDate_ButNoSunset()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        requestMessage.Headers.Add("Host", LegacyHost);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert - LegacyHostnameCutoffDate configured on its own: Deprecation carries it, Sunset is absent (no
+        // LegacyHostSunsetDate)
+        response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1767225600");
+        response.Headers.Should().NotContainKey("Sunset");
+    }
+}
+
+[Trait("Category", "Integration")]
+[Collection(CollectionDefinitions.StorageCollection.CollectionName)]
+public class LegacyHostRedirectMiddlewareSunsetDateOnlyTests : IClassFixture<PresentationAppFactory<Program>>
+{
+    private const string LegacyHost = "legacy-with-sunset-only.example.com";
+
+    private readonly HttpClient httpClient;
+
+    public LegacyHostRedirectMiddlewareSunsetDateOnlyTests(StorageFixture storageFixture,
+        PresentationAppFactory<Program> factory)
+    {
+        httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}")
+                .WithConfigValue("PathSettings:LegacyHostSunsetDate", "2027-01-01T00:00:00+00:00"));
+        storageFixture.DbFixture.CleanUp();
+    }
+
+    [Fact]
+    public async Task Get_Authorised_IncludesSunsetDate_AndDefaultDeprecationDate()
+    {
+        // Arrange
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        requestMessage.Headers.Add("Host", LegacyHost);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert - LegacyHostSunsetDate configured on its own: Sunset carries it, Deprecation falls back to
+        // LegacyHostRedirectMiddleware.DefaultDeprecationDate (no LegacyHostnameCutoffDate configured here, and
+        // RFC 9745 has no "unknown date" form to omit it with)
+        response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1788220800");
+        response.Headers.GetValues("Sunset").Should().ContainSingle()
+            .Which.Should().Be("Fri, 01 Jan 2027 00:00:00 GMT");
+    }
+}
