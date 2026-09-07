@@ -52,9 +52,11 @@ public class CollectionController(
                 statusCode: (int)HttpStatusCode.InternalServerError);
 
         if (pathOnly) // only .Behavior/.PublicId are filled, this is to avoid the items query / S3 read
+        {
             return entityResult.GetHierarchicalPath() is { } publicPath
                 ? SeeOther(publicPath)
                 : this.PresentationNotFound();
+        }
 
         return entityResult.EntityNotFound
             ? this.PresentationNotFound()

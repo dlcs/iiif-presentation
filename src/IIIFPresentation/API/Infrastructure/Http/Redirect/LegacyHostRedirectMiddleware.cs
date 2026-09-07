@@ -7,7 +7,10 @@ namespace API.Infrastructure.Http.Redirect;
 
 /// <summary>
 /// Redirects requests received on the legacy presentation hostname (<see cref="PathSettings.LegacyPresentationApiUrl"/>)
-/// to their equivalent path on the current hostname (customer-specific override, else the default).
+/// to their equivalent path on the default current hostname (<see cref="PathSettings.PresentationApiUrl"/>) - never
+/// a customer-specific <see cref="PathSettings.CustomerPresentationApiUrl"/> override, since those are reverse-proxy
+/// hosts with their own independent path-rewriting rules that this app can't redirect straight to a canonical path
+/// on.
 /// </summary>
 /// <remarks>
 /// Of the requests that do get redirected (see below), GETs get a "301 - Moved Permanently"; PUT/POST/DELETE/PATCH
@@ -28,8 +31,8 @@ namespace API.Infrastructure.Http.Redirect;
 /// such requests are processed in place - as if they'd arrived on the canonical host - and the legacy host is
 /// flagged as deprecated via the "Deprecation"/"Sunset"/"Link" response headers (RFC 9745/RFC 8594/IANA
 /// "successor-version") instead of a redirect, so the caller keeps working today while being told to move off the
-/// legacy host. "Deprecation" carries <see cref="PathSettings.LegacyHostnameCutoffDate"/> as its date when set
-/// (else the bare "true"); "Sunset" is omitted unless <see cref="PathSettings.LegacyHostSunsetDate"/> is set.
+/// legacy host. "Deprecation" carries <see cref="PathSettings.LegacyHostnameCutoffDate"/> as a Structured-Fields
+/// Date; "Sunset" is omitted unless <see cref="PathSettings.LegacyHostSunsetDate"/> is set.
 /// </remarks>
 public class LegacyHostRedirectMiddleware(
     RequestDelegate next,
@@ -41,24 +44,25 @@ public class LegacyHostRedirectMiddleware(
         var settings = pathSettings.Value;
         var legacyHost = settings.LegacyPresentationApiUrl?.Host;
 
-        if (string.IsNullOrEmpty(legacyHost) ||
-            !string.Equals(context.Request.Host.Host, legacyHost, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(legacyHost))
+        {
+            logger.LogWarning(
+                "LegacyHostRedirectMiddleware invoked with no configured legacy hostname");
+            await next(context);
+            return;
+        }
+
+        if (!string.Equals(context.Request.Host.Host, legacyHost, StringComparison.OrdinalIgnoreCase))
         {
             await next(context);
             return;
         }
 
-        var pathElements = context.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
-        var customerId = pathElements.Length > 0 && int.TryParse(pathElements[0], out var parsedCustomerId)
-            ? parsedCustomerId
-            : (int?)null;
-
-        // GetPresentationUrl(customerId, created: null) resolves to "customer override if set, else
-        // PresentationApiUrl" - the legacy-hostname branch it also handles never applies here, since we already
-        // know we're on the legacy host
-        var targetHost = customerId.HasValue
-            ? settings.GetPresentationUrl(customerId.Value)
-            : settings.PresentationApiUrl;
+        // Always the default host, never a customer-specific CustomerPresentationApiUrl override: those are
+        // reverse-proxy hosts with their own independent path-rewriting rules in front of this API, not something
+        // this app can redirect straight to a canonical path on - the proxy's rewritten path isn't guaranteed to
+        // match the one generated here
+        var targetHost = settings.PresentationApiUrl;
 
         var canonicalLocation = BuildCanonicalLocation(context, targetHost);
 
@@ -101,18 +105,19 @@ public class LegacyHostRedirectMiddleware(
         context.Request.Host = HostString.FromUriComponent(targetHost);
         context.Request.Scheme = targetHost.Scheme;
 
-        // RFC 9745 allows either the literal "true" or an HTTP-date of when deprecation took effect -
-        // LegacyHostnameCutoffDate (the date new ids stopped being minted against the legacy host) doubles as that
-        // date here, rather than introducing a second, near-identical setting just for this header
-        var deprecationValue = settings.LegacyHostnameCutoffDate is { } cutoff ? ToHttpDate(cutoff) : "true";
+        // RFC 9745 requires "Deprecation" to be a Structured-Fields Date (RFC 9651 3.3.7 - "@" + seconds since the
+        // Unix epoch) - this is omitted entirely unless LegacyHostnameCutoffDate (the date new ids stopped being minted
+        // against the legacy host, doubling as the date here rather than introducing a second, near-identical setting)
+        // is actually configured
+        var deprecationValue = settings.LegacyHostnameCutoffDate is { } cutoff ? ToStructuredFieldDate(cutoff) : null;
         var sunsetValue = settings.LegacyHostSunsetDate?.UtcDateTime.ToString("R");
 
         context.Response.OnStarting(state =>
         {
-            var (response, location, deprecation, sunset) = ((HttpResponse, string, string, string?))state;
-            response.Headers.Append("Deprecation", deprecation);
+            var (response, location, deprecation, sunset) = ((HttpResponse, string, string?, string?))state;
+            if (!string.IsNullOrEmpty(deprecation)) response.Headers.Append("Deprecation", deprecation);
             response.Headers.Append("Link", $"<{location}>; rel=\"successor-version\"");
-            if (sunset is not null) response.Headers.Append("Sunset", sunset);
+            if (!string.IsNullOrEmpty(sunset)) response.Headers.Append("Sunset", sunset);
             return Task.CompletedTask;
         }, (context.Response, canonicalLocation, deprecationValue, sunsetValue));
 
@@ -137,11 +142,11 @@ public class LegacyHostRedirectMiddleware(
         }.Uri.AbsoluteUri;
 
     /// <summary>
-    /// Formats as an HTTP-date (e.g. "Fri, 01 Jan 2027 00:00:00 GMT") for the Deprecation/Sunset response headers.
-    /// "R" alone doesn't convert to UTC first - it just labels whatever clock values the DateTime already holds as
-    /// "GMT" - so this converts explicitly first, rather than risk a wrong date for a non-UTC configured value.
+    /// Formats as a Structured-Fields Date (RFC 9651 section 3.3.7 - "@" followed by signed seconds since the Unix
+    /// epoch, e.g. "@1767225600") for the "Deprecation" response header - RFC 9745 requires this exact form, not a
+    /// free-text HTTP-date and not a bare "true".
     /// </summary>
-    private static string ToHttpDate(DateTime value)
+    private static string ToStructuredFieldDate(DateTime value)
     {
         var utc = value.Kind switch
         {
@@ -149,7 +154,7 @@ public class LegacyHostRedirectMiddleware(
             DateTimeKind.Local => value.ToUniversalTime(),
             _ => DateTime.SpecifyKind(value, DateTimeKind.Utc) // Unspecified - assume already-UTC, per convention
         };
-        return utc.ToString("R");
+        return $"@{new DateTimeOffset(utc).ToUnixTimeSeconds()}";
     }
 
     private static bool IsMutatingMethod(string method) =>
