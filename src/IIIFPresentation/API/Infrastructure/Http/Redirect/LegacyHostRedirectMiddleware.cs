@@ -48,7 +48,7 @@ public class LegacyHostRedirectMiddleware(
     /// <see cref="PathSettings.GetPresentationUrl"/> - defaulting it there would be a much larger, unrelated
     /// behaviour change.
     /// </summary>
-    private static readonly DateTime DefaultDeprecationDate = new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTimeOffset DefaultDeprecationDate = new(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -153,19 +153,9 @@ public class LegacyHostRedirectMiddleware(
 
     /// <summary>
     /// Formats as a Structured-Fields Date (RFC 9651 section 3.3.7 - "@" followed by signed seconds since the Unix
-    /// epoch, e.g. "@1767225600") for the "Deprecation" response header - RFC 9745 requires this exact form, not a
-    /// free-text HTTP-date and not a bare "true".
+    /// epoch, e.g. "@1767225600") for the "Deprecation" response header - RFC 9745 requires this exact form.
     /// </summary>
-    private static string ToStructuredFieldDate(DateTime value)
-    {
-        var utc = value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc) // Unspecified - assume already-UTC, per convention
-        };
-        return $"@{new DateTimeOffset(utc).ToUnixTimeSeconds()}";
-    }
+    private static string ToStructuredFieldDate(DateTimeOffset value) => $"@{value.ToUnixTimeSeconds()}";
 
     private static bool IsMutatingMethod(string method) =>
         HttpMethods.IsPut(method) || HttpMethods.IsPost(method) || HttpMethods.IsDelete(method) ||

@@ -275,11 +275,10 @@ public class LegacyHostRedirectMiddlewareCutoffDateOnlyTests : IClassFixture<Pre
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
                 .WithConfigValue("PathSettings:LegacyPresentationApiUrl", $"https://{LegacyHost}")
-                // Deliberately no "Z"/offset suffix - exercises the DateTimeKind.Unspecified branch of
-                // LegacyHostRedirectMiddleware.ToStructuredFieldDate (the "Z"/offset-suffixed form used elsewhere
-                // in this file instead binds to DateTimeKind.Local, per config binder behaviour - both need
-                // covering)
-                .WithConfigValue("PathSettings:LegacyHostnameCutoffDate", "2026-01-01T00:00:00"));
+                // LegacyHostnameCutoffDate is a DateTimeOffset, so this always needs an explicit offset (here "Z")
+                // - omitting it wouldn't be an error, but would be read using the *local server's* offset rather
+                // than UTC (standard DateTimeOffset parsing behaviour), making the value environment-dependent
+                .WithConfigValue("PathSettings:LegacyHostnameCutoffDate", "2026-01-01T00:00:00Z"));
         storageFixture.DbFixture.CleanUp();
     }
 
@@ -293,8 +292,8 @@ public class LegacyHostRedirectMiddlewareCutoffDateOnlyTests : IClassFixture<Pre
         // Act
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
-        // Assert - LegacyHostnameCutoffDate configured on its own: Deprecation carries it (still correctly
-        // formatted despite the Unspecified Kind - assumed already-UTC), Sunset is absent (no LegacyHostSunsetDate)
+        // Assert - LegacyHostnameCutoffDate configured on its own: Deprecation carries it, Sunset is absent (no
+        // LegacyHostSunsetDate)
         response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1767225600");
         response.Headers.Should().NotContainKey("Sunset");
     }
