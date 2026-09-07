@@ -31,14 +31,25 @@ namespace API.Infrastructure.Http.Redirect;
 /// such requests are processed in place - as if they'd arrived on the canonical host - and the legacy host is
 /// flagged as deprecated via the "Deprecation"/"Sunset"/"Link" response headers (RFC 9745/RFC 8594/IANA
 /// "successor-version") instead of a redirect, so the caller keeps working today while being told to move off the
-/// legacy host. "Deprecation" carries <see cref="PathSettings.LegacyHostnameCutoffDate"/> as a Structured-Fields
-/// Date; "Sunset" is omitted unless <see cref="PathSettings.LegacyHostSunsetDate"/> is set.
+/// legacy host. "Deprecation" always carries a Structured-Fields Date - <see cref="PathSettings.LegacyHostnameCutoffDate"/>
+/// when set, else <see cref="DefaultDeprecationDate"/> - RFC 9745 has no "unknown date" form to omit it with,
+/// unlike "Sunset", which is omitted unless <see cref="PathSettings.LegacyHostSunsetDate"/> is set.
 /// </remarks>
 public class LegacyHostRedirectMiddleware(
     RequestDelegate next,
     IOptions<PathSettings> pathSettings,
     ILogger<LegacyHostRedirectMiddleware> logger)
 {
+    /// <summary>
+    /// Fallback date for the "Deprecation" header when <see cref="PathSettings.LegacyHostnameCutoffDate"/> isn't
+    /// configured - RFC 9745 requires "Deprecation" to always carry a date, unlike "Sunset" which can simply be
+    /// omitted. Deliberately a constant here rather than a default value on <see cref="PathSettings.LegacyHostnameCutoffDate"/>
+    /// itself, since that setting also independently drives id-generation cutoff logic in
+    /// <see cref="PathSettings.GetPresentationUrl"/> - defaulting it there would be a much larger, unrelated
+    /// behaviour change.
+    /// </summary>
+    private static readonly DateTime DefaultDeprecationDate = new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+
     public async Task InvokeAsync(HttpContext context)
     {
         var settings = pathSettings.Value;
@@ -106,16 +117,15 @@ public class LegacyHostRedirectMiddleware(
         context.Request.Scheme = targetHost.Scheme;
 
         // RFC 9745 requires "Deprecation" to be a Structured-Fields Date (RFC 9651 3.3.7 - "@" + seconds since the
-        // Unix epoch) - this is omitted entirely unless LegacyHostnameCutoffDate (the date new ids stopped being minted
-        // against the legacy host, doubling as the date here rather than introducing a second, near-identical setting)
-        // is actually configured
-        var deprecationValue = settings.LegacyHostnameCutoffDate is { } cutoff ? ToStructuredFieldDate(cutoff) : null;
+        // Unix epoch) - there's no "unknown date" form to omit it with, so this always has a value: the configured
+        // LegacyHostnameCutoffDate if set, else DefaultDeprecationDate
+        var deprecationValue = ToStructuredFieldDate(settings.LegacyHostnameCutoffDate ?? DefaultDeprecationDate);
         var sunsetValue = settings.LegacyHostSunsetDate?.UtcDateTime.ToString("R");
 
         context.Response.OnStarting(state =>
         {
-            var (response, location, deprecation, sunset) = ((HttpResponse, string, string?, string?))state;
-            if (!string.IsNullOrEmpty(deprecation)) response.Headers.Append("Deprecation", deprecation);
+            var (response, location, deprecation, sunset) = ((HttpResponse, string, string, string?))state;
+            response.Headers.Append("Deprecation", deprecation);
             response.Headers.Append("Link", $"<{location}>; rel=\"successor-version\"");
             if (!string.IsNullOrEmpty(sunset)) response.Headers.Append("Sunset", sunset);
             return Task.CompletedTask;
