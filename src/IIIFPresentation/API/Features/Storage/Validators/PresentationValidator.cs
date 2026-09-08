@@ -35,8 +35,6 @@ public class PresentationValidator : AbstractValidator<IPresentation>
         RuleFor(f => f.Slug)
             .Must(slug => !settings.ProhibitedSlugCharacters.Any(slug!.Contains))
             .WithMessage($"'slug' contains a prohibited character. Cannot contain any of: {settings.ProhibitedSlugCharactersDisplay}")
-            .Must(slug => !Uri.IsWellFormedUriString(slug, UriKind.Absolute))
-            .WithMessage("'slug' cannot be a fully qualified URI")
             .When(f => !string.IsNullOrEmpty(f.Slug));
 
         RuleFor(f => f.PublicId)

@@ -38,9 +38,11 @@ public class ApiSettings
     public int FinishedPipelinesLimit { get; set; } = 20;
 
     /// <summary>
-    /// Strings that are not permitted in a 'slug'
+    /// Strings that are not permitted in a 'slug'. These are characters that are significant in a URI path
+    /// (a path separator, or ones that introduce a query string or fragment), which would otherwise let a slug
+    /// change how the resulting URI is interpreted/routed.
     /// </summary>
-    public string[] ProhibitedSlugCharacters { get; set; } = ["/"];
+    public string[] ProhibitedSlugCharacters { get; set; } = ["/", "?", "#", "&"];
 
     public string ProhibitedSlugCharactersDisplay =>
         string.Join(", ", ProhibitedSlugCharacters.Select(p => $"'{p}'"));

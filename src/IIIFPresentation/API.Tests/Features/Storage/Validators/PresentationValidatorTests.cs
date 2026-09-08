@@ -45,18 +45,14 @@ public class PresentationValidatorTests
     [InlineData("foo/bar")]
     [InlineData("/foo")]
     [InlineData("foo/")]
-    public void Slug_CannotContainForwardSlash(string slug)
-    {
-        var manifest = new PresentationManifest { Slug = slug };
-
-        var result = sut.TestValidate(manifest);
-        result.ShouldHaveValidationErrorFor(m => m.Slug);
-    }
-
-    [Theory]
     [InlineData("https://example.com/foo")]
     [InlineData("http://example.org")]
-    public void Slug_CannotBeFullyQualifiedUri(string slug)
+    [InlineData("foo?bar=baz")]
+    [InlineData("foo&bar=baz")]
+    [InlineData("foo#bar")]
+    [InlineData("foo?bar=baz&quz=qux#hello")]
+    [InlineData("ark?123::asd")]
+    public void Slug_CannotContainProhibitedCharacter(string slug)
     {
         var manifest = new PresentationManifest { Slug = slug };
 
@@ -67,6 +63,9 @@ public class PresentationValidatorTests
     [Theory]
     [InlineData("normal-slug")]
     [InlineData("example.com")]
+    [InlineData("first:-second")]
+    [InlineData("foo:bar")]
+    [InlineData("urn:isbn:123")]
     public void Slug_ValidValues_NoValidationError(string slug)
     {
         var manifest = new PresentationManifest { Slug = slug, PublicId = "https://example.com/1/manifests/foo" };
