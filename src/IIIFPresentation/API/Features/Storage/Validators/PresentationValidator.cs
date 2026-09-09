@@ -35,7 +35,7 @@ public class PresentationValidator : AbstractValidator<IPresentation>
 
         RuleFor(f => f.Slug)
             .Must(slug => Regex.IsMatch(slug!, settings.AllowedSlugCharacters))
-            .WithMessage("'slug' contains a character that isn't allowed. Only letters, digits, '.', ':', '_' and '-' are permitted")
+            .WithMessage($"'slug' contains a character that isn't allowed. Must match {settings.AllowedSlugCharacters}")
             .When(f => !string.IsNullOrEmpty(f.Slug));
 
         RuleFor(f => f.PublicId)
