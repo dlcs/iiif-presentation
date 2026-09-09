@@ -1,4 +1,5 @@
-﻿using API.Settings;
+﻿using System.Text.RegularExpressions;
+using API.Settings;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API;
@@ -33,8 +34,8 @@ public class PresentationValidator : AbstractValidator<IPresentation>
             .WithMessage("'slug' cannot be one of prohibited terms: '{PropertyValue}'");
 
         RuleFor(f => f.Slug)
-            .Must(slug => !settings.ProhibitedSlugCharacters.Any(slug!.Contains))
-            .WithMessage($"'slug' contains a prohibited character. Cannot contain any of: {settings.ProhibitedSlugCharactersDisplay}")
+            .Must(slug => Regex.IsMatch(slug!, settings.AllowedSlugCharacters))
+            .WithMessage("'slug' contains a character that isn't allowed. Only letters, digits, '.', ':', '_' and '-' are permitted")
             .When(f => !string.IsNullOrEmpty(f.Slug));
 
         RuleFor(f => f.PublicId)

@@ -52,7 +52,9 @@ public class PresentationValidatorTests
     [InlineData("foo#bar")]
     [InlineData("foo?bar=baz&quz=qux#hello")]
     [InlineData("ark?123::asd")]
-    public void Slug_CannotContainProhibitedCharacter(string slug)
+    [InlineData("foo bar")]
+    [InlineData("foo!bar")]
+    public void Slug_CannotContainDisallowedCharacter(string slug)
     {
         var manifest = new PresentationManifest { Slug = slug };
 
@@ -66,6 +68,9 @@ public class PresentationValidatorTests
     [InlineData("first:-second")]
     [InlineData("foo:bar")]
     [InlineData("urn:isbn:123")]
+    [InlineData("Mixed-Case-Slug")]
+    [InlineData("UPPERCASE")]
+    [InlineData("foo_bar")]
     public void Slug_ValidValues_NoValidationError(string slug)
     {
         var manifest = new PresentationManifest { Slug = slug, PublicId = "https://example.com/1/manifests/foo" };
