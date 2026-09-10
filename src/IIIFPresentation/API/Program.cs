@@ -133,7 +133,8 @@ var legacyHostConfigured = !string.IsNullOrEmpty(
 
 app
     .UseForwardedHeaders()
-    .UseMiddleware<CorrelationIdMiddleware>();
+    .UseMiddleware<CorrelationIdMiddleware>()
+    .UseCors(corsPolicyName);
 
 if (legacyHostConfigured) app.UseMiddleware<LegacyHostRedirectMiddleware>();
 
@@ -147,8 +148,7 @@ app
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()
-    .UseSerilogRequestLogging()
-    .UseCors(corsPolicyName);
+    .UseSerilogRequestLogging();
 
 app.MapControllers();
 

@@ -153,6 +153,26 @@ public class LegacyHostRedirectMiddlewareTests : IClassFixture<PresentationAppFa
     }
 
     [Fact]
+    public async Task Get_CrossOrigin_RedirectResponse_HasCorsHeaders()
+    {
+        // Arrange - CorsMiddleware runs ahead of LegacyHostRedirectMiddleware in the pipeline specifically so that
+        // its headers make it onto this redirect response too, rather than only onto responses that reach
+        // MapControllers via next()
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/some/hierarchical/path");
+        AddLegacyHostHeader(requestMessage);
+        requestMessage.Headers.Add("Origin", "https://example.com");
+
+        // Act
+        var response = await httpClient.SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        // The configured Cors policy is AllowAnyOrigin, so it emits a literal "*" rather than echoing the request's
+        // Origin - just checking the header exists on this response is what's actually under test here
+        response.Headers.GetValues("Access-Control-Allow-Origin").Should().ContainSingle().Which.Should().Be("*");
+    }
+
+    [Fact]
     public async Task Get_NonLegacyHost_IsNotRedirected()
     {
         // Act - no Host header override, so this hits the default test host rather than the configured legacy one
