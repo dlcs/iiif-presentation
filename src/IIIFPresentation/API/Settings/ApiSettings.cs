@@ -38,12 +38,12 @@ public class ApiSettings
     public int FinishedPipelinesLimit { get; set; } = 20;
 
     /// <summary>
-    /// Strings that are not permitted in a 'slug'
+    /// Regex describing the characters permitted in a 'slug'. Only letters, digits, '-', '_', ':' and '.' are
+    /// allowed - this avoids characters that are significant in a URI path (a path separator, or ones that
+    /// introduce a query string or fragment), which would otherwise let a slug change how the resulting URI is
+    /// interpreted/routed.
     /// </summary>
-    public string[] ProhibitedSlugCharacters { get; set; } = ["/"];
-
-    public string ProhibitedSlugCharactersDisplay =>
-        string.Join(", ", ProhibitedSlugCharacters.Select(p => $"'{p}'"));
+    public string AllowedSlugCharacters { get; set; } = "^[a-zA-Z0-9._:-]+$";
 
     public required AWSSettings AWS { get; set; }
 
