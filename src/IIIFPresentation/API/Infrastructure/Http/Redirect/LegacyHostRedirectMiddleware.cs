@@ -113,7 +113,7 @@ public class LegacyHostRedirectMiddleware(
 
         var originalHost = context.Request.Host;
         var originalScheme = context.Request.Scheme;
-        context.Request.Host = HostString.FromUriComponent(targetHost);
+        context.Request.Host = HostStringWithoutDefaultPort(targetHost);
         context.Request.Scheme = targetHost.Scheme;
 
         // RFC 9745 requires "Deprecation" to be a Structured-Fields Date (RFC 9651 3.3.7 - "@" + seconds since the
@@ -150,6 +150,15 @@ public class LegacyHostRedirectMiddleware(
             Path = context.Request.Path.Value,
             Query = context.Request.QueryString.Value
         }.Uri.AbsoluteUri;
+
+    /// <summary>
+    /// Builds a <see cref="HostString"/> for <paramref name="targetHost"/>, omitting its port when that port is
+    /// just the scheme's default - unlike <see cref="HostString.FromUriComponent(Uri)"/>, which always includes it
+    /// (e.g. "example.com:443" for a plain "https://example.com" with no port of its own). Downstream id/url
+    /// generation reads this host verbatim, so an unwanted default port here would end up baked into every path.
+    /// </summary>
+    private static HostString HostStringWithoutDefaultPort(Uri targetHost) =>
+        targetHost.IsDefaultPort ? new HostString(targetHost.Host) : new HostString(targetHost.Host, targetHost.Port);
 
     /// <summary>
     /// Formats as a Structured-Fields Date (RFC 9651 section 3.3.7 - "@" followed by signed seconds since the Unix
