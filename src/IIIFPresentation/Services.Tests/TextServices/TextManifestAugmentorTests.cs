@@ -1,3 +1,4 @@
+using DLCS;
 using FakeItEasy;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
@@ -5,8 +6,10 @@ using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Search.V2;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using DbManifest = Models.Database.Collections.Manifest;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 using Services.TextServices;
 
 namespace Services.Tests.TextServices;
@@ -128,6 +131,36 @@ public class TextManifestAugmentorTests
     }
 
     [Fact]
+    public async Task Augment_DoesNotThrow_WhenAugmentedManifestHasDuplicateCanvasIds()
+    {
+        // A duplicate canvas id in text-services' response shouldn't abort augmentation entirely - the SQS handler
+        // catches unhandled exceptions from Augment and retries the message indefinitely, so a permanently
+        // malformed text-services response would otherwise wedge that job forever.
+        var linesRef = new AnnotationPage { Id = "https://example.com/annotations/lines/0/v1" };
+        var augmented = new Manifest
+        {
+            Items =
+            [
+                new Canvas { Id = "https://example.com/canvas/1", Annotations = [linesRef] },
+                new Canvas { Id = "https://example.com/canvas/1" }
+            ]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items = [new Canvas { Id = "https://example.com/canvas/1" }]
+        };
+
+        var act = () => sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+        manifest.Items!.Single().Annotations.Should().ContainSingle(a => a.Id == linesRef.Id);
+    }
+
+    [Fact]
     public async Task Augment_DoesNotAddCanvasAnnotations_WhenNoCanvasIdMatches()
     {
         var linesRef = new AnnotationPage { Id = "https://example.com/annotations/lines/0/v1" };
@@ -147,6 +180,43 @@ public class TextManifestAugmentorTests
         var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
 
         result.Items!.Single().Annotations.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Augment_DoesNotDuplicateRendering_WhenCustomerSuppliedRenderingAlreadyUsesTheRewrittenId()
+    {
+        // Exercises a real ITextServiceIdRewriter (not the no-op fake used elsewhere in this file) together with
+        // the merge/dedupe below - this is the whole reason ids are rewritten before AddDistinctById runs: a
+        // customer-supplied rendering that already uses the correctly-rewritten id must be recognised as the same
+        // resource, not duplicated alongside a second entry still in text-services' raw shape.
+        var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://rewritten.example") };
+        var dlcsSettings = new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.example"), OrchestratorUri = pathSettings.PresentationApiUrl
+        };
+        var realRewriter = new TextServiceIdRewriter(Options.Create(pathSettings), Options.Create(dlcsSettings),
+            new NullLogger<TextServiceIdRewriter>());
+        var augmentor =
+            new TextManifestAugmentor(textSearchClient, realRewriter, new NullLogger<TextManifestAugmentor>());
+
+        var dbManifest = new DbManifest { Id = "my-manifest", CustomerId = 1 };
+        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
+        var rewrittenId = $"https://rewritten.example/pdf/v1/{jobId}";
+
+        var pdfRendering = new ExternalResource("Text") { Id = $"https://text-services.internal/pdf/v1/{jobId}" };
+        var augmented = new Manifest { Rendering = [pdfRendering] };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://rewritten.example/manifest",
+            Rendering = [new ExternalResource("Text") { Id = rewrittenId }]
+        };
+
+        var result = await augmentor.Augment(manifest, dbManifest, CancellationToken.None);
+
+        result.Rendering.Should().ContainSingle(r => r.Id == rewrittenId);
     }
 
     [Fact]

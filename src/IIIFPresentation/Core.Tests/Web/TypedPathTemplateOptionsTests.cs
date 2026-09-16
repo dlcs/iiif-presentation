@@ -99,6 +99,16 @@ public class TypedPathTemplateOptionsTests
         actual["ManifestPrivate"].Template.Should().Be("/{customerId}/manifests/{resourceId}");
     }
 
+    [Theory]
+    [InlineData("TextServiceJob")]
+    [InlineData("TextServiceSearchService")]
+    [InlineData("TextServiceRendering")]
+    [InlineData("TextServiceAnnotations")]
+    public void OutboundOnlyTypes_ContainsAllTextServiceTypes(string type)
+    {
+        TypedPathTemplateOptions.OutboundOnlyTypes.Should().Contain(type);
+    }
+
     [Fact]
     public void GetPathTemplateForHostAndType_FallsBackToTextServiceJobDefault_WhenFallbackTypeNotConfigured()
     {

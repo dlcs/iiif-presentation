@@ -1,3 +1,4 @@
+using DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Search.V2;
@@ -25,7 +26,10 @@ public interface ITextServiceIdRewriter
     void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId);
 }
 
-public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<TextServiceIdRewriter> logger)
+public class TextServiceIdRewriter(
+    IOptions<PathSettings> pathOptions,
+    IOptions<DlcsSettings> dlcsOptions,
+    ILogger<TextServiceIdRewriter> logger)
     : ITextServiceIdRewriter
 {
     /// <summary>
@@ -34,7 +38,9 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
     /// re-templating the id-portion per link category via PathRules (<see cref="PresentationResourceType.TextServiceSearchService"/>,
     /// <see cref="PresentationResourceType.TextServiceRendering"/>,
     /// <see cref="PresentationResourceType.TextServiceAnnotations"/> - each falling back to
-    /// <see cref="PresentationResourceType.TextServiceJob"/>'s template when not explicitly configured).
+    /// <see cref="PresentationResourceType.TextServiceJob"/>'s template when not explicitly configured). Only
+    /// rewrites the id of each top-level resource in a container (e.g. an <see cref="AnnotationPage"/>'s own id) -
+    /// text-services is not expected to nest further ids (e.g. per-annotation ids) inside those containers.
     /// </summary>
     /// <remarks>
     /// text-services builds its search/rendering/annotation URLs from the X-Forwarded-Host/-Path we send (see
@@ -45,24 +51,20 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
     public void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId)
     {
         var targetHost = pathOptions.Value.GetPresentationUrl(dbManifest.CustomerId, dbManifest.Created);
+        
+        var jobIdString = jobId.ToString();
+        
+        var orchestratorHost = dlcsOptions.Value.GetOrchestratorUri(dbManifest.CustomerId).Host;
+        var configuredJobId =
+            ResolveDestination(PresentationResourceType.TextServiceJob, orchestratorHost, jobId).Suffix;
 
-        // The literal id text-services embeds when it falls back to the plain job id (i.e. doesn't honour our
-        // forwarded host/path at all - see the allowlist note above) - TextJobId's own ToString() shape.
-        var rawId = jobId.ToString();
-
-        // What TextServiceJob currently resolves to for this host - the "fallback" shape every category inherits
-        // when it has no override of its own (see TypedPathTemplateOptions' FallbackTypes), and also what
-        // text-services embeds if it *does* honour our forwarded X-Forwarded-Path, which is built from this same
-        // template (see TextSearchClient.GetForwardedJobId). Searching for this - not just rawId - means a
-        // category-specific override (e.g. TextServiceRendering) correctly overwrites whatever TextServiceJob's
-        // own template currently produces for this host, purely from config, with no hardcoded assumptions here
-        // about what that template looks like.
-        var fallbackId = ResolveIdSuffix(PresentationResourceType.TextServiceJob, targetHost, jobId);
-
-        var searchIdSuffix = ResolveIdSuffix(PresentationResourceType.TextServiceSearchService, targetHost, jobId);
-        var renderingIdSuffix = ResolveIdSuffix(PresentationResourceType.TextServiceRendering, targetHost, jobId);
-        var annotationsIdSuffix =
-            ResolveIdSuffix(PresentationResourceType.TextServiceAnnotations, targetHost, jobId);
+        // The destination shapes below are always resolved for the target (customer-facing) host - this is where
+        // the rewritten links need to resolve, regardless of which host text-services' response was shaped for -
+        // unless the configured template is itself an absolute URL, in which case it names its own destination host.
+        var searchId = ResolveDestination(PresentationResourceType.TextServiceSearchService, targetHost.Host, jobId);
+        var renderingId = ResolveDestination(PresentationResourceType.TextServiceRendering, targetHost.Host, jobId);
+        var annotationsId =
+            ResolveDestination(PresentationResourceType.TextServiceAnnotations, targetHost.Host, jobId);
 
         var rewritten = 0;
 
@@ -70,11 +72,11 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
         {
             foreach (var searchService in augmented.Service.OfType<SearchService2>())
             {
-                rewritten += RewriteId(searchService, rawId, fallbackId, searchIdSuffix, targetHost);
+                rewritten += RewriteId(searchService, jobIdString, configuredJobId, searchId, targetHost);
                 if (searchService.Service == null) continue;
                 foreach (var nested in searchService.Service)
                 {
-                    rewritten += RewriteId(nested, rawId, fallbackId, searchIdSuffix, targetHost);
+                    rewritten += RewriteId(nested, jobIdString, configuredJobId, searchId, targetHost);
                 }
             }
         }
@@ -83,7 +85,7 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
         {
             foreach (var rendering in augmented.Rendering)
             {
-                rewritten += RewriteId(rendering, rawId, fallbackId, renderingIdSuffix, targetHost);
+                rewritten += RewriteId(rendering, jobIdString, configuredJobId, renderingId, targetHost);
             }
         }
 
@@ -91,7 +93,7 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
         {
             foreach (var annotation in augmented.Annotations)
             {
-                rewritten += RewriteId(annotation, rawId, fallbackId, annotationsIdSuffix, targetHost);
+                rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
             }
         }
 
@@ -102,7 +104,7 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
                 if (canvas.Annotations == null) continue;
                 foreach (var annotation in canvas.Annotations)
                 {
-                    rewritten += RewriteId(annotation, rawId, fallbackId, annotationsIdSuffix, targetHost);
+                    rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
                 }
             }
         }
@@ -112,30 +114,65 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
     }
 
     /// <summary>
-    /// Resolves the id-portion template for a link category, keyed by <paramref name="targetHost"/> (the same
-    /// host these links are being rewritten onto), and renders it for this job.
+    /// The id-portion template for a link category, resolved for this job. Normally just <see cref="Suffix"/> - a
+    /// path to splice onto the target host in place of whatever job-id shape was matched (see RewriteId). If the
+    /// configured template was itself an absolute URL though, it names the rewritten id's destination outright:
+    /// <see cref="AbsoluteId"/> is that full id, used as-is instead of being spliced onto anything.
     /// </summary>
-    private string ResolveIdSuffix(string resourceType, Uri targetHost, TextJobId jobId)
+    private readonly record struct ResolvedId(string Suffix, Uri? AbsoluteId);
+
+    /// <summary>
+    /// Resolves the destination template for a link category, keyed by <paramref name="host"/>, and renders it for
+    /// this job.
+    /// </summary>
+    private ResolvedId ResolveDestination(string resourceType, string host, TextJobId jobId)
     {
-        var template = pathOptions.Value.PathRules.GetPathTemplateForHostAndType(targetHost.Host, resourceType);
-        return template.GeneratePath(jobId.CustomerId, resourceId: jobId.ResourceId).TrimStart('/');
+        var template = pathOptions.Value.PathRules.GetPathTemplateForHostAndType(host, resourceType);
+        var generated = template.GeneratePath(jobId.CustomerId, resourceId: jobId.ResourceId);
+
+        // A PathRules template may be configured as an absolute URL (as e.g. ResourcePublic can be, per
+        // PathRewriteParser) - when it is, it names the rewritten id's destination outright (see RewriteId), not
+        // just an id-portion to graft onto the target presentation host.
+        if (Uri.TryCreate(generated, UriKind.Absolute, out var absolute) &&
+            (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
+        {
+            return new ResolvedId(string.Empty, absolute);
+        }
+
+        return new ResolvedId(generated.TrimStart('/'), null);
     }
 
-    private static int RewriteId(IResource resource, string rawId, string fallbackId, string newIdSuffix,
-        Uri targetHost)
+    private int RewriteId(IResource resource, string rawId, string configuredJobId, ResolvedId newId, Uri targetHost)
     {
         if (string.IsNullOrEmpty(resource.Id)) return 0;
 
-        // fallbackId (what TextServiceJob currently resolves to for this host, from PathRules config) is always
-        // preferred over rawId (the bare, unconfigurable job id, used only when text-services doesn't honour our
-        // forwarding at all) - rawId is a last-resort match, not an equal alternative.
-        var rewrittenId = resource.Id.Contains(fallbackId, StringComparison.Ordinal)
-            ? resource.Id.Replace(fallbackId, newIdSuffix, StringComparison.Ordinal)
-            : resource.Id.Contains(rawId, StringComparison.Ordinal)
-                ? resource.Id.Replace(rawId, newIdSuffix, StringComparison.Ordinal)
-                : resource.Id;
+        var matched = SelectMatchingSuffix(resource.Id, configuredJobId, rawId);
+        if (matched == null)
+        {
+            logger.LogWarning(
+                "Could not find a recognised job-id shape (expected suffix {ConfiguredJobId} or {RawId}) in " +
+                "text-services id {Id} - leaving it unrewritten", configuredJobId, rawId, resource.Id);
+            return 0;
+        }
 
-        if (!Uri.TryCreate(rewrittenId, UriKind.Absolute, out var parsed)) return 0;
+        // An absolute-URL template names the destination outright - use it as-is rather than splicing it onto
+        // whatever text-services' original id looked like.
+        if (newId.AbsoluteId != null)
+        {
+            resource.Id = newId.AbsoluteId.ToString();
+            return 1;
+        }
+
+        // Remove everything that we've matched as not needed, and replace it with the new suffix
+        var rewrittenId = resource.Id[..^matched.Length] + newId.Suffix;
+
+        if (!Uri.TryCreate(rewrittenId, UriKind.Absolute, out var parsed))
+        {
+            logger.LogWarning(
+                "Rewritten text-services id {RewrittenId} is not a valid absolute URI - leaving {Id} unrewritten",
+                rewrittenId, resource.Id);
+            return 0;
+        }
 
         resource.Id = new UriBuilder(parsed)
         {
@@ -144,5 +181,29 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
             Port = targetHost.IsDefaultPort ? -1 : targetHost.Port,
         }.Uri.ToString();
         return 1;
+    }
+
+    /// <summary>
+    /// Picks whichever of <paramref name="configuredJobId"/>/<paramref name="jobId"/> is present as a
+    /// path-segment-anchored suffix of <paramref name="id"/>
+    /// </summary>
+    private static string? SelectMatchingSuffix(string id, string configuredJobId, string jobId)
+    {
+        var configuredMatches = EndsWithSegment(id, configuredJobId);
+        var rawMatches = EndsWithSegment(id, jobId);
+
+        // Both can match when one is a suffix of the other (e.g. configuredJobId "my-manifest" within jobId
+        // "1/iiif/my-manifest") - picking the shorter one there would leave the longer one's extra prefix behind,
+        // orphaned, in the rewritten id, so the longer (more complete) match always wins.
+        if (configuredMatches && rawMatches) return configuredJobId.Length >= jobId.Length ? configuredJobId : jobId;
+        if (configuredMatches) return configuredJobId;
+        return rawMatches ? jobId : null;
+    }
+
+    private static bool EndsWithSegment(string id, string candidate)
+    {
+        if (candidate.Length == 0 || !id.EndsWith(candidate, StringComparison.Ordinal)) return false;
+        var boundaryIndex = id.Length - candidate.Length - 1;
+        return boundaryIndex < 0 || id[boundaryIndex] == '/';
     }
 }

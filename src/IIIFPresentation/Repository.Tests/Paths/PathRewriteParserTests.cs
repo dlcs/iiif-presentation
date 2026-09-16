@@ -163,4 +163,30 @@ public class PathRewriteParserTests
         // Assert - not parsed (would be resource "foo" if TextServiceJob were matched)
         parsedPath.Resource.Should().BeNull();
     }
+
+    [Fact]
+    public void ParsePathWithRewrites_NeverMatchesOtherOutboundOnlyTemplates_EvenIfAddedToDefaults()
+    {
+        // Arrange - TextServiceSearchService/Rendering/Annotations are also outbound-only, but (unlike
+        // TextServiceJob) have no entry of their own in Defaults, so they can't normally reach here - Defaults is
+        // still a public, config-bindable dictionary though, so this proves they're excluded on their own merit
+        // (via TypedPathTemplateOptions.OutboundOnlyTypes), not just because they're usually absent.
+        var options = new TypedPathTemplateOptions
+        {
+            Defaults = new Dictionary<string, PathTemplate>
+            {
+                ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
+                ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
+                ["Canvas"] = "/{customerId}/canvases/{resourceId}",
+                ["TextServiceRendering"] = "/{customerId}/iiif/{resourceId}",
+            }
+        };
+        var parser = new PathRewriteParser(Options.Create(options), new NullLogger<PathRewriteParser>());
+
+        // Act
+        var parsedPath = parser.ParsePathWithRewrites("default-host.com", "1/iiif/foo", 1);
+
+        // Assert - not parsed (would be resource "foo" if TextServiceRendering were matched)
+        parsedPath.Resource.Should().BeNull();
+    }
 }

@@ -31,11 +31,7 @@ public class TextManifestAugmentor(
         var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
 
         var augmented = await textSearchClient.GetTextAugmentedManifest(jobId, cancellationToken);
-        if (augmented == null)
-        {
-            logger.LogDebug("No text-augmented manifest found for job {JobId}", jobId);
-            return manifest;
-        }
+        if (augmented == null) return manifest;
 
         // Rewrite ids onto the correct customer-facing host/path before merging - AddDistinctById below dedupes
         // by exact id match, so this has to happen first for it to correctly recognise a customer-supplied
@@ -118,9 +114,11 @@ public class TextManifestAugmentor(
             return;
         }
 
+        // GroupBy avoids issues with duplicate canvas id's
         var augmentedCanvasesById = augmented.Items
             .Where(c => c.Id != null)
-            .ToDictionary(c => c.Id!);
+            .GroupBy(c => c.Id!)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var canvasesUpdated = 0;
         foreach (var canvas in manifest.Items)

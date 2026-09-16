@@ -39,6 +39,15 @@ public class TypedPathTemplateOptions
     };
 
     /// <summary>
+    /// Types that only ever generate outbound text-service links - never used to match/parse an inbound request
+    /// path (see Repository.Paths.PathRewriteParser.GetValidTemplatesForHost).
+    /// </summary>
+    public static readonly IReadOnlySet<string> OutboundOnlyTypes = new HashSet<string>
+    {
+        TextServiceJob, TextServiceSearchService, TextServiceRendering, TextServiceAnnotations,
+    };
+
+    /// <summary>
     /// Default path names for the different types of path
     /// </summary>
     public Dictionary<string, PathTemplate> Defaults { get; set; } = new(DefaultFormats);
