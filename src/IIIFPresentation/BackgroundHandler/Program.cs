@@ -52,6 +52,7 @@ builder.Services.AddAws(builder.Configuration, builder.Environment)
     .AddScoped<IManifestMerger, ManifestMerger>()
     .AddScoped<IDlcsManifestMerger, DlcsManifestMerger>()
     .AddScoped<ITextManifestAugmentor, TextManifestAugmentor>()
+    .AddScoped<ITextServiceIdRewriter, TextServiceIdRewriter>()
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<ICustomerIdProvider, SetCustomerIdProvider>()
     .Configure<DlcsSettings>(dlcsSettings);

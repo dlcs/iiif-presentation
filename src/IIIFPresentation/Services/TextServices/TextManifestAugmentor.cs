@@ -19,7 +19,10 @@ public interface ITextManifestAugmentor : IManifestAugmentor
 {
 }
 
-public class TextManifestAugmentor(ITextSearchClient textSearchClient, ILogger<TextManifestAugmentor> logger)
+public class TextManifestAugmentor(
+    ITextSearchClient textSearchClient,
+    ITextServiceIdRewriter idRewriter,
+    ILogger<TextManifestAugmentor> logger)
     : ITextManifestAugmentor
 {
     public async Task<Manifest> Augment(Manifest manifest, DbManifest dbManifest, CancellationToken cancellationToken)
@@ -33,6 +36,11 @@ public class TextManifestAugmentor(ITextSearchClient textSearchClient, ILogger<T
             logger.LogDebug("No text-augmented manifest found for job {JobId}", jobId);
             return manifest;
         }
+
+        // Rewrite ids onto the correct customer-facing host/path before merging - AddDistinctById below dedupes
+        // by exact id match, so this has to happen first for it to correctly recognise a customer-supplied
+        // service/rendering/annotation that already uses the correct (rewritten) id.
+        idRewriter.Rewrite(augmented, dbManifest, jobId);
 
         AddSearchServices(manifest, augmented, jobId);
         AddRendering(manifest, augmented, jobId);

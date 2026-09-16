@@ -20,7 +20,10 @@ public class TextManifestAugmentorTests
 
     public TextManifestAugmentorTests()
     {
-        sut = new TextManifestAugmentor(textSearchClient, new NullLogger<TextManifestAugmentor>());
+        // Id rewriting is ITextServiceIdRewriter's own concern, with its own dedicated tests - use a no-op fake
+        // here so these tests can assert on ids exactly as text-services returned them.
+        var idRewriter = A.Fake<ITextServiceIdRewriter>();
+        sut = new TextManifestAugmentor(textSearchClient, idRewriter, new NullLogger<TextManifestAugmentor>());
     }
 
     [Fact]

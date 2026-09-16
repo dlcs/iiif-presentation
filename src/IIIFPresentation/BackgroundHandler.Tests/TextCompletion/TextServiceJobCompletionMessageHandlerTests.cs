@@ -11,7 +11,6 @@ using IIIF.Search.V1;
 using IIIF.Search.V2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Services.Manifests.AWS;
@@ -44,10 +43,13 @@ public class TextServiceJobCompletionMessageHandlerTests
         manifestStorageManager = A.Fake<IManifestStorageManager>();
         textServicesClient = A.Fake<ITextSearchClient>();
 
-        // Use a real augmentor (with the faked text-services client) so the existing augmentation
-        // assertions continue to exercise the search-service merge logic through the handler
+        // Use a real augmentor (with the faked text-services client) so the existing augmentation assertions
+        // continue to exercise the search-service merge logic through the handler. Id rewriting is
+        // ITextServiceIdRewriter's own concern, with its own dedicated tests - use a no-op fake here so these
+        // tests can assert on ids exactly as text-services returned them.
+        var idRewriter = A.Fake<ITextServiceIdRewriter>();
         var textManifestAugmentor =
-            new TextManifestAugmentor(textServicesClient, new NullLogger<TextManifestAugmentor>());
+            new TextManifestAugmentor(textServicesClient, idRewriter, new NullLogger<TextManifestAugmentor>());
 
         sut = new TextServiceJobCompletionMessageHandler(
             sutContext,
