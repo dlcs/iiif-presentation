@@ -126,18 +126,13 @@ public class TextServiceIdRewriter(IOptions<PathSettings> pathOptions, ILogger<T
     {
         if (string.IsNullOrEmpty(resource.Id)) return 0;
 
-        // fallbackId (what TextServiceJob currently resolves to for this host) and rawId (the bare job id, used
-        // when text-services doesn't honour our forwarding at all) are usually identical. When a host override
-        // makes them differ, try the longer one first - otherwise the shorter candidate can false-positive match
-        // as a mere substring of the longer one (e.g. a short "/{resourceId}" override being a substring of the
-        // full "{customerId}/iiif/{resourceId}" job id) and only part of the id gets replaced.
-        var first = fallbackId.Length >= rawId.Length ? fallbackId : rawId;
-        var second = ReferenceEquals(first, fallbackId) ? rawId : fallbackId;
-
-        var rewrittenId = resource.Id.Contains(first, StringComparison.Ordinal)
-            ? resource.Id.Replace(first, newIdSuffix, StringComparison.Ordinal)
-            : resource.Id.Contains(second, StringComparison.Ordinal)
-                ? resource.Id.Replace(second, newIdSuffix, StringComparison.Ordinal)
+        // fallbackId (what TextServiceJob currently resolves to for this host, from PathRules config) is always
+        // preferred over rawId (the bare, unconfigurable job id, used only when text-services doesn't honour our
+        // forwarding at all) - rawId is a last-resort match, not an equal alternative.
+        var rewrittenId = resource.Id.Contains(fallbackId, StringComparison.Ordinal)
+            ? resource.Id.Replace(fallbackId, newIdSuffix, StringComparison.Ordinal)
+            : resource.Id.Contains(rawId, StringComparison.Ordinal)
+                ? resource.Id.Replace(rawId, newIdSuffix, StringComparison.Ordinal)
                 : resource.Id;
 
         if (!Uri.TryCreate(rewrittenId, UriKind.Absolute, out var parsed)) return 0;

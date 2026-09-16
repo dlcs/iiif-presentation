@@ -116,8 +116,11 @@ public class TextServiceIdRewriterTests
     [Fact]
     public void Rewrite_FallsBackToHostsTextServiceJobOverride_ForAnnotations_WhenNotExplicitlyConfigured()
     {
+        // text-services honours our forwarding for this host, so the id it embeds is already in the shape
+        // TextServiceJob's override produces for this host ("my-manifest", from "/{resourceId}") - not the raw
+        // default job-id shape.
         var annotationPage = new AnnotationPage
-            { Id = $"https://text-services.internal/annotations/manifest/v1/{RawId}" };
+            { Id = "https://text-services.internal/annotations/manifest/v1/my-manifest" };
         var augmented = new Manifest { Annotations = [annotationPage] };
 
         // Only TextServiceJob is overridden for this host - TextServiceAnnotations has no override of its own,
