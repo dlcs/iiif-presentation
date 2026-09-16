@@ -78,9 +78,9 @@ public class PathRewriteParser(IOptions<TypedPathTemplateOptions> options, ILogg
 
     private IEnumerable<KeyValuePair<string, PathTemplate>> GetValidTemplatesForHost(string host)
     {
-        // TextServiceJob is an outbound-only template don't use to match inbound paths
+        // Outbound-only templates (e.g. TextServiceJob) are never used to match inbound paths
         var templates = settings.GetPathTemplatesForHost(host)
-            .Where(template => template.Key != PresentationResourceType.TextServiceJob);
+            .Where(template => !TypedPathTemplateOptions.OutboundOnlyTypes.Contains(template.Key));
         return templates;
     }
 

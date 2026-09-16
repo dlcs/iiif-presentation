@@ -9,13 +9,42 @@ public class TypedPathTemplateOptions
 {
     public const string SettingsName = "PathRules";
 
+    // Mirrors Repository.Paths.PresentationResourceType's constants of the same names - duplicated locally
+    // (rather than referenced) because Core cannot take a project reference on Repository (Repository already
+    // depends on Core). Local consts at least keep the key used in DefaultFormats and FallbackTypes below in
+    // sync with each other, even though they can't be checked against PresentationResourceType itself.
+    private const string TextServiceJob = "TextServiceJob";
+    private const string TextServiceSearchService = "TextServiceSearchService";
+    private const string TextServiceRendering = "TextServiceRendering";
+    private const string TextServiceAnnotations = "TextServiceAnnotations";
+
     private static readonly Dictionary<string, PathTemplate> DefaultFormats = new ()
     {
         ["ManifestPrivate"] = "/{customerId}/manifests/{resourceId}",
         ["CollectionPrivate"] = "/{customerId}/collections/{resourceId}",
         ["ResourcePublic"] = "/{customerId}/{hierarchyPath}",
         ["Canvas"] = "/{customerId}/canvases/{resourceId}",
-        ["TextServiceJob"] = "/{customerId}/iiif/{resourceId}",
+        [TextServiceJob] = "/{customerId}/iiif/{resourceId}",
+    };
+
+    /// <summary>
+    /// Types that have no default template of their own - when not explicitly overridden for a host, they fall
+    /// back to that host's <see cref="TextServiceJob"/> template (host override if set, else its default)
+    /// </summary>
+    private static readonly Dictionary<string, string> FallbackTypes = new()
+    {
+        [TextServiceSearchService] = TextServiceJob,
+        [TextServiceRendering] = TextServiceJob,
+        [TextServiceAnnotations] = TextServiceJob,
+    };
+
+    /// <summary>
+    /// Types that only ever generate outbound text-service links - never used to match/parse an inbound request
+    /// path (see Repository.Paths.PathRewriteParser.GetValidTemplatesForHost).
+    /// </summary>
+    public static readonly IReadOnlySet<string> OutboundOnlyTypes = new HashSet<string>
+    {
+        TextServiceJob, TextServiceSearchService, TextServiceRendering, TextServiceAnnotations,
     };
 
     /// <summary>
@@ -40,22 +69,25 @@ public class TypedPathTemplateOptions
     /// </summary>
     /// <param name="host">Host to get template path for.</param>
     /// <param name="type">Type of item to get template path for.</param>
-    /// <returns>Returns path for host, or default if override not found.</returns>
+    /// <returns>
+    /// Host-specific override if set; else that type's default if set; else (for a type in
+    /// <see cref="FallbackTypes"/>) the resolved <see cref="TextServiceJob"/> template for the same host.
+    /// </returns>
     public PathTemplate GetPathTemplateForHostAndType(string host, string type)
     {
-        if (Overrides.TryGetValue(host, out var hostLevel))
+        if (Overrides.TryGetValue(host, out var hostLevel) && hostLevel.TryGetValue(type, out var hostTemplate))
         {
-            return hostLevel.TryGetValue(type, out var hostTemplate) ? hostTemplate : GetPathTemplateForType(type);
+            return hostTemplate;
         }
 
-        return GetPathTemplateForType(type);
-    }
-
-    private PathTemplate GetPathTemplateForType(string type)
-    {
         if (Defaults.TryGetValue(type, out var template))
         {
             return template;
+        }
+
+        if (FallbackTypes.TryGetValue(type, out var fallbackType))
+        {
+            return GetPathTemplateForHostAndType(host, fallbackType);
         }
 
         throw new KeyNotFoundException($"Could not find default path template for type: {type}");

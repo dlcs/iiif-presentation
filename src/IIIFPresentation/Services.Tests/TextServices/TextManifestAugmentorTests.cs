@@ -1,11 +1,15 @@
+using DLCS;
 using FakeItEasy;
-using IIIF;
 using IIIF.Presentation;
 using IIIF.Presentation.V3;
+using IIIF.Presentation.V3.Annotation;
+using IIIF.Presentation.V3.Content;
 using IIIF.Search.V2;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using DbManifest = Models.Database.Collections.Manifest;
 using Newtonsoft.Json.Linq;
+using Services.Manifests.Settings;
 using Services.TextServices;
 
 namespace Services.Tests.TextServices;
@@ -19,7 +23,10 @@ public class TextManifestAugmentorTests
 
     public TextManifestAugmentorTests()
     {
-        sut = new TextManifestAugmentor(textSearchClient, new NullLogger<TextManifestAugmentor>());
+        // Id rewriting is ITextServiceIdRewriter's own concern, with its own dedicated tests - use a no-op fake
+        // here so these tests can assert on ids exactly as text-services returned them.
+        var idRewriter = A.Fake<ITextServiceIdRewriter>();
+        sut = new TextManifestAugmentor(textSearchClient, idRewriter, new NullLogger<TextManifestAugmentor>());
     }
 
     [Fact]
@@ -49,6 +56,192 @@ public class TextManifestAugmentorTests
 
         result.Should().BeSameAs(manifest);
         result.Service.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Augment_AddsRendering_ToManifest()
+    {
+        var pdfRendering = new ExternalResource("Text") { Id = "https://example.com/pdf/v1" };
+        var augmented = new Manifest { Rendering = [pdfRendering] };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest { Id = "https://example.com/manifest" };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Rendering.Should().ContainSingle(r => r.Id == "https://example.com/pdf/v1");
+    }
+
+    [Fact]
+    public async Task Augment_DoesNotDuplicateRendering_WhenAlreadyPresentOnManifest()
+    {
+        var pdfRendering = new ExternalResource("Text") { Id = "https://example.com/pdf/v1" };
+        var augmented = new Manifest { Rendering = [pdfRendering] };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Rendering = [new ExternalResource("Text") { Id = "https://example.com/pdf/v1" }]
+        };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Rendering.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Augment_AddsAnnotations_ToManifest()
+    {
+        var annotationPage = new AnnotationPage { Id = "https://example.com/annotations/1/v1" };
+        var augmented = new Manifest { Annotations = [annotationPage] };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest { Id = "https://example.com/manifest" };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Annotations.Should().ContainSingle(a => a.Id == "https://example.com/annotations/1/v1");
+    }
+
+    [Fact]
+    public async Task Augment_AddsCanvasAnnotations_ToMatchingCanvas()
+    {
+        var linesRef = new AnnotationPage { Id = "https://example.com/annotations/lines/0/v1" };
+        var wordsRef = new AnnotationPage { Id = "https://example.com/annotations/words/0/v1" };
+        var augmented = new Manifest
+        {
+            Items = [new Canvas { Id = "https://example.com/canvas/1", Annotations = [linesRef, wordsRef] }]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items = [new Canvas { Id = "https://example.com/canvas/1" }]
+        };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Items!.Single().Annotations.Should().BeEquivalentTo([linesRef, wordsRef]);
+    }
+
+    [Fact]
+    public async Task Augment_DoesNotThrow_WhenAugmentedManifestHasDuplicateCanvasIds()
+    {
+        // A duplicate canvas id in text-services' response shouldn't abort augmentation entirely - the SQS handler
+        // catches unhandled exceptions from Augment and retries the message indefinitely, so a permanently
+        // malformed text-services response would otherwise wedge that job forever.
+        var linesRef = new AnnotationPage { Id = "https://example.com/annotations/lines/0/v1" };
+        var augmented = new Manifest
+        {
+            Items =
+            [
+                new Canvas { Id = "https://example.com/canvas/1", Annotations = [linesRef] },
+                new Canvas { Id = "https://example.com/canvas/1" }
+            ]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items = [new Canvas { Id = "https://example.com/canvas/1" }]
+        };
+
+        var act = () => sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+        manifest.Items!.Single().Annotations.Should().ContainSingle(a => a.Id == linesRef.Id);
+    }
+
+    [Fact]
+    public async Task Augment_DoesNotAddCanvasAnnotations_WhenNoCanvasIdMatches()
+    {
+        var linesRef = new AnnotationPage { Id = "https://example.com/annotations/lines/0/v1" };
+        var augmented = new Manifest
+        {
+            Items = [new Canvas { Id = "https://example.com/canvas/other", Annotations = [linesRef] }]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items = [new Canvas { Id = "https://example.com/canvas/1" }]
+        };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Items!.Single().Annotations.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Augment_DoesNotDuplicateRendering_WhenCustomerSuppliedRenderingAlreadyUsesTheRewrittenId()
+    {
+        // Exercises a real ITextServiceIdRewriter (not the no-op fake used elsewhere in this file) together with
+        // the merge/dedupe below - this is the whole reason ids are rewritten before AddDistinctById runs: a
+        // customer-supplied rendering that already uses the correctly-rewritten id must be recognised as the same
+        // resource, not duplicated alongside a second entry still in text-services' raw shape.
+        var pathSettings = new PathSettings { PresentationApiUrl = new Uri("https://rewritten.example") };
+        var dlcsSettings = new DlcsSettings
+        {
+            ApiUri = new Uri("https://dlcs.example"), OrchestratorUri = pathSettings.PresentationApiUrl
+        };
+        var realRewriter = new TextServiceIdRewriter(Options.Create(pathSettings), Options.Create(dlcsSettings),
+            new NullLogger<TextServiceIdRewriter>());
+        var augmentor =
+            new TextManifestAugmentor(textSearchClient, realRewriter, new NullLogger<TextManifestAugmentor>());
+
+        var dbManifest = new DbManifest { Id = "my-manifest", CustomerId = 1 };
+        var jobId = new TextJobId(dbManifest.CustomerId, dbManifest.Id);
+        var rewrittenId = $"https://rewritten.example/pdf/v1/{jobId}";
+
+        var pdfRendering = new ExternalResource("Text") { Id = $"https://text-services.internal/pdf/v1/{jobId}" };
+        var augmented = new Manifest { Rendering = [pdfRendering] };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://rewritten.example/manifest",
+            Rendering = [new ExternalResource("Text") { Id = rewrittenId }]
+        };
+
+        var result = await augmentor.Augment(manifest, dbManifest, CancellationToken.None);
+
+        result.Rendering.Should().ContainSingle(r => r.Id == rewrittenId);
+    }
+
+    [Fact]
+    public async Task Augment_AddsSearchServiceRenderingAndAnnotations_WhenAllPresent()
+    {
+        var searchService = new SearchService2 { Id = "https://example.com/search" };
+        var pdfRendering = new ExternalResource("Text") { Id = "https://example.com/pdf/v1" };
+        var annotationPage = new AnnotationPage { Id = "https://example.com/annotations/1/v1" };
+        var augmented = new Manifest
+        {
+            Service = [searchService],
+            Rendering = [pdfRendering],
+            Annotations = [annotationPage]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest { Id = "https://example.com/manifest" };
+        manifest.EnsurePresentation3Context();
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Service.Should().ContainSingle(s => s.Id == "https://example.com/search");
+        result.Rendering.Should().ContainSingle(r => r.Id == "https://example.com/pdf/v1");
+        result.Annotations.Should().ContainSingle(a => a.Id == "https://example.com/annotations/1/v1");
     }
 
     [Fact]

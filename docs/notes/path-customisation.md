@@ -7,15 +7,20 @@ The following resource keys can be configured for different hostnames. These are
 > [!NOTE]
 > Customisation is by hostname, _not_ customer specific. 
 
-| Path Type         | Description                           | Default                                  | Example                     | `{resourceId}`                                                       | Uses                                             |
-| ----------------- | ------------------------------------- | ---------------------------------------- | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
-| ResourcePublic    | Hierarchical Manifest and Collections | `/{customerId}/{hierarchyPath}`          | `/99/path/to/resource`      | N/A                                                                  | `"id"` generation. Incoming resource parsing     |
-| ManifestPrivate   | API Manifests                         | `/{customerId}/manifests/{resourceId}`   | `/99/manifests/abcsa12321`   | Unique Id of Manifest                                                | `"id"` generation. Incoming resource parsing     |
-| CollectionPrivate | API Collections                       | `/{customerId}/collections/{resourceId}` | `/99/collections/coll_1234`  | Unique Id of Collection                                              | `"id"` generation. Incoming resource parsing     |
-| Canvas            | Canvases, all representations         | `/{customerId}/canvases/{resourceId}`    | `/99/collections/canvas_abc` | Unique Id of Canvas                                                  | `"id"` generation. Incoming resource parsing     |
-| TextServiceJob    | TextServices jobId                    | `/{customerId}/iiif/{resourceId}`        | `/99/iiif/my_manifest`       | Id of [TextServices Job](../rfcs/0007-text-services.md#job-identity) | Set `X-Forwarded-Path` for text-service requests |
+| Path Type                | Description                             | Default                                  | Example                      | `{resourceId}`                                                       | Uses                                                             |
+| ------------------------ | ---------------------------------------- | ---------------------------------------- | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ResourcePublic           | Hierarchical Manifest and Collections    | `/{customerId}/{hierarchyPath}`          | `/99/path/to/resource`      | N/A                                                                  | `"id"` generation. Incoming resource parsing                       |
+| ManifestPrivate          | API Manifests                            | `/{customerId}/manifests/{resourceId}`   | `/99/manifests/abcsa12321`  | Unique Id of Manifest                                                | `"id"` generation. Incoming resource parsing                       |
+| CollectionPrivate        | API Collections                          | `/{customerId}/collections/{resourceId}` | `/99/collections/coll_1234` | Unique Id of Collection                                              | `"id"` generation. Incoming resource parsing                       |
+| Canvas                   | Canvases, all representations            | `/{customerId}/canvases/{resourceId}`    | `/99/collections/canvas_abc`| Unique Id of Canvas                                                  | `"id"` generation. Incoming resource parsing                       |
+| TextServiceJob           | TextServices jobId                       | `/{customerId}/iiif/{resourceId}`        | `/99/iiif/my_manifest`      | Id of [TextServices Job](../rfcs/0007-text-services.md#job-identity) | Set `X-Forwarded-Path` for text-service requests. Outbound-only - see note below |
+| TextServiceSearchService | TextServices search/autocomplete links   | Falls back to `TextServiceJob`           | `/99/iiif/my_manifest`      | Id of TextServices Job                                               | Rewrite search/autocomplete service ids returned by text-services. Outbound-only |
+| TextServiceRendering     | TextServices rendering links (e.g. PDF)  | Falls back to `TextServiceJob`           | `/99/iiif/my_manifest`      | Id of TextServices Job                                               | Rewrite rendering ids returned by text-services. Outbound-only     |
+| TextServiceAnnotations   | TextServices annotation links            | Falls back to `TextServiceJob`           | `/99/iiif/my_manifest`      | Id of TextServices Job                                               | Rewrite manifest-/canvas-level annotation ids returned by text-services. Outbound-only |
 
-The above types are managed as constants in `Repository.Paths.PresentationResourceType`.
+The above types are managed as constants in `Repository.Paths.PresentationResourceType`. The outbound-only ones
+(`TypedPathTemplateOptions.OutboundOnlyTypes`) are never used to parse an inbound request path, even if a template
+for one of them is added under `PathRules:Defaults` - see `PathRewriteParser.GetValidTemplatesForHost`.
 
 Related reading
 * [RFC 0003 Identity-Rewrites](../rfcs/0003-identity-rewrites.md)

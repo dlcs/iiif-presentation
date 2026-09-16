@@ -11,4 +11,7 @@ public static class PresentationResourceType
     public const string ResourcePublic = "ResourcePublic";
     public const string Canvas = "Canvas";
     public const string TextServiceJob = "TextServiceJob";
+    public const string TextServiceSearchService = "TextServiceSearchService";
+    public const string TextServiceRendering = "TextServiceRendering";
+    public const string TextServiceAnnotations = "TextServiceAnnotations";
 }
