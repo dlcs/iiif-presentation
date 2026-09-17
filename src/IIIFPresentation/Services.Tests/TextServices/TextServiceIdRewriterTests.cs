@@ -187,13 +187,14 @@ public class TextServiceIdRewriterTests
     }
 
     [Fact]
-    public void Rewrite_ResolvesFallbackId_FromOrchestratorHost_NotPresentationHost()
+    public void Rewrite_ResolvesEverything_FromOrchestratorHost_NotPresentationHost()
     {
         // TextServiceJob is overridden for the DLCS orchestrator host - the host TextSearchClient actually builds
         // the X-Forwarded-Path from (see TextSearchClient.GetForwardedJobId) - not for the customer-facing
-        // presentation host this rewriter targets. text-services embeds ids shaped by the orchestrator host's
-        // template, so that - not the presentation host's (here, unconfigured/default) template - is what the
-        // rewriter needs to search for.
+        // presentation host. text-services embeds ids shaped by the orchestrator host's template, and serves
+        // rendering/annotations/search from that same orchestrator host, so both the search pattern AND the
+        // rewritten destination must resolve against the orchestrator host, not the (here, unconfigured/default)
+        // presentation host's template.
         var annotationPage = new AnnotationPage
             { Id = "https://text-services.internal/annotations/manifest/v1/my-manifest" };
         var augmented = new Manifest { Annotations = [annotationPage] };
@@ -217,9 +218,10 @@ public class TextServiceIdRewriterTests
 
         sut.Rewrite(augmented, DbManifest, JobId);
 
-        annotationPage.Id.Should().Be("https://rewritten.example/annotations/manifest/v1/1/iiif/my-manifest",
+        annotationPage.Id.Should().Be("https://orchestrator.example/annotations/manifest/v1/my-manifest",
             "the orchestrator host's TextServiceJob override is what text-services actually used to shape this " +
-            "id, even though the presentation host (with no override) resolves TextServiceJob differently");
+            "id, and the rewritten id must land on that same orchestrator host, not the (unrelated) presentation " +
+            "host's template");
     }
 
     [Fact]

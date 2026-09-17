@@ -33,7 +33,7 @@ public class TextManifestAugmentor(
         var augmented = await textSearchClient.GetTextAugmentedManifest(jobId, cancellationToken);
         if (augmented == null) return manifest;
 
-        // Rewrite ids onto the correct customer-facing host/path before merging - AddDistinctById below dedupes
+        // Rewrite ids onto the correct orchestrator host/path before merging - AddDistinctById below dedupes
         // by exact id match, so this has to happen first for it to correctly recognise a customer-supplied
         // service/rendering/annotation that already uses the correct (rewritten) id.
         idRewriter.Rewrite(augmented, dbManifest, jobId);
