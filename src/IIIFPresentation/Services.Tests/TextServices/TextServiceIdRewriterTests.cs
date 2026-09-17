@@ -190,11 +190,8 @@ public class TextServiceIdRewriterTests
     public void Rewrite_ResolvesEverything_FromOrchestratorHost_NotPresentationHost()
     {
         // TextServiceJob is overridden for the DLCS orchestrator host - the host TextSearchClient actually builds
-        // the X-Forwarded-Path from (see TextSearchClient.GetForwardedJobId) - not for the customer-facing
-        // presentation host. text-services embeds ids shaped by the orchestrator host's template, and serves
-        // rendering/annotations/search from that same orchestrator host, so both the search pattern AND the
-        // rewritten destination must resolve against the orchestrator host, not the (here, unconfigured/default)
-        // presentation host's template.
+        // the X-Forwarded-Path from (see TextSearchClient.GetForwardedJobId) text-services embeds ids shaped by
+        // the orchestrator host's template, and serves rendering/annotations/search.
         var annotationPage = new AnnotationPage
             { Id = "https://text-services.internal/annotations/manifest/v1/my-manifest" };
         var augmented = new Manifest { Annotations = [annotationPage] };

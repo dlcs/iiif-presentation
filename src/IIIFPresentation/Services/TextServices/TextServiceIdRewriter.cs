@@ -44,10 +44,7 @@ public class TextServiceIdRewriter(
     /// </summary>
     /// <remarks>
     /// text-services builds its search/rendering/annotation URLs from the X-Forwarded-Host/-Path we send (see
-    /// <see cref="TextSearchClient"/>), which is always the orchestrator host - these resources are served from
-    /// there, not from the presentation host. text-services only honours our forwarded host/path when it's in
-    /// *its own* server-side allowlist though, so a config change on our side isn't guaranteed to take effect
-    /// there. Rewriting ourselves means these links are correct regardless of that allowlist.
+    /// <see cref="TextSearchClient"/>), which is always the orchestrator host.
     /// </remarks>
     public void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId)
     {
