@@ -33,7 +33,7 @@ In addition to the above per-hostname configurations, there are 2 settings that 
 
 ### Orchestrator URL
 
-Used to identify hostname to use when calling Orchestrator. This is used for NQ generation and text-service requests.
+Used to identify hostname to use when calling Orchestrator. This is used for NQ generation and text-service requests/responses.
 
 * `DLCS:OrchestratorUri` - default.
 * `DLCS:CustomerOrchestratorUri:{customerId}` - customer specific override.

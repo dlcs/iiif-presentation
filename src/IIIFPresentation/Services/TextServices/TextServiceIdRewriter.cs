@@ -12,16 +12,16 @@ namespace Services.TextServices;
 
 /// <summary>
 /// Rewrites ids embedded in a text-services response (search/autocomplete services, rendering, manifest- and
-/// canvas-level annotations) onto the customer-facing presentation host, re-templating the id-portion per link
-/// category via PathRules. Kept separate from <see cref="ITextManifestAugmentor"/>'s merge logic - this is a path
-/// rewrite concern, not manifest augmentation, matching how <see cref="IPathGenerator"/>/
+/// canvas-level annotations) onto the DLCS orchestrator host, re-templating the id-portion per link category via
+/// PathRules. Kept separate from <see cref="ITextManifestAugmentor"/>'s merge logic - this is a path rewrite
+/// concern, not manifest augmentation, matching how <see cref="IPathGenerator"/>/
 /// <see cref="IPathRewriteParser"/> are kept separate elsewhere in this codebase.
 /// </summary>
 public interface ITextServiceIdRewriter
 {
     /// <summary>
     /// Rewrites every id in <paramref name="augmented"/> (search/autocomplete services, rendering, manifest- and
-    /// canvas-level annotations) in place, onto <paramref name="dbManifest"/>'s customer-facing presentation host.
+    /// canvas-level annotations) in place, onto <paramref name="dbManifest"/>'s DLCS orchestrator host.
     /// </summary>
     void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId);
 }
@@ -34,8 +34,8 @@ public class TextServiceIdRewriter(
 {
     /// <summary>
     /// Rewrites every id text-services returned (search/autocomplete services, rendering, manifest- and
-    /// canvas-level annotations) onto <paramref name="dbManifest"/>'s customer-facing presentation host,
-    /// re-templating the id-portion per link category via PathRules (<see cref="PresentationResourceType.TextServiceSearchService"/>,
+    /// canvas-level annotations) onto <paramref name="dbManifest"/>'s DLCS orchestrator host, re-templating the
+    /// id-portion per link category via PathRules (<see cref="PresentationResourceType.TextServiceSearchService"/>,
     /// <see cref="PresentationResourceType.TextServiceRendering"/>,
     /// <see cref="PresentationResourceType.TextServiceAnnotations"/> - each falling back to
     /// <see cref="PresentationResourceType.TextServiceJob"/>'s template when not explicitly configured). Only
@@ -44,23 +44,20 @@ public class TextServiceIdRewriter(
     /// </summary>
     /// <remarks>
     /// text-services builds its search/rendering/annotation URLs from the X-Forwarded-Host/-Path we send (see
-    /// <see cref="TextSearchClient"/>), but only honours them when that host is in *its own* server-side
-    /// allowlist - so a config change on our side isn't guaranteed to take effect there. Rewriting ourselves means
-    /// these links are correct regardless of that allowlist.
+    /// <see cref="TextSearchClient"/>), which is always the orchestrator host.
     /// </remarks>
     public void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId)
     {
-        var targetHost = pathOptions.Value.GetPresentationUrl(dbManifest.CustomerId, dbManifest.Created);
-        
-        var jobIdString = jobId.ToString();
-        
-        var orchestratorHost = dlcsOptions.Value.GetOrchestratorUri(dbManifest.CustomerId).Host;
-        var configuredJobId =
-            ResolveDestination(PresentationResourceType.TextServiceJob, orchestratorHost, jobId).Suffix;
+        var targetHost = dlcsOptions.Value.GetOrchestratorUri(dbManifest.CustomerId);
 
-        // The destination shapes below are always resolved for the target (customer-facing) host - this is where
-        // the rewritten links need to resolve, regardless of which host text-services' response was shaped for -
-        // unless the configured template is itself an absolute URL, in which case it names its own destination host.
+        var jobIdString = jobId.ToString();
+
+        var configuredJobId =
+            ResolveDestination(PresentationResourceType.TextServiceJob, targetHost.Host, jobId).Suffix;
+
+        // The destination shapes below are always resolved for the orchestrator host - that's where these
+        // resources are actually served from, regardless of which host the manifest itself resolves to - unless
+        // the configured template is itself an absolute URL, in which case it names its own destination host.
         var searchId = ResolveDestination(PresentationResourceType.TextServiceSearchService, targetHost.Host, jobId);
         var renderingId = ResolveDestination(PresentationResourceType.TextServiceRendering, targetHost.Host, jobId);
         var annotationsId =
