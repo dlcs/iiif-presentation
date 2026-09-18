@@ -70,10 +70,46 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
+        ApplyAccessServices(baseManifest, namedQueryManifest!);
         SetManifestContext(baseManifest, namedQueryManifest!);
 
         return baseManifest;
     }
+    
+    private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
+    {
+        if (namedQueryManifest.Services.IsNullOrEmpty()) return;
+
+        var referencedIds = (baseManifest.Items ?? [])
+            .SelectMany(canvas => canvas.GetPaintingAnnotations())
+            .Select(pa => pa.Body)
+            .OfType<IPaintable>()
+            .SelectMany(GetServicesForPaintable)
+            .GetReferencedAuthServiceIds();
+
+        if (referencedIds.Count == 0) return;
+
+        var accessServices = namedQueryManifest.Services!
+            .Where(s => s.Id != null && referencedIds.Contains(s.Id))
+            .ToList();
+
+        if (accessServices.Count == 0) return;
+
+        logger.LogDebug("Adding {Count} access service(s) to Manifest {ManifestId}", accessServices.Count,
+            baseManifest.Id);
+        baseManifest.Services ??= [];
+        baseManifest.Services.AddDistinctById(accessServices);
+    }
+
+    private static IEnumerable<IService> GetServicesForPaintable(IPaintable paintable) =>
+        paintable switch
+        {
+            PaintingChoice choice => (choice.Items ?? []).SelectMany(GetServicesForPaintable),
+            Image { Service: { } service } => service,
+            Sound { Service: { } service } => service,
+            Video { Service: { } service } => service,
+            _ => []
+        };
     
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
@@ -476,14 +512,21 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 Height = image.Height,
                 Service = image.Service,
             },
-            Sound sound => new Sound { Id = sound.Id, Format = sound.Format, Duration = sound.Duration, },
+            Sound sound => new Sound
+            {
+                Id = sound.Id,
+                Format = sound.Format,
+                Duration = sound.Duration,
+                Service = sound.Service,
+            },
             Video video => new Video
             {
                 Id = video.Id,
                 Format = video.Format,
                 Duration = video.Duration,
                 Width = video.Width,
-                Height = video.Height
+                Height = video.Height,
+                Service = video.Service
             },
             PaintingChoice paintingChoice => new PaintingChoice
             {
