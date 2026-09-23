@@ -81,10 +81,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         if (namedQueryManifest.Services.IsNullOrEmpty()) return;
 
         var referencedIds = (baseManifest.Items ?? [])
-            .SelectMany(canvas => canvas.GetPaintingAnnotations())
-            .Select(pa => pa.Body)
-            .OfType<IPaintable>()
-            .SelectMany(GetServicesForPaintable)
+            .SelectMany(canvas => canvas.GetPaintingAnnotations()
+                .Select(pa => pa.Body)
+                .OfType<IPaintable>()
+                .SelectMany(GetServicesForPaintable)
+                .Concat(GetServicesForAdjuncts(canvas)))
             .GetReferencedAuthServiceIds();
 
         if (referencedIds.Count == 0) return;
@@ -110,7 +111,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             Video { Service: { } service } => service,
             _ => []
         };
-    
+
+    private static IEnumerable<IService> GetServicesForAdjuncts(Canvas canvas) =>
+        (canvas.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(canvas.Rendering ?? [])
+            .Concat(canvas.Annotations ?? [])
+            .SelectMany(adjunct => adjunct.Service ?? []);
+
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
     /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
