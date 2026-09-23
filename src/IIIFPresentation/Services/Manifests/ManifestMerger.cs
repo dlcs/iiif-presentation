@@ -1,4 +1,4 @@
-﻿using Core.Exceptions;
+﻿    using Core.Exceptions;
 using Core.Helpers;
 using Core.IIIF;
 using IIIF;
@@ -87,7 +87,17 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
     private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
     {
-        if (namedQueryManifest.Services.IsNullOrEmpty() || referencedAuthServiceIds.Count == 0) return;
+        if (namedQueryManifest.Services.IsNullOrEmpty()) return;
+
+        var referencedIds = (baseManifest.Items ?? [])
+            .SelectMany(canvas => canvas.GetPaintingAnnotations()
+                .Select(pa => pa.Body)
+                .OfType<IPaintable>()
+                .SelectMany(GetServicesForPaintable)
+                .Concat(GetServicesForAdjuncts(canvas)))
+            .GetReferencedAuthServiceIds();
+
+        if (referencedIds.Count == 0) return;
 
         var accessServices = namedQueryManifest.Services!
             .Where(s => s.Id != null && referencedAuthServiceIds.Contains(s.Id))
@@ -108,7 +118,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             ExternalResource { Service: { } service } => service,
             _ => []
         };
-    
+
+    private static IEnumerable<IService> GetServicesForAdjuncts(Canvas canvas) =>
+        (canvas.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(canvas.Rendering ?? [])
+            .Concat(canvas.Annotations ?? [])
+            .SelectMany(adjunct => adjunct.Service ?? []);
+
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
     /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
