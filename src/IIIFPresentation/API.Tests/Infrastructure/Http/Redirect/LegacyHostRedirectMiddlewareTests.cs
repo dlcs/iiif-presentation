@@ -87,4 +87,28 @@ public class LegacyHostRedirectMiddlewareTests
         // Assert
         context.Request.Host.Value.Should().Be(LegacyHost);
     }
+
+    [Fact]
+    public async Task InvokeAsync_Authorised_RecordsOriginalHost_ForLegacyHostRedirectContext()
+    {
+        // Arrange - LegacyHostRedirectContext is what lets PresentationController.SeeOther put a downstream
+        // handler's own redirect back on the legacy host; covered here directly since the integration-level
+        // coverage (see Integration/LegacyHostRedirectMiddlewareTests.cs) only exercises it indirectly, through an
+        // actual controller action
+        HttpContext? contextSeenDownstream = null;
+        var sut = CreateSut(ctx =>
+        {
+            contextSeenDownstream = ctx;
+            return Task.CompletedTask;
+        }, new Uri("https://canonical.example.com"));
+        var context = CreateAuthorisedLegacyHostContext();
+
+        // Act
+        await sut.InvokeAsync(context);
+
+        // Assert
+        var rewritten = LegacyHostRedirectContext.RewriteToLegacyHostIfNeeded(contextSeenDownstream!,
+            "https://canonical.example.com/1/manifests/some-id");
+        rewritten.Should().Be($"https://{LegacyHost}/1/manifests/some-id");
+    }
 }
