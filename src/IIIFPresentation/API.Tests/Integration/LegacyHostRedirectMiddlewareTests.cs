@@ -120,7 +120,9 @@ public class LegacyHostRedirectMiddlewareTests : IClassFixture<PresentationAppFa
     {
         // Arrange - carries an Authorization header, so this must not be redirected - processed in place against
         // the canonical host instead. StorageController.GetHierarchical still performs its own authorised
-        // hierarchical -> flat 303 redirect, just now against the canonical host rather than the legacy one
+        // hierarchical -> flat 303 redirect; PresentationController.SeeOther puts its Location back onto the legacy
+        // host (see LegacyHostRedirectContext) rather than leaving it on the canonical one it's generated against,
+        // so that hop stays same-origin and the client's Authorization header survives it when it auto-follows
         var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
         AddLegacyHostHeader(requestMessage);
 
@@ -128,13 +130,43 @@ public class LegacyHostRedirectMiddlewareTests : IClassFixture<PresentationAppFa
         var response = await httpClient.AsCustomer().SendAsync(requestMessage);
 
         // Assert - LegacyHostSunsetDate isn't configured for this test class, so Sunset is omitted; Deprecation
-        // falls back to LegacyHostRedirectMiddleware.DefaultDeprecationDate (no LegacyHostnameCutoffDate configured)
+        // falls back to LegacyHostRedirectMiddleware.DefaultDeprecationDate (no LegacyHostnameCutoffDate configured).
+        // The "Link" header (successor-version) still points at the canonical host - that one's purely informational,
+        // never auto-followed, so there's no credential to protect
         response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        response.Headers.Location!.Should().Be("https://localhost:7230/1/manifests/FirstChildManifest");
+        // Scheme mirrors whatever the original request actually arrived on - "http" here, since these tests hit
+        // the TestServer over plain http rather than https
+        response.Headers.Location!.Should().Be($"http://{LegacyHost}/1/manifests/FirstChildManifest");
         response.Headers.GetValues("Link").Should().ContainSingle()
             .Which.Should().Be("<https://localhost:7230/1/iiif-manifest>; rel=\"successor-version\"");
         response.Headers.GetValues("Deprecation").Should().ContainSingle().Which.Should().Be("@1788220800");
         response.Headers.Should().NotContainKey("Sunset");
+    }
+
+    [Fact]
+    public async Task Get_HierarchicalManifest_Authorised_RedirectFollow_KeepsAuthorizationHeader()
+    {
+        // Arrange - the actual regression this covers: a client auto-following the 303 from the previous test would
+        // strip Authorization if its Location were left on the canonical host (different host to the one it's
+        // connected to). httpClient.AsCustomer() sets Authorization as a *default* request header, so it carries
+        // over automatically here without being copied by hand, exactly like a browser/HttpClient replaying
+        // Authorization for what it sees as a same-origin redirect. X-IIIF-CS-Show-Extras isn't a credential the
+        // client's HTTP stack manages on the caller's behalf, so it's added explicitly on both hops, same as any
+        // other opt-in request header would need to be
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/iiif-manifest");
+        AddLegacyHostHeader(requestMessage);
+        var firstHop = await httpClient.AsCustomer().SendAsync(requestMessage);
+        firstHop.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+
+        var followUp = new HttpRequestMessage(HttpMethod.Get, firstHop.Headers.Location);
+        followUp.Headers.Add("X-IIIF-CS-Show-Extras", "All");
+        AddLegacyHostHeader(followUp);
+
+        // Act
+        var response = await httpClient.SendAsync(followUp);
+
+        // Assert - lands on the flat manifest, authorised, rather than bouncing back to hierarchical
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]

@@ -34,6 +34,11 @@ namespace API.Infrastructure.Http.Redirect;
 /// legacy host. "Deprecation" always carries a Structured-Fields Date - <see cref="PathSettings.LegacyHostnameCutoffDate"/>
 /// when set, else <see cref="DefaultDeprecationDate"/> - RFC 9745 has no "unknown date" form to omit it with,
 /// unlike "Sunset", which is omitted unless <see cref="PathSettings.LegacyHostSunsetDate"/> is set.
+///
+/// A downstream handler processed in place can still redirect on its own (e.g. an authorised hierarchical request
+/// 303ing to its flat equivalent) - see <see cref="ProcessInPlaceWithDeprecationNotice"/> and
+/// <see cref="LegacyHostRedirectContext"/> for why that Location is kept on the legacy host rather than the
+/// canonical one it's generated against.
 /// </remarks>
 public class LegacyHostRedirectMiddleware(
     RequestDelegate next,
@@ -104,6 +109,9 @@ public class LegacyHostRedirectMiddleware(
     /// urls exactly as if the request really had arrived there, and registers the deprecation-notice response
     /// headers to be added just before the response is sent.
     /// </summary>
+    /// <remarks>
+    /// Sets the legacy calling host into "Request.Items" under the key "OriginalHost"
+    /// </remarks>
     private async Task ProcessInPlaceWithDeprecationNotice(HttpContext context, Uri targetHost,
         string canonicalLocation, PathSettings settings)
     {
@@ -113,6 +121,7 @@ public class LegacyHostRedirectMiddleware(
 
         var originalHost = context.Request.Host;
         var originalScheme = context.Request.Scheme;
+        LegacyHostRedirectContext.Set(context, originalHost, originalScheme, targetHost.Host);
         context.Request.Host = HostStringWithoutDefaultPort(targetHost);
         context.Request.Scheme = targetHost.Scheme;
 

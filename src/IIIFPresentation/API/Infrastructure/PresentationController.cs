@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Exceptions;
+using API.Infrastructure.Http.Redirect;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
@@ -14,10 +15,10 @@ public abstract class PresentationController : Controller
 {
     protected StatusCodeResult SeeOther(string location)
     {
-        Response.Headers.Location = location;
+        Response.Headers.Location = LegacyHostRedirectContext.RewriteToLegacyHostIfNeeded(HttpContext, location);
 
         return StatusCode((int) HttpStatusCode.SeeOther);
-    } 
+    }
     
     protected readonly IMediator Mediator;
     protected IETagCache EtagCache { get; }
