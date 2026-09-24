@@ -1,8 +1,7 @@
 ﻿using Models.Database.General;
 using Repository.Paths;
-using Services.Manifests.Helpers;
 
-namespace API.Helpers;
+namespace Services.Manifests.Helpers;
 
 public static class PublicIdGenerator
 {
