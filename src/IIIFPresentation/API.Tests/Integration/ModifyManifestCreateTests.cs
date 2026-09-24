@@ -1710,6 +1710,86 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         presentationManifest.Items.Should().HaveCount(1);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateManifest_BadRequest_WhenItemsMatchingPaintedResourceHaveAnnotationPage(bool longformCanvasId)
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifest = ManifestWithMatchedCanvasContainingAnnotationPage(canvasPaintingId, assetId, longformCanvasId);
+        manifest.Slug = slug;
+
+        SetupApiClientWithBatchReturn(assetId);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.Detail.Should().Be($"Canvas painting with id {canvasPaintingId} cannot contain an annotation body");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PutFlatId_BadRequest_WhenItemsMatchingPaintedResourceHaveAnnotationPage(bool longformCanvasId)
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var (_, canvasPaintingId) = TestIdentifiers.IdCanvasPainting();
+        var manifest = ManifestWithMatchedCanvasContainingAnnotationPage(canvasPaintingId, assetId, longformCanvasId);
+        manifest.Slug = slug;
+
+        SetupApiClientWithBatchReturn(assetId);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{slug}",
+                manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.ReadAsPresentationResponseAsync<Error>();
+        error!.Detail.Should().Be($"Canvas painting with id {canvasPaintingId} cannot contain an annotation body");
+    }
+
+    private static PresentationManifest ManifestWithMatchedCanvasContainingAnnotationPage(string canvasPaintingId,
+        string assetId, bool longformCanvasId)
+    {
+        var canvasId = longformCanvasId
+            ? $"https://localhost:7230/{Customer}/canvases/{canvasPaintingId}"
+            : canvasPaintingId;
+
+        return new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Items = [ManifestTestCreator.Canvas(canvasId).WithImage().Build()],
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasId = canvasPaintingId
+                    },
+                    Asset = new JObject
+                    {
+                        ["id"] = assetId,
+                        ["mediaType"] = "image/jpeg"
+                    },
+                }
+            ]
+        };
+    }
+
     [Fact]
     public async Task CreateManifest_CreatesManifestWithSpecifiedCanvasId_WhenCanvasIdFilledInLongform()
     {
