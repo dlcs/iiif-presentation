@@ -6,6 +6,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
@@ -22,6 +23,7 @@ namespace Services.Tests.Manifests.Helpers;
 public class ManifestMergerTests
 {
     private readonly IManifestMerger sut;
+    private const string HierarchicalId = "https://localhost:5000/0/some/path/test";
 
     public ManifestMergerTests()
     {
@@ -49,7 +51,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(TestIdentifiers.AssetId());
 
         // Act
-        Action action = () => sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        Action action = () => sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         action.Should()
@@ -74,7 +76,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var finalManifest = sut.MergeManifest(baseManifest, namedQueryManifest, null, 0, "test");
+        var finalManifest = sut.MergeManifest(baseManifest, namedQueryManifest, null, 0, "test", HierarchicalId);
 
         // Assert
         finalManifest.Should().Be(baseManifest);
@@ -131,7 +133,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
         
         // Act
-        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Should().BeEquivalentTo(baseManifest, options => options.Excluding(m => m.Items));
@@ -151,7 +153,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
         
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
@@ -181,7 +183,7 @@ public class ManifestMergerTests
         canvasPaintings[0].CanvasLabel = canvasLabel;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -210,7 +212,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
         
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -268,7 +270,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -285,6 +287,156 @@ public class ManifestMergerTests
             "Original seeAlso has an id matching with NQ adjunct so we won't overwrite");
         canvas.SeeAlso!.Last().Id.Should().Be("anotherSeeAlso");
     }
+
+    [Fact]
+    public void ProcessCanvasPaintings_RetargetsInlineAnnotationAdjunct_ToManifestCanvas()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var namedQueryCanvasId = namedQueryManifest.Items![0].Id;
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var canvas = mergedManifest.Items!.Single();
+        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle()
+            .Which.Should().Be(canvas.Id, "inline annotation targets the manifest canvas, not the NQ canvas");
+        GetInlineAnnotationTargetIds(namedQueryManifest.Items[0]).Should().ContainSingle()
+            .Which.Should().Be(namedQueryCanvasId, "NQ canvas annotation is not modified");
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_RetargetsInlineAnnotationAdjunct_ForEachCanvas_WhenAssetPaintedMultipleTimes()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId, assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Items.Should().HaveCount(2);
+        mergedManifest.Items![0].Id.Should().NotBe(mergedManifest.Items[1].Id);
+        foreach (var canvas in mergedManifest.Items)
+        {
+            GetInlineAnnotationTargetIds(canvas).Should().ContainSingle()
+                .Which.Should().Be(canvas.Id, "each canvas gets its own copy of the retargeted annotation");
+        }
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_RetargetsInlineAnnotationAdjunct_PreservingFragmentAndSpecificResource()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var namedQueryCanvas = namedQueryManifest.Items![0];
+        var annotationPage = namedQueryCanvas.Annotations!.Single();
+        var fragmentAnnotation = (Annotation)annotationPage.Items!.Single();
+        fragmentAnnotation.Target = new Canvas { Id = $"{namedQueryCanvas.Id}#xywh=0,0,10,10" };
+        annotationPage.Items.Add(new GeneralAnnotation("commenting")
+        {
+            Id = $"{annotationPage.Id}/specific",
+            Target = new SpecificResource { Source = new Canvas { Id = namedQueryCanvas.Id } }
+        });
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var canvas = mergedManifest.Items!.Single();
+        GetInlineAnnotationTargetIds(canvas).Should()
+            .BeEquivalentTo([$"{canvas.Id}#xywh=0,0,10,10", canvas.Id], options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_RetargetsExistingInlineAnnotationAdjunct_TargetingNamedQueryCanvas()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var namedQueryCanvas = namedQueryManifest.Items![0];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Base manifest was stored with the annotation targeting the NQ canvas
+        var manifest = new Manifest
+        {
+            Items =
+            [
+                new Canvas
+                {
+                    Id = canvasPaintings.First().Id,
+                    Annotations = [namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+                }
+            ]
+        };
+
+        // Act
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var canvas = mergedManifest.Items!.Single();
+        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle().Which.Should().Be(canvas.Id);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_DoesNotRetargetInlineAnnotationAdjunct_TargetingOtherResource()
+    {
+        // Arrange
+        const string otherTarget = "https://example.test/some-other-canvas";
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var annotation = (Annotation)namedQueryManifest.Items![0].Annotations!.Single().Items!.Single();
+        annotation.Target = new Canvas { Id = otherTarget };
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        GetInlineAnnotationTargetIds(mergedManifest.Items!.Single()).Should().ContainSingle()
+            .Which.Should().Be(otherTarget);
+    }
+
+    private static IEnumerable<string?> GetInlineAnnotationTargetIds(Canvas canvas)
+        => canvas.Annotations!
+            .SelectMany(p => p.Items?.OfType<Annotation>() ?? [])
+            .Select(a => a.Target switch
+            {
+                SpecificResource { Source: Canvas source } => source.Id,
+                Canvas target => target.Id,
+                _ => null
+            });
 
     [Fact]
     public void ProcessCanvasPaintings_ShouldNotUpdateAttachedManifestThumbnail()
@@ -306,7 +458,7 @@ public class ManifestMergerTests
 
         // Act
         var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest,
-            ManifestTestCreator.GenerateCanvasPaintings(assetId), 0, "test");
+            ManifestTestCreator.GenerateCanvasPaintings(assetId), 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -330,7 +482,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetIdTwo, assetIdOne);
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(2, "Two canvas paintings");
@@ -398,7 +550,7 @@ public class ManifestMergerTests
         canvasPaintings[4].ChoiceOrder = null;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(3, "5 canvas paintings but 3 unique Ids");
@@ -479,7 +631,7 @@ public class ManifestMergerTests
         canvasPaintings[4].Label = null;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(3, "5 canvas paintings but 3 unique Ids");
@@ -610,7 +762,7 @@ public class ManifestMergerTests
             new LanguageMap("canvas1CanvasLabel", "generated canvas painting label");
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(2, "6 canvas paintings but 2 unique canvas Ids");
@@ -694,7 +846,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetIdFound, assetIdNotFound);
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(2, "Two canvas paintings");
@@ -722,7 +874,7 @@ public class ManifestMergerTests
         var canvasPainting = canvasPaintings.Single();
 
         // Act
-        sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         canvasPainting.StaticWidth.Should().Be(100, "width taken from NQ manifest image->imageService");
@@ -745,7 +897,7 @@ public class ManifestMergerTests
         var canvasPainting = canvasPaintings.Single();
 
         // Act
-        sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         canvasPainting.Duration.Should().Be(15000, "duration taken from NQ manifest sound");
@@ -768,7 +920,7 @@ public class ManifestMergerTests
         canvasPaintings[0].StaticWidth = 220;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         var image = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
@@ -800,7 +952,7 @@ public class ManifestMergerTests
         canvasPaintings[0].StaticWidth = 220;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         var image = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
@@ -828,7 +980,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Context.As<string>().Should()
@@ -856,7 +1008,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(initialManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(initialManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Thumbnail.Should().BeNull("Thumbnail not defaulted with value from NQ");
@@ -893,7 +1045,7 @@ public class ManifestMergerTests
         ];
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, new Manifest(){ Items = [] }, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, new Manifest(){ Items = [] }, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
@@ -919,7 +1071,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, new Manifest(){ Items = [] }, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, new Manifest(){ Items = [] }, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
@@ -962,7 +1114,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Thumbnail.Should().NotBeNull("Thumbnail from original manifest");
@@ -1015,7 +1167,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -1051,7 +1203,7 @@ public class ManifestMergerTests
             .Build();
         
         // Act
-        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "Single canvasPainting");
@@ -1093,7 +1245,7 @@ public class ManifestMergerTests
             new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
@@ -1146,7 +1298,7 @@ public class ManifestMergerTests
             new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
@@ -1199,7 +1351,7 @@ public class ManifestMergerTests
             new LanguageMap("canvas0Choice2CanvasLabel", "generated canvas painting label 2");
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "single choice canvas");
@@ -1272,7 +1424,7 @@ public class ManifestMergerTests
         canvasPaintings[1].ChoiceOrder = 2;
 
         // Act
-        Action action = () => sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        Action action = () => sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         action.Should().Throw<PresentationException>().WithMessage("Recursive depth '3' of painting choice deeper than can be handled");
@@ -1302,7 +1454,7 @@ public class ManifestMergerTests
             .Build();
 
         // Act
-        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId);
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId, HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1, "stub canvas must not appear in manifest items");
@@ -1338,7 +1490,7 @@ public class ManifestMergerTests
             .Build();
 
         // Act
-        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId);
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, customerId, manifestId, HierarchicalId);
 
         // Assert: existing value preserved, stub-only value added, no duplicates
         mergedManifest.SeeAlso.Should().HaveCount(2, "existing value kept once, new stub value added");

@@ -2,6 +2,10 @@ using DLCS.API;
 using DLCS.Exceptions;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Logging;
+using Repository;
+using Repository.Helpers;
+using Repository.Paths;
+using Services.Manifests.Helpers;
 using DbManifest = Models.Database.Collections.Manifest;
 
 namespace Services.Manifests;
@@ -17,22 +21,35 @@ public interface IDlcsManifestMerger : IManifestAugmentor
 public class DlcsManifestMerger(
     IDlcsOrchestratorClient dlcsOrchestratorClient,
     IManifestMerger manifestMerger,
+    IPathGenerator pathGenerator,
+    SettingsBasedPathGenerator settingsBasedPathGenerator,
+    PresentationContext dbContext,
     ILogger<DlcsManifestMerger> logger)
     : IDlcsManifestMerger
 {
     public async Task<Manifest> Augment(Manifest manifest, DbManifest dbManifest, CancellationToken cancellationToken)
     {
         var namedQueryManifest = await RetrieveAssetsForManifest(dbManifest, cancellationToken);
+        var publicId = await GetPublicId(dbManifest, cancellationToken);
 
         var mergeManifest = manifestMerger.MergeManifest(
             manifest,
             namedQueryManifest,
             dbManifest.CanvasPaintings,
             dbManifest.CustomerId,
-            dbManifest.Id);
+            dbManifest.Id,
+            publicId);
 
         logger.LogDebug("Merged Manifest with DLCS content {Manifest}", dbManifest.Id);
         return mergeManifest;
+    }
+
+    private async Task<string> GetPublicId(DbManifest dbManifest, CancellationToken cancellationToken)
+    {
+        var hierarchy = dbManifest.Hierarchy.GetCanonical();
+        hierarchy.FullPath ??=
+            await ManifestRetrieval.RetrieveFullPathForManifest(dbManifest, dbContext, cancellationToken);
+        return PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
     }
 
     private async Task<Manifest?> RetrieveAssetsForManifest(DbManifest dbManifest, CancellationToken cancellationToken)

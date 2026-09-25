@@ -77,7 +77,8 @@ public class BatchCompletionMessageHandlerTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
 
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
-        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger, new NullLogger<DlcsManifestMerger>());
+        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger, pathGenerator, pathGenerator, sutContext,
+            new NullLogger<DlcsManifestMerger>());
         var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
             new TestOptionsMonitor<BehaviourSettings>(behaviour), new NullLogger<ManifestS3Manager>());
         var customerIdProvider = new SetCustomerIdProvider();
@@ -299,6 +300,7 @@ public class BatchCompletionMessageHandlerTests
         var manifestId = TestIdentifiers.IdWithSuffix(suffix: $"{deliverableType}_adjuncts");
         const int space = 2;
         var flatId = $"https://localhost:5000/1/manifests/{manifestId}";
+        var hierarchicalId = $"https://localhost:5000/1/sm_{manifestId}";
         const string seeAlsoId = "https://example.com/mets.xml";
         const string renderingId = "https://example.com/document.pdf";
         const string annotationId = "https://example.com/annotations/1";
@@ -323,7 +325,8 @@ public class BatchCompletionMessageHandlerTests
             .WithCanvas(stubAssetId, c => c.WithImage()
                 .WithAdjunctSeeAlso(seeAlsoId)
                 .WithAdjunctRendering(renderingId)
-                .WithAdjunctAnnotation(annotationId))
+                .WithAdjunctAnnotation(annotationId)
+                .WithAdjunctInlineAnnotation(stubAssetId))
             .Build();
 
         A.CallTo(() => dlcsClient.RetrieveAssetsForManifest(A<int>._, A<string>._, A<CancellationToken>._))
@@ -350,6 +353,9 @@ public class BatchCompletionMessageHandlerTests
             "manifest-level rendering applied from stub canvas");
         savedManifest.Annotations.Should().ContainSingle(a => a.Id == annotationId,
             "manifest-level annotations applied from stub canvas");
+        savedManifest.Annotations!.SelectMany(p => p.Items?.OfType<Annotation>() ?? []).Should().ContainSingle()
+            .Which.Target.Should().BeOfType<IIIFManifest>("inline annotation targets the manifest, not the stub canvas")
+            .Which.Id.Should().Be(hierarchicalId, "manifest-level annotations target the hierarchical form");
     }
 
     [Fact]

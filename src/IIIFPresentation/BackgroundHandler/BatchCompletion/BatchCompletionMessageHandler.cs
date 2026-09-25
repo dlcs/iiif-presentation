@@ -37,6 +37,7 @@ public class BatchCompletionMessageHandler(
         // Load batch the incoming message is referring to
         var batch = await dbContext.Batches
             .Include(b => b.Manifest).ThenInclude(m => m.CanvasPaintings)
+            .Include(b => b.Manifest).ThenInclude(m => m.Hierarchy)
             .Include(b => b.Manifest).ThenInclude(m => m.PipelineJobs.Where(p => p.Status == PipelineJobStatus.NotSubmitted))
             .AsSplitQuery()
             .SingleOrDefaultAsync(

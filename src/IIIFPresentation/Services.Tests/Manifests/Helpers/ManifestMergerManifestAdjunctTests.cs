@@ -3,6 +3,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
 using IIIF.Presentation.V3.Strings;
+using IIIF.Serialisation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.DLCS;
@@ -22,6 +23,8 @@ public class ManifestMergerManifestAdjunctTests
     private readonly IManifestMerger sut;
     private const int CustomerId = 1;
     private const string ManifestId = "test-manifest";
+    private const string FlatId = "https://localhost:5000/1/manifests/test-manifest";
+    private const string HierarchicalId = "https://localhost:5000/1/some/path/test-manifest";
     private static readonly AssetId StubAssetId = new(CustomerId, ResourceAdjunctInteractions.StubAssetSpace, $"Manifest_{ManifestId}");
 
     public ManifestMergerManifestAdjunctTests()
@@ -46,7 +49,7 @@ public class ManifestMergerManifestAdjunctTests
     {
         var baseManifest = new Manifest { Id = "base" };
 
-        var result = sut.MergeManifest(baseManifest, null, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, null, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -60,7 +63,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = null };
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -72,7 +75,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest { Id = "base" };
         var nqManifest = new Manifest { Items = [] };
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -87,7 +90,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(otherAssetId, c => c.WithImage())
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Should().Be(baseManifest);
         result.SeeAlso.Should().BeNullOrEmpty();
@@ -102,7 +105,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -116,7 +119,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctRendering(renderingId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Rendering.Should().ContainSingle(r => r.Id == renderingId);
     }
@@ -130,7 +133,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctAnnotation(annotationId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.Annotations.Should().ContainSingle(a => a.Id == annotationId);
     }
@@ -148,7 +151,7 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
     }
@@ -167,10 +170,73 @@ public class ManifestMergerManifestAdjunctTests
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctSeeAlso(newId))
             .Build();
 
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         result.SeeAlso.Should().HaveCount(2);
         result.SeeAlso.Should().Contain(s => s.Id == existingId);
         result.SeeAlso.Should().Contain(s => s.Id == newId);
     }
+
+    [Fact]
+    public void MergeManifest_RetargetsInlineAnnotation_FromStubCanvas_ToManifest()
+    {
+        var baseManifest = new Manifest { Id = FlatId };
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+        var stubCanvasId = nqManifest.Items![0].Id;
+
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        var target = GetInlineAnnotations(result).Should().ContainSingle().Which.Target;
+        target.Should().BeOfType<Manifest>("annotation targets the manifest, not the stub canvas")
+            .Which.Id.Should().Be(HierarchicalId);
+        GetInlineAnnotations(nqManifest.Items[0]).Single().Target!.Id.Should()
+            .Be(stubCanvasId, "NQ stub canvas annotation is not modified");
+    }
+
+    [Fact]
+    public void MergeManifest_RetargetsInlineAnnotation_FromStubCanvas_ToWholeManifest_WhenFragmentOrSelector()
+    {
+        var baseManifest = new Manifest { Id = FlatId };
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+        var stubCanvas = nqManifest.Items![0];
+        var annotationPage = stubCanvas.Annotations!.Single();
+        ((Annotation)annotationPage.Items!.Single()).Target = new Canvas { Id = $"{stubCanvas.Id}#xywh=0,0,10,10" };
+        annotationPage.Items.Add(new GeneralAnnotation("commenting")
+        {
+            Id = $"{annotationPage.Id}/specific",
+            Target = new SpecificResource { Source = new Canvas { Id = stubCanvas.Id } }
+        });
+
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        GetInlineAnnotations(result).Should().HaveCount(2).And.AllSatisfy(a =>
+            a.Target.Should().BeOfType<Manifest>().Which.Id.Should().Be(HierarchicalId));
+    }
+
+    [Fact]
+    public void MergeManifest_RetargetsExistingInlineAnnotation_TargetingStubCanvas()
+    {
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+
+        // Base manifest was stored with the annotation targeting the stub canvas
+        var baseManifest = new Manifest
+        {
+            Id = FlatId,
+            Annotations = [nqManifest.Items![0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+        };
+
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        GetInlineAnnotations(result).Should().ContainSingle().Which.Target.Should().BeOfType<Manifest>()
+            .Which.Id.Should().Be(HierarchicalId);
+    }
+
+    private static IEnumerable<Annotation> GetInlineAnnotations(StructureBase resource)
+        => resource.Annotations!.SelectMany(p => p.Items?.OfType<Annotation>() ?? []);
 }
