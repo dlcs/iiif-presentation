@@ -351,7 +351,10 @@ public class DlcsManifestCoordinator(
         }
     }
 
-    private async Task RemoveManifestsFromAssets(string dbManifestId, int customerId, 
+    /// <summary>
+    /// Remove the manifest id from the "manifests" property of the specified DLCS assets
+    /// </summary>
+    public async Task RemoveManifestsFromAssets(string dbManifestId, int customerId,
         IEnumerable<AssetId> assetsToRemove, CancellationToken cancellationToken) =>
         await dlcsApiClient.UpdateAssetManifest(customerId,
             assetsToRemove.Select(cp => cp.ToString()).ToList(), OperationType.Remove,
