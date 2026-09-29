@@ -98,8 +98,9 @@ public class HierarchyResourceDeleter(
     private Task<List<AssetId>> GetManifestAssetIds(Models.Database.Collections.Manifest manifest,
         CancellationToken cancellationToken) =>
         dbContext.CanvasPaintings
-            .Where(cp => cp.CustomerId == manifest.CustomerId && cp.ManifestId == manifest.Id && cp.AssetId != null)
+            .Where(cp => cp.ManifestId == manifest.Id && cp.AssetId != null)
             .Select(cp => cp.AssetId!)
+            .Distinct()
             .ToListAsync(cancellationToken);
 
     private async Task RemoveManifestFromAssets(int customerId, string manifestId, List<AssetId> assetIds,
