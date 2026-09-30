@@ -397,20 +397,41 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <summary>
     /// Add annotation pages from <paramref name="namedQueryCanvas"/> to <paramref name="resource"/>, pointing any
     /// inline annotations that target the NQ canvas (the asset's single-asset-manifest canvas, which doesn't exist in
-    /// this manifest) at <paramref name="targetId"/> instead. Pages already on the resource are retargeted too, as
-    /// they may have been stored with the NQ canvas as target.
+    /// this manifest) at <paramref name="targetId"/> instead. Only pages originating from the NQ canvas are
+    /// retargeted - this includes copies of those pages already on the resource, as they may have been stored with
+    /// the NQ canvas as target. Any other pages on the resource (e.g. provided by the user) are left untouched.
     /// </summary>
     private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas)
     {
-        var namedQueryCanvasId = namedQueryCanvas.Id!;
+        var storedPages = resource.Annotations!.ToLookup(page => page.Id);
 
-        // NQ pages are shared between every canvas the asset is painted on, so clone any that will be modified
-        resource.Annotations!.AddDistinctById(namedQueryCanvas.Annotations!.Select(page =>
-            GetInlineAnnotations(page).Any(a => GetRetargetedId(a.Target, namedQueryCanvasId, targetId) != null)
-                ? page.AsJson().FromJson<AnnotationPage>()
-                : page));
+        foreach (var namedQueryPage in namedQueryCanvas.Annotations!)
+        {
+            if (storedPages.Contains(namedQueryPage.Id))
+            {
+                foreach (var storedPage in storedPages[namedQueryPage.Id])
+                {
+                    RetargetAnnotations(resource, storedPage, targetId, namedQueryCanvas.Id!);
+                }
 
-        foreach (var annotation in resource.Annotations!.SelectMany(GetInlineAnnotations))
+                continue;
+            }
+
+            // NQ pages are shared between every canvas the asset is painted on, so clone before modifying
+            var page = namedQueryPage.AsJson().FromJson<AnnotationPage>();
+            RetargetAnnotations(resource, page, targetId, namedQueryCanvas.Id!);
+            resource.Annotations!.Add(page);
+        }
+    }
+
+    /// <summary>
+    /// Point any inline annotations on <paramref name="page"/> that target <paramref name="namedQueryCanvasId"/> at
+    /// <paramref name="targetId"/> instead
+    /// </summary>
+    private void RetargetAnnotations(StructureBase resource, AnnotationPage page, string targetId,
+        string namedQueryCanvasId)
+    {
+        foreach (var annotation in page.Items?.OfType<Annotation>() ?? [])
         {
             var retargetedId = GetRetargetedId(annotation.Target, namedQueryCanvasId, targetId);
             if (retargetedId == null) continue;
@@ -431,9 +452,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                     break;
             }
         }
-
-        static IEnumerable<Annotation> GetInlineAnnotations(AnnotationPage page)
-            => page.Items?.OfType<Annotation>() ?? [];
     }
 
     /// <summary>
