@@ -4,9 +4,11 @@ using System.Net;
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using IIIF;
 using IIIF.Presentation.V3;
 using Microsoft.Net.Http.Headers;
 using Models.API.Collection;
+using Newtonsoft.Json.Linq;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -304,6 +306,49 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         thirdItem.Behavior.Should().NotContain("storage-collection");
         var fifthItem = (Manifest)collection.Items[4];
         fifthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
+    }
+
+    [Fact]
+    public async Task Get_RootFlat_Items_HaveExpandedProperties()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        var childCollection = collection.Items.OfType<Collection>()
+            .Single(i => i.Id == "http://localhost/1/collections/FirstChildCollection").AdditionalProperties;
+        childCollection["slug"].Value<string>().Should().Be("first-child");
+        childCollection["createdBy"].Value<string>().Should().Be("admin");
+        childCollection["tags"].Value<string>().Should().Be("some, tags");
+        childCollection["created"].Value<DateTime>().Should().NotBe(default);
+        childCollection["modified"].Value<DateTime>().Should().NotBe(default);
+        childCollection.Should().NotContainKey("modifiedBy", "the seeded collection has never been modified");
+
+        var childManifest = collection.Items.OfType<Manifest>()
+            .Single(i => i.Id == "http://localhost/1/manifests/FirstChildManifest").AdditionalProperties;
+        childManifest["slug"].Value<string>().Should().Be("iiif-manifest");
+        childManifest["createdBy"].Value<string>().Should().Be("admin");
+        childManifest["created"].Value<DateTime>().Should().NotBe(default);
+        childManifest["modified"].Value<DateTime>().Should().NotBe(default);
+        childManifest.Should().NotContainKey("modifiedBy", "the seeded manifest has never been modified");
+        childManifest.Should().NotContainKey("tags", "manifests have no tags");
+    }
+
+    [Fact]
+    public async Task Get_RootHierarchical_Items_HaveNoExpandedProperties()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1");
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
+
+        // Assert - the hierarchical form is the public one, so internal-only properties must not leak into it
+        collection.Items.Should().AllSatisfy(item =>
+            ((JsonLdBase)item).AdditionalProperties.Should().BeEmpty());
     }
 
     [Fact]
