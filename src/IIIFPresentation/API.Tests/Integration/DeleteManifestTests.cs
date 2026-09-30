@@ -16,6 +16,7 @@ using Models.Database.General;
 using Models.DLCS;
 using Repository;
 using Services.TextServices;
+using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -132,8 +133,9 @@ public class DeleteManifestTests : IClassFixture<PresentationAppFactory<Program>
     {
         // Arrange
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
-        var firstAsset = new AssetId(Customer, 1, $"{nameof(DeleteManifest_RemovesManifestFromAssets_WhenManifestHasAssets)}_1");
-        var secondAsset = new AssetId(Customer, 2, $"{nameof(DeleteManifest_RemovesManifestFromAssets_WhenManifestHasAssets)}_2");
+        var firstAsset = TestIdentifiers.AssetId(postfix: "_1");
+        var secondAsset = TestIdentifiers.AssetId(postfix: "_2");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, assetId: firstAsset);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, assetId: firstAsset);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest, assetId: secondAsset);
         await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest);
