@@ -159,8 +159,8 @@ public static class CollectionConverter
     {
         collection.FlatId = dbCollection.Id;
         collection.PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
-        collection.Created = dbCollection.Created.Floor(DateTimeX.Precision.Second);
-        collection.Modified = dbCollection.Modified.Floor(DateTimeX.Precision.Second);
+        collection.Created = dbCollection.Created.ToSecondPrecision();
+        collection.Modified = dbCollection.Modified.ToSecondPrecision();
         collection.CreatedBy = dbCollection.CreatedBy;
         collection.ModifiedBy = dbCollection.ModifiedBy;
         collection.Context = GenerateContext();
@@ -185,11 +185,15 @@ public static class CollectionConverter
 
         if (hierarchy.Type == ResourceType.IIIFManifest)
         {
-            return new Manifest
+            var manifest = new Manifest
             {
                 Id = id,
                 Label = hierarchy.Manifest?.Label,
             };
+
+            if (flatId && hierarchy.Manifest is { } dbManifest) manifest.AddExpandedProperties(hierarchy, dbManifest);
+
+            return manifest;
         }
 
         var collection = new Collection
@@ -198,9 +202,35 @@ public static class CollectionConverter
             Label = hierarchy.Collection?.Label,
         };
 
-        if (flatId) collection.Behavior = GenerateBehavior(hierarchy.Collection!);
+        if (flatId)
+        {
+            var dbCollection = hierarchy.Collection!;
+            collection.Behavior = GenerateBehavior(dbCollection);
+            collection.AddExpandedProperties(hierarchy, dbCollection, dbCollection.Tags);
+        }
 
         return collection;
+    }
+
+    /// <summary>
+    /// Adds the extended, non-IIIF properties that authenticated "items" listings (storage collections and search
+    /// results) expose for each child resource.
+    /// </summary>
+    /// <remarks>
+    /// These aren't part of the IIIF Presentation spec, and <see cref="Collection"/>/<see cref="Manifest"/> are the
+    /// plain IIIF types rather than our extended <see cref="PresentationCollection"/>, so they ride along in
+    /// AdditionalProperties. Names match the equivalent properties on <see cref="PresentationCollection"/>.
+    /// </remarks>
+    private static void AddExpandedProperties(this JsonLdBase item, Hierarchy hierarchy, IHierarchyResource resource,
+        string? tags = null)
+    {
+        item.AdditionalProperties["slug"] = hierarchy.Slug;
+        item.AdditionalProperties["created"] = resource.Created.ToSecondPrecision();
+        item.AdditionalProperties["modified"] = resource.Modified.ToSecondPrecision();
+
+        if (!string.IsNullOrEmpty(resource.CreatedBy)) item.AdditionalProperties["createdBy"] = resource.CreatedBy;
+        if (!string.IsNullOrEmpty(resource.ModifiedBy)) item.AdditionalProperties["modifiedBy"] = resource.ModifiedBy;
+        if (!string.IsNullOrEmpty(tags)) item.AdditionalProperties["tags"] = tags;
     }
 
     /// <summary>

@@ -7,6 +7,7 @@ using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models.API.Collection;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -79,9 +80,11 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
         var hunterCollection =
             (await ctx.Collections.AddTestCollection(id: "hst-coll", customer: SearchCustomer)).Entity;
         hunterCollection.Label = new LanguageMap("en", ["Hunter S. Thompson"]);
+        hunterCollection.ModifiedBy = "Modifier";
 
-        await ctx.Manifests.AddTestManifest(id: "hst-man", customer: SearchCustomer,
-            label: new LanguageMap("en", ["Thompson, Hunter"]));
+        var hunterManifest = (await ctx.Manifests.AddTestManifest(id: "hst-man", customer: SearchCustomer,
+            label: new LanguageMap("en", ["Thompson, Hunter"]))).Entity;
+        hunterManifest.ModifiedBy = "Modifier";
 
         var emmaCollection =
             (await ctx.Collections.AddTestCollection(id: "emma-coll", customer: SearchCustomer)).Entity;
@@ -171,8 +174,10 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        rawBody.Should().NotContain("\"created\"", "audit props are meaningless on a synthetic search collection")
-            .And.NotContain("\"modified\"");
+        var topLevelProperties = JObject.Parse(rawBody).Properties().Select(p => p.Name).ToList();
+        topLevelProperties.Should().NotContain("created",
+            "audit props are meaningless on a synthetic search collection")
+            .And.NotContain("modified");
         collection!.Id.Should().Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}/search");
         collection.SeeAlso.Should().ContainSingle().Which.Id.Should()
             .Be($"http://localhost/{SearchCustomer}/collections/{RootCollection.Id}", "links back to what was searched");
@@ -182,6 +187,35 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
             .Be($"http://localhost/{SearchCustomer}/collections/hst-coll");
         collection.Items.OfType<Manifest>().Single().Id.Should()
             .Be($"http://localhost/{SearchCustomer}/manifests/hst-man");
+    }
+
+    [Fact]
+    public async Task Search_ResultItems_HaveExpandedProperties()
+    {
+        // Arrange
+        await SeedSearchCustomer();
+
+        // Act
+        var request =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{SearchCustomer}/collections/{RootCollection.Id}/search?label=hunter+thompson");
+        var response = await httpClient.AsCustomer(SearchCustomer).SendAsync(request);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        var resultCollection = collection.Items.OfType<Collection>().Single().AdditionalProperties;
+        resultCollection["slug"].Value<string>().Should().Be("sc_hst-coll");
+        resultCollection["createdBy"].Value<string>().Should().Be("Admin");
+        resultCollection["modifiedBy"].Value<string>().Should().Be("Modifier");
+        resultCollection["created"].Value<DateTime>().Should().NotBe(default);
+        resultCollection["modified"].Value<DateTime>().Should().NotBe(default);
+
+        var resultManifest = collection.Items.OfType<Manifest>().Single().AdditionalProperties;
+        resultManifest["slug"].Value<string>().Should().Be("sm_hst-man");
+        resultManifest["createdBy"].Value<string>().Should().Be("Admin");
+        resultManifest["modifiedBy"].Value<string>().Should().Be("Modifier");
+        resultManifest["created"].Value<DateTime>().Should().NotBe(default);
+        resultManifest["modified"].Value<DateTime>().Should().NotBe(default);
     }
 
     [Fact]

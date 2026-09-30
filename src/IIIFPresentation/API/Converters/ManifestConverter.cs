@@ -42,8 +42,8 @@ public static class ManifestConverter
         iiifManifest.Id = pathGenerator.GenerateFlatManifestId(dbManifest);
         iiifManifest.FlatId = dbManifest.Id;
         iiifManifest.PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
-        iiifManifest.Created = dbManifest.Created.Floor(DateTimeX.Precision.Second);
-        iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
+        iiifManifest.Created = dbManifest.Created.ToSecondPrecision();
+        iiifManifest.Modified = dbManifest.Modified.ToSecondPrecision();
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);

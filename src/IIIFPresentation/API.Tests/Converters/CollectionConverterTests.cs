@@ -1,6 +1,8 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
+using Core.Helpers;
 using DLCS;
+using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
@@ -23,6 +25,11 @@ public class CollectionConverterTests
     private const int PageSize = 100;
     private const int CustomerId = 1;
     private const int SettingsBasedRedirectCustomer = 10;
+
+    private static readonly DateTime ItemCreated = new(2025, 1, 2, 3, 4, 5, 678, DateTimeKind.Utc);
+    private static readonly DateTime ItemModified = new(2025, 6, 7, 8, 9, 10, 111, DateTimeKind.Utc);
+    private static readonly DateTime ExpectedItemCreated = ItemCreated.ToSecondPrecision();
+    private static readonly DateTime ExpectedItemModified = ItemModified.ToSecondPrecision();
     
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
     
@@ -693,6 +700,102 @@ public class CollectionConverterTests
         searchCollection.View!.TotalPages.Should().Be(1);
     }
 
+    [Fact]
+    public void ToPresentationCollection_CollectionItems_HaveExpandedProperties()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null,
+            pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var item = presentationCollection.Items.Should().ContainSingle().Subject;
+        item.GetExpanded("slug").Should().Be("root");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        item.GetExpanded("tags").Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_ManifestItems_HaveExpandedProperties_ButNoTags()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, CreateTestManifestItems(),
+            null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var item = presentationCollection.Items.Should().ContainSingle().Subject;
+        item.Should().BeOfType<IIIF.Presentation.V3.Manifest>();
+        item.GetExpanded("slug").Should().Be("manifest-slug");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        ((JsonLdBase)item).AdditionalProperties.Should().NotContainKey("tags", "manifests have no tags");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_Items_OmitOptionalProperties_WhenNotSet()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        var items = CreateTestItems();
+        items[0].Collection.CreatedBy = null;
+        items[0].Collection.ModifiedBy = null;
+        items[0].Collection.Tags = null;
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
+            settingsBasedPathGenerator);
+
+        // Assert
+        var additionalProperties = ((JsonLdBase)presentationCollection.Items.Single()).AdditionalProperties;
+        additionalProperties.Should().ContainKey("slug");
+        additionalProperties.Should().NotContainKey("createdBy");
+        additionalProperties.Should().NotContainKey("modifiedBy");
+        additionalProperties.Should().NotContainKey("tags");
+    }
+
+    [Fact]
+    public void ToSearchCollection_Items_HaveExpandedProperties()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var item = searchCollection.Items.Should().ContainSingle().Subject;
+        item.GetExpanded("slug").Should().Be("root");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        item.GetExpanded("tags").Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToHierarchicalCollection_Items_HaveNoExpandedProperties()
+    {
+        // Arrange
+        var storageRoot = CreateTestCollection();
+
+        // Act - the hierarchical form is the public one, so internal-only properties must not leak into it
+        var hierarchicalCollection = storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
+
+        // Assert
+        ((JsonLdBase)hierarchicalCollection.Items.Single()).AdditionalProperties.Should().BeEmpty();
+    }
+
     private static List<Hierarchy> CreateTestItems()
     {
         var items = new List<Hierarchy>
@@ -707,10 +810,40 @@ public class CollectionConverterTests
                 {
                     Id = "someId",
                     IsPublic = true,
+                    Created = ItemCreated,
+                    Modified = ItemModified,
+                    CreatedBy = "Admin",
+                    ModifiedBy = "Modifier",
+                    Tags = "some, tags",
                 }
             }
         };
         
+        return items;
+    }
+
+    private static List<Hierarchy> CreateTestManifestItems()
+    {
+        var items = new List<Hierarchy>
+        {
+            new()
+            {
+                ManifestId = "some-manifest",
+                CustomerId = CustomerId,
+                Slug = "manifest-slug",
+                Type = ResourceType.IIIFManifest,
+                Manifest = new Models.Database.Collections.Manifest
+                {
+                    Id = "some-manifest",
+                    CustomerId = CustomerId,
+                    Created = ItemCreated,
+                    Modified = ItemModified,
+                    CreatedBy = "Admin",
+                    ModifiedBy = "Modifier",
+                }
+            }
+        };
+
         return items;
     }
 
@@ -801,4 +934,13 @@ public class CollectionConverterTests
 
         return collection;
     }
+}
+
+internal static class CollectionItemX
+{
+    /// <summary>
+    /// Reads one of the expanded, non-IIIF properties that authenticated items listings add (see #670)
+    /// </summary>
+    internal static object GetExpanded(this ICollectionItem item, string key) =>
+        ((JsonLdBase)item).AdditionalProperties[key].ToObject<object>();
 }
