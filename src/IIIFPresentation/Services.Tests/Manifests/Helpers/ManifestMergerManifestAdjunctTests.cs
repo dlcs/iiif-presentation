@@ -218,7 +218,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void MergeManifest_RetargetsExistingInlineAnnotation_TargetingStubCanvas()
+    public void MergeManifest_DoesNotRetargetExistingInlineAnnotation_TargetingStubCanvas()
     {
         var nqManifest = ManifestTestCreator.New()
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
@@ -233,8 +233,8 @@ public class ManifestMergerManifestAdjunctTests
 
         var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
-        GetInlineAnnotations(result).Should().ContainSingle().Which.Target.Should().BeOfType<Manifest>()
-            .Which.Id.Should().Be(HierarchicalId);
+        GetInlineAnnotations(result).Should().ContainSingle().Which.Target.Should().BeOfType<Canvas>()
+            .Which.Id.Should().Be(nqManifest.Items[0].Id);
     }
 
     [Fact]

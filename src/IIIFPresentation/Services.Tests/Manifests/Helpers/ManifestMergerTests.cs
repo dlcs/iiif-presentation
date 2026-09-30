@@ -371,7 +371,7 @@ public class ManifestMergerTests
     }
 
     [Fact]
-    public void ProcessCanvasPaintings_RetargetsExistingInlineAnnotationAdjunct_TargetingNamedQueryCanvas()
+    public void ProcessCanvasPaintings_DoesNotRetargetExistingInlineAnnotationAdjunct_TargetingNamedQueryCanvas()
     {
         // Arrange
         var assetId = TestIdentifiers.AssetId();
@@ -401,7 +401,7 @@ public class ManifestMergerTests
 
         // Assert
         var canvas = mergedManifest.Items!.Single();
-        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle().Which.Should().Be(canvas.Id);
+        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle().Which.Should().Be(namedQueryCanvas.Id);
     }
 
     [Fact]
