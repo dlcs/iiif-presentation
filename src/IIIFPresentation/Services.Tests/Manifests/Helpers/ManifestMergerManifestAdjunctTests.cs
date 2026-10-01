@@ -218,7 +218,7 @@ public class ManifestMergerManifestAdjunctTests
     }
 
     [Fact]
-    public void MergeManifest_RetargetsExistingInlineAnnotation_TargetingStubCanvas()
+    public void MergeManifest_DoesNotRetargetExistingInlineAnnotation_TargetingStubCanvas()
     {
         var nqManifest = ManifestTestCreator.New()
             .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
@@ -228,13 +228,34 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest
         {
             Id = FlatId,
-            Annotations = [nqManifest.Items![0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+            Annotations = [nqManifest.Items![0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()!]
         };
 
         var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
-        GetInlineAnnotations(result).Should().ContainSingle().Which.Target.Should().BeOfType<Manifest>()
-            .Which.Id.Should().Be(HierarchicalId);
+        GetInlineAnnotations(result).Should().ContainSingle().Which.Target.Should().BeOfType<Canvas>()
+            .Which.Id.Should().Be(nqManifest.Items[0].Id);
+    }
+
+    [Fact]
+    public void MergeManifest_DoesNotRetargetExistingInlineAnnotation_NotFromStubCanvas()
+    {
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+        var stubCanvasId = nqManifest.Items![0].Id;
+
+        // User-provided page that targets the stub canvas, but didn't come from it
+        var userPage = nqManifest.Items[0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()!;
+        userPage.Id = "https://example.test/user-annotation-page";
+        var baseManifest = new Manifest { Id = FlatId, Annotations = [userPage] };
+
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        result.Annotations.Should().HaveCount(2);
+        GetInlineAnnotations(result).Select(a => a.Target).Should().SatisfyRespectively(
+            userTarget => userTarget.Should().BeOfType<Canvas>().Which.Id.Should().Be(stubCanvasId),
+            nqTarget => nqTarget.Should().BeOfType<Manifest>().Which.Id.Should().Be(HierarchicalId));
     }
 
     private static IEnumerable<Annotation> GetInlineAnnotations(StructureBase resource)

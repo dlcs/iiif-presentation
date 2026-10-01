@@ -371,7 +371,7 @@ public class ManifestMergerTests
     }
 
     [Fact]
-    public void ProcessCanvasPaintings_RetargetsExistingInlineAnnotationAdjunct_TargetingNamedQueryCanvas()
+    public void ProcessCanvasPaintings_DoesNotRetargetExistingInlineAnnotationAdjunct_TargetingNamedQueryCanvas()
     {
         // Arrange
         var assetId = TestIdentifiers.AssetId();
@@ -391,7 +391,7 @@ public class ManifestMergerTests
                 new Canvas
                 {
                     Id = canvasPaintings.First().Id,
-                    Annotations = [namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+                    Annotations = [namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()!]
                 }
             ]
         };
@@ -401,7 +401,7 @@ public class ManifestMergerTests
 
         // Assert
         var canvas = mergedManifest.Items!.Single();
-        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle().Which.Should().Be(canvas.Id);
+        GetInlineAnnotationTargetIds(canvas).Should().ContainSingle().Which.Should().Be(namedQueryCanvas.Id);
     }
 
     [Fact]
@@ -426,6 +426,39 @@ public class ManifestMergerTests
         // Assert
         GetInlineAnnotationTargetIds(mergedManifest.Items!.Single()).Should().ContainSingle()
             .Which.Should().Be(otherTarget);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_DoesNotRetargetExistingInlineAnnotation_NotFromNamedQueryCanvas()
+    {
+        // Arrange
+        const string userPageId = "https://example.test/user-annotation-page";
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var namedQueryCanvas = namedQueryManifest.Items![0];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // User-provided page that targets the NQ canvas, but didn't come from it
+        var userPage = namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()!;
+        userPage.Id = userPageId;
+        var manifest = new Manifest
+        {
+            Items = [new Canvas { Id = canvasPaintings.First().Id, Annotations = [userPage] }]
+        };
+
+        // Act
+        var mergedManifest = sut.MergeManifest(manifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var canvas = mergedManifest.Items!.Single();
+        canvas.Annotations.Should().HaveCount(2);
+        GetInlineAnnotationTargetIds(canvas).Should()
+            .BeEquivalentTo([namedQueryCanvas.Id, canvas.Id], options => options.WithStrictOrdering(),
+                "only the page from the NQ canvas is retargeted");
     }
 
     private static IEnumerable<string?> GetInlineAnnotationTargetIds(Canvas canvas)
