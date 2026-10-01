@@ -402,23 +402,39 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// </summary>
     private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas)
     {
-        // use a hash set to remove duplicates
+        var namedQueryCanvasId = namedQueryCanvas.Id!;
+
+        // Ids of pages already on the resource, which are never modified
         var existingPageIds = resource.Annotations!.Select(page => page.Id).ToHashSet();
 
         foreach (var namedQueryPage in namedQueryCanvas.Annotations!)
         {
             if (existingPageIds.Contains(namedQueryPage.Id)) continue;
 
+            if (!NeedsRetargeting(namedQueryPage, namedQueryCanvasId, targetId))
+            {
+                resource.Annotations!.Add(namedQueryPage);
+                continue;
+            }
+
             // NQ pages are shared between every canvas the asset is painted on, so clone before modifying
-            var page = namedQueryPage.AsJson().FromJson<AnnotationPage>();
-            RetargetAnnotations(resource, page, targetId, namedQueryCanvas.Id!);
+            var page = namedQueryPage.AsJson().FromJson<AnnotationPage>()!;
+            RetargetAnnotations(resource, page, targetId, namedQueryCanvasId);
             resource.Annotations!.Add(page);
         }
     }
 
     /// <summary>
+    /// Whether any inline annotations on <paramref name="page"/> target <paramref name="namedQueryCanvasId"/>
+    /// </summary>
+    private static bool NeedsRetargeting(AnnotationPage page, string namedQueryCanvasId, string targetId)
+        => page.Items?.OfType<Annotation>()
+            .Any(a => GetRetargetedId(a.Target, namedQueryCanvasId, targetId) != null) ?? false;
+
+    /// <summary>
     /// Point any inline annotations on <paramref name="page"/> that target <paramref name="namedQueryCanvasId"/> at
-    /// <paramref name="targetId"/> instead
+    /// <paramref name="targetId"/> instead. Canvas targets keep any fragment or selector source (e.g. "#xywh=..."),
+    /// whereas a manifest is always targeted whole.
     /// </summary>
     private void RetargetAnnotations(StructureBase resource, AnnotationPage page, string targetId,
         string namedQueryCanvasId)

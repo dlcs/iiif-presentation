@@ -228,7 +228,7 @@ public class ManifestMergerManifestAdjunctTests
         var baseManifest = new Manifest
         {
             Id = FlatId,
-            Annotations = [nqManifest.Items![0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+            Annotations = [nqManifest.Items![0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()!]
         };
 
         var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
@@ -246,7 +246,7 @@ public class ManifestMergerManifestAdjunctTests
         var stubCanvasId = nqManifest.Items![0].Id;
 
         // User-provided page that targets the stub canvas, but didn't come from it
-        var userPage = nqManifest.Items[0].Annotations!.Single().AsJson().FromJson<AnnotationPage>();
+        var userPage = nqManifest.Items[0].Annotations!.Single().AsJson().FromJson<AnnotationPage>()!;
         userPage.Id = "https://example.test/user-annotation-page";
         var baseManifest = new Manifest { Id = FlatId, Annotations = [userPage] };
 

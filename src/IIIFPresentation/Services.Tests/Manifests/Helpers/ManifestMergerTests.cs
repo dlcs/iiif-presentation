@@ -391,7 +391,7 @@ public class ManifestMergerTests
                 new Canvas
                 {
                     Id = canvasPaintings.First().Id,
-                    Annotations = [namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()]
+                    Annotations = [namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()!]
                 }
             ]
         };
@@ -443,7 +443,7 @@ public class ManifestMergerTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
 
         // User-provided page that targets the NQ canvas, but didn't come from it
-        var userPage = namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>();
+        var userPage = namedQueryCanvas.Annotations!.Single().AsJson().FromJson<AnnotationPage>()!;
         userPage.Id = userPageId;
         var manifest = new Manifest
         {
