@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Auth;
+using API.Converters;
 using API.Features.Manifest.Requests;
 using API.Features.Manifest.Validators;
 using API.Features.Storage.Helpers;
@@ -9,12 +10,11 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
-using IIIF;
+using Models.API.General;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Models.API.General;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest;
@@ -33,8 +33,7 @@ public class ManifestController(
     [VaryHeader]
     public async Task<IActionResult> GetManifestFlat([FromRoute] int customerId, [FromRoute] string id)
     {
-        var pathOnly = !Request.HasShowExtraHeader() ||
-                       await authenticator.ValidateRequest(Request) != AuthResult.Success;
+        var pathOnly = !await Request.IsAuthorisedForExtras(authenticator);
 
         var entityResult = await Mediator.Send(new GetManifest(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), pathOnly));
 
@@ -50,9 +49,8 @@ public class ManifestController(
             default: return this.PresentationNotFound();
         }
 
-
         if (pathOnly) // only .FullPath is actually filled, this is to avoid S3 read
-            return entityResult.Entity.FullPath is { Length: > 0 } fullPath
+            return entityResult.GetHierarchicalPath() is { } fullPath
                 ? SeeOther(fullPath)
                 : this.PresentationNotFound();
 
@@ -64,6 +62,7 @@ public class ManifestController(
     /// Create a new Manifest on Flat URL
     /// </summary>
     [Authorize]
+    [RequireShowExtras]
     [HttpPost("manifests")]
     public async Task<IActionResult> CreateManifest(
         [FromRoute] int customerId,
@@ -77,9 +76,10 @@ public class ManifestController(
 
     /// <summary>
     /// Create or upsert Manifest with specific id.
-    /// If id exists valid E-Tag must be provided 
+    /// If id exists valid E-Tag must be provided
     /// </summary>
     [Authorize]
+    [RequireShowExtras]
     [HttpPut("manifests/{id}")]
     public async Task<IActionResult> UpsertManifest(
         [FromRoute] int customerId,
@@ -91,31 +91,32 @@ public class ManifestController(
                 new UpsertManifest(customerId, id, Request.Headers.IfMatch, presentationManifest, rawRequestBody,
                     Request.HasCreateSpaceHeader()),
             validator,
-            invalidatesEtag:Request.Headers.IfMatch,
+            invalidatesEtag: Request.Headers.IfMatch,
             cancellationToken: cancellationToken);
 
     [Authorize]
+    [RequireShowExtras]
     [HttpDelete("manifests/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         return await HandleDelete(new DeleteManifest(customerId, id, Request.Headers.IfMatch));
     }
 
-    private async Task<IActionResult> ManifestUpsert<T, TEnum>(
-        Func<PresentationManifest, string, IRequest<ModifyEntityResult<T, TEnum>>> requestFactory,
+    private async Task<IActionResult> ManifestUpsert(
+        Func<PresentationManifest, string, IRequest<PresentationResult>> requestFactory,
         PresentationManifestValidator validator,
         string? instance = null,
         string? errorTitle = "Operation failed",
         string? invalidatesEtag = null,
         CancellationToken cancellationToken = default)
-        where T : JsonLdBase
-        where TEnum : Enum
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         var rawRequestBody = await Request.GetRawRequestBodyAsync(cancellationToken);
+
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type) || type != nameof(Manifest))
+        {
+            return this.UnrecognisedTypeProblem("'Manifest'");
+        }
+
         var presentationManifest = await rawRequestBody.TryDeserializePresentation<PresentationManifest>(logger);
 
         if (presentationManifest.Error)
@@ -124,13 +125,13 @@ public class ManifestController(
                 "Deserialization Error", this.GetErrorType(ModifyCollectionType.CannotDeserialize));
         }
 
-        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF!, cancellationToken);
+        var validation = await validator.ValidateAsync(presentationManifest.ConvertedIIIF, cancellationToken);
         if (!validation.IsValid)
         {
             return this.ValidationFailed(validation);
         }
 
-        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF!, rawRequestBody), instance,
-            errorTitle, invalidatesEtag, cancellationToken);
+        return await HandleUpsert(requestFactory(presentationManifest.ConvertedIIIF, rawRequestBody),
+            instance, errorTitle, invalidatesEtag, cancellationToken);
     }
 }

@@ -5,6 +5,7 @@ using Core.Exceptions;
 using Core.Helpers;
 using API.Settings;
 using DLCS.API;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
@@ -163,15 +164,26 @@ public class ManagedAssetResultFinder(
             }
         }
 
+        // Materialise which assets already exist as CanvasPaintings in a batched set-based query, rather than
+        // querying per-asset (avoids an N+1 query below)
+        var existingCanvasPaintingAssetIds = new HashSet<AssetId>();
+        foreach (var chunkedAssetsToCheck in assetsToAddToManifest.Chunk(500))
+        {
+            existingCanvasPaintingAssetIds.UnionWith(await dbContext.CanvasPaintings
+                .Where(cp => chunkedAssetsToCheck.Contains(cp.AssetId))
+                .Select(cp => cp.AssetId!)
+                .ToListAsync(cancellationToken));
+        }
+
         var assetsToCheckInDlcs =
             assetsToAddToManifest.Where(asset =>
             {
-                if (dbContext.CanvasPaintings.Any(cp => cp.AssetId == asset))
+                if (existingCanvasPaintingAssetIds.Contains(asset))
                 {
                     trackedAssets.Add(asset);
                     return false;
                 };
-                
+
                 return true;
             });
 

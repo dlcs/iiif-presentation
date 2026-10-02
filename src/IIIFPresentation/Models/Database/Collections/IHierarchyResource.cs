@@ -8,8 +8,26 @@ namespace Models.Database.Collections;
 public interface IHierarchyResource : IIdentifiable
 {
     List<Hierarchy>? Hierarchy { get; }
-    
-    public Guid Etag { get; set; }
-    
-    public DateTime Created { get; set; }
+
+    Guid Etag { get; }
+
+    /// <summary>
+    /// Created date/time
+    /// </summary>
+    DateTime Created { get; }
+
+    /// <summary>
+    /// Last modified date/time
+    /// </summary>
+    DateTime Modified { get; }
+
+    /// <summary>
+    /// Who created this resource
+    /// </summary>
+    string? CreatedBy { get; }
+
+    /// <summary>
+    /// Who last committed a change to this resource
+    /// </summary>
+    string? ModifiedBy { get; }
 }

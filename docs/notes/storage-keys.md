@@ -7,13 +7,28 @@ IIIF-Presentation makes use of S3 to store manifests and collections. These keys
 
 See `BucketHelperX` for code that generates keys.
 
-| Name             | Format                                                | Example                            | Description                                                                                         |
-| ---------------- | ----------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Manifest         | `{Storage}/{Customer}/manifests/{Manifest-Id}`        | `iiif-p/1/manifests/abc123`        | IIIF manifests, whether saved as-is or generated                                                    |
-| Staged Manifest* | `{Storage}/staged/{Customer}/manifests/{Manifest-Id}` | `iiif-p/staged/1/manifests/abc123` | In-flight generated IIIF manifests. Will contain in-complete `"items"` that will be populated later |
-| IIIF Collections | `{Storage}/{Customer}/collections/{Collection-Id}`    | `iiif-p/1/collections/abc123`      | IIIF Collections                                                                                    |
+| Name                             | Format                                                          | Example                                      | Description                                                                                         |
+| -------------------------------- | --------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Manifest                         | `{Storage}/{Customer}/manifests/{Manifest-Id}`                  | `iiif-p/1/manifests/abc123`                  | IIIF manifests, whether saved as-is or generated                                                    |
+| Original Manifest Payload        | `{Storage}/{Customer}/manifests/{Manifest-Id}/original`         | `iiif-p/1/manifests/abc123/original`         | Stores the original payload if the required modification by processing                              |
+| Staged Manifest                  | `{Storage}/staging/{Customer}/manifests/{Manifest-Id}`          | `iiif-p/staging/1/manifests/abc123`          | In-flight generated IIIF manifests. Will contain in-complete `"items"` that will be populated later |
+| Staged Original Manifest Payload | `{Storage}/staging/{Customer}/manifests/{Manifest-Id}/original` | `iiif-p/staging/1/manifests/abc123/original` | Stores the payload in the update scenario that requires background handler                          |
+| IIIF Collections                 | `{Storage}/{Customer}/collections/{Collection-Id}`              | `iiif-p/1/collections/abc123`                | IIIF Collections                                                                                    |
 
-* `*` indicates that this is a proposed key and not currently used. `/staged/` key will allow easy clean-up of 'stale' in-flight manifests using prefix lifecycle rules.
+## Prefixes
+
+* `/{Customer}/` is the general prefix, keeps all resources for a customer together.
+* `/staging/` groups those resources that are in-flight. These are relatively transient to useful to be able to identify independantly.
+
+## Staging / Original
+
+The Manifest can exist in multiple places (using terminology from above)
+* `Manifest` - final/complete and publicly-servable IIIF Manifest.
+* `Original Manifest Payload` - Manifest body from PUT/POST. This is updated when the processing of a Manifest is complete (ie it's saved to `Manifest`)
+* `Staged Manifest` - in-flight Manifest that needs further work to complete (ie population from Adjuncts, Assets or text-service content).
+* `Staged Original Manifest Payload` - Manifest body from PUT/POST for in-flight Manifest that needs further work.
+
+Manifests can exist in multiple locations at once.
 
 ## Note on IIIF Identities
 

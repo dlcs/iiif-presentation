@@ -1,6 +1,5 @@
 ﻿using API.Features.Common.Helpers;
 using FakeItEasy;
-using Models.API.Collection;
 using Models.Database.Collections;
 using Repository.Paths;
 
@@ -19,7 +18,7 @@ public class ParentValidatorTests
         };
         
         // Act
-        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+        var parentCollectionError = ParentValidator.ValidateParentCollection(parentCollection);
 
         // Assert
         parentCollectionError.Should().BeNull();
@@ -35,7 +34,7 @@ public class ParentValidatorTests
         };
         
         // Act
-        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(parentCollection);
+        var parentCollectionError = ParentValidator.ValidateParentCollection(parentCollection);
 
         // Assert
         parentCollectionError.Should().NotBeNull();
@@ -45,7 +44,7 @@ public class ParentValidatorTests
     public void ValidateParentCollection_Error_WhenParentNull()
     {
         // Arrange and Act
-        var parentCollectionError = ParentValidator.ValidateParentCollection<PresentationCollection>(null);
+        var parentCollectionError = ParentValidator.ValidateParentCollection(null);
 
         // Assert
         parentCollectionError.Should().NotBeNull();

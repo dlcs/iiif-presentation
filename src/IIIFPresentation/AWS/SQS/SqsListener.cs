@@ -99,8 +99,8 @@ public class SqsListener
     {
         try
         {
-            var queueMessage = new QueueMessage(GetJsonPayload(message), message.MessageAttributes, message.Attributes,
-                message.MessageId);
+            var queueMessage = new QueueMessage(GetJsonPayload(message), message.MessageAttributes ?? [],
+                message.Attributes ?? [], message.MessageId);
 
             // create a new scope to avoid issues with Scoped dependencies
             using var listenerScope = serviceScopeFactory.CreateScope();

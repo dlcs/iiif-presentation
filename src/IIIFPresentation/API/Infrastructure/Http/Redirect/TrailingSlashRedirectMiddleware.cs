@@ -83,7 +83,7 @@ public class TrailingSlashRedirectMiddleware(RequestDelegate next,
         var template =
             settings.GetPathTemplateForHostAndType(context.Request.Host.Value, presentationServiceType);
 
-        var pathFromTemplate = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template);
+        var pathFromTemplate = template.GeneratePath();
 
         if (Uri.TryCreate(pathFromTemplate, UriKind.Absolute, out var url))
         {

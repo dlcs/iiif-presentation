@@ -4,9 +4,11 @@ using System.Net;
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
 using Core.Response;
+using IIIF;
 using IIIF.Presentation.V3;
 using Microsoft.Net.Http.Headers;
 using Models.API.Collection;
+using Newtonsoft.Json.Linq;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 
@@ -18,12 +20,10 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
 {
     private readonly HttpClient httpClient;
     private const int TotalDatabaseChildItems = 6;
-    private readonly IAmazonS3 amazonS3;
     private const int ExampleCustomer = 601;
 
     public GetCollectionTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
-        amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
             appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture));
         storageFixture.DbFixture.CleanUp();
@@ -307,7 +307,83 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         var fifthItem = (Manifest)collection.Items[4];
         fifthItem.Id.Should().Be("http://localhost/1/manifests/FirstChildManifest");
     }
-    
+
+    [Fact]
+    public async Task Get_RootFlat_Items_HaveExpandedProperties()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        var childCollection = collection.Items.OfType<Collection>()
+            .Single(i => i.Id == "http://localhost/1/collections/FirstChildCollection").AdditionalProperties;
+        childCollection["slug"].Value<string>().Should().Be("first-child");
+        childCollection["createdBy"].Value<string>().Should().Be("admin");
+        childCollection["tags"].Value<string>().Should().Be("some, tags");
+        childCollection["created"].Value<DateTime>().Should().NotBe(default);
+        childCollection["modified"].Value<DateTime>().Should().NotBe(default);
+        childCollection.Should().NotContainKey("modifiedBy", "the seeded collection has never been modified");
+
+        var childManifest = collection.Items.OfType<Manifest>()
+            .Single(i => i.Id == "http://localhost/1/manifests/FirstChildManifest").AdditionalProperties;
+        childManifest["slug"].Value<string>().Should().Be("iiif-manifest");
+        childManifest["createdBy"].Value<string>().Should().Be("admin");
+        childManifest["created"].Value<DateTime>().Should().NotBe(default);
+        childManifest["modified"].Value<DateTime>().Should().NotBe(default);
+        childManifest.Should().NotContainKey("modifiedBy", "the seeded manifest has never been modified");
+        childManifest.Should().NotContainKey("tags", "manifests have no tags");
+    }
+
+    [Fact]
+    public async Task Get_RootHierarchical_Items_HaveNoExpandedProperties()
+    {
+        // Act
+        var response = await httpClient.GetAsync("1");
+        var collection = await response.ReadAsPresentationJsonAsync<Collection>();
+
+        // Assert - the hierarchical form is the public one, so internal-only properties must not leak into it
+        collection.Items.Should().AllSatisfy(item =>
+            ((JsonLdBase)item).AdditionalProperties.Should().BeEmpty());
+    }
+
+    [Fact]
+    public async Task Get_RootFlat_AdvertisesSearchService()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/collections/{RootCollection.Id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        var service = collection!.Service!.OfType<ExternalService>().Single();
+        service.Id.Should().Be("http://localhost/1/collections/root/search");
+        service.Type.Should().Be("IIIFCS-Search");
+        service.Profile.Should().Be("level0");
+    }
+
+    [Fact]
+    public async Task Get_ChildCollectionFlat_DoesNotAdvertiseSearchService()
+    {
+        // Arrange
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, "1/collections/FirstChildCollection");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        collection!.Service.Should().BeNull("search-across can only be run from root");
+    }
+
     [Fact]
     public async Task Get_ChildFlat_ReturnsEntryPointFlat_WhenCalledByChildId()
     {
@@ -672,7 +748,24 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             "falls back to using host based path generator for customer 1");
         collection.Id.Should().Be($"http://localhost/{url}");
     }
-    
+
+    [Fact]
+    public async Task Get_FlatIIIFCollection_ReturnsSeeOther_WhenNoAuthOrCsHeader()
+    {
+        // Arrange - an anonymous flat request for an IIIF (non-storage, S3-backed) collection - this should
+        // redirect straight to the public hierarchical path without ever reading the collection from S3
+        // (see Get_FlatIIIFCollection_ReturnsNullItemsWhenNoBackingCollection for the equivalent authenticated
+        // request, which does read from S3 and confirms the same PublicId)
+
+        // Act
+        var response = await httpClient.GetAsync("1/collections/IiifCollection");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        response.Headers.Location!.Should().Be("http://localhost/1/iiif-collection",
+            "falls back to using host based path generator for customer 1");
+    }
+
     [Fact]
     public async Task Get_HierarchicalIIIFCollection_ReturnsCollectionFromS3()
     {

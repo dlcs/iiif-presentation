@@ -28,6 +28,12 @@ public class FetchEntityResult<T>
     public bool EntityNotFound { get; private init; }
 
     /// <summary>
+    ///     If true the request itself was invalid, so cannot be satisfied. <see cref="Error"/> is also true, so
+    ///     callers that don't handle this specifically will fail rather than treat it as a success.
+    /// </summary>
+    public bool BadRequest { get; private init; }
+
+    /// <summary>
     ///     If true entity is NOT returned, because ETag was matched. <see cref="ETag"/> is not null.
     /// </summary>
     public bool ETagMatch { get; private init; }
@@ -37,6 +43,14 @@ public class FetchEntityResult<T>
     public static FetchEntityResult<T> Failure(string? errorMessage)
     {
         return new FetchEntityResult<T> { ErrorMessage = errorMessage, Error = true };
+    }
+
+    /// <summary>
+    ///     Request cannot be satisfied as provided - results in a 400
+    /// </summary>
+    public static FetchEntityResult<T> Invalid(string? errorMessage)
+    {
+        return new FetchEntityResult<T> { ErrorMessage = errorMessage, Error = true, BadRequest = true };
     }
 
     public static FetchEntityResult<T> NotFound(string? errorMessage = null)

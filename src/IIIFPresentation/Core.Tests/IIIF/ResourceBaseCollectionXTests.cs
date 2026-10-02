@@ -18,10 +18,11 @@ public class ResourceBaseCollectionXTests
         var target = new List<TestItem>();
         var source = new[] { new TestItem("id1"), new TestItem("id2") };
 
-        target.AddDistinctById(source);
+        var added = target.AddDistinctById(source);
 
         target.Should().HaveCount(2);
         target.Select(x => x.Id).Should().ContainInOrder("id1", "id2");
+        added.Should().Be(2);
     }
 
     [Fact]
@@ -30,10 +31,11 @@ public class ResourceBaseCollectionXTests
         var target = new List<TestItem> { new("id1") };
         var source = new[] { new TestItem("id1"), new TestItem("id2") };
 
-        target.AddDistinctById(source);
+        var added = target.AddDistinctById(source);
 
         target.Should().HaveCount(2);
         target.Select(x => x.Id).Should().ContainInOrder("id1", "id2");
+        added.Should().Be(1);
     }
 
     [Fact]
@@ -41,10 +43,11 @@ public class ResourceBaseCollectionXTests
     {
         var target = new List<TestItem> { new("id1") };
 
-        target.AddDistinctById(null);
+        var added = target.AddDistinctById(null);
 
         target.Should().HaveCount(1);
         target[0].Id.Should().Be("id1");
+        added.Should().Be(0);
     }
 
     [Fact]
@@ -53,9 +56,24 @@ public class ResourceBaseCollectionXTests
         var target = new List<TestItem> { new("id1"), new("id2") };
         var source = new[] { new TestItem("id1"), new TestItem("id2"), new TestItem("id3") };
 
-        target.AddDistinctById(source);
+        var added = target.AddDistinctById(source);
 
         target.Should().HaveCount(3);
         target.Select(x => x.Id).Should().ContainInOrder("id1", "id2", "id3");
+        added.Should().Be(1);
+    }
+    
+    [Fact]
+    public void AddDistinctById_CanAlterBeforeAdd()
+    {
+        var target = new List<TestItem> { new("id1"), new("id2") };
+        var source = new[] { new TestItem("id1"), new TestItem("id2"), new TestItem("id3") };
+
+        var added = target.AddDistinctById(source, ti => ti.Profile = "Changed");
+
+        target.Should().HaveCount(3);
+        target.Select(x => x.Id).Should().ContainInOrder("id1", "id2", "id3");
+        added.Should().Be(1);
+        target.Where(t => t.Profile == "Changed").Should().HaveCount(1, "Only one item was altered");
     }
 }

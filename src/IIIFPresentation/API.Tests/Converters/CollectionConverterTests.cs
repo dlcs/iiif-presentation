@@ -1,9 +1,12 @@
 ﻿using API.Converters;
 using API.Features.Storage.Helpers;
+using Core.Helpers;
 using DLCS;
+using IIIF;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.Extensions.Options;
+using Models;
 using Models.API.Collection;
 using Models.Database.General;
 using Repository.Paths;
@@ -22,6 +25,11 @@ public class CollectionConverterTests
     private const int PageSize = 100;
     private const int CustomerId = 1;
     private const int SettingsBasedRedirectCustomer = 10;
+
+    private static readonly DateTime ItemCreated = new(2025, 1, 2, 3, 4, 5, 678, DateTimeKind.Utc);
+    private static readonly DateTime ItemModified = new(2025, 6, 7, 8, 9, 10, 111, DateTimeKind.Utc);
+    private static readonly DateTime ExpectedItemCreated = ItemCreated.ToSecondPrecision();
+    private static readonly DateTime ExpectedItemModified = ItemModified.ToSecondPrecision();
     
     private readonly IPathGenerator pathGenerator = TestPathGenerator.CreatePathGenerator("base", Uri.UriSchemeHttp);
     
@@ -122,6 +130,39 @@ public class CollectionConverterTests
         presentationCollection.SeeAlso[1].Profile.Should().Be("api-hierarchical");
     }
     
+    [Fact]
+    public void ToPresentationCollection_NoSearchService_IfNotRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.Service.Should().BeNull("search-across is only supported from the root collection");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_SearchService_IfRootCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        collection.Id = KnownCollections.RootCollection;
+
+        // Act
+        var presentationCollection =
+            collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var service = presentationCollection.Service.Should().ContainSingle().Subject
+            .Should().BeOfType<ExternalService>().Subject;
+        service.Id.Should().Be("http://base/1/collections/root/search");
+        service.Type.Should().Be("IIIFCS-Search");
+        service.Profile.Should().Be("level0");
+    }
+
     [Fact]
     public void ToPresentationCollection_ConvertsStorageCollection()
     {
@@ -511,6 +552,250 @@ public class CollectionConverterTests
         },
     };
 
+    [Fact]
+    public void ToSearchCollection_IdIsSearchEndpoint_AndItemsUseFlatIds()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Id.Should().Be("http://base/1/collections/some-id/search",
+            "the resource is the search, not the collection being searched");
+        searchCollection.TotalItems.Should().Be(1);
+        searchCollection.Items.Should().ContainSingle().Which.Should().BeOfType<IIIF.Presentation.V3.Collection>()
+            .Which.Id.Should().Be("http://base/1/collections/some-child", "results are identified by flat id");
+    }
+
+    [Fact]
+    public void ToSearchCollection_LabelDescribesTheSearch_NotTheCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("hunter thompson", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Label!["en"].Should().ContainSingle()
+            .Which.Should().Be("Search results for 'hunter thompson' in 'some-id'");
+    }
+
+    [Fact]
+    public void ToSearchCollection_SeeAlsoPointsAtSearchedCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var seeAlso = searchCollection.SeeAlso.Should().ContainSingle().Subject;
+        seeAlso.Id.Should().Be("http://base/1/collections/some-id", "the flat id of the collection being searched");
+        seeAlso.Label!["en"].Should().Contain("repository root");
+    }
+
+    [Fact]
+    public void ToSearchCollection_CarriesTagsOfSearchedCollection()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+        collection.Tags = "some, tags";
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        searchCollection.Tags.Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToSearchCollection_OmitsPropertiesOfTheSearchedCollection()
+    {
+        // Arrange - a public storage collection, which would otherwise populate all of the below
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert - search results are synthetic, so properties describing the searched collection don't apply
+        searchCollection.FlatId.Should().BeNull();
+        searchCollection.PublicId.Should().BeNull();
+        searchCollection.Slug.Should().BeNull();
+        searchCollection.Parent.Should().BeNull();
+        searchCollection.PartOf.Should().BeNull();
+        searchCollection.Behavior.Should().BeNull();
+        searchCollection.Totals.Should().BeNull("descendant counts can't be derived from a page of results");
+        searchCollection.ItemsOrder.Should().BeNull();
+        searchCollection.Created.Should().BeNull();
+        searchCollection.Modified.Should().BeNull();
+        searchCollection.CreatedBy.Should().BeNull();
+        searchCollection.ModifiedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToSearchCollection_ViewPointsAtSearchEndpoint_PreservingSearchTerm()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+        const string searchPath = "http://base/1/collections/some-id/search";
+
+        // Act - page 2 of 3, so every paging link is generated
+        var searchCollection = collection.ToSearchCollection("hunter thompson", 1, 2, 3, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var view = searchCollection.View!;
+        view.Type.Should().Be(PresentationType.PartialCollectionView);
+        view.Page.Should().Be(2);
+        view.PageSize.Should().Be(1);
+        view.TotalPages.Should().Be(3);
+
+        view.Id.Should().Be($"{searchPath}?label=hunter%20thompson&page=2&pageSize=1");
+        view.First.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=1&pageSize=1"));
+        view.Previous.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=1&pageSize=1"));
+        view.Next.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=3&pageSize=1"));
+        view.Last.Should().Be(new Uri($"{searchPath}?label=hunter%20thompson&page=3&pageSize=1"));
+    }
+
+    [Fact]
+    public void ToSearchCollection_ViewHasNoPagingLinks_WhenSinglePageOfResults()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var view = searchCollection.View!;
+        view.TotalPages.Should().Be(1);
+        view.First.Should().BeNull();
+        view.Previous.Should().BeNull();
+        view.Next.Should().BeNull();
+        view.Last.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToSearchCollection_ReturnsEmptyResults_WhenNoMatches()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("kerouac", PageSize, 1, 0, [], pathGenerator);
+
+        // Assert
+        searchCollection.TotalItems.Should().Be(0);
+        searchCollection.Items.Should().BeEmpty();
+        searchCollection.View!.TotalPages.Should().Be(1);
+    }
+
+    [Fact]
+    public void ToPresentationCollection_CollectionItems_HaveExpandedProperties()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, CreateTestItems(), null,
+            pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var item = presentationCollection.Items.Should().ContainSingle().Subject;
+        item.GetExpanded("slug").Should().Be("root");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        item.GetExpanded("tags").Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_ManifestItems_HaveExpandedProperties_ButNoTags()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, CreateTestManifestItems(),
+            null, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        var item = presentationCollection.Items.Should().ContainSingle().Subject;
+        item.Should().BeOfType<IIIF.Presentation.V3.Manifest>();
+        item.GetExpanded("slug").Should().Be("manifest-slug");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        ((JsonLdBase)item).AdditionalProperties.Should().NotContainKey("tags", "manifests have no tags");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_Items_OmitOptionalProperties_WhenNotSet()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        var items = CreateTestItems();
+        items[0].Collection.CreatedBy = null;
+        items[0].Collection.ModifiedBy = null;
+        items[0].Collection.Tags = null;
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
+            settingsBasedPathGenerator);
+
+        // Assert
+        var additionalProperties = ((JsonLdBase)presentationCollection.Items.Single()).AdditionalProperties;
+        additionalProperties.Should().ContainKey("slug");
+        additionalProperties.Should().NotContainKey("createdBy");
+        additionalProperties.Should().NotContainKey("modifiedBy");
+        additionalProperties.Should().NotContainKey("tags");
+    }
+
+    [Fact]
+    public void ToSearchCollection_Items_HaveExpandedProperties()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(true, true);
+
+        // Act
+        var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
+            pathGenerator);
+
+        // Assert
+        var item = searchCollection.Items.Should().ContainSingle().Subject;
+        item.GetExpanded("slug").Should().Be("root");
+        item.GetExpanded("created").Should().Be(ExpectedItemCreated);
+        item.GetExpanded("modified").Should().Be(ExpectedItemModified);
+        item.GetExpanded("createdBy").Should().Be("Admin");
+        item.GetExpanded("modifiedBy").Should().Be("Modifier");
+        item.GetExpanded("tags").Should().Be("some, tags");
+    }
+
+    [Fact]
+    public void ToHierarchicalCollection_Items_HaveNoExpandedProperties()
+    {
+        // Arrange
+        var storageRoot = CreateTestCollection();
+
+        // Act - the hierarchical form is the public one, so internal-only properties must not leak into it
+        var hierarchicalCollection = storageRoot.ToHierarchicalCollection(pathGenerator, CreateTestItems());
+
+        // Assert
+        ((JsonLdBase)hierarchicalCollection.Items.Single()).AdditionalProperties.Should().BeEmpty();
+    }
+
     private static List<Hierarchy> CreateTestItems()
     {
         var items = new List<Hierarchy>
@@ -525,10 +810,40 @@ public class CollectionConverterTests
                 {
                     Id = "someId",
                     IsPublic = true,
+                    Created = ItemCreated,
+                    Modified = ItemModified,
+                    CreatedBy = "Admin",
+                    ModifiedBy = "Modifier",
+                    Tags = "some, tags",
                 }
             }
         };
         
+        return items;
+    }
+
+    private static List<Hierarchy> CreateTestManifestItems()
+    {
+        var items = new List<Hierarchy>
+        {
+            new()
+            {
+                ManifestId = "some-manifest",
+                CustomerId = CustomerId,
+                Slug = "manifest-slug",
+                Type = ResourceType.IIIFManifest,
+                Manifest = new Models.Database.Collections.Manifest
+                {
+                    Id = "some-manifest",
+                    CustomerId = CustomerId,
+                    Created = ItemCreated,
+                    Modified = ItemModified,
+                    CreatedBy = "Admin",
+                    ModifiedBy = "Modifier",
+                }
+            }
+        };
+
         return items;
     }
 
@@ -619,4 +934,13 @@ public class CollectionConverterTests
 
         return collection;
     }
+}
+
+internal static class CollectionItemX
+{
+    /// <summary>
+    /// Reads one of the expanded, non-IIIF properties that authenticated items listings add (see #670)
+    /// </summary>
+    internal static object GetExpanded(this ICollectionItem item, string key) =>
+        ((JsonLdBase)item).AdditionalProperties[key].ToObject<object>();
 }

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Runtime.InteropServices.JavaScript;
 using API.Features.Storage.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
@@ -24,55 +23,64 @@ public static class ControllerBaseX
     /// </summary>
     /// <param name="controller">Current controllerBase object</param>
     /// <param name="entityResult">Result to transform</param>
-    /// <typeparam name="T">Type of entity being upserted</typeparam>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+    /// <param name="errorTitle">The value for <see cref="Error.Title" />.</param>
+    /// <typeparam name="T">Type of entity being fetched</typeparam>
     /// <returns>
     ///     ActionResult generated from FetchEntityResult
     /// </returns>
     public static IActionResult FetchResultToHttpResult<T>(this ControllerBase controller,
-        FetchEntityResult<T> entityResult)
-        where T : class
+        FetchEntityResult<T> entityResult,
+        string? instance = null,
+        string? errorTitle = "Fetch failed")
+        where T : JsonLdBase
     {
+        // BadRequest is checked ahead of Error as FetchEntityResult.Invalid() sets both
+        if (entityResult.BadRequest)
+        {
+            return controller.PresentationProblem(entityResult.ErrorMessage, instance,
+                (int)HttpStatusCode.BadRequest, $"{errorTitle}: Bad request");
+        }
+
         if (entityResult.Error)
         {
-            return controller.PresentationProblem(detail: entityResult.ErrorMessage,
-                statusCode: (int)HttpStatusCode.InternalServerError);
+            return controller.PresentationProblem(entityResult.ErrorMessage, instance,
+                (int)HttpStatusCode.InternalServerError, errorTitle);
         }
+
+        if (entityResult is { ETagMatch: true, ETag: { } matchedETag }) return new NotModifiedResult(matchedETag);
 
         if (entityResult.EntityNotFound || entityResult.Entity == null) return controller.PresentationNotFound();
 
-        return controller.Ok(entityResult.Entity);
+        return controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag);
     }
 
     /// <summary>
-    /// Create an IActionResult from specified ModifyEntityResult{T}.
+    /// Create an IActionResult from specified ModifyEntityResult{TEnum}.
     /// This will be the model + 200/201 on success. Or an
     /// error and appropriate status code if failed.
     /// </summary>
     /// <param name="controller">Current controllerBase object</param>
     /// <param name="entityResult">Result to transform</param>
-    /// <param name="instance">The value for <see cref="JSType.Error.Instance" />.</param>
+    /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
     /// <param name="errorTitle">
-    /// The value for <see cref="JSType.Error.Title" />. In some instances this will be prepended to the actual error name.
+    /// The value for <see cref="Error.Title" />. In some instances this will be prepended to the actual error name.
     /// e.g. errorTitle + ": Conflict"
     /// </param>
-    /// <typeparam name="T">Type of entity being upserted</typeparam>
-    /// <typeparam name="TEnum">An enum used for </typeparam>
     /// <returns>
     /// ActionResult generated from ModifyEntityResult
     /// </returns>
-    public static IActionResult ModifyResultToHttpResult<T, TEnum>(this ControllerBase controller,
-        ModifyEntityResult<T, TEnum> entityResult,
+    public static IActionResult ModifyResultToHttpResult(this ControllerBase controller,
+        PresentationResult entityResult,
         string? instance,
-        string? errorTitle)
-        where T : JsonLdBase
-        where TEnum : Enum =>
+        string? errorTitle) =>
         entityResult.WriteResult switch
         {
-            WriteResult.Updated => controller.PresentationContent(entityResult.Entity, etag: entityResult.ETag),
+            WriteResult.Updated => controller.PresentationContent(entityResult.Entity!, etag: entityResult.ETag),
             WriteResult.Accepted => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
-                entityResult.Entity, (int)HttpStatusCode.Accepted, entityResult.ETag),
+                entityResult.Entity!, (int)HttpStatusCode.Accepted, null),
             WriteResult.Created => controller.PresentationWithLocationHeader(controller.Request.GetDisplayUrl(),
-                entityResult.Entity, (int)HttpStatusCode.Created, entityResult.ETag),
+                entityResult.Entity!, (int)HttpStatusCode.Created, entityResult.ETag),
             WriteResult.NotFound => controller.PresentationNotFound(entityResult.Error),
             WriteResult.Error => controller.PresentationProblem(entityResult.Error, instance,
                 (int)HttpStatusCode.InternalServerError, errorTitle, controller.GetErrorType(entityResult.ErrorType)),
@@ -101,8 +109,7 @@ public static class ControllerBaseX
     public static ObjectResult ValidationFailed(this ControllerBase controller, ValidationResult validationResult)
     {
         var message = string.Join(". ", validationResult.Errors.Select(s => s.ErrorMessage).Distinct());
-        return controller.PresentationProblem(message, null, (int)HttpStatusCode.BadRequest, "Bad request",
-            GetErrorType(controller, ModifyCollectionType.ValidationFailed));
+        return controller.PresentationBadRequest(message, ModifyCollectionType.ValidationFailed);
     }
 
     /// <summary>
@@ -131,9 +138,10 @@ public static class ControllerBaseX
     /// <summary>
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response.
     /// </summary>
-    /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
+    /// <param name="controller">Current controller</param>
     /// <param name="detail">The value for <see cref="Error.Detail" />.</param>
     /// <param name="instance">The value for <see cref="Error.Instance" />.</param>
+    /// <param name="statusCode">The value for <see cref="Error.Status" />.</param>
     /// <param name="title">The value for <see cref="Error.Title" />.</param>
     /// <param name="type">The value for <see cref="Type" />.</param>
     /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
@@ -148,7 +156,7 @@ public static class ControllerBaseX
         var error = new Error
         {
             Detail = detail,
-            Instance = instance ?? controller.Request.GetDisplayUrl(),
+            Instance = instance ?? controller.Request.GetDisplayUrl(includeQueryParams: false),
             Status = statusCode ?? 500,
             Title = title,
             ErrorTypeUri = type
@@ -160,9 +168,12 @@ public static class ControllerBaseX
         };
     }
 
-    public static string GetErrorType<TType>(this ControllerBase controller, TType type) =>
-        $"{controller.Request.GetDisplayUrl()}/errors/{type?.GetType().Name}/{type}";
-
+    /// <summary>
+    /// Generate URI for use as "type" in error response
+    /// </summary>
+    public static string GetErrorType<TType>(this ControllerBase controller, TType? type)
+        where TType : Enum
+        => controller.Request.GetDisplayUrl($"/errors/{type?.GetType().Name}/{type}", false);
 
     /// <summary> 
     /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 404 status code.
@@ -171,6 +182,17 @@ public static class ControllerBaseX
     public static ObjectResult PresentationNotFound(this ControllerBase controller, string? detail = null)
     {
         return controller.PresentationProblem(detail, null, (int)HttpStatusCode.NotFound, "Not Found");
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ObjectResult"/> that produces a <see cref="Error"/> response with 400 status code.
+    /// </summary>
+    /// <returns>The created <see cref="ObjectResult"/> for the response.</returns>
+    public static ObjectResult PresentationBadRequest<TType>(this ControllerBase controller, string detail,
+        TType errorType) where TType : Enum
+    {
+        return controller.PresentationProblem(detail, null, (int)HttpStatusCode.BadRequest, "Bad request",
+            controller.GetErrorType(errorType));
     }
 
     /// <summary>
@@ -190,12 +212,6 @@ public static class ControllerBaseX
     }
 
     /// <summary>
-    /// Create an <see cref="ObjectResult"/> that produced a 403 response
-    /// </summary>
-    public static ObjectResult Forbidden(this ControllerBase controller)
-        => controller.PresentationProblem(statusCode: (int)HttpStatusCode.Forbidden);
-
-    /// <summary>
     /// Creates a result with serialised <see cref="JsonLdBase"/> body, specified status code and Location header set
     /// </summary>
     public static ActionResult PresentationWithLocationHeader(this ControllerBase controller, string? uri,
@@ -207,4 +223,13 @@ public static class ControllerBaseX
 
         return PresentationContent(controller, descriptionResource, statusCode, etag);
     }
+
+    /// <summary>
+    /// Create a result for unrecognised type
+    /// </summary>
+    public static ObjectResult UnrecognisedTypeProblem(this ControllerBase controller,
+        string expectedTypes = "'Collection' or 'Manifest'") =>
+        controller.PresentationBadRequest(
+            $"Could not determine resource 'type' from the request body - expected {expectedTypes}",
+            ModifyCollectionType.CannotDeserialize);
 }

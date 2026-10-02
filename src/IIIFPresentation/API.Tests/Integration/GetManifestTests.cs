@@ -45,13 +45,15 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
     private const string PaintedResource = "foo-paintedResource";
     private const string IngestingPaintedResource = "ingestingPaintedResource";
     private const int NoCustomerRedirectCustomer = 602;
+    private const int FinishedPipelinesLimit = 2;
 
     public GetManifestTests(StorageFixture storageFixture, PresentationAppFactory<Program> factory)
     {
         s3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
         dbContext = storageFixture.DbFixture.DbContext;
         httpClient = factory.ConfigureBasicIntegrationTestHttpClient(storageFixture.DbFixture,
-            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture),
+            appFactory => appFactory.WithLocalStack(storageFixture.LocalStackFixture)
+                .WithConfigValue("FinishedPipelinesLimit", FinishedPipelinesLimit.ToString()),
             services => services.AddSingleton(DLCSApiClient));
 
         amazonS3 = storageFixture.LocalStackFixture.AWSS3ClientFactory();
@@ -105,6 +107,55 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
                 A<string>.That.Matches(l => l.EndsWith("_ingestingAssets")),
                 A<CancellationToken>._))
             .ReturnsLazily(() => [ingestingAsset, errorAsset]);
+
+        var emptyAdjunctsAsset = JObject.Parse(
+            """
+            {
+                   "@context": "https://localhost/contexts/Image.jsonld",
+                   "@id": "https://localhost:6000/customers/1/spaces/2/images/emptyAdjunctsPaintedResource",
+                   "@type": "vocab:Image",
+                   "id": "emptyAdjunctsPaintedResource",
+                   "ingesting": false,
+                   "space": 1,
+                   "adjuncts": []
+                 }
+            """
+        );
+        
+        A.CallTo(() => DLCSApiClient.GetCustomerImages(PresentationContextFixture.CustomerId,
+                A<string>.That.Matches(l => l.EndsWith("_emptyAdjuncts")),
+                A<CancellationToken>._))
+            .ReturnsLazily(() => [emptyAdjunctsAsset]);
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_OmitsEmptyAdjuncts_OnCanvasAsset()
+    {
+        // Arrange - asset-level adjuncts is an empty array; response should omit it, not echo "adjuncts": []
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_emptyAdjuncts");
+        var dbManifest = await dbContext.Manifests.AddTestManifest(id);
+        var assetId = new AssetId(1, 2, "emptyAdjunctsPaintedResource");
+        await dbContext.CanvasPaintings.AddTestCanvasPainting(dbManifest.Entity, label: new LanguageMap("en", "foo"),
+            assetId: assetId);
+        await dbContext.SaveChangesAsync();
+        await s3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson,
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+
+        // Assert
+        var paintedResource = manifest.PaintedResources.Single();
+        paintedResource.Asset!.ContainsKey("adjuncts").Should()
+            .BeFalse("an empty adjuncts array should be omitted, consistent with manifest-level adjuncts");
     }
     
     [Fact]
@@ -440,6 +491,131 @@ public class GetManifestTests : IClassFixture<PresentationAppFactory<Program>>
             Finished = 0,
             Errors = 1
         });
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsAccepted_WhenPipelineJobQueued()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineQueued");
+
+        // Arrange
+        await dbContext.Manifests.AddTestManifest(id).WithTestPipelineJob();
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.Headers.Should().NotContainKey(HeaderNames.ETag, "manifest is not yet finalised");
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest.Should().NotBeNull();
+        manifest!.Id.Should().Be($"http://localhost/1/manifests/{id}");
+        manifest.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsOK_WhenPipelineJobCompleted()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineCompleted");
+
+        // Arrange
+        await dbContext.Manifests.AddTestManifest(id)
+            .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow);
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Should().ContainKey(HeaderNames.ETag, "pipeline is complete so manifest is final");
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest!.Pipeline.Should().BeNullOrEmpty("a finished job is no longer in-flight");
+        manifest.FinishedPipelines.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Completed");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_ReturnsFinishedPipelinesAndPipeline_WhenResubmittedWhileHistoryExists()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_pipelineResubmitted");
+
+        // Arrange - one finished job from a previous run, and a new in-flight job from a resubmission
+        await dbContext.Manifests.AddTestManifest(id)
+            .WithTestPipelineJob(status: PipelineJobStatus.Completed, finished: DateTime.UtcNow.AddHours(-1),
+                created: DateTime.UtcNow.AddHours(-1), invocationId: 1)
+            .WithTestPipelineJob(status: PipelineJobStatus.Waiting, created: DateTime.UtcNow, invocationId: 2);
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"staging/1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var manifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        manifest!.Pipeline.Should().ContainSingle(p => p.Status == "Waiting", "the resubmitted job is still in-flight");
+        manifest.FinishedPipelines.Should().ContainSingle(p => p.Status == "Completed", "the earlier run is retained as history");
+    }
+
+    [Fact]
+    public async Task Get_IiifManifest_Flat_LimitsFinishedPipelines_ToConfiguredValue()
+    {
+        var id = TestIdentifiers.IdWithSuffix(suffix: "_finishedPipelinesLimit");
+
+        // Arrange - more finished jobs than the configured limit, oldest to newest
+        var manifest = dbContext.Manifests.AddTestManifest(id);
+        for (var i = 1; i <= FinishedPipelinesLimit + 2; i++)
+        {
+            manifest = manifest.WithTestPipelineJob(status: PipelineJobStatus.Completed,
+                created: DateTime.UtcNow.AddMinutes(-i), finished: DateTime.UtcNow.AddMinutes(-i), invocationId: i);
+        }
+        await manifest;
+        await dbContext.SaveChangesAsync();
+
+        await amazonS3.PutObjectAsync(new()
+        {
+            BucketName = LocalStackFixture.StorageBucketName,
+            Key = $"1/manifests/{id}",
+            ContentBody = TestContent.ManifestJson
+        });
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get, $"1/manifests/{id}");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationJsonAsync<PresentationManifest>();
+        responseManifest!.FinishedPipelines.Should().HaveCount(FinishedPipelinesLimit,
+            "the configured FinishedPipelinesLimit should cap the returned history, not the built-in default of 20");
+        responseManifest.FinishedPipelines!.Select(p => p.Created).Should().BeInDescendingOrder(
+            "the most recent history should be returned, not an arbitrary subset");
     }
 
     [Fact]

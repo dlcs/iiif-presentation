@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using AWS.SQS;
-using BackgroundHandler.Helpers;
+using BackgroundHandler.Infrastructure;
 using Core.Auth;
 using Core.Helpers;
 using IIIF.Presentation.V3.Strings;
@@ -20,42 +20,33 @@ public class CustomerCreatedMessageHandler(
     PresentationContext dbContext,
     ICustomerIdProvider  customerIdProvider,
     ILogger<CustomerCreatedMessageHandler> logger)
-    : IMessageHandler
+    : MessageHandlerBase<CustomerCreatedMessage>(logger)
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<bool> HandleMessage(QueueMessage message, CancellationToken cancellationToken)
+    protected override CustomerCreatedMessage DeserializeMessage(QueueMessage message) =>
+        JsonSerializer.Deserialize<CustomerCreatedMessage>(message.Body, JsonSerializerOptions)
+            .ThrowIfNull(nameof(CustomerCreatedMessage));
+
+    protected override async Task<bool> HandleMessage(CustomerCreatedMessage customerCreatedMessage,
+        QueueMessage rawMessage, CancellationToken cancellationToken)
     {
-        using (LogContextHelpers.SetServiceName(nameof(CustomerCreatedMessageHandler)))
-        {
-            try
-            {
-                var customerCreatedMessage = DeserializeMessage(message);
-                
-                customerIdProvider.SetCustomerId(customerCreatedMessage.Id);
+        customerIdProvider.SetCustomerId(customerCreatedMessage.Id);
 
-                await EnsureRootCollection(customerCreatedMessage, cancellationToken);
+        await EnsureRootCollection(customerCreatedMessage, cancellationToken);
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error handling customer-created message {MessageId}", message.MessageId);
-            }
-        }
-
-        return false;
+        return true;
     }
 
     private async Task EnsureRootCollection(CustomerCreatedMessage customerCreatedMessage, CancellationToken cancellationToken)
     {
         var customerId = customerCreatedMessage.Id;
         
-        logger.LogInformation("Ensuring new customer {CustomerId} has root collection", customerId);
+        Logger.LogInformation("Ensuring new customer {CustomerId} has root collection", customerId);
 
         if (await dbContext.Collections.AnyAsync(c => c.Id == KnownCollections.RootCollection, cancellationToken))
         {
-            logger.LogInformation("Customer {CustomerId} already has root collection, no-op", customerId);
+            Logger.LogInformation("Customer {CustomerId} already has root collection, no-op", customerId);
             return;
         }
         
@@ -84,11 +75,5 @@ public class CustomerCreatedMessageHandler(
 
         await dbContext.Collections.AddAsync(collection, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private static CustomerCreatedMessage DeserializeMessage(QueueMessage message)
-    {
-        var deserialized = JsonSerializer.Deserialize<CustomerCreatedMessage>(message.Body, JsonSerializerOptions);
-        return deserialized.ThrowIfNull(nameof(deserialized));
     }
 }

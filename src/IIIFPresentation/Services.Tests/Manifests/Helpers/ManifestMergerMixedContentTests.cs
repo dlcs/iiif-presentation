@@ -17,6 +17,7 @@ namespace Services.Tests.Manifests.Helpers;
 public class ManifestMergerMixedContentTests
 {
     private readonly IManifestMerger sut;
+    private const string HierarchicalId = "https://localhost:5000/0/some/path/test";
 
     public ManifestMergerMixedContentTests()
     {
@@ -49,7 +50,7 @@ public class ManifestMergerMixedContentTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(1);
@@ -126,7 +127,7 @@ public class ManifestMergerMixedContentTests
         canvasPaintings[4].Label = null;
 
         // Act
-        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
 
         // Assert
         mergedManifest.Items.Should().HaveCount(3, "5 canvas paintings but 3 unique Ids");

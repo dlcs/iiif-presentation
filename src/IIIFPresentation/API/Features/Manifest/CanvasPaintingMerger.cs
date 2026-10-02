@@ -176,7 +176,7 @@ public class CanvasPaintingMerger(IPathRewriteParser pathRewriteParser) : ICanva
         List<Canvas>? items, int currentCanvasOrder, bool isMultiItemCanvas, LanguageMap? firstCanvasLabelInMultiItemCanvas)
     {
         var canvas = items?.FirstOrDefault(c =>
-            pathRewriteParser.ParsePathWithRewrites(c.Id, itemsCanvasPainting.CustomerId).Resource ==
+            (pathRewriteParser.ParsePathWithRewrites(c.Id, itemsCanvasPainting.CustomerId).Resource ?? c.Id) ==
             itemsCanvasPainting.Id);
 
         if (canvas != null)

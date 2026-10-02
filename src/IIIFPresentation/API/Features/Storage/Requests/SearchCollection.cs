@@ -1,0 +1,115 @@
+using System.Diagnostics;
+using API.Converters;
+using API.Features.Storage.Helpers;
+using API.Features.Storage.Models;
+using API.Infrastructure.Requests;
+using API.Settings;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Models.API.Collection;
+using Models.Database.Collections;
+using Repository;
+using Repository.Collections;
+using Repository.Paths;
+
+namespace API.Features.Storage.Requests;
+
+public class SearchCollection(
+    string id,
+    string label,
+    string[] terms,
+    int? page,
+    int? pageSize,
+    string? orderBy = null,
+    bool descending = false)
+    : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
+{
+    public string Id { get; } = id;
+
+    /// <summary>The search term as supplied, used to label and link the results</summary>
+    public string Label { get; } = label;
+
+    /// <summary>The search term tokenised into the individual terms to match on</summary>
+    public string[] Terms { get; } = terms;
+
+    public int? Page { get; } = page;
+
+    public int? PageSize { get; } = pageSize;
+
+    public string? OrderBy { get; } = orderBy;
+
+    public bool Descending { get; } = descending;
+}
+
+public class SearchCollectionHandler(
+    PresentationContext dbContext,
+    IPathGenerator pathGenerator,
+    IOptions<ApiSettings> options,
+    ILogger<SearchCollectionHandler> logger)
+    : IRequestHandler<SearchCollection, FetchEntityResult<PresentationCollection>>
+{
+    private readonly ApiSettings settings = options.Value;
+
+    public async Task<FetchEntityResult<PresentationCollection>> Handle(SearchCollection request,
+        CancellationToken cancellationToken)
+    {
+        // Only the collection itself is required - the search result is synthetic, so it carries none of the
+        // collection's hierarchy (slug, parent, publicId etc)
+        var collection = await dbContext.Collections.Retrieve(request.Id, cancellationToken: cancellationToken);
+
+        if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
+
+        // For MVP SearchCollectionItems searches every resource in the customer, so it only gives the right answer for
+        // the root collection, guard here.
+        if (!collection.IsStorageCollection || !collection.IsRoot())
+        {
+            return FetchEntityResult<PresentationCollection>.Invalid(
+                "Search is only supported for the root storage collection");
+        }
+
+        var searchQuery = dbContext.SearchCollectionItems(request.Terms);
+
+        // Label search is an un-indexed ILIKE scan (see RFC 0008), so time the 2 queries it runs separately - the
+        // count has no LIMIT to short-circuit it, so is expected to be the more expensive of the pair
+        var countStopwatch = Stopwatch.StartNew();
+        var total = await searchQuery.CountAsync(cancellationToken);
+        countStopwatch.Stop();
+
+        var requestModifiers = request.GetRequestModifiers(settings);
+
+        var pageStopwatch = Stopwatch.StartNew();
+        var items = await searchQuery
+            .AsOrderedCollectionItemsQuery(requestModifiers.OrderBy, requestModifiers.Descending)
+            .Skip((requestModifiers.Page - 1) * requestModifiers.PageSize)
+            .Take(requestModifiers.PageSize)
+            .ToListAsync(cancellationToken);
+        pageStopwatch.Stop();
+
+        LogSearchTimings(request, requestModifiers, total, countStopwatch.ElapsedMilliseconds,
+            pageStopwatch.ElapsedMilliseconds);
+
+        // Results can sit at any depth, so items are identified by their flat id (see RFC 0008) - no full path
+        // is required
+        var presentationCollection = collection.ToSearchCollection(request.Label, requestModifiers.PageSize,
+            requestModifiers.Page, total, items, pathGenerator, requestModifiers.GetOrderByParameter());
+
+        // no etag - it's the collection's, and would be unchanged by results changing beneath it
+        return FetchEntityResult<PresentationCollection>.Success(presentationCollection);
+    }
+
+    /// <summary>
+    /// Logs how long the search queries took, as a warning if over <see cref="ApiSettings.SlowSearchThresholdMs"/> so
+    /// that slow searches surface without Debug logging enabled
+    /// </summary>
+    private void LogSearchTimings(SearchCollection request, RequestModifiers requestModifiers, int total,
+        long countElapsed, long pageElapsed)
+    {
+        var level = countElapsed + pageElapsed >= settings.SlowSearchThresholdMs ? LogLevel.Warning : LogLevel.Debug;
+
+        logger.Log(level,
+            "Searched {CollectionId} for '{SearchTerm}' (count {CountElapsed}ms, page {PageElapsed}ms). {TotalMatches} matches page {Page} of {PageSize}",
+            request.Id, request.Label, countElapsed, pageElapsed, total, requestModifiers.Page,
+            requestModifiers.PageSize);
+    }
+}

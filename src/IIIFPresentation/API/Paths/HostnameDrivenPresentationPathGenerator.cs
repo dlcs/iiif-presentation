@@ -1,6 +1,5 @@
 ﻿using API.Helpers;
 using API.Infrastructure.Requests;
-using Core.Paths;
 using Core.Web;
 using Microsoft.Extensions.Options;
 using Repository.Paths;
@@ -17,12 +16,14 @@ public class HostnameDrivenPresentationPathGenerator(
 {
     private readonly TypedPathTemplateOptions settings = settings.Value;
 
-    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
+        string? hierarchyPath, DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
     }
 
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string? resourceId,
+        DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
     }
@@ -32,10 +33,9 @@ public class HostnameDrivenPresentationPathGenerator(
     {
         var request = GetHttpRequest();
         var host = request.Host.Value;
-        var template = settings.GetPathTemplateForHostAndType(host, presentationServiceType);
+        var template = settings.GetPathTemplateForHostAndType(host!, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+        var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
 
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

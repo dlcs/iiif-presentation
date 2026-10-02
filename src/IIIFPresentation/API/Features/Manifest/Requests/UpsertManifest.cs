@@ -1,7 +1,7 @@
-﻿using API.Infrastructure.Requests;
+using API.Helpers;
+using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
-using Models.API.General;
 using Models.API.Manifest;
 
 namespace API.Features.Manifest.Requests;
@@ -15,7 +15,7 @@ public class UpsertManifest(
     StringValues etag,
     PresentationManifest presentationManifest,
     string rawRequestBody,
-    bool createSpace) : IRequest<ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+    bool createSpace) : IRequest<PresentationResult>
 {
     public int CustomerId { get; } = customerId;
     public string ManifestId { get; } = manifestId;
@@ -25,20 +25,24 @@ public class UpsertManifest(
     public bool CreateSpace { get; } = createSpace;
 }
 
-public class UpsertManifestHandler(IManifestWrite manifestService)
-    : IRequestHandler<UpsertManifest, ModifyEntityResult<PresentationManifest, ModifyCollectionType>>
+public class UpsertManifestHandler(IManifestWrite manifestService, IRequestIdResolver requestIdResolver)
+    : IRequestHandler<UpsertManifest, PresentationResult>
 {
-    public Task<ModifyEntityResult<PresentationManifest, ModifyCollectionType>> Handle(UpsertManifest request,
-        CancellationToken cancellationToken)
+    public async Task<PresentationResult> Handle(UpsertManifest request, CancellationToken cancellationToken)
     {
+        var (error, resolvedId) = requestIdResolver.ResolveAndValidate(request.CustomerId,
+            request.PresentationManifest.Id, request.ManifestId);
+        if (error != null) return error;
+
         var upsertRequest = new UpsertManifestRequest(
             request.ManifestId,
             request.Etag,
             request.CustomerId,
-            request.PresentationManifest,
+            request.PresentationManifest.RemoveInvalidPipelines(), // Necessary, makes downstream handling simpler
             request.RawRequestBody,
-            request.CreateSpace);
+            request.CreateSpace,
+            resolvedId.ToLocation());
 
-        return manifestService.Upsert(upsertRequest, cancellationToken);
+        return await manifestService.Upsert(upsertRequest, cancellationToken);
     }
 }

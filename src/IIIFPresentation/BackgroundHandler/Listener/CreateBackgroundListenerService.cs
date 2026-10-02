@@ -3,7 +3,7 @@
 namespace BackgroundHandler.Listener;
 
 /// <summary>
-/// Background service that monitors SQS queue for incoming messages that customer has been created
+/// Background service that monitors SQS queue and handles messages with specified <see cref="IMessageHandler"/>
 /// </summary>
 public class CreateBackgroundListenerService<T>(
     SqsListener sqsListener,

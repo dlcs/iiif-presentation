@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.DLCS;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Paths;
@@ -99,14 +100,8 @@ public class ManifestPaintedResourceParser(
         var specifiedCanvasId = TryGetValidCanvasId(customerId, paintedResource);
         var payloadCanvasPainting = paintedResource.CanvasPainting;
         var assetDetails =
-            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)), customerId);
-
-        if (assetDetails.Space < 0)
-        {
-            throw new AssetException(
-                $"The space for asset '{assetDetails.Id}' {(specifiedCanvasId != null ? $"with canvas id '{specifiedCanvasId}' " : "")}is '{assetDetails.Space}' and cannot be negative",
-                assetDetails.Id);
-        }
+            GetCanvasPaintingDetailsForAsset(paintedResource.Asset.ThrowIfNull(nameof(paintedResource.Asset)), customerId,
+                specifiedCanvasId);
 
         logger.LogTrace("Processing canvas painting for asset {AssetId}", assetDetails.Id);
         var cp = new InterimCanvasPainting
@@ -173,19 +168,62 @@ public class ManifestPaintedResourceParser(
         return parsedCanvasId.Resource;
     }
 
-    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset, int customerId)
+    private static AssetDetails GetCanvasPaintingDetailsForAsset(JObject asset, int customerId, string? canvasId)
     {
         // Read props from Asset - id must be there. If not, throw an exception
         var adjuncts = asset.TryGetCollectionValue<JObject>(AssetProperties.Adjuncts);
         asset.Remove(AssetProperties.Adjuncts);
         var id = asset.GetRequiredValue<string>(AssetProperties.Id);
-        var space = asset.TryGetValue<int?>(AssetProperties.Space);
+        var space = GetSpace(asset, id, canvasId);
         return new AssetDetails
         {
             Space = space,
             AdjunctInteraction = adjuncts != null ? HydrateAdjuncts(adjuncts, space, customerId, id) : null,
             Id = id
         };
+    }
+
+    /// <summary>
+    /// Parse the "space" property of an asset, throwing an <see cref="AssetException"/> rather than an
+    /// unhandled <see cref="FormatException"/>/<see cref="OverflowException"/> if a non-integer value (e.g. a
+    /// string, decimal, boolean, array, object, or a number too large to fit in an int) is supplied, or if the
+    /// value is not positive. Space 0 is reserved by DLCS/Protagonist for adjunct-only stub assets (see
+    /// <see cref="ResourceAdjunctInteractions.StubAssetSpace"/>), so it is rejected here too rather than being
+    /// allowed to reach DLCS and fail there. Returns null if space is absent, or a valid positive integer otherwise.
+    /// </summary>
+    private static int? GetSpace(JObject asset, string assetId, string? canvasId)
+    {
+        var spaceToken = asset[AssetProperties.Space];
+
+        AssetException InvalidSpace(object? value)
+        {
+            var canvasIdSuffix = canvasId != null ? $" with canvas id '{canvasId}'" : "";
+            return new AssetException(
+                $"The space for asset '{assetId}'{canvasIdSuffix} must be a positive integer, but was '{value}'",
+                assetId);
+        }
+
+        // Only whole numbers, numeric strings (which is cast to an int), or an absent/null value are valid.
+        // Without this check, other JSON types would silently pass through the cast below instead of raising an error.
+        // Decimals (e.g. 1.5) get rounded, and booleans get coerced to 0/1 - so reject them explicitly here first
+        if (spaceToken != null && spaceToken.Type is not (JTokenType.Integer or JTokenType.String or JTokenType.Null))
+        {
+            throw InvalidSpace(spaceToken.ToString(Formatting.None));
+        }
+
+        int? space;
+        try
+        {
+            space = asset.TryGetValue<int?>(AssetProperties.Space);
+        }
+        catch (Exception ex) when (ex is FormatException or OverflowException)
+        {
+            throw InvalidSpace(spaceToken);
+        }
+
+        if (space <= 0) throw InvalidSpace(space);
+
+        return space;
     }
 
     private static AdjunctInteraction HydrateAdjuncts(IEnumerable<JObject> adjuncts, int? space, int customerId, string assetId)

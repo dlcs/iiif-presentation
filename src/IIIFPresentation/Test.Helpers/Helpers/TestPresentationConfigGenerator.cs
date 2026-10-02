@@ -7,12 +7,14 @@ namespace Test.Helpers.Helpers;
 public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTemplateOptions typedPathTemplateOptions)
     : IPresentationPathGenerator
 {
-    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
+        string? hierarchyPath, DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
     }
 
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string? resourceId,
+        DateTime? created = null)
     {
         return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
     }
@@ -23,8 +25,7 @@ public class TestPresentationConfigGenerator(string presentationUrl, TypedPathTe
         var host = presentationUrl;
         var template = typedPathTemplateOptions.GetPathTemplateForHostAndType(host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+        var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com
