@@ -184,6 +184,21 @@ public class TrailingSlashRedirectTests : IClassFixture<PresentationAppFactory<P
     }
     
     [Fact]
+    public async Task TrailingSlash_CrossOrigin_RedirectResponse_HasCorsHeaders()
+    {
+        // Arrange
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "1/collections/root/");
+        requestMessage.Headers.Add("Origin", "https://example.com");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Found);
+        response.Headers.GetValues("Access-Control-Allow-Origin").Should().ContainSingle().Which.Should().Be("*");
+    }
+
+    [Fact]
     public async Task TrailingSlash_NoRedirect_WhenNotGet()
     {
         // Arrange

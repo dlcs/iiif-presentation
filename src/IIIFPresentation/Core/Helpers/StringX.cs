@@ -66,5 +66,13 @@ public static class StringX
         }
 
         return sb.ToString();
-    }    
+    }
+
+    /// <summary>
+    /// Splits string into tokens on any whitespace, dropping empty entries
+    /// </summary>
+    /// <param name="str">String to split</param>
+    /// <returns>Tokens found in string; empty if string is null, empty or whitespace</returns>
+    public static string[] SplitOnWhitespace(this string? str) =>
+        str?.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 }

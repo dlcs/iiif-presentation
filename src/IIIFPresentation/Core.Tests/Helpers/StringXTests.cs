@@ -132,4 +132,17 @@ public class StringXTests
         // Assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("foo\tbar")]
+    [InlineData("foo  bar")]
+    [InlineData("foo\nbar")]
+    public void SplitOnWhitespace_SplitsOnAllWhitespace(string input)
+    {
+        string[] expected = ["foo", "bar"];
+        
+        var result = input.SplitOnWhitespace();
+        
+        result.Should().BeEquivalentTo(expected);
+    }
 }

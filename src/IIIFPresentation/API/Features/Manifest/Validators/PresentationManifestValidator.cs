@@ -1,4 +1,5 @@
 using API.Features.Storage.Validators;
+using API.Settings;
 using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
@@ -13,13 +14,18 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 {
     private readonly ServicesSettings servicesSettings;
 
-    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions)
+    /// <param name="servicesOptions"></param>
+    /// <param name="isFlatRequest">
+    /// Whether a 'parent'/'slug' or 'publicId' must be present in the body - see <see cref="PresentationValidator"/>.
+    /// Hierarchical manifest write requests construct this with <c>false</c>.
+    /// </param>
+    public PresentationManifestValidator(IOptions<ServicesSettings> servicesOptions, IOptions<ApiSettings> apiOptions, bool isFlatRequest = true)
     {
         servicesSettings = servicesOptions.Value;
         When(m => !m.PaintedResources.IsNullOrEmpty(), PaintedResourcesValidation);
         When(m => !m.Adjuncts.IsNullOrEmpty(), ManifestAdjunctsValidation);
-        RuleFor(c => c).SetValidator(new PresentationValidator());
-        
+        RuleFor(c => c).SetValidator(new PresentationValidator(apiOptions, isFlatRequest));
+
         RuleFor(m => m.Items)
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
             .When(m => !m.Items.IsNullOrEmpty())
@@ -70,7 +76,7 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .WithMessage("'choiceOrder' cannot be a duplicate within a 'canvasOrder'");
         
         RuleFor(m => m.PaintedResources)
-            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting!.CanvasOrder != null && pr.CanvasPainting.CanvasId != null && pr.CanvasPainting.ChoiceOrder == null)
+            .Must(lpr => !lpr.Where(pr => pr.CanvasPainting!.CanvasOrder != null && pr.CanvasPainting.ChoiceOrder == null)
                 .GroupBy(pr => new {pr.CanvasPainting!.CanvasId, pr.CanvasPainting.CanvasOrder})
                 .Any(grp => grp.Count() > 1))
             .When(m => !m.PaintedResources.Any(pr => pr.CanvasPainting == null))

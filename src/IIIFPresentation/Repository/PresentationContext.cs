@@ -38,6 +38,8 @@ public class PresentationContext : DbContext
     
     public virtual DbSet<Batch> Batches { get; set; }
 
+    public virtual DbSet<PipelineJob> PipelineJobs { get; set; }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder
@@ -69,6 +71,12 @@ public class PresentationContext : DbContext
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
                 .OnDelete(DeleteBehavior.NoAction);
 
+            entity.HasMany(e => e.PipelineJobs)
+                .WithOne(e => e.Collection)
+                .HasForeignKey(e => new { e.CollectionId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.Property(e => e.Etag)
                 .HasComputedColumnSql("""deterministic_uuid_sha256("modified", "id")""", stored: true);
         });
@@ -76,8 +84,16 @@ public class PresentationContext : DbContext
         modelBuilder.Entity<Manifest>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.CustomerId });
+            
+            entity.Property(e => e.Label).HasColumnType("jsonb");
 
             entity.HasMany(e => e.Hierarchy)
+                .WithOne(e => e.Manifest)
+                .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
+                .HasPrincipalKey(e => new { e.Id, e.CustomerId })
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.PipelineJobs)
                 .WithOne(e => e.Manifest)
                 .HasForeignKey(e => new { e.ManifestId, e.CustomerId })
                 .HasPrincipalKey(e => new { e.Id, e.CustomerId })
@@ -156,8 +172,45 @@ public class PresentationContext : DbContext
                     d => d.ToString(),
                     d => d.GetEnumFromString<DeliverableType>(true));
         });
+
+        modelBuilder.Entity<PipelineJob>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasConversion(
+                    s => s.ToString(),
+                    s => s.GetEnumFromString<PipelineJobStatus>(true));
+
+            entity.Property(e => e.JobType)
+                .IsRequired()
+                .HasConversion(
+                    j => j.ToString(),
+                    j => j.GetEnumFromString<PipelineJobType>(true));
+
+            entity.Property(p => p.Created).HasDefaultValueSql("now()");
+
+            entity.Property(e => e.Config)
+                .HasConversion<PipelineConfigConverter>()
+                .HasColumnType("jsonb");
+
+            // Enforces the invariant completion-notification correlation relies on: no two jobs for the same
+            // resource+type can claim the same invocation id. NotSubmitted/FailedToSubmit rows never get a real
+            // value from the pipeline service, so InvocationId stays null for them - the filter (and Postgres'
+            // native "multiple NULLs never collide" unique-index semantics) excludes them without needing to
+            // name specific statuses, so this doesn't need updating if new pre-submission statuses are added.
+            entity.HasIndex(p => new { p.CustomerId, p.ManifestId, p.CollectionId, p.JobType, p.InvocationId })
+                .IsUnique()
+                .HasFilter("""invocation_id IS NOT NULL""");
+
+            entity.Ignore(p => p.ResourceId);
+
+            entity.ToTable(p => p.HasCheckConstraint("stop_collection_and_manifest_in_same_record",
+                "num_nonnulls(manifest_id, collection_id) = 1"));
+        });
     }
-    
+
     private void ApplyGlobalFilters(ModelBuilder builder)
     {
         // get the method GetCustomerId from this class

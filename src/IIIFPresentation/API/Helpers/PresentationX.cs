@@ -1,5 +1,4 @@
-﻿using API.Infrastructure.Validation;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Models.API;
 using Models.API.General;
 

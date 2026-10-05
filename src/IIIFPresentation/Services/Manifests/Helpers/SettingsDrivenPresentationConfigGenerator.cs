@@ -19,24 +19,25 @@ public class SettingsDrivenPresentationConfigGenerator(IOptions<PathSettings> se
         return settings.CustomerPresentationApiUrl.ContainsKey(customerId);
     }
 
-    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId, string hierarchyPath)
+    public string GetHierarchyPresentationPathForRequest(string presentationServiceType, int customerId,
+        string? hierarchyPath, DateTime? created = null)
     {
-        return GetPresentationPath(presentationServiceType, customerId, hierarchyPath);
-    }
-    
-    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string resourceId)
-    {
-        return GetPresentationPath(presentationServiceType, customerId, resourceId: resourceId);
+        return GetPresentationPath(presentationServiceType, customerId, created, hierarchyPath);
     }
 
-    private string GetPresentationPath(string presentationServiceType, int customerId, string? hierarchyPath = null,
-        string? resourceId = null)
+    public string GetFlatPresentationPathForRequest(string presentationServiceType, int customerId, string? resourceId,
+        DateTime? created = null)
     {
-        var presentationUrl = settings.GetCustomerSpecificPresentationUrl(customerId);
+        return GetPresentationPath(presentationServiceType, customerId, created, resourceId: resourceId);
+    }
+
+    private string GetPresentationPath(string presentationServiceType, int customerId, DateTime? created,
+        string? hierarchyPath = null, string? resourceId = null)
+    {
+        var presentationUrl = settings.GetPresentationUrl(customerId, created);
         var template = settings.PathRules.GetPathTemplateForHostAndType(presentationUrl.Host, presentationServiceType);
 
-        var path = PresentationPathReplacementHelpers.GeneratePresentationPathFromTemplate(template,
-            customerId.ToString(), hierarchyPath, resourceId);
+        var path = template.GeneratePath(customerId, hierarchyPath, resourceId);
         
         return Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? path // template contains https://foo.com

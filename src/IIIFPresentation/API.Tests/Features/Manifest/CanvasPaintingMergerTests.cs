@@ -367,7 +367,36 @@ public class CanvasPaintingMergerTests
         action.Should().ThrowExactly<CanvasPaintingMergerException>()
             .WithMessage($"canvas painting with id {paintedResourceId}_1 cannot contain an annotation body");
     }
-    
+
+    [Fact]
+    public void CombinePaintedResources_ThrowsError_WhenItemsWithShortCanvasIdTrackedByPaintedResourcesWithPaintingAnnotation()
+    {
+        // Arrange
+        var paintedResourceId = "paintedResource";
+        var canvasPaintingItems = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        var canvasPaintingPaintedResources = ManifestTestCreator.CanvasPaintings()
+            .WithCanvasPainting($"{paintedResourceId}_1", cp =>
+            {
+                cp.CanvasOrder = 0;
+                cp.ChoiceOrder = 0;
+            }).BuildInterim();
+
+        var canvas = ManifestTestCreator.Canvas($"{paintedResourceId}_1").WithImage().Build();
+
+        // Act
+        Action action = () => sut.CombinePaintedResources(canvasPaintingItems, canvasPaintingPaintedResources, [canvas]);
+
+        // Assert
+        action.Should().ThrowExactly<CanvasPaintingMergerException>()
+            .WithMessage($"canvas painting with id {paintedResourceId}_1 cannot contain an annotation body");
+    }
+
     [Fact]
     public void CombinePaintedResources_ThrowsError_WhenItemsTrackedByPaintedResourcesWithMismatchedCanvasLabel()
     {

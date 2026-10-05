@@ -56,7 +56,7 @@ public static class DatabaseTestDataPopulation
     }
 
     public static ValueTask<EntityEntry<Batch>> AddTestBatch(this DbSet<Batch> batches, int id, Manifest manifest,
-        DeliverableType deliverableType = DeliverableType.Asset)
+        DeliverableType deliverableType = DeliverableType.Asset, BatchStatus status = BatchStatus.Ingesting)
     {
         manifest.Batches ??= [];
         var batch = new Batch
@@ -64,7 +64,7 @@ public static class DatabaseTestDataPopulation
             Id = id,
             CustomerId = manifest.CustomerId,
             ManifestId = manifest.Id,
-            Status = BatchStatus.Ingesting,
+            Status = status,
             DeliverableType = deliverableType
         };
         manifest.Batches.Add(batch);
@@ -150,5 +150,23 @@ public static class DatabaseTestDataPopulation
         };
         manifest.CanvasPaintings.Add(canvasPainting);
         return canvasPaintings.AddAsync(canvasPainting);
+    }
+
+    public static ValueTask<EntityEntry<Manifest>> WithTestPipelineJob(this ValueTask<EntityEntry<Manifest>> manifest,
+        PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null, DateTime? created = null,
+        int invocationId = 1)
+    {
+        manifest.Result.Entity.PipelineJobs ??= [];
+        manifest.Result.Entity.PipelineJobs.Add(
+            new PipelineJob
+            {
+                CustomerId = manifest.Result.Entity.CustomerId,
+                JobType = PipelineJobType.TextService,
+                Status = status,
+                Created = created ?? DateTime.UtcNow,
+                Finished = finished,
+                InvocationId = invocationId.ToString(),
+            });
+        return manifest;
     }
 }

@@ -8,20 +8,20 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Helpers;
 using Services.Manifests.Model;
-using PresUpdateResult = API.Infrastructure.Requests.ModifyEntityResult<Models.API.Manifest.PresentationManifest, Models.API.General.ModifyCollectionType>;
+using API.Infrastructure.Requests;
 
 namespace API.Features.Manifest.Helpers;
 
 public static class AssetDuplicateValidator
 {
-    public static PresUpdateResult? ValidateDuplicates(
+    public static PresentationResult? ValidateDuplicates(
         List<InterimCanvasPainting> paintedResourceCanvasPaintings,
         List<PaintedResource>? paintedResources)
         => ValidateDuplicateAssets(paintedResourceCanvasPaintings, paintedResources)
            // run the adjunct validator if the asset validator returned no errors
            ?? ValidateDuplicateAdjuncts(paintedResourceCanvasPaintings);
 
-    private static PresUpdateResult? ValidateDuplicateAssets(
+    private static PresentationResult? ValidateDuplicateAssets(
         List<InterimCanvasPainting> paintedResourceCanvasPaintings,
         List<PaintedResource>? paintedResources)
     {
@@ -43,7 +43,7 @@ public static class AssetDuplicateValidator
                 if (!JToken.DeepEquals(existing, asset))
                 {
                     var cp = paintedResourceCanvasPaintings.FirstOrDefault(c => c.SuspectedAssetId == assetId);
-                    return UpsertErrorHelper.AssetsDataDoesNotMatch<PresentationManifest>(
+                    return UpsertErrorHelper.AssetsDataDoesNotMatch(
                         cp != null ? BuildAssetKey(cp) : assetId,
                         SerializeDiff(existing, asset));
                 }
@@ -53,7 +53,7 @@ public static class AssetDuplicateValidator
         return null;
     }
 
-    private static PresUpdateResult? ValidateDuplicateAdjuncts(
+    private static PresentationResult? ValidateDuplicateAdjuncts(
         List<InterimCanvasPainting> paintedResourceCanvasPaintings)
     {
         var seenAdjuncts = new Dictionary<string, List<JObject>?>();
@@ -66,7 +66,7 @@ public static class AssetDuplicateValidator
             {
                 var existing = seenAdjuncts[key];
                 if (!AdjunctsEqual(existing, adjuncts))
-                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch<PresentationManifest>(key,
+                    return UpsertErrorHelper.AssetAdjunctsDoNotMatch(key,
                         SerializeDiff(new JArray(existing ?? []), new JArray(adjuncts ?? [])));
             }
         }

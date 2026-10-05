@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using API.Auth;
 using API.Features.Common.Helpers;
 using API.Features.Manifest;
+using API.Features.Storage;
 using API.Helpers;
 using API.Infrastructure;
 using API.Infrastructure.Http;
@@ -9,6 +10,7 @@ using API.Infrastructure.Http.CorrelationId;
 using API.Infrastructure.Http.Redirect;
 using API.Paths;
 using API.Settings;
+using Core.Settings;
 using DLCS;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -46,10 +48,15 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddOptions<ApiSettings>()
     .BindConfiguration(string.Empty);
+builder.Services.AddOptions<BehaviourSettings>()
+    .BindConfiguration(string.Empty);
 builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration(nameof(CacheSettings));
 var dlcsSettings = builder.Configuration.GetSection(DlcsSettings.SettingsName);
 builder.Services.Configure<DlcsSettings>(dlcsSettings);
+var textServicesSettings = builder.Configuration.GetSection(TextServicesSettings.SettingsName);
+builder.Services.Configure<TextServicesSettings>(textServicesSettings);
+var textServices = textServicesSettings.Get<TextServicesSettings>() ?? new TextServicesSettings();
 
 var cacheSettings = builder.Configuration.GetSection(nameof(CacheSettings)).Get<CacheSettings>() ?? new CacheSettings();
 var dlcs = dlcsSettings.Get<DlcsSettings>()!;
@@ -58,13 +65,16 @@ builder.RegisterSharedServiceSettings();
 builder.Services
     .AddDlcsApiClient(dlcs)
     .AddDlcsOrchestratorClient(dlcs)
+    .AddTextBuilderClient(textServices)
     .AddDelegatedAuthHandler(opts => { opts.Realm = "DLCS-API"; });
 builder.Services.ConfigureDefaultCors(corsPolicyName);
 builder.Services.AddDataAccess(builder.Configuration);
 builder.Services.AddCaching(cacheSettings);
 builder.Services
     .ConfigureSwagger()
+    .AddSingleton<ILockManager, LockManager>()
     .AddScoped<IManifestWrite, ManifestWriteService>()
+    .AddScoped<ICollectionWrite, CollectionWriteService>()
     .AddScoped<IManagedAssetResultFinder, ManagedAssetResultFinder>()
     .AddScoped<DlcsManifestCoordinator>()
     .AddScoped<IManifestRead, ManifestReadService>()
@@ -79,9 +89,12 @@ builder.Services
     .AddSingleton<SettingsDrivenPresentationConfigGenerator>()
     .AddSingleton<SettingsBasedPathGenerator>()
     .AddScoped<IManifestMerger, ManifestMerger>()
+    .AddScoped<IDlcsManifestMerger, DlcsManifestMerger>()
     .AddSingleton<ICanvasPaintingMerger, CanvasPaintingMerger>()
     .AddScoped<IManifestStorageManager, ManifestS3Manager>()
     .AddScoped<IParentSlugParser, ParentSlugParser>()
+    .AddScoped<IRequestIdResolver, RequestIdResolver>()
+    .AddScoped<IHierarchicalRequestHelper, HierarchicalRequestHelper>()
     .AddScoped<IETagCache, ETagCache>()
     .AddScoped<HierarchyResourceDeleter>()
     .AddScoped<ServicesSettings>()
@@ -99,7 +112,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(opts =>
     opts.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto;
 
     // https://github.com/dotnet/dotnet-docker/issues/6491
-    opts.KnownNetworks.Clear();
+    opts.KnownIPNetworks.Clear();
     opts.KnownProxies.Clear();
 });
 
@@ -113,10 +126,19 @@ builder.Services.AddOptionsWithValidateOnStart<Program>();
 
 var app = builder.Build();
 
+// Only add LegacyHostRedirectMiddleware to the pipeline if a legacy host is actually configured - otherwise every
+// request would pay for a no-op middleware invocation
+var legacyHostConfigured = !string.IsNullOrEmpty(
+    builder.Configuration[$"{PathSettings.SettingsName}:{nameof(PathSettings.LegacyPresentationApiUrl)}"]);
+
 app
     .UseForwardedHeaders()
     .UseMiddleware<CorrelationIdMiddleware>()
-    .UseMiddleware<TrailingSlashRedirectMiddleware>();
+    .UseCors(corsPolicyName);
+
+if (legacyHostConfigured) app.UseMiddleware<LegacyHostRedirectMiddleware>();
+
+app.UseMiddleware<TrailingSlashRedirectMiddleware>();
 
 IIIFPresentationContextConfiguration.TryRunMigrations(builder.Configuration, new MigrationCustomerIdProvider(), app.Logger);
 
@@ -126,8 +148,7 @@ app
     .UseHttpsRedirection()
     .UseAuthentication()
     .UseAuthorization()
-    .UseSerilogRequestLogging()
-    .UseCors(corsPolicyName);
+    .UseSerilogRequestLogging();
 
 app.MapControllers();
 

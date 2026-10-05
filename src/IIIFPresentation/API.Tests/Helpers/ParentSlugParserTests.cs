@@ -356,7 +356,7 @@ public class ParentSlugParserTests
     {
         // Arrange
         var slug = TestIdentifiers.Slug();
-        
+
         // Act
         var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
         {
@@ -367,5 +367,85 @@ public class ParentSlugParserTests
         // Assert
         parentSlugParserResult.IsError.Should().BeTrue();
         parentSlugParserResult.Errors.Error.Should().Be($"The publicId has a customer id that does not match the customer id found on the calling URL");
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_UsesUrlParentPath_WhenNoBodyParentGiven()
+    {
+        // Arrange - hierarchical POST style: parent comes purely from the URL, body only supplies a slug
+        var slug = TestIdentifiers.Slug();
+
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            Slug = slug
+        }, Customer, null, urlParentPath: "first-child");
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().Be(slug);
+        parentSlugParserResult.ParsedParentSlug.Parent.Id.Should().Be("FirstChildCollection");
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_UsesUrlSlug_WhenNoBodySlugGiven()
+    {
+        // Arrange - hierarchical PUT style: both parent and slug come from the URL, body supplies neither
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection(), Customer, null,
+            urlParentPath: "first-child", urlSlug: "new-child-slug");
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeFalse();
+        parentSlugParserResult.ParsedParentSlug.Slug.Should().Be("new-child-slug");
+        parentSlugParserResult.ParsedParentSlug.Parent.Id.Should().Be("FirstChildCollection");
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_Fails_WhenUrlParentPathDisagreesWithBodyParent()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            Parent = $"http://localhost/{Customer}/collections/root",
+            Slug = slug
+        }, Customer, null, urlParentPath: "first-child");
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should()
+            .Be("The parent derived from the request URL does not match the parent specified in the request body");
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_Fails_WhenUrlSlugDisagreesWithBodySlug()
+    {
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection
+        {
+            Slug = "body-slug"
+        }, Customer, null, urlParentPath: "first-child", urlSlug: "url-slug");
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should()
+            .Be("The slug derived from the request URL does not match the slug specified in the request body");
+    }
+
+    [Fact]
+    public async Task ParentSlugParser_Fails_WhenNoSlugAvailableFromAnySource()
+    {
+        // Arrange - hierarchical POST with no slug in the body, and hierarchical POST has no urlSlug either
+        // Act
+        var parentSlugParserResult = await parentSlugParser.Parse(new PresentationCollection(), Customer, null,
+            urlParentPath: "first-child");
+
+        // Assert
+        parentSlugParserResult.IsError.Should().BeTrue();
+        parentSlugParserResult.Errors.Error.Should()
+            .Be("Could not determine a 'slug' for this resource from the request URL, body, or 'publicId'");
     }
 }

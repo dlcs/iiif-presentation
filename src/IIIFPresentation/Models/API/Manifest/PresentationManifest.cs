@@ -14,14 +14,14 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [
         "slug", "publicId", "parent", "created", "modified",
         "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "adjuncts", "ingesting",
-        "fullPath", "currentlyIngesting"
+        "fullPath", "currentlyIngesting", "pipeline", "finishedPipelines"
     ];
 
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
     [JsonProperty(Order = 7)] public string? PublicId { get; set; }
     [JsonProperty(Order = 8)] public string? Parent { get; set; }
-    [JsonProperty(Order = 9)] public DateTime Created { get; set; }
-    [JsonProperty(Order = 9)] public DateTime Modified { get; set; }
+    [JsonProperty(Order = 9)] public DateTime? Created { get; set; }
+    [JsonProperty(Order = 9)] public DateTime? Modified { get; set; }
     [JsonProperty(Order = 10)] public string? CreatedBy { get; set; }
     [JsonProperty(Order = 10)] public string? ModifiedBy { get; set; }
     [JsonProperty(Order = 11)] public string? FlatId { get; set; }
@@ -50,6 +50,13 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// Whether this manifest contains items that are currently being ingested
     /// </summary>
     [JsonIgnore] public bool CurrentlyIngesting { get; set; }
+
+    [JsonProperty(Order = 16)] public List<PipelineItem>? Pipeline { get; set; }
+
+    /// <summary>
+    /// History of previous (completed/failed) pipeline runs for this manifest.
+    /// </summary>
+    [JsonProperty(Order = 17)] public List<PipelineItem>? FinishedPipelines { get; set; }
 }
 
 /// <summary>

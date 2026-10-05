@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using API.Auth;
 using API.Converters;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
+using Models.API.General;
 using Models.Database.General;
 using Repository;
 using Repository.Helpers;
@@ -49,7 +51,7 @@ public class StorageController(
         switch (hierarchy.Type)
         {
             case ResourceType.IIIFManifest:
-                if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+                if (await Request.IsAuthorisedForExtras(authenticator))
                 {
                     return hierarchy.ManifestId == null
                         ? this.PresentationNotFound()
@@ -72,7 +74,7 @@ public class StorageController(
 
                 if (storageRoot.Collection == null) return this.PresentationNotFound();
 
-                if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+                if (await Request.IsAuthorisedForExtras(authenticator))
                 {
                     var absoluteUri = pathGenerator.GenerateFlatId(hierarchy);
                     absoluteUri = QueryHelpers.AddQueryString(absoluteUri, Request.Query);
@@ -94,12 +96,56 @@ public class StorageController(
         }
     }
 
+    /// <summary>
+    /// Create a new Manifest or Collection as a child of the container addressed by this path
+    /// </summary>
     [Authorize]
     [HttpPost("{*slug}")]
-    public async Task<IActionResult> PostHierarchicalCollection(int customerId, string slug)
+    public async Task<IActionResult> PostHierarchical(int customerId, string slug = "")
     {
         // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
-        return await HandleUpsert(new PostHierarchicalCollection(customerId, slug, rawRequestBody));
+        
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
+        {
+            return this.UnrecognisedTypeProblem();
+        }
+
+        IRequest<PresentationResult> request = type switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => new CreateHierarchicalManifest(customerId, slug, rawRequestBody,
+                Request.HasCreateSpaceHeader()),
+            nameof(IIIF.Presentation.V3.Collection) => new CreateHierarchicalCollection(customerId, slug, rawRequestBody),
+            _ => throw new UnreachableException() // TryGetValidType prevents this
+        };
+
+        return await HandleUpsert(request);
+    }
+
+    /// <summary>
+    /// Create or update the Manifest or Collection at the specific hierarchical path addressed by this URL
+    /// </summary>
+    [Authorize]
+    [HttpPut("{*slug}")]
+    public async Task<IActionResult> PutHierarchical(int customerId, string slug = "")
+    {
+        // X-IIIF-CS-Show-Extras is not required here, the body should be vanilla json
+        var rawRequestBody = await Request.GetRawRequestBodyAsync();
+        
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type))
+        {
+            return this.UnrecognisedTypeProblem();
+        }
+
+        IRequest<PresentationResult> request = type switch
+        {
+            nameof(IIIF.Presentation.V3.Manifest) => new UpsertHierarchicalManifest(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch, Request.HasCreateSpaceHeader()),
+            nameof(IIIF.Presentation.V3.Collection) => new UpsertHierarchicalCollection(customerId, slug, rawRequestBody,
+                Request.Headers.IfMatch),
+            _ => throw new UnreachableException() // TryGetValidType prevents this
+        };
+
+        return await HandleUpsert(request, invalidatesEtag: Request.Headers.IfMatch);
     }
 }

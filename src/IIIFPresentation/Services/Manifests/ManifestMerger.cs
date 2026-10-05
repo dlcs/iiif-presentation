@@ -6,9 +6,9 @@ using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Serialisation;
 using Microsoft.Extensions.Logging;
 using Models.DLCS;
-using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using CanvasPainting = Models.Database.CanvasPainting;
@@ -28,9 +28,12 @@ public interface IManifestMerger
     /// </param>
     /// <param name="customerId">Customer id, used to construct the stub AssetId</param>
     /// <param name="manifestId">Internal manifest id, used to construct the stub AssetId</param>
+    /// <param name="hierarchicalId">
+    /// Public, hierarchical id of the manifest - used as the target of manifest-level annotations
+    /// </param>
     /// <returns>Fully merged manifest</returns>
     Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
-        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId);
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId, string hierarchicalId);
 }
 
 public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewriteParser pathRewriteParser, 
@@ -40,11 +43,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
     /// <inheritdoc />
     public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
-        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId)
+        List<CanvasPainting>? canvasPaintings, int customerId, string manifestId, string hierarchicalId)
     {
         var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
         if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
-        ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId);
+        ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId, hierarchicalId);
         return merged;
     }
 
@@ -79,10 +82,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
     /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
-    /// <c>Manifest_{manifestId}</c> that carries no binary content but hosts adjuncts.
+    /// <c>Manifest_{manifestId}</c> that carries no binary content but hosts adjuncts. Annotations target the
+    /// manifest's <paramref name="hierarchicalId"/>, as that is its public form.
     /// </summary>
     private void ApplyManifestLevelAdjuncts(StructureBase baseManifest, Manifest namedQueryManifest, int customerId,
-        string manifestId)
+        string manifestId, string hierarchicalId)
     {
         var stubAssetId = ResourceAdjunctInteractions.GetResourceStubAssetId(baseManifest, customerId, manifestId);
 
@@ -95,7 +99,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         if (stubCanvas != null)
         {
             logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
-            SetAssetDerivedProperties(baseManifest, stubCanvas, stubAssetId.ToString());
+            SetAssetDerivedProperties(baseManifest, hierarchicalId, stubCanvas, stubAssetId.ToString());
         }
     }
 
@@ -348,7 +352,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             workingCanvas.Width = namedQueryCanvas.Width;
         }
         
-        SetAssetDerivedProperties(workingCanvas, namedQueryCanvas, canvasPainting.AssetId!.ToString());
+        SetAssetDerivedProperties(workingCanvas, workingCanvas.Id!, namedQueryCanvas, canvasPainting.AssetId!.ToString());
         
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
     }
@@ -357,13 +361,19 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// Populate general properties that are derived from assets - these are generally from adjuncts but "rendering"
     /// may reference assets on the file-delivery channel.
     /// </summary>
-    private void SetAssetDerivedProperties(StructureBase structureBase, Canvas namedQueryCanvas, string identifier)
+    /// <param name="structureBase">Resource to populate</param>
+    /// <param name="targetId">Id that annotations on <paramref name="structureBase"/> should target</param>
+    /// <param name="namedQueryCanvas">NQ canvas to take properties from</param>
+    /// <param name="identifier">Identifier of the asset, for logging</param>
+    private void SetAssetDerivedProperties(StructureBase structureBase, string targetId, Canvas namedQueryCanvas,
+        string identifier)
     {
         if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
         {
             logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
             structureBase.Annotations ??= [];
-            structureBase.Annotations.AddDistinctById(namedQueryCanvas.Annotations);
+
+            AddRetargetedAnnotations(structureBase, targetId, namedQueryCanvas);
         }
 
         if (!namedQueryCanvas.SeeAlso.IsNullOrEmpty())
@@ -382,6 +392,95 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             structureBase.Rendering ??= [];
             structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
         }
+    }
+
+    /// <summary>
+    /// Add annotation pages from <paramref name="namedQueryCanvas"/> to <paramref name="resource"/>, pointing any
+    /// inline annotations that target the NQ canvas (the asset's single-asset-manifest canvas, which doesn't exist in
+    /// this manifest) at <paramref name="targetId"/> instead. Pages already on the resource, including any with the
+    /// same id as an NQ page, are left untouched.
+    /// </summary>
+    private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas)
+    {
+        var namedQueryCanvasId = namedQueryCanvas.Id!;
+
+        // Ids of pages already on the resource, which are never modified
+        var existingPageIds = resource.Annotations!.Select(page => page.Id).ToHashSet();
+
+        foreach (var namedQueryPage in namedQueryCanvas.Annotations!)
+        {
+            if (existingPageIds.Contains(namedQueryPage.Id)) continue;
+
+            if (!NeedsRetargeting(namedQueryPage, namedQueryCanvasId, targetId))
+            {
+                resource.Annotations!.Add(namedQueryPage);
+                continue;
+            }
+
+            // NQ pages are shared between every canvas the asset is painted on, so clone before modifying
+            var page = namedQueryPage.AsJson().FromJson<AnnotationPage>()!;
+            RetargetAnnotations(resource, page, targetId, namedQueryCanvasId);
+            resource.Annotations!.Add(page);
+        }
+    }
+
+    /// <summary>
+    /// Whether any inline annotations on <paramref name="page"/> target <paramref name="namedQueryCanvasId"/>
+    /// </summary>
+    private static bool NeedsRetargeting(AnnotationPage page, string namedQueryCanvasId, string targetId)
+        => page.Items?.OfType<Annotation>()
+            .Any(a => GetRetargetedId(a.Target, namedQueryCanvasId, targetId) != null) ?? false;
+
+    /// <summary>
+    /// Point any inline annotations on <paramref name="page"/> that target <paramref name="namedQueryCanvasId"/> at
+    /// <paramref name="targetId"/> instead. Canvas targets keep any fragment or selector source (e.g. "#xywh=..."),
+    /// whereas a manifest is always targeted whole.
+    /// </summary>
+    private void RetargetAnnotations(StructureBase resource, AnnotationPage page, string targetId,
+        string namedQueryCanvasId)
+    {
+        foreach (var annotation in page.Items?.OfType<Annotation>() ?? [])
+        {
+            var retargetedId = GetRetargetedId(annotation.Target, namedQueryCanvasId, targetId);
+            if (retargetedId == null) continue;
+
+            logger.LogTrace("Retargeting annotation {AnnotationId} from {NamedQueryCanvasId} to {ResourceId}",
+                annotation.Id, namedQueryCanvasId, targetId);
+            switch (resource, annotation.Target)
+            {
+                case (Canvas, SpecificResource specificResource):
+                    specificResource.Source = new Canvas { Id = retargetedId };
+                    break;
+                case (Canvas, _):
+                    annotation.Target = new Canvas { Id = retargetedId };
+                    break;
+                default:
+                    // Fragments and selectors are spatial/temporal so don't apply to a manifest - target it whole
+                    annotation.Target = new Manifest { Id = targetId };
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the id <paramref name="target"/> should have if it points at <paramref name="namedQueryCanvasId"/>
+    /// (including with a fragment, e.g. "#xywh=..."), rebased onto <paramref name="resourceId"/>. Null if the target
+    /// doesn't point at the NQ canvas.
+    /// </summary>
+    private static string? GetRetargetedId(ResourceBase? target, string namedQueryCanvasId, string resourceId)
+    {
+        var targetId = target switch
+        {
+            SpecificResource { Source: Canvas source } => source.Id,
+            Canvas canvas => canvas.Id,
+            _ => null
+        };
+
+        if (targetId == null) return null;
+        if (targetId == namedQueryCanvasId) return resourceId;
+        return targetId.StartsWith($"{namedQueryCanvasId}#", StringComparison.Ordinal)
+            ? resourceId + targetId[namedQueryCanvasId.Length..]
+            : null;
     }
 
     /// <summary>
@@ -425,22 +524,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     
     private void SetManifestContext(Manifest baseManifest, Manifest namedQueryManifest)
     {
-        // Grab any contexts from NQ manifest
-        IEnumerable<string> contexts = namedQueryManifest.Context switch
-        {
-            null => [],
-            string str => [str],
-            IEnumerable<string> enumerable => enumerable,
-            JArray jArray => jArray.Values<string>(),
-            JValue { Type: JTokenType.String } jValue when jValue.ToString() is { } plain => [plain],
-            _ => []
-        };
-        
-        // skip the default one
-        contexts = contexts.Where(c => !Context.Presentation3Context.Equals(c));
-
-        // ensure if any
-        foreach (var context in contexts)
+        foreach (var context in namedQueryManifest.GetContextStrings()
+                     .Where(c => !Context.Presentation3Context.Equals(c)))
         {
             logger.LogTrace("Adding context {Context} to {ManifestId}", context, baseManifest.Id);
             baseManifest.EnsureContext(context);

@@ -42,6 +42,6 @@ public class ObjectInBucketHeaders
     public string? ContentMD5 { get; set; }
     public string? ContentType { get; set; }
     public DateTime? ExpiresUtc { get; set; }
-    public DateTime LastModified { get; set; }
+    public DateTime? LastModified { get; set; }
     public string ETag { get; set; }
 }

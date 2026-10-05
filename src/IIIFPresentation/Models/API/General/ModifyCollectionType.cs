@@ -29,5 +29,12 @@ public enum ModifyCollectionType
     AssetsDoNotMatch = 25,
     CustomerIdDoesNotMatchCaller = 26,
     AssetsAdjunctsDoNotMatch = 27,
+    ManifestCurrentlyIngesting = 28,
+    CannotConnectToTextService = 29,
+    InvalidSearchQuery = 30,
+    IdMustMatchUrl = 31,
+    IdAlreadyExists = 32,
+    MissingSlug = 33,
+    ProhibitedSlug = 34,
     Unknown = 1000
 }

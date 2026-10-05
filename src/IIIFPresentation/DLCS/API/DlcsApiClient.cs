@@ -216,7 +216,9 @@ internal class DlcsApiClient(
         
         await Task.WhenAll(tasks);
         
-        // this is extremely unlikely to happen, as the DLCS should have already been checked at this point
+        // this is extremely unlikely to happen, as the DLCS or the database should have already been checked at this point.
+        // However, if the asset has been removed from protagonist, but iiif-presentation still has references to it,
+        // this can occur
         if (assetsResponse.Count != distinctAssets.Count)
         {
             var missingAssets = assets.Where(a => assetsResponse.All(ar => a != $"{customerId}/{ar.Space}/{ar.Id}")).ToList();

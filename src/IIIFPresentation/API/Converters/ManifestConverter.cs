@@ -33,7 +33,7 @@ public static class ManifestConverter
     /// </param>
     public static PresentationManifest SetGeneratedFields(this PresentationManifest iiifManifest,
         Manifest dbManifest, IPathGenerator pathGenerator, SettingsBasedPathGenerator settingsBasedPathGenerator, Dictionary<string, JObject>? assets = null,
-        Func<Manifest, Hierarchy>? hierarchyFactory = null)
+        Func<Manifest, Hierarchy>? hierarchyFactory = null, int finishedPipelinesLimit = 20)
     {
         hierarchyFactory ??= manifest => manifest.Hierarchy.ThrowIfNull(nameof(manifest.Hierarchy)).Single();
         
@@ -42,8 +42,8 @@ public static class ManifestConverter
         iiifManifest.Id = pathGenerator.GenerateFlatManifestId(dbManifest);
         iiifManifest.FlatId = dbManifest.Id;
         iiifManifest.PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy);
-        iiifManifest.Created = dbManifest.Created.Floor(DateTimeX.Precision.Second);
-        iiifManifest.Modified = dbManifest.Modified.Floor(DateTimeX.Precision.Second);
+        iiifManifest.Created = dbManifest.Created.ToSecondPrecision();
+        iiifManifest.Modified = dbManifest.Modified.ToSecondPrecision();
         iiifManifest.CreatedBy = dbManifest.CreatedBy;
         iiifManifest.ModifiedBy = dbManifest.ModifiedBy;
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
@@ -65,6 +65,33 @@ public static class ManifestConverter
         if (!iiifManifest.Adjuncts.IsNullOrEmpty())
         {
             foreach (var adjunct in iiifManifest.Adjuncts!) adjunct.Remove(AssetProperties.Asset);
+        }
+
+        if (!dbManifest.PipelineJobs.IsNullOrEmpty())
+        {
+            // "pipeline" only ever reflects the current, in-flight job per type - if the most recently
+            // created job for a type has already finished, there's nothing further happening for it
+            var inFlightJobs = dbManifest.PipelineJobs!
+                .GroupBy(j => j.JobType)
+                .Select(g => g.OrderByDescending(j => j.Created).First())
+                .Where(j => !j.Status.IsFinished())
+                .ToList();
+            if (inFlightJobs.Count > 0)
+            {
+                iiifManifest.Pipeline = inFlightJobs.Select(j => j.ToPipelineItem()).ToList();
+            }
+
+            // "finishedPipelines" is the history of completed/failed runs, most recent first, capped to
+            // the configured limit
+            var finishedJobs = dbManifest.PipelineJobs!
+                .Where(j => j.Status.IsFinished())
+                .OrderByDescending(j => j.Created)
+                .Take(finishedPipelinesLimit)
+                .ToList();
+            if (finishedJobs.Count > 0)
+            {
+                iiifManifest.FinishedPipelines = finishedJobs.Select(j => j.ToPipelineItem()).ToList();
+            }
         }
 
         iiifManifest.EnsurePresentation3Context();
@@ -234,13 +261,22 @@ public static class ManifestConverter
                 [AssetProperties.Error] = "Unable to retrieve asset details"
             };
 
-        return assets.TryGetValue(fullAssetId, out var asset)
-            ? asset
-            : new()
+        if (!assets.TryGetValue(fullAssetId, out var asset))
+        {
+            return new()
             {
                 [AssetProperties.FullId] = fullAssetId,
                 [AssetProperties.Error] = "Asset not found"
             };
+        }
+
+        // `"adjuncts": []` should be stripped out
+        if (asset[AssetProperties.Adjuncts] is JArray { Count: 0 })
+        {
+            asset.Remove(AssetProperties.Adjuncts);
+        }
+
+        return asset;
     }
     
     private static IngestingAssets? GenerateIngesting(Dictionary<string, JObject>? assets)

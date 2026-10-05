@@ -310,7 +310,182 @@ public class ManifestConverterTests
         // Assert
         result.Space.Should().Be("https://dlcs.test/customers/123/spaces/321");
     }
-    
+
+    [Fact]
+    public void SetGeneratedFields_SetsPipelineFromJobs_WhenPipelineJobsPresent()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs =
+            [
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.Waiting,
+                    Created = DateTime.UtcNow
+                }
+            ]
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Pipeline.Should().ContainSingle(p => p.Name == PipelineHelper.TextPipeline.Name && p.Status == "Waiting");
+        result.FinishedPipelines.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetGeneratedFields_ReturnsLatestJobPerType_WhenMultipleJobsOfSameType()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var older = DateTime.UtcNow.AddHours(-1);
+        var newer = DateTime.UtcNow;
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs =
+            [
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.Completed,
+                    Created = older
+                },
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.Waiting,
+                    Created = newer
+                }
+            ]
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Pipeline.Should().ContainSingle(p => p.Status == "Waiting", "only the most recently created job per type should appear");
+        result.FinishedPipelines.Should().ContainSingle(p => p.Status == "Completed", "the superseded, terminal job moves to history");
+    }
+
+    [Fact]
+    public void SetGeneratedFields_SetsWarningOnFinishedPipeline_WhenJobCompletedNoOperation()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs =
+            [
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.CompletedNoOperation,
+                    Created = DateTime.UtcNow,
+                    Finished = DateTime.UtcNow
+                }
+            ]
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.FinishedPipelines.Should().ContainSingle(p =>
+            p.Status == "CompletedNoOperation" && p.Warning == PipelineHelper.TextPipeline.NoTextFoundWarning);
+    }
+
+    [Fact]
+    public void SetGeneratedFields_DoesNotSetPipeline_WhenNoPipelineJobs()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest { Pipeline = null };
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs = null
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Pipeline.Should().BeNull();
+        result.FinishedPipelines.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetGeneratedFields_DoesNotSetPipeline_WhenOnlyFinishedJobsExist()
+    {
+        // Arrange - a job that has already terminated is no longer "in-flight"
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs =
+            [
+                new PipelineJob
+                {
+                    ManifestId = "id", CustomerId = 1,
+                    JobType = PipelineJobType.TextService,
+                    Status = PipelineJobStatus.Completed,
+                    Created = DateTime.UtcNow,
+                    Finished = DateTime.UtcNow
+                }
+            ]
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Pipeline.Should().BeNull();
+        result.FinishedPipelines.Should().ContainSingle(p => p.Status == "Completed");
+    }
+
+    [Fact]
+    public void SetGeneratedFields_LimitsFinishedPipelines_ToConfiguredCount()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 1, Id = "id",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+            PipelineJobs = Enumerable.Range(0, 5).Select(i => new PipelineJob
+            {
+                ManifestId = "id", CustomerId = 1,
+                JobType = PipelineJobType.TextService,
+                Status = PipelineJobStatus.Completed,
+                Created = DateTime.UtcNow.AddMinutes(-i),
+                InvocationId = (i + 1).ToString()
+            }).ToList()
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator,
+            finishedPipelinesLimit: 2);
+
+        // Assert
+        result.FinishedPipelines.Should().HaveCount(2)
+            .And.BeInDescendingOrder(p => p.Created, "most recent history should be returned first");
+    }
+
     [Fact]
     public void GenerateProvisionalCanvases_SetsItems_IfNotSet()
     {

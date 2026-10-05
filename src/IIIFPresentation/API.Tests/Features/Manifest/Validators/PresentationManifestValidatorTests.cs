@@ -1,4 +1,7 @@
 ﻿using API.Features.Manifest.Validators;
+using API.Settings;
+using AWS.Settings;
+using DLCS;
 using Services.Manifests.Settings;
 using FluentValidation.TestHelper;
 using IIIF.Presentation.V3;
@@ -11,7 +14,12 @@ namespace API.Tests.Features.Manifest.Validators;
 
 public class PresentationManifestValidatorTests
 {
-    private readonly PresentationManifestValidator sut = new(Options.Create(new ServicesSettings()));
+    private readonly PresentationManifestValidator sut = new(Options.Create(new ServicesSettings()),
+        Options.Create(new ApiSettings
+        {
+            AWS = new AWSSettings(),
+            DLCS = new DlcsSettings { ApiUri = new Uri("https://localhost") }
+        }));
 
     [Theory]
     [InlineData(null)]
@@ -483,6 +491,37 @@ public class PresentationManifestValidatorTests
             .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
     }
     
+    [Fact]
+    public void PaintedResource_Manifest_ErrorWhenNullChoiceOrder_InChoice_NoCanvasId()
+    {
+        // https://github.com/dlcs/iiif-presentation/issues/649 - resources sharing a 'canvasOrder' with no
+        // 'canvasId' set on either should still be rejected when 'choiceOrder' is missing
+        var manifest = new PresentationManifest
+        {
+            PaintedResources =
+            [
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasOrder = 0
+                    }
+                },
+                new PaintedResource
+                {
+                    CanvasPainting = new CanvasPainting
+                    {
+                        CanvasOrder = 0
+                    }
+                }
+            ],
+        };
+
+        var result = sut.TestValidate(manifest);
+        result.ShouldHaveValidationErrorFor(m => m.PaintedResources)
+            .WithErrorMessage("Painted resources cannot have a null 'choiceOrder' within a detected choice construct");
+    }
+
     [Fact]
     public void PaintedResource_Manifest_Error_WhenDuplicateCanvasId()
     {

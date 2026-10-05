@@ -3,7 +3,9 @@ using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using AWS.Helpers;
+using Microsoft.Extensions.Options;
 using Models.API.Manifest;
 using Models.Database.Collections;
 using Models.DLCS;
@@ -31,13 +33,16 @@ public class ManifestReadService(
     DlcsManifestCoordinator dlcsManifestCoordinator,
     IPathGenerator pathGenerator,
     SettingsBasedPathGenerator settingsBasedPathGenerator,
+    IOptions<ApiSettings> options,
     ILogger<ManifestReadService> logger) : IManifestRead
 {
     public async Task<FetchEntityResult<PresentationManifest>> GetManifest(int customerId, string manifestId,
         IImmutableSet<Guid> ifNoneMatch, bool pathOnly, CancellationToken cancellationToken)
     {
-        var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withBatches: true,
-            cancellationToken: cancellationToken);
+        // Batches/PipelineJobs/CanvasPaintings are only used by the full (non-pathOnly) read below, so skip
+        // loading them when only the redirect path is needed
+        var dbManifest = await dbContext.RetrieveManifestAsync(manifestId, withCanvasPaintings: !pathOnly,
+            withBatches: !pathOnly, withPipelineJobs: !pathOnly, cancellationToken: cancellationToken);
 
         if (dbManifest == null) return FetchEntityResult<PresentationManifest>.NotFound();
 
@@ -57,18 +62,18 @@ public class ManifestReadService(
 
         var getAssets = dlcsManifestCoordinator.GetAssets(customerId, dbManifest, cancellationToken);
         PresentationManifest? manifest = null;
-        if (dbManifest.IsIngesting())
+        if (dbManifest.HasFurtherWork())
         {
-            manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, true, cancellationToken);
+            manifest = await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, BucketLocationType.Staging, cancellationToken);
             if (manifest == null)
-                logger.LogError("Manifest {DbManifestId} IsIngesting but can't read from staging", dbManifest.Id);
+                logger.LogError("Manifest {DbManifestId} has further work pending but can't read from staging", dbManifest.Id);
         }
 
         // if is not ingesting read from "real" location
         // or if not found in "staging", an error was logged and we fall back to "real"
-        manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, false, cancellationToken);
+        manifest ??= await iiifS3.ReadIIIFFromS3<PresentationManifest>(dbManifest, BucketLocationType.Default, cancellationToken);
 
-        dbManifest.Hierarchy.Single().FullPath = await fetchFullPath;
+        dbManifest.Hierarchy!.Single().FullPath = await fetchFullPath;
 
         if (manifest == null)
             return FetchEntityResult<PresentationManifest>.Failure(
@@ -81,10 +86,10 @@ public class ManifestReadService(
         if (assets != null) manifest.SetManifestLevelAdjuncts(assets, customerId, dbManifest.Id);
 
         manifest = manifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator, assets,
-            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical));
+            m => Enumerable.Single(m.Hierarchy!, h => h.Canonical), options.Value.FinishedPipelinesLimit);
 
         Guid? etag = dbManifest.Etag;
-        if (dbManifest.IsIngesting())
+        if (dbManifest.HasFurtherWork())
         {
             manifest.CurrentlyIngesting = true;
             etag = null;

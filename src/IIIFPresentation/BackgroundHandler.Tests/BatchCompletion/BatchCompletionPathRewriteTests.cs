@@ -2,6 +2,8 @@
 using BackgroundHandler.BatchCompletion;
 using BackgroundHandler.Tests.Helpers;
 using BackgroundHandler.Tests.infrastructure;
+using Core.Paths;
+using Core.Settings;
 using Core.Web;
 using DLCS;
 using DLCS.API;
@@ -10,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.Database.Collections;
+using Models.Database.General;
 using Models.DLCS;
 using Repository;
 using Repository.Paths;
@@ -17,6 +20,7 @@ using Services.Manifests;
 using Services.Manifests.AWS;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
+using Services.TextServices;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -34,6 +38,8 @@ public class BatchCompletionPathRewriteTests
     private readonly IDlcsOrchestratorClient dlcsClient;
     private readonly IIIIFS3Service iiifS3;
     private readonly PathSettings backgroundHandlerSettings;
+    // Testing as pre-store-originals, set a future date to disable this behaviour
+    private readonly BehaviourSettings behaviour = new(){StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1)};
     private const int Space = 2;
     
     public BatchCompletionPathRewriteTests(PresentationContextFixture dbFixture)
@@ -57,7 +63,7 @@ public class BatchCompletionPathRewriteTests
             },
             PathRules = new TypedPathTemplateOptions
             {
-                Overrides = new Dictionary<string, Dictionary<string, string>>
+                Overrides = new Dictionary<string, Dictionary<string, PathTemplate>>
                 {
                     // override everything
                     ["foo.com"] = new()
@@ -88,12 +94,20 @@ public class BatchCompletionPathRewriteTests
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
         
         var manifestMerger = new ManifestMerger(pathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
+        var dlcsManifestMerger = new DlcsManifestMerger(dlcsClient, manifestMerger, pathGenerator, pathGenerator, sutContext,
+            new NullLogger<DlcsManifestMerger>());
 
-        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator, dlcsClient, manifestMerger,
+        var manifestS3Manager = new ManifestS3Manager(iiifS3, pathGenerator,
+            new TestOptionsMonitor<BehaviourSettings>(behaviour),
             new NullLogger<ManifestS3Manager>());
 
+        var textBuilderClient = A.Fake<ITextBuilderClient>();
+        A.CallTo(() => textBuilderClient.UpsertJob(A<Manifest>._, A<PipelineJob>._, A<CancellationToken>._))
+            .Returns(true);
+        var pipelineJobService = new PipelineJobService(sutContext, textBuilderClient, new NullLogger<PipelineJobService>());
+
         sut = new BatchCompletionMessageHandler(sutContext, dbFixture.CustomerIdProvider, manifestS3Manager,
-            new NullLogger<BatchCompletionMessageHandler>());
+            dlcsManifestMerger, pipelineJobService, new NullLogger<BatchCompletionMessageHandler>());
     }
     
     [Fact]
@@ -104,7 +118,10 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        // Testing as pre-store-originals, set a future date to disable this behaviour
+        behaviour.StoresPayloadsSince = DateTimeOffset.Now.AddMonths(1);
+        
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
         {
             Id = identifier
@@ -148,7 +165,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier
@@ -192,7 +209,7 @@ public class BatchCompletionPathRewriteTests
         var batchId = TestIdentifiers.BatchId();
         var identifier = TestIdentifiers.Id();
 
-        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, true, A<CancellationToken>._))
+        A.CallTo(() => iiifS3.ReadIIIFFromS3<IIIFManifest>(A<IHierarchyResource>._, BucketLocationType.Staging, A<CancellationToken>._))
             .ReturnsLazily(() => new IIIFManifest
             {
                 Id = identifier

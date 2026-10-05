@@ -40,7 +40,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     
         storageFixture.DbFixture.CleanUp();
     }
-    
+
     [Fact]
     public async Task PutFlatId_Update_PreConditionFailed_IfEtagNotProvided()
     {
@@ -192,7 +192,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     public async Task PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest()
     {
         // Arrange
-        var duplicateId = $"id_{PutFlatId_Update_Conflict_IfParentAndSlug_VaryCase_ForManifest}";
+        var duplicateId = TestIdentifiers.IdWithSuffix(suffix: "-duplicate");
         var duplicateManifest = (await dbContext.Manifests.AddTestManifest(duplicateId)).Entity;
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
         await dbContext.SaveChangesAsync();

@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using API.Auth;
+using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
 using API.Features.Storage.Requests;
@@ -10,6 +11,8 @@ using API.Infrastructure.Helpers;
 using API.Infrastructure.Http;
 using API.Infrastructure.Requests;
 using API.Settings;
+using Core.Helpers;
+using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,16 +38,11 @@ public class CollectionController(
     public async Task<IActionResult> Get(int customerId, string id, int? page = 1, int? pageSize = -1,
         string? orderBy = null, string? orderByDescending = null)
     {
-        if (pageSize is null or <= 0) pageSize = Settings.PageSize;
-        if (pageSize > Settings.MaxPageSize) pageSize = Settings.MaxPageSize;
-        if (page is null or <= 0) page = 1;
-
         var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
+        var pathOnly = !await Request.IsAuthorisedForExtras(authenticator);
 
-        var entityResult =
-            await Mediator.Send(new GetCollection(customerId, id, Request.Headers.IfNoneMatch.AsETagValues(), page.Value,
-                pageSize.Value, orderByField,
-                descending));
+        var entityResult = await Mediator.Send(new GetCollection(id, Request.Headers.IfNoneMatch.AsETagValues(), page,
+            pageSize, orderByField, descending, pathOnly));
 
         if (entityResult.ETagMatch)
             return new NotModifiedResult(entityResult.ETag!.Value);
@@ -53,19 +51,47 @@ public class CollectionController(
             return this.PresentationProblem(entityResult.ErrorMessage,
                 statusCode: (int)HttpStatusCode.InternalServerError);
 
-        if (Request.HasShowExtraHeader() && await authenticator.ValidateRequest(Request) == AuthResult.Success)
+        if (pathOnly) // only .Behavior/.PublicId are filled, this is to avoid the items query / S3 read
         {
-            return entityResult.EntityNotFound
-                ? this.PresentationNotFound()
-                : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
+            return entityResult.GetHierarchicalPath() is { } publicPath
+                ? SeeOther(publicPath)
+                : this.PresentationNotFound();
         }
-        
-        return entityResult.Entity?.Behavior.IsPublic() ?? false
-            ? SeeOther(entityResult.Entity.PublicId!)
-            : this.PresentationNotFound();
+
+        return entityResult.EntityNotFound
+            ? this.PresentationNotFound()
+            : this.PresentationContent(entityResult.Entity!, etag: entityResult.ETag);
     }
 
     [Authorize]
+    [RequireShowExtras]
+    [HttpGet("collections/{id}/search")]
+    [VaryHeader]
+    public async Task<IActionResult> Search(int customerId, string id, string? label = null, int? page = 1,
+        int? pageSize = -1, string? orderBy = null, string? orderByDescending = null)
+    {
+        // MVP: only the root collection supports search-across
+        if (!KnownCollections.IsRoot(id)) return this.PresentationNotFound();
+
+        // Validate search term length, at least one must match minimum length
+        var term = label?.Trim() ?? string.Empty;
+        var terms = term.SplitOnWhitespace();
+        if (!terms.Any(t => t.Length >= Settings.MinSearchLength))
+        {
+            return this.PresentationProblem(
+                $"At least one search term must be {Settings.MinSearchLength} characters or more",
+                null, (int)HttpStatusCode.BadRequest, "Bad request",
+                this.GetErrorType(ModifyCollectionType.InvalidSearchQuery));
+        }
+
+        var orderByField = this.GetOrderBy(orderBy, orderByDescending, out var descending);
+
+        return await HandleFetch(new SearchCollection(id, term, terms, page, pageSize, orderByField, descending),
+            errorTitle: "Search failed");
+    }
+
+    [Authorize]
+    [RequireShowExtras]
     [HttpPost("collections")]
     public async Task<IActionResult> Post(int customerId, [FromServices] PresentationValidator validator)
     {
@@ -77,6 +103,7 @@ public class CollectionController(
     }
 
     [Authorize]
+    [RequireShowExtras]
     [HttpPut("collections/{id}")]
     public async Task<IActionResult> Put(int customerId, string id,
         [FromServices] RootCollectionValidator rootValidator,
@@ -87,19 +114,21 @@ public class CollectionController(
 
         return await HandleUpsert(new UpsertCollection(customerId, id,
             deserializeValidationResult.ConvertedIIIF, Request.Headers.IfMatch,
-            deserializeValidationResult.RawRequestBody), invalidatesEtag:Request.Headers.IfMatch);
+            deserializeValidationResult.RawRequestBody),
+            invalidatesEtag: Request.Headers.IfMatch);
     }
 
 
     private async Task<DeserializeValidationResult<PresentationCollection>> DeserializeAndValidate(
         PresentationValidator presentationValidator, string? id, RootCollectionValidator? rootValidator)
     {
-        if (!Request.HasShowExtraHeader())
-        {
-            return DeserializeValidationResult<PresentationCollection>.Failure(this.Forbidden());
-        }
-
         var rawRequestBody = await Request.GetRawRequestBodyAsync();
+
+        if (!JsonPropertyReader.TryGetValidType(rawRequestBody, logger, out var type) || type != nameof(Collection))
+        {
+            return DeserializeValidationResult<PresentationCollection>.Failure(
+                this.UnrecognisedTypeProblem("'Collection'"));
+        }
 
         var deserializedCollection =
             await rawRequestBody.TryDeserializePresentation<PresentationCollection>(logger);
@@ -120,14 +149,12 @@ public class CollectionController(
         return DeserializeValidationResult<PresentationCollection>.Success(deserializedCollection.ConvertedIIIF,
             rawRequestBody);
     }
-
-
+    
     [Authorize]
+    [RequireShowExtras]
     [HttpDelete("collections/{id}")]
     public async Task<IActionResult> Delete(int customerId, string id)
     {
-        if (!Request.HasShowExtraHeader()) return this.Forbidden();
-
         return await HandleDelete(new DeleteCollection(customerId, id, Request.Headers.IfMatch));
     }
 

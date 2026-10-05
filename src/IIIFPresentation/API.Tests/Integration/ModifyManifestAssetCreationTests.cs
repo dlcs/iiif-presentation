@@ -252,9 +252,93 @@ public class ModifyManifestAssetCreationTests : IClassFixture<PresentationAppFac
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
         
-        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' is '{space}' and cannot be negative");
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{space}'");
     }
-    
+
+    [Fact]
+    public async Task CreateManifest_ReturnsErrorAsset_WithZeroSpace()
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        const int space = 0;
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting": {
+                                            "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "space": {{space}},
+                                     }
+                                 }
+                             ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{space}'");
+    }
+
+    [Theory]
+    [InlineData("\"\"", "")]
+    [InlineData("1.5", "1.5")]
+    [InlineData("-3.7", "-3.7")]
+    [InlineData("2147483648", "2147483648")]
+    [InlineData("-2147483649", "-2147483649")]
+    [InlineData("true", "true")]
+    [InlineData("false", "false")]
+    public async Task CreateManifest_ReturnsErrorAsset_WithNonIntegerSpace(string jsonValue, string expected)
+    {
+        // Arrange
+        var (slug, assetId) = TestIdentifiers.SlugResource();
+        var manifestWithSpace = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                    "canvasPainting": {
+                                            "canvasId": "first"
+                                    },
+                                     "asset": {
+                                         "id": "{{assetId}}",
+                                         "space": {{jsonValue}},
+                                     }
+                                 }
+                             ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestWithSpace);
+        requestMessage.Headers.Add("Link", "<https://dlcs.io/vocab#Space>;rel=\"DCTERMS.requires\"");
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var errorResponse = await response.ReadAsPresentationResponseAsync<Error>();
+
+        errorResponse!.Detail.Should().Be($"The space for asset '{assetId}' with canvas id 'first' must be a positive integer, but was '{expected}'");
+    }
+
     [Theory]
     [InlineData("first", "", "Error parsing the asset id from an attached asset - AssetId '1/999/' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]
     [InlineData("first", "extra/slash", "Error parsing the asset id from an attached asset - AssetId '1/999/extra/slash' is invalid. Must be in format customer/space/asset for canvas painting id 'first'")]

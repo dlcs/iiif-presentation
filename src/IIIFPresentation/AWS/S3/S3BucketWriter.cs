@@ -76,7 +76,7 @@ public class S3BucketWriter : IBucketWriter
             do
             {
                 listObjectsResponse = await s3Client.ListObjectsAsync(listObjectsRequest);
-                foreach (var item in listObjectsResponse.S3Objects.OrderBy(x => x.Key))
+                foreach (var item in (listObjectsResponse.S3Objects ?? []).OrderBy(x => x.Key))
                 {
                     deleteObjectsRequest.AddKey(item.Key);
                     if (deleteObjectsRequest.Objects.Count == 1000)
@@ -87,7 +87,7 @@ public class S3BucketWriter : IBucketWriter
 
                     listObjectsRequest.Marker = item.Key;
                 }
-            } while (listObjectsResponse.IsTruncated);
+            } while (listObjectsResponse.IsTruncated == true);
             
             if (deleteObjectsRequest.Objects.Count > 0)
             {

@@ -1,13 +1,14 @@
 ﻿using System.Collections.Immutable;
 using API.Converters;
 using API.Features.Storage.Helpers;
+using API.Helpers;
 using API.Features.Storage.Models;
-using API.Infrastructure.Helpers;
 using API.Infrastructure.Requests;
+using API.Settings;
 using AWS.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Options;
 using Models.API.Collection;
 using Repository;
 using Repository.Collections;
@@ -18,31 +19,34 @@ using Services.Manifests.Helpers;
 namespace API.Features.Storage.Requests;
 
 public class GetCollection(
-    int customerId,
     string id,
     IImmutableSet<Guid> eTags,
-    int page,
-    int pageSize,
+    int? page,
+    int? pageSize,
     string? orderBy = null,
-    bool descending = false) : IRequest<FetchEntityResult<PresentationCollection>>
+    bool descending = false,
+    bool pathOnly = false) : IRequest<FetchEntityResult<PresentationCollection>>, IPagedRequest
 {
-    public int CustomerId { get; } = customerId;
-
     public string Id { get; } = id;
 
     public IImmutableSet<Guid> IfNoneMatch { get; } = eTags;
 
-    public RequestModifiers RequestModifiers { get; } = new()
-    {
-        PageSize = pageSize,
-        Page = page,
-        OrderBy = orderBy,
-        Descending = descending
-    };
+    public int? Page { get; } = page;
+    public int? PageSize { get; } = pageSize;
+    public string? OrderBy { get; } = orderBy;
+    public bool Descending { get; } = descending;
+
+    /// <summary>
+    /// If true, only the fields required to redirect to this collection's public hierarchical location are
+    /// populated (<see cref="PresentationCollection.Behavior"/>/<see cref="PresentationCollection.PublicId"/>) -
+    /// this avoids the child-items query (storage collections) or S3 read (IIIF collections) that populating the
+    /// rest of the collection would otherwise require
+    /// </summary>
+    public bool PathOnly { get; } = pathOnly;
 }
 
 public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service iiifS3, IPathGenerator pathGenerator, 
-    SettingsBasedPathGenerator settingsBasedPathGenerator) 
+    SettingsBasedPathGenerator settingsBasedPathGenerator, IOptions<ApiSettings> options) 
     : IRequestHandler<GetCollection, FetchEntityResult<PresentationCollection>>
 {
     public async Task<FetchEntityResult<PresentationCollection>> Handle(GetCollection request,
@@ -54,15 +58,13 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         if (collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
 
         if (request.IfNoneMatch.Contains(collection.Etag))
+        {
             return FetchEntityResult<PresentationCollection>.Matched(collection.Etag);
+        }
 
         var hierarchy = collection.Hierarchy.GetCanonical();
 
         var parentCollection = collection.Hierarchy?.SingleOrDefault()?.ParentCollection;
-
-        var orderByParameter = request.RequestModifiers.OrderBy != null
-            ? $"{(request.RequestModifiers.Descending ? "orderByDescending" : "orderBy")}={request.RequestModifiers.OrderBy}"
-            : null;
 
         if (hierarchy.Parent != null)
         {
@@ -70,31 +72,43 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
                 await CollectionRetrieval.RetrieveFullPathForCollection(collection, dbContext, cancellationToken);
         }
 
+        // Shortcut to avoid retrieving S3 etc. when it's not required
+        if (request.PathOnly)
+        {
+            return FetchEntityResult<PresentationCollection>.Success(new PresentationCollection
+            {
+                Behavior = CollectionConverter.GenerateBehavior(collection),
+                PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy)
+            }, collection.Etag);
+        }
+
         if (collection.IsStorageCollection)
         {
+            var requestModifiers = request.GetRequestModifiers(options.Value);
+            
             var items = await dbContext.RetrieveCollectionItems(collection.Id)
-                .AsOrderedCollectionItemsQuery(request.RequestModifiers.OrderBy, request.RequestModifiers.Descending)
-                .Skip((request.RequestModifiers.Page - 1) * request.RequestModifiers.PageSize)
-                .Take(request.RequestModifiers.PageSize)
+                .AsOrderedCollectionItemsQuery(requestModifiers.OrderBy, requestModifiers.Descending)
+                .Skip((requestModifiers.Page - 1) * requestModifiers.PageSize)
+                .Take(requestModifiers.PageSize)
                 .ToListAsync(cancellationToken: cancellationToken);
 
             var total = await dbContext.GetTotalItemCountForCollection(collection, items.Count,
-                request.RequestModifiers.PageSize,
-                request.RequestModifiers.Page, cancellationToken);
+                requestModifiers.PageSize,
+                requestModifiers.Page, cancellationToken);
 
             // We know the fullPath of parent collection so we can use that as the base for child items
             items.ForEach(item =>
                 item.FullPath = pathGenerator.GenerateFullPath(item, hierarchy));
 
-            var presentationCollection = collection.ToPresentationCollection(request.RequestModifiers.PageSize,
-                request.RequestModifiers.Page, total, items, parentCollection, pathGenerator,
-                settingsBasedPathGenerator, orderByParameter);
+            var presentationCollection = collection.ToPresentationCollection(requestModifiers.PageSize,
+                requestModifiers.Page, total, items, parentCollection, pathGenerator,
+                settingsBasedPathGenerator, requestModifiers.GetOrderByParameter());
 
             return FetchEntityResult<PresentationCollection>.Success(presentationCollection, collection.Etag);
         }
 
         var s3Collection =
-            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection.GetResourceBucketKey(),
+            await iiifS3.ReadIIIFFromS3<PresentationCollection>(collection, BucketLocationType.Default,
                 cancellationToken);
 
         if (s3Collection is null) return FetchEntityResult<PresentationCollection>.NotFound();
