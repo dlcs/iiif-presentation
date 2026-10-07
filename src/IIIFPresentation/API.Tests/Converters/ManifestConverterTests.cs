@@ -1,9 +1,11 @@
 ﻿using API.Converters;
 using Core.Infrastructure;
 using DLCS;
+using IIIF.Auth.V2;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
+using IIIF.Presentation.V3.Strings;
 using IIIF.Presentation.V3.Traversal;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -41,6 +43,40 @@ public class ManifestConverterTests
         },
         PathRules = PathRewriteOptions.Default
     })));
+
+    [Fact]
+    public void ApplyIIIFProperties_OverwritesBaseIIIFProperties_LeavingPresentationProperties()
+    {
+        // Arrange
+        var presentationManifest = new PresentationManifest
+        {
+            Label = new LanguageMap("en", ["original label"]),
+            Items = [new Canvas { Id = "https://example.org/canvas/original" }],
+            Slug = "my-slug",
+            Parent = "https://example.org/1/collections/parent",
+            PaintedResources = [new PaintedResource()]
+        };
+
+        var source = new Manifest
+        {
+            Label = new LanguageMap("en", ["merged label"]),
+            Items = [new Canvas { Id = "https://example.org/canvas/merged" }],
+            Services = [new AuthAccessService2 { Id = "https://example.org/auth/access" }],
+            Context = "http://iiif.io/api/presentation/3/context.json"
+        };
+
+        // Act
+        presentationManifest.ApplyIIIFProperties(source);
+
+        // Assert
+        presentationManifest.Label.Should().BeEquivalentTo(source.Label);
+        presentationManifest.Items.Should().ContainSingle().Which.Id.Should().Be("https://example.org/canvas/merged");
+        presentationManifest.Services.Should().ContainSingle().Which.Id.Should().Be("https://example.org/auth/access");
+        presentationManifest.Context.Should().Be(source.Context);
+        presentationManifest.Slug.Should().Be("my-slug");
+        presentationManifest.Parent.Should().Be("https://example.org/1/collections/parent");
+        presentationManifest.PaintedResources.Should().HaveCount(1);
+    }
 
     [Fact]
     public void SetGeneratedFields_AddsCustomContext()

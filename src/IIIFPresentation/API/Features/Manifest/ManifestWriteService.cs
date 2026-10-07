@@ -12,7 +12,6 @@ using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
-using IIIF;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
@@ -470,7 +469,7 @@ public class ManifestWriteService(
             var manifest = await dlcsManifestMerger.Augment(iiifManifest, dbManifest, cancellationToken);
             await manifestStorageManager.SaveManifestInStorage(manifest, dbManifest, originalToStore, saveToStaging,
                 cancellationToken);
-            MergeManifestFields(manifest, request.PresentationManifest);
+            request.PresentationManifest.ApplyIIIFProperties(manifest);
         }
         else
         {
@@ -485,9 +484,9 @@ public class ManifestWriteService(
                     iiifManifest.Items, pathRewriteParser);
             }
 
-            request.PresentationManifest.Items = iiifManifest.Items;
             await manifestStorageManager.SaveManifestInStorage(iiifManifest, dbManifest, originalToStore,
                 saveToStaging, cancellationToken);
+            request.PresentationManifest.ApplyIIIFProperties(iiifManifest);
 
             // Direct save (built upfront, no external content) with nothing to store as original:
             // remove any stale original payload left by a previous version of this manifest.
@@ -536,25 +535,6 @@ public class ManifestWriteService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return null;
-    }
-
-    /// <summary>
-    /// Stamps the merged IIIF fields (Items, SeeAlso, Rendering, Annotations) from the stored manifest back onto
-    /// <paramref name="presentationManifest"/> so the API response reflects what ManifestMerger produced.
-    /// </summary>
-    private static void MergeManifestFields(IIIF.Presentation.V3.Manifest iiifManifest, PresentationManifest presentationManifest)
-    {
-        presentationManifest.Items = iiifManifest.Items;
-        presentationManifest.SeeAlso = iiifManifest.SeeAlso;
-        presentationManifest.Rendering = iiifManifest.Rendering;
-        presentationManifest.Annotations = iiifManifest.Annotations;
-        presentationManifest.Services = iiifManifest.Services;
-
-        // Merging can add contexts (e.g. auth) required by the merged content
-        foreach (var context in iiifManifest.GetContextStrings())
-        {
-            presentationManifest.EnsureContext(context);
-        }
     }
 
     /// <summary>
