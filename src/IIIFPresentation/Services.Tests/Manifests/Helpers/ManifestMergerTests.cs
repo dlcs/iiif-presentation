@@ -1630,8 +1630,7 @@ public class ManifestMergerTests
             .WithCanvas(assetId, c => c.WithImage())
             .Build();
 
-        // NQ returns a top-level service but no asset actually references it - protects against the scenario where
-        // asset.manifest hasn't been correctly updated and NQ returns assets that aren't in CanvasPaintings
+        // NQ returns a top-level service but no asset references it
         namedQueryManifest.Services =
         [
             new AuthAccessService2 { Id = "https://dlcs.test/auth/v2/access/1/clickthrough" }
@@ -1644,6 +1643,86 @@ public class ManifestMergerTests
 
         // Assert
         mergedManifest.Services.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_DoesNotAddAccessService_ReferencedOnlyByAssetNotInCanvasPaintings()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        var otherAssetId = TestIdentifiers.AssetId(postfix: "other");
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(otherAssetId, c => c.WithImage())
+            .Build();
+
+        // Protects against asset.manifest not being correctly updated, so NQ returns assets that aren't in
+        // CanvasPaintings - only the asset that isn't painted references the access service
+        var otherImage = namedQueryManifest.Items![1].GetFirstPaintingAnnotation()!.Body as Image;
+        otherImage!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/other",
+                Service = [new AuthAccessService2 { Id = fullServiceId }]
+            }
+        ];
+
+        namedQueryManifest.Services = [new AuthAccessService2 { Id = fullServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+
+        // Assert
+        mergedManifest.Services.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AddsAccessService_ReferencedByChoiceItem()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var choice1 = TestIdentifiers.AssetId(postfix: "choice1");
+        var choice2 = TestIdentifiers.AssetId(postfix: "choice2");
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(choice1, c => c.WithImage())
+            .WithCanvas(choice2, c => c.WithImage())
+            .Build();
+
+        // Only the second choice item references the access service
+        var choice2Image = namedQueryManifest.Items![1].GetFirstPaintingAnnotation()!.Body as Image;
+        choice2Image!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/choice2",
+                Service = [new AuthAccessService2 { Id = fullServiceId }]
+            }
+        ];
+
+        namedQueryManifest.Services = [new AuthAccessService2 { Id = fullServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(choice1, choice2);
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test");
+
+        // Assert
+        mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body.Should().BeOfType<PaintingChoice>();
+        mergedManifest.Services.Should().ContainSingle(s => s.Id == fullServiceId);
     }
 
     [Fact]

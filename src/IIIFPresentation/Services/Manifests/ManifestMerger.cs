@@ -41,6 +41,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 {
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
 
+    /// <summary>
+    /// Ids of manifest-level auth services referenced by the painted content added to the manifest
+    /// </summary>
+    private readonly HashSet<string> referencedAuthServiceIds = [];
+
     /// <inheritdoc />
     public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings, int customerId, string manifestId, string hierarchicalId)
@@ -79,22 +84,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         return baseManifest;
     }
-    
+
     private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
     {
-        if (namedQueryManifest.Services.IsNullOrEmpty()) return;
-
-        var referencedIds = (baseManifest.Items ?? [])
-            .SelectMany(canvas => canvas.GetPaintingAnnotations())
-            .Select(pa => pa.Body)
-            .OfType<IPaintable>()
-            .SelectMany(GetServicesForPaintable)
-            .GetReferencedAuthServiceIds();
-
-        if (referencedIds.Count == 0) return;
+        if (namedQueryManifest.Services.IsNullOrEmpty() || referencedAuthServiceIds.Count == 0) return;
 
         var accessServices = namedQueryManifest.Services!
-            .Where(s => s.Id != null && referencedIds.Contains(s.Id))
+            .Where(s => s.Id != null && referencedAuthServiceIds.Contains(s.Id))
             .ToList();
 
         if (accessServices.Count == 0) return;
@@ -109,9 +105,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         paintable switch
         {
             PaintingChoice choice => (choice.Items ?? []).SelectMany(GetServicesForPaintable),
-            Image { Service: { } service } => service,
-            Sound { Service: { } service } => service,
-            Video { Service: { } service } => service,
+            ExternalResource { Service: { } service } => service,
             _ => []
         };
     
@@ -389,7 +383,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         }
         
         SetAssetDerivedProperties(workingCanvas, workingCanvas.Id!, namedQueryCanvas, canvasPainting.AssetId!.ToString());
-        
+
+        referencedAuthServiceIds.UnionWith(GetServicesForPaintable(body).GetReferencedAuthServiceIds());
+
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
     }
 
