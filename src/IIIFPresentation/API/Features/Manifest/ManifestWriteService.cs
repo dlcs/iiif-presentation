@@ -12,6 +12,7 @@ using Core.Helpers;
 using Core.IIIF;
 using API.Infrastructure;
 using DLCS.Exceptions;
+using IIIF;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
@@ -547,6 +548,13 @@ public class ManifestWriteService(
         presentationManifest.SeeAlso = iiifManifest.SeeAlso;
         presentationManifest.Rendering = iiifManifest.Rendering;
         presentationManifest.Annotations = iiifManifest.Annotations;
+        presentationManifest.Services = iiifManifest.Services;
+
+        // Merging can add contexts (e.g. auth) required by the merged content
+        foreach (var context in iiifManifest.GetContextStrings())
+        {
+            presentationManifest.EnsureContext(context);
+        }
     }
 
     /// <summary>

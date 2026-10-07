@@ -2,6 +2,8 @@
 using DLCS;
 using Models.DLCS;
 using IIIF;
+using IIIF.Auth.V2;
+using IIIF.ImageApi.V3;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -1531,5 +1533,296 @@ public class ManifestMergerTests
             "existing seeAlso must not be removed");
         mergedManifest.SeeAlso.Should().Contain(s => s.Id == stubSeeAlsoId,
             "stub seeAlso must be added");
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AddsAccessService_ReferencedByAsset()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var nqImage = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
+        nqImage!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/asset",
+                Service = [new AuthAccessService2 { Id = fullServiceId }]
+            }
+        ];
+
+        namedQueryManifest.Services =
+        [
+            new AuthAccessService2
+            {
+                Id = fullServiceId,
+                Profile = AuthAccessService2.ActiveProfile,
+                Label = new("en", "Clickthrough")
+            }
+        ];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Services.Should().ContainSingle(s => s.Id == fullServiceId)
+            .Which.Should().BeOfType<AuthAccessService2>();
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AddsAccessService_WhenProbeServiceNestedWithinImageService()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var nqImage = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
+        nqImage!.Service =
+        [
+            new ImageService3
+            {
+                Id = $"{assetId}_ImageService3",
+                Profile = "level2",
+                Service =
+                [
+                    new AuthProbeService2
+                    {
+                        Id = "https://dlcs.test/auth/v2/probe/1/asset",
+                        Service = [new AuthAccessService2 { Id = fullServiceId }]
+                    }
+                ]
+            }
+        ];
+
+        namedQueryManifest.Services = [new AuthAccessService2 { Id = fullServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Services.Should().ContainSingle(s => s.Id == fullServiceId,
+            "access service referenced from a probe service nested within the ImageService");
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_DoesNotAddAccessServices_WhenNotReferencedByAnyAsset()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        // NQ returns a top-level service but no asset references it
+        namedQueryManifest.Services =
+        [
+            new AuthAccessService2 { Id = "https://dlcs.test/auth/v2/access/1/clickthrough" }
+        ];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Services.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_DoesNotAddAccessService_ReferencedOnlyByAssetNotInCanvasPaintings()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        var otherAssetId = TestIdentifiers.AssetId(postfix: "other");
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(otherAssetId, c => c.WithImage())
+            .Build();
+
+        // Protects against asset.manifest not being correctly updated, so NQ returns assets that aren't in
+        // CanvasPaintings - only the asset that isn't painted references the access service
+        var otherImage = namedQueryManifest.Items![1].GetFirstPaintingAnnotation()!.Body as Image;
+        otherImage!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/other",
+                Service = [new AuthAccessService2 { Id = fullServiceId }]
+            }
+        ];
+
+        namedQueryManifest.Services = [new AuthAccessService2 { Id = fullServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Services.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AddsAccessService_ReferencedByChoiceItem()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var choice1 = TestIdentifiers.AssetId(postfix: "choice1");
+        var choice2 = TestIdentifiers.AssetId(postfix: "choice2");
+        const string fullServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(choice1, c => c.WithImage())
+            .WithCanvas(choice2, c => c.WithImage())
+            .Build();
+
+        // Only the second choice item references the access service
+        var choice2Image = namedQueryManifest.Items![1].GetFirstPaintingAnnotation()!.Body as Image;
+        choice2Image!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/choice2",
+                Service = [new AuthAccessService2 { Id = fullServiceId }]
+            }
+        ];
+
+        namedQueryManifest.Services = [new AuthAccessService2 { Id = fullServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(choice1, choice2);
+        canvasPaintings[0].Id = "first";
+        canvasPaintings[0].CanvasOrder = 0;
+        canvasPaintings[0].ChoiceOrder = 1;
+        canvasPaintings[1].Id = "first";
+        canvasPaintings[1].CanvasOrder = 0;
+        canvasPaintings[1].ChoiceOrder = 2;
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body.Should().BeOfType<PaintingChoice>();
+        mergedManifest.Services.Should().ContainSingle(s => s.Id == fullServiceId);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_AccessServices_AppendedToExisting_DedupedById()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        const string existingServiceId = "https://dlcs.test/auth/v2/access/1/existing";
+        const string newServiceId = "https://dlcs.test/auth/v2/access/1/new";
+
+        // Base manifest already has a service (e.g. from a prior write) with the same id NQ will return - this
+        // must be left as-is, not duplicated
+        var baseManifest = new Manifest
+        {
+            Services = [new AuthAccessService2 { Id = existingServiceId, Profile = "existing-profile" }]
+        };
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .Build();
+
+        var nqImage = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
+        nqImage!.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = "https://dlcs.test/auth/v2/probe/1/asset",
+                Service =
+                [
+                    new AuthAccessService2 { Id = existingServiceId },
+                    new AuthAccessService2 { Id = newServiceId }
+                ]
+            }
+        ];
+
+        namedQueryManifest.Services =
+        [
+            new AuthAccessService2 { Id = existingServiceId, Profile = "nq-profile" },
+            new AuthAccessService2 { Id = newServiceId }
+        ];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(baseManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        mergedManifest.Services.Should().HaveCount(2, "existing value kept once, new value appended");
+        mergedManifest.Services!.Single(s => s.Id == existingServiceId).As<AuthAccessService2>().Profile.Should()
+            .Be("existing-profile", "existing service must not be overwritten by NQ value");
+        mergedManifest.Services.Should().Contain(s => s.Id == newServiceId);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_PreservesService_OnSoundBody()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        const string probeServiceId = "https://dlcs.test/auth/v2/probe/1/asset";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithSound())
+            .Build();
+
+        var nqSound = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Sound;
+        nqSound!.Service = [new AuthProbeService2 { Id = probeServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var body = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Sound;
+        body!.Service.Should().ContainSingle(s => s.Id == probeServiceId);
+    }
+
+    [Fact]
+    public void ProcessCanvasPaintings_PreservesService_OnVideoBody()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+        const string probeServiceId = "https://dlcs.test/auth/v2/probe/1/asset";
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithVideo())
+            .Build();
+
+        var nqVideo = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Video;
+        nqVideo!.Service = [new AuthProbeService2 { Id = probeServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var body = mergedManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Video;
+        body!.Service.Should().ContainSingle(s => s.Id == probeServiceId);
     }
 }

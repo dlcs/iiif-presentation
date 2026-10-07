@@ -41,6 +41,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 {
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
 
+    /// <summary>
+    /// Ids of manifest-level auth services referenced by the painted content added to the manifest
+    /// </summary>
+    private readonly HashSet<string> referencedAuthServiceIds = [];
+
     /// <inheritdoc />
     public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings, int customerId, string manifestId, string hierarchicalId)
@@ -74,10 +79,35 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
+        ApplyAccessServices(baseManifest, namedQueryManifest!);
         SetManifestContext(baseManifest, namedQueryManifest!);
 
         return baseManifest;
     }
+
+    private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
+    {
+        if (namedQueryManifest.Services.IsNullOrEmpty() || referencedAuthServiceIds.Count == 0) return;
+
+        var accessServices = namedQueryManifest.Services!
+            .Where(s => s.Id != null && referencedAuthServiceIds.Contains(s.Id))
+            .ToList();
+
+        if (accessServices.Count == 0) return;
+
+        logger.LogDebug("Adding {Count} access service(s) to Manifest {ManifestId}", accessServices.Count,
+            baseManifest.Id);
+        baseManifest.Services ??= [];
+        baseManifest.Services.AddDistinctById(accessServices);
+    }
+
+    private static IEnumerable<IService> GetServicesForPaintable(IPaintable paintable) =>
+        paintable switch
+        {
+            PaintingChoice choice => (choice.Items ?? []).SelectMany(GetServicesForPaintable),
+            ExternalResource { Service: { } service } => service,
+            _ => []
+        };
     
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
@@ -353,7 +383,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         }
         
         SetAssetDerivedProperties(workingCanvas, workingCanvas.Id!, namedQueryCanvas, canvasPainting.AssetId!.ToString());
-        
+
+        referencedAuthServiceIds.UnionWith(GetServicesForPaintable(body).GetReferencedAuthServiceIds());
+
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
     }
 
@@ -576,14 +608,21 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 Height = image.Height,
                 Service = image.Service,
             },
-            Sound sound => new Sound { Id = sound.Id, Format = sound.Format, Duration = sound.Duration, },
+            Sound sound => new Sound
+            {
+                Id = sound.Id,
+                Format = sound.Format,
+                Duration = sound.Duration,
+                Service = sound.Service,
+            },
             Video video => new Video
             {
                 Id = video.Id,
                 Format = video.Format,
                 Duration = video.Duration,
                 Width = video.Width,
-                Height = video.Height
+                Height = video.Height,
+                Service = video.Service
             },
             PaintingChoice paintingChoice => new PaintingChoice
             {
