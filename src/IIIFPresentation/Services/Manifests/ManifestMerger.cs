@@ -91,14 +91,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     {
         if (namedQueryManifest.Services.IsNullOrEmpty()) return;
 
-        var referencedIds = (baseManifest.Items ?? [])
-            .SelectMany(canvas => canvas.GetPaintingAnnotations()
-                .Select(pa => pa.Body)
-                .OfType<IPaintable>()
-                .SelectMany(GetServicesForPaintable)
-                .Concat(GetServicesForAdjuncts(canvas)))
-            .Concat(GetServicesForAdjuncts(baseManifest))
-            .GetReferencedAuthServiceIds();
+        var referencedIds = GetAllServices(baseManifest).GetReferencedAuthServiceIds();
 
         if (referencedIds.Count == 0) return;
 
@@ -113,6 +106,20 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         baseManifest.Services ??= [];
         baseManifest.Services.AddDistinctById(accessServices);
     }
+
+    /// <summary>
+    /// Get all services from manifest-level adjuncts, plus painting annotation bodies and adjuncts of every canvas
+    /// </summary>
+    private static IEnumerable<IService> GetAllServices(Manifest manifest) =>
+        GetServicesForAdjuncts(manifest)
+            .Concat((manifest.Items ?? []).SelectMany(GetServicesForCanvas));
+
+    private static IEnumerable<IService> GetServicesForCanvas(Canvas canvas) =>
+        canvas.GetPaintingAnnotations()
+            .Select(pa => pa.Body)
+            .OfType<IPaintable>()
+            .SelectMany(GetServicesForPaintable)
+            .Concat(GetServicesForAdjuncts(canvas));
 
     private static IEnumerable<IService> GetServicesForPaintable(IPaintable paintable) =>
         paintable switch
