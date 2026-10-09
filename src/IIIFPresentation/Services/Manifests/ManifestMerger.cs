@@ -1,4 +1,4 @@
-﻿using Core.Exceptions;
+﻿    using Core.Exceptions;
 using Core.Helpers;
 using Core.IIIF;
 using IIIF;
@@ -42,7 +42,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
 
     /// <summary>
-    /// Ids of manifest-level auth services referenced by the painted content added to the manifest
+    /// Ids of manifest-level auth services referenced by the painted content and adjuncts added to the manifest
     /// </summary>
     private readonly HashSet<string> referencedAuthServiceIds = [];
 
@@ -53,6 +53,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
         if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
         ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId, hierarchicalId);
+
+        // Run after canvas and manifest-level adjuncts are applied so all referenced auth services are found
+        ApplyAccessServices(merged, namedQueryManifest);
         return merged;
     }
 
@@ -79,7 +82,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
-        ApplyAccessServices(baseManifest, namedQueryManifest!);
         SetManifestContext(baseManifest, namedQueryManifest!);
 
         return baseManifest;
@@ -108,7 +110,13 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             ExternalResource { Service: { } service } => service,
             _ => []
         };
-    
+
+    private static IEnumerable<IService> GetServicesForAdjuncts(StructureBase resource) =>
+        (resource.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(resource.Rendering ?? [])
+            .Concat(resource.Annotations ?? [])
+            .SelectMany(adjunct => adjunct.Service ?? []);
+
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
     /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
@@ -424,6 +432,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             structureBase.Rendering ??= [];
             structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
         }
+
+        referencedAuthServiceIds.UnionWith(GetServicesForAdjuncts(namedQueryCanvas).GetReferencedAuthServiceIds());
     }
 
     /// <summary>
