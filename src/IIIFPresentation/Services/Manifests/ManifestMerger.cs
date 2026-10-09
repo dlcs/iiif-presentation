@@ -42,7 +42,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
 
     /// <summary>
-    /// Ids of manifest-level auth services referenced by the painted content added to the manifest
+    /// Ids of manifest-level auth services referenced by the painted content and adjuncts added to the manifest
     /// </summary>
     private readonly HashSet<string> referencedAuthServiceIds = [];
 
@@ -89,11 +89,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
     private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
     {
-        if (namedQueryManifest.Services.IsNullOrEmpty()) return;
-
-        var referencedIds = GetAllServices(baseManifest).GetReferencedAuthServiceIds();
-
-        if (referencedIds.Count == 0) return;
+        if (namedQueryManifest.Services.IsNullOrEmpty() || referencedAuthServiceIds.Count == 0) return;
 
         var accessServices = namedQueryManifest.Services!
             .Where(s => s.Id != null && referencedAuthServiceIds.Contains(s.Id))
@@ -106,20 +102,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         baseManifest.Services ??= [];
         baseManifest.Services.AddDistinctById(accessServices);
     }
-
-    /// <summary>
-    /// Get all services from manifest-level adjuncts, plus painting annotation bodies and adjuncts of every canvas
-    /// </summary>
-    private static IEnumerable<IService> GetAllServices(Manifest manifest) =>
-        GetServicesForAdjuncts(manifest)
-            .Concat((manifest.Items ?? []).SelectMany(GetServicesForCanvas));
-
-    private static IEnumerable<IService> GetServicesForCanvas(Canvas canvas) =>
-        canvas.GetPaintingAnnotations()
-            .Select(pa => pa.Body)
-            .OfType<IPaintable>()
-            .SelectMany(GetServicesForPaintable)
-            .Concat(GetServicesForAdjuncts(canvas));
 
     private static IEnumerable<IService> GetServicesForPaintable(IPaintable paintable) =>
         paintable switch
@@ -450,6 +432,8 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             structureBase.Rendering ??= [];
             structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
         }
+
+        referencedAuthServiceIds.UnionWith(GetServicesForAdjuncts(namedQueryCanvas).GetReferencedAuthServiceIds());
     }
 
     /// <summary>

@@ -286,7 +286,7 @@ public class ManifestMergerManifestAdjunctTests
         nqManifest.Services = [new AuthAccessService2 { Id = accessServiceId }];
 
         // Act
-        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
         // Assert
         result.Services.Should().ContainSingle(s => s.Id == accessServiceId)
@@ -315,7 +315,8 @@ public class ManifestMergerManifestAdjunctTests
         var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
 
         // Act
-        var result = sut.MergeManifest(baseManifest, nqManifest, canvasPaintings, assetId.Customer, ManifestId);
+        var result = sut.MergeManifest(baseManifest, nqManifest, canvasPaintings, assetId.Customer, ManifestId,
+            HierarchicalId);
 
         // Assert
         result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
