@@ -53,6 +53,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
         if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
         ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId, hierarchicalId);
+
+        // Run after canvas and manifest-level adjuncts are applied so all referenced auth services are found
+        ApplyAccessServices(merged, namedQueryManifest);
         return merged;
     }
 
@@ -79,7 +82,6 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         ValidateManifests(baseManifest, namedQueryManifest);
         canvasLookups.Initialise(namedQueryManifest!, baseManifest, canvasPaintings);
         BuildItems(baseManifest, canvasPaintings);
-        ApplyAccessServices(baseManifest, namedQueryManifest!);
         SetManifestContext(baseManifest, namedQueryManifest!);
 
         return baseManifest;
@@ -95,6 +97,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 .OfType<IPaintable>()
                 .SelectMany(GetServicesForPaintable)
                 .Concat(GetServicesForAdjuncts(canvas)))
+            .Concat(GetServicesForAdjuncts(baseManifest))
             .GetReferencedAuthServiceIds();
 
         if (referencedIds.Count == 0) return;
@@ -119,10 +122,10 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             _ => []
         };
 
-    private static IEnumerable<IService> GetServicesForAdjuncts(Canvas canvas) =>
-        (canvas.SeeAlso ?? []).Cast<ResourceBase>()
-            .Concat(canvas.Rendering ?? [])
-            .Concat(canvas.Annotations ?? [])
+    private static IEnumerable<IService> GetServicesForAdjuncts(StructureBase resource) =>
+        (resource.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(resource.Rendering ?? [])
+            .Concat(resource.Annotations ?? [])
             .SelectMany(adjunct => adjunct.Service ?? []);
 
     /// <summary>

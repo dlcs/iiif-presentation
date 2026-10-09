@@ -1,4 +1,6 @@
 ﻿using DLCS;
+using IIIF;
+using IIIF.Auth.V2;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -260,4 +262,79 @@ public class ManifestMergerManifestAdjunctTests
 
     private static IEnumerable<Annotation> GetInlineAnnotations(StructureBase resource)
         => resource.Annotations!.SelectMany(p => p.Items?.OfType<Annotation>() ?? []);
+
+    [Theory]
+    [InlineData(AdjunctType.SeeAlso)]
+    [InlineData(AdjunctType.Rendering)]
+    [InlineData(AdjunctType.Annotation)]
+    public void MergeManifest_AddsAccessService_ReferencedByManifestLevelAdjunct_NoCanvasPaintings(
+        AdjunctType adjunctType)
+    {
+        // Arrange
+        var baseManifest = new Manifest { Id = "base" };
+        const string adjunctId = "https://example.com/adjunct";
+        const string accessServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c =>
+            {
+                c.WithImage();
+                c.Adjuncts = [new GenerateAdjunctOptions { Type = adjunctType, Id = adjunctId }];
+            })
+            .Build();
+        SetAdjunctProbeService(nqManifest.Items![0], adjunctId, accessServiceId);
+        nqManifest.Services = [new AuthAccessService2 { Id = accessServiceId }];
+
+        // Act
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId);
+
+        // Assert
+        result.Services.Should().ContainSingle(s => s.Id == accessServiceId)
+            .Which.Should().BeOfType<AuthAccessService2>();
+    }
+
+    [Fact]
+    public void MergeManifest_AddsAccessService_ReferencedByManifestLevelAdjunct_WithCanvasPaintings()
+    {
+        // Arrange
+        var assetId = TestIdentifiers.AssetId();
+        var stubAssetId = new AssetId(assetId.Customer, ResourceAdjunctInteractions.StubAssetSpace,
+            $"Manifest_{ManifestId}");
+        var baseManifest = new Manifest();
+        const string seeAlsoId = "https://example.com/mets.xml";
+        const string accessServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+
+        // Painting body has no probe service, so the manifest-level adjunct is the only reference
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage())
+            .WithCanvas(stubAssetId, c => c.WithImage().WithAdjunctSeeAlso(seeAlsoId))
+            .Build();
+        SetAdjunctProbeService(nqManifest.Items![1], seeAlsoId, accessServiceId);
+        nqManifest.Services = [new AuthAccessService2 { Id = accessServiceId }];
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var result = sut.MergeManifest(baseManifest, nqManifest, canvasPaintings, assetId.Customer, ManifestId);
+
+        // Assert
+        result.SeeAlso.Should().ContainSingle(s => s.Id == seeAlsoId);
+        result.Services.Should().ContainSingle(s => s.Id == accessServiceId);
+    }
+
+    private static void SetAdjunctProbeService(Canvas canvas, string adjunctId, string accessServiceId)
+    {
+        var adjunct = (canvas.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(canvas.Rendering ?? [])
+            .Concat(canvas.Annotations ?? [])
+            .Single(r => r.Id == adjunctId);
+        adjunct.Service =
+        [
+            new AuthProbeService2
+            {
+                Id = $"https://dlcs.test/auth/v2/probe/1/asset/adjuncts/{adjunctId}",
+                Service = [new AuthAccessService2 { Id = accessServiceId }]
+            }
+        ];
+    }
 }
