@@ -1,4 +1,3 @@
-using System.Reflection;
 using IIIF.Presentation.V3;
 using Models.API.Collection;
 using Models.API.Manifest;
@@ -12,33 +11,17 @@ namespace API.Converters;
 /// </summary>
 public static class PresentationIIIFCleaner
 {
-    private static readonly PropertyInfo[] ManifestProperties = GetCopyableProperties(typeof(Manifest));
-    private static readonly PropertyInfo[] CollectionProperties = GetCopyableProperties(typeof(Collection));
-
     public static Manifest ToManifest(this PresentationManifest presentationManifest)
     {
         var manifest = new Manifest();
-        CopyProperties(presentationManifest, manifest, ManifestProperties);
+        IIIFPropertyCopier.CopyProperties<Manifest>(presentationManifest, manifest);
         return manifest;
     }
 
     public static Collection ToCollection(this PresentationCollection presentationCollection)
     {
         var collection = new Collection();
-        CopyProperties(presentationCollection, collection, CollectionProperties);
+        IIIFPropertyCopier.CopyProperties<Collection>(presentationCollection, collection);
         return collection;
-    }
-
-    private static PropertyInfo[] GetCopyableProperties(Type type) =>
-        type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0)
-            .ToArray();
-
-    private static void CopyProperties(object source, object target, PropertyInfo[] properties)
-    {
-        foreach (var property in properties)
-        {
-            property.SetValue(target, property.GetValue(source));
-        }
     }
 }
