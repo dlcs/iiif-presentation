@@ -79,6 +79,39 @@ public class ManifestConverterTests
     }
 
     [Fact]
+    public void ApplyIIIFProperties_PresentationManifestSource_DoesNotCopyPresentationProperties()
+    {
+        // Arrange
+        var presentationManifest = new PresentationManifest
+        {
+            Label = new LanguageMap("en", ["original label"]),
+            Items = [new Canvas { Id = "https://example.org/canvas/original" }],
+            Slug = "my-slug",
+            Parent = "https://example.org/1/collections/parent",
+            PaintedResources = [new PaintedResource()]
+        };
+
+        var source = new PresentationManifest
+        {
+            Label = new LanguageMap("en", ["merged label"]),
+            Items = [new Canvas { Id = "https://example.org/canvas/merged" }],
+            Slug = "other-slug",
+            Parent = "https://example.org/1/collections/other-parent",
+            PaintedResources = [new PaintedResource(), new PaintedResource()]
+        };
+
+        // Act
+        presentationManifest.ApplyIIIFProperties(source);
+
+        // Assert
+        presentationManifest.Label.Should().BeEquivalentTo(source.Label);
+        presentationManifest.Items.Should().ContainSingle().Which.Id.Should().Be("https://example.org/canvas/merged");
+        presentationManifest.Slug.Should().Be("my-slug");
+        presentationManifest.Parent.Should().Be("https://example.org/1/collections/parent");
+        presentationManifest.PaintedResources.Should().HaveCount(1);
+    }
+
+    [Fact]
     public void SetGeneratedFields_AddsCustomContext()
     {
         // Arrange
