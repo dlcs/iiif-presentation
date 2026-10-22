@@ -3,6 +3,7 @@ using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Models.API.Manifest;
 using Models.Database.General;
 using Services.TextServices;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -186,6 +187,28 @@ public class TextBuilderClientTests
     }
 
     [Fact]
+    public async Task UpsertJob_SendsFullJobDefinitionOnPut_WithIdMatchingUrl()
+    {
+        // text-services' PUT replaces the stored job definition with the body (and requires the body id to match
+        // the URL), which is how changes to "output"/"pdfCoverPage" reach an existing job
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.Conflict);
+        messageHandler.Enqueue(HttpStatusCode.OK);
+        var job = MakeJob(customerId: 5, resourceId: "test-manifest");
+        job.Config = new PipelineConfig { Action = "Index", PdfCoverPage = "http://cover.page/sample.pdf" };
+
+        await sut.UpsertJob(MakeManifest(customerId: 5, id: "test-manifest"), job, CancellationToken.None);
+
+        var postBody = await messageHandler.Requests[0].Content!.ReadAsStringAsync();
+        var put = messageHandler.Requests[1];
+        var putBody = await put.Content!.ReadAsStringAsync();
+        putBody.Should().Be(postBody);
+        putBody.Should().Contain("\"id\":\"5/iiif/test-manifest\"");
+        putBody.Should().Contain("\"sourceData\":");
+        put.RequestUri!.AbsolutePath.Should().Be("/textbuilder/5/iiif/test-manifest");
+    }
+
+    [Fact]
     public async Task UpsertJob_ReturnsFalse_AndSetsJobFailedToSubmit_WhenPutTimesOut()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
@@ -226,6 +249,43 @@ public class TextBuilderClientTests
         var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
         var expected = (int)(JobServices.All);
         body.Should().Contain($"\"services\":{expected}");
+        body.Should().NotContain("sourceData");
+    }
+
+    [Fact]
+    public async Task UpsertJob_SendsRequestedOutputs_PlusTextAugmented_AsServicesField()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK);
+        var job = MakeJob();
+        job.Config = new PipelineConfig { Action = "Index", Output = ["Search"] };
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
+        var expected = (int)(JobServices.Search | JobServices.TextAugmented);
+        body.Should().Contain($"\"services\":{expected}");
+        body.Should().NotContain("sourceData");
+    }
+
+    [Fact]
+    public async Task UpsertJob_SendsCoverPageAsSourceData_AndRequestsPdf_WhenPdfCoverPageSet()
+    {
+        var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
+        messageHandler.Enqueue(HttpStatusCode.OK);
+        var job = MakeJob();
+        job.Config = new PipelineConfig
+        {
+            Action = "Index", Output = ["Search"], PdfCoverPage = "http://cover.page/sample.pdf"
+        };
+
+        await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
+
+        var body = await messageHandler.Requests.Single().Content!.ReadAsStringAsync();
+        var expected = (int)(JobServices.Search | JobServices.Pdf | JobServices.TextAugmented);
+        body.Should().Contain($"\"services\":{expected}");
+        body.Should().Contain(
+            "\"sourceData\":[{\"type\":\"pdf\",\"input\":\"http://cover.page/sample.pdf\",\"index\":0}]");
     }
 
     [Fact]
