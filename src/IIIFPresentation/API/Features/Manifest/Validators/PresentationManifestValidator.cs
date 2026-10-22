@@ -7,6 +7,7 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Settings;
+using Services.TextServices;
 
 namespace API.Features.Manifest.Validators;
 
@@ -30,7 +31,33 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
             .When(m => !m.Items.IsNullOrEmpty())
             .WithMessage("The id in 'items' contains duplicates, which is not allowed");
+
+        When(m => !m.Pipeline.IsNullOrEmpty(), TextPipelineValidation);
     }
+
+    // Validation rules for the "config" of "text" pipelines
+    private void TextPipelineValidation()
+    {
+        RuleForEach(m => m.Pipeline)
+            .Where(p => IsTextPipeline(p) && p.Config?.Output != null)
+            .Must(p => p.Config!.Output!.Count > 0)
+            .WithMessage("'output' must contain at least one value when provided");
+
+        RuleForEach(m => m.Pipeline)
+            .Where(p => IsTextPipeline(p) && p.Config?.Output != null)
+            .Must(p => p.Config!.Output!.All(TextPipelineOutputs.IsValid))
+            .WithMessage(
+                $"'output' contains an unknown value. Allowed values are: {string.Join(", ", TextPipelineOutputs.AllowedValues)}");
+
+        RuleForEach(m => m.Pipeline)
+            .Where(p => IsTextPipeline(p) && p.Config?.PdfCoverPage != null)
+            .Must(p => Uri.TryCreate(p.Config!.PdfCoverPage, UriKind.Absolute, out var uri) &&
+                       (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            .WithMessage("'pdfCoverPage' must be an absolute http(s) URI");
+    }
+
+    private static bool IsTextPipeline(PipelineItem pipelineItem) =>
+        string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase);
 
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()

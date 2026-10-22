@@ -36,7 +36,7 @@ public class TextBuilderClient(
             return false;
         }
 
-        var serialisedBody = CreateJobRequestJsonBody(manifest, jobId);
+        var serialisedBody = CreateJobRequestJsonBody(manifest, job, jobId);
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
         try
@@ -127,10 +127,16 @@ public class TextBuilderClient(
         return false;
     }
 
-    private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
+    private string CreateJobRequestJsonBody(DbManifest manifest, PipelineJob job, TextJobId jobId)
     {
         var sourceS3Uri = GetManifestS3Key(manifest);
-        var body = new { id = jobId.ToString(), sourceUri = sourceS3Uri, services = (int)JobServices.All };
+
+        // TextAugmented is always required as it's how TextManifestAugmentor reads back the generated resources
+        var services = job.Config.GetRequestedServices() | JobServices.TextAugmented;
+        var coverPage = job.Config?.PdfCoverPage;
+        object[]? sourceData = coverPage == null ? null : [new { type = "pdf", input = coverPage, index = 0 }];
+
+        var body = new { id = jobId.ToString(), sourceUri = sourceS3Uri, sourceData, services = (int)services };
         var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
         return serialisedBody;
     }

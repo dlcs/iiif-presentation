@@ -717,4 +717,82 @@ public class PresentationManifestValidatorTests
         var result = sut.TestValidate(manifest);
         result.Errors.Should().Contain(e => e.ErrorMessage.Contains("'asset'"));
     }
+
+    private static PresentationManifest ManifestWithTextPipeline(List<string>? output = null,
+        string? pdfCoverPage = null, string name = "text") => new()
+    {
+        Slug = "test",
+        Parent = "https://example.com/root",
+        Pipeline =
+        [
+            new PipelineItem
+            {
+                Name = name,
+                Config = new PipelineConfig { Action = "Index", Output = output, PdfCoverPage = pdfCoverPage }
+            }
+        ]
+    };
+
+    [Fact]
+    public void TextPipeline_NoError_WhenOutputAndPdfCoverPageNotProvided()
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline());
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Theory]
+    [InlineData("All")]
+    [InlineData("search")]
+    [InlineData("Search", "Pdf", "Figures")]
+    [InlineData("All", "Figures")]
+    public void TextPipeline_NoError_WhenOutputValuesKnown(params string[] output)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(output.ToList()));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Theory]
+    [InlineData("Thumbnails")]
+    [InlineData("Search", "None")]
+    [InlineData("All", "Unknown")]
+    public void TextPipeline_Error_WhenOutputContainsUnknownValue(params string[] output)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(output.ToList()));
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage.StartsWith("'output' contains an unknown value"));
+    }
+
+    [Fact]
+    public void TextPipeline_Error_WhenOutputEmpty()
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline([]));
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage.StartsWith("'output' must contain at least one value"));
+    }
+
+    [Theory]
+    [InlineData("http://cover.page/sample.pdf")]
+    [InlineData("https://cover.page/sample.pdf")]
+    public void TextPipeline_NoError_WhenPdfCoverPageIsHttpUri(string pdfCoverPage)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(pdfCoverPage: pdfCoverPage));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-uri")]
+    [InlineData("/relative/cover.pdf")]
+    [InlineData("s3://bucket/cover.pdf")]
+    [InlineData("file:///cover.pdf")]
+    public void TextPipeline_Error_WhenPdfCoverPageIsNotHttpUri(string pdfCoverPage)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(pdfCoverPage: pdfCoverPage));
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage == "'pdfCoverPage' must be an absolute http(s) URI");
+    }
+
+    [Fact]
+    public void TextPipeline_ConfigNotValidated_ForNonTextPipeline()
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(["Thumbnails"], "not-a-uri", name: "other"));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
 }
