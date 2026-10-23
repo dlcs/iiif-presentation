@@ -30,6 +30,10 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .Must(i => i.DistinctBy(c => c.Id).Count() == i.Count)
             .When(m => !m.Items.IsNullOrEmpty())
             .WithMessage("The id in 'items' contains duplicates, which is not allowed");
+
+        RuleForEach(m => m.Pipeline)
+            .Where(p => p.IsTextPipeline() && p.Config != null)
+            .ChildRules(p => p.RuleFor(i => i.Config!).SetValidator(new TextPipelineConfigValidator()));
     }
 
     // Validation rules specific to PaintedResources only

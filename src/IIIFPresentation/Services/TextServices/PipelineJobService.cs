@@ -66,7 +66,7 @@ public class PipelineJobService(
         // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
         foreach (var pipelineItem in pipeline)
         {
-            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase))
+            if (pipelineItem.IsTextPipeline())
             {
                 return new PipelineJob
                 {

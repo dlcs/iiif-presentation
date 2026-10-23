@@ -1,4 +1,6 @@
 using Models.Database.General;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Models.API.Manifest;
 
@@ -16,9 +18,41 @@ public class PipelineItem
     public DateTime? Finished { get; set; }
 }
 
+/// <summary>
+/// Config for a pipeline. <see cref="Action"/> is common to all pipelines, anything else is specific to the type of
+/// pipeline and is read via a typed view, e.g. <see cref="PipelineHelper.AsTextConfig"/>.
+/// </summary>
 public class PipelineConfig
 {
     public string? Action { get; set; }
+
+    /// <summary>
+    /// Pipeline-specific settings, kept as provided so they round-trip through storage and API responses
+    /// </summary>
+    [JsonExtensionData]
+    public IDictionary<string, JToken>? Settings { get; set; }
+}
+
+/// <summary>
+/// Settings specific to the "text" pipeline, read from <see cref="PipelineConfig.Settings"/>
+/// </summary>
+public class TextPipelineConfig
+{
+    /// <summary>
+    /// The only settings recognised for the "text" pipeline
+    /// </summary>
+    public static readonly string[] SettingNames = ["output", "pdfCoverPage"];
+
+    /// <summary>
+    /// Outputs to generate and include on the Manifest - "All" or text-services service flag names. Null means
+    /// "All".
+    /// </summary>
+    public List<string>? Output { get; set; }
+
+    /// <summary>
+    /// URI of a PDF to prepend to the generated PDF as a cover page. When set, a PDF is always generated.
+    /// </summary>
+    public string? PdfCoverPage { get; set; }
 }
 
 public static class PipelineHelper
@@ -44,8 +78,40 @@ public static class PipelineHelper
 
     // The only recognised pipelines are "text" with action of "Index"
     private static bool IsKnownPipeline(PipelineItem pipelineItem) =>
-        string.Equals(pipelineItem.Name, TextPipeline.Name, StringComparison.OrdinalIgnoreCase) &&
+        pipelineItem.IsTextPipeline() &&
         TextPipeline.Actions.Contains(pipelineItem.Config?.Action, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether this is a "text" pipeline (case-insensitive). Says nothing about whether its config is valid.
+    /// </summary>
+    public static bool IsTextPipeline(this PipelineItem pipelineItem) =>
+        string.Equals(pipelineItem.Name, TextPipeline.Name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Read the "text" pipeline settings from this config. Throws a <see cref="JsonException"/> if a setting has the
+    /// wrong type - use <see cref="TryGetTextConfig"/> where that hasn't already been validated.
+    /// </summary>
+    public static TextPipelineConfig AsTextConfig(this PipelineConfig? config) =>
+        config?.Settings == null
+            ? new TextPipelineConfig()
+            : JObject.FromObject(config.Settings).ToObject<TextPipelineConfig>() ?? new TextPipelineConfig();
+
+    /// <summary>
+    /// Try to read the "text" pipeline settings from this config, returning false if a setting has the wrong type.
+    /// </summary>
+    public static bool TryGetTextConfig(this PipelineConfig? config, out TextPipelineConfig textConfig)
+    {
+        try
+        {
+            textConfig = config.AsTextConfig();
+            return true;
+        }
+        catch (JsonException)
+        {
+            textConfig = new TextPipelineConfig();
+            return false;
+        }
+    }
 
     public static bool HasPipelineJob(this PresentationManifest manifest) =>
         manifest.Pipeline?.Count > 0;
