@@ -55,8 +55,14 @@ public static class PipelineHelper
 
     // The only recognised pipelines are "text" with action of "Index"
     private static bool IsKnownPipeline(PipelineItem pipelineItem) =>
-        string.Equals(pipelineItem.Name, TextPipeline.Name, StringComparison.OrdinalIgnoreCase) &&
+        pipelineItem.IsTextPipeline() &&
         TextPipeline.Actions.Contains(pipelineItem.Config?.Action, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether this is a "text" pipeline (case-insensitive). Says nothing about whether its config is valid.
+    /// </summary>
+    public static bool IsTextPipeline(this PipelineItem pipelineItem) =>
+        string.Equals(pipelineItem.Name, TextPipeline.Name, StringComparison.OrdinalIgnoreCase);
 
     public static bool HasPipelineJob(this PresentationManifest manifest) =>
         manifest.Pipeline?.Count > 0;

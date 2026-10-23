@@ -39,25 +39,29 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
     private void TextPipelineValidation()
     {
         RuleForEach(m => m.Pipeline)
-            .Where(p => IsTextPipeline(p) && p.Config?.Output != null)
+            .Where(p => p.IsTextPipeline() && p.Config?.Output != null)
             .Must(p => p.Config!.Output!.Count > 0)
             .WithMessage("'output' must contain at least one value when provided");
 
         RuleForEach(m => m.Pipeline)
-            .Where(p => IsTextPipeline(p) && p.Config?.Output != null)
+            .Where(p => p.IsTextPipeline() && p.Config?.Output != null)
             .Must(p => p.Config!.Output!.All(TextPipelineOutputs.IsValid))
             .WithMessage(
                 $"'output' contains an unknown value. Allowed values are: {string.Join(", ", TextPipelineOutputs.AllowedValues)}");
 
+        // TextAugmented is always requested, so on its own it would add nothing to the Manifest
         RuleForEach(m => m.Pipeline)
-            .Where(p => IsTextPipeline(p) && p.Config?.PdfCoverPage != null)
+            .Where(p => p.IsTextPipeline() && p.Config?.Output?.Count > 0)
+            .Must(p => !p.Config!.Output!.All(o =>
+                string.Equals(o, nameof(JobServices.TextAugmented), StringComparison.OrdinalIgnoreCase)))
+            .WithMessage($"'output' cannot contain only '{nameof(JobServices.TextAugmented)}'");
+
+        RuleForEach(m => m.Pipeline)
+            .Where(p => p.IsTextPipeline() && p.Config?.PdfCoverPage != null)
             .Must(p => Uri.TryCreate(p.Config!.PdfCoverPage, UriKind.Absolute, out var uri) &&
                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             .WithMessage("'pdfCoverPage' must be an absolute http(s) URI");
     }
-
-    private static bool IsTextPipeline(PipelineItem pipelineItem) =>
-        string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase);
 
     // Validation rules specific to PaintedResources only
     private void PaintedResourcesValidation()
