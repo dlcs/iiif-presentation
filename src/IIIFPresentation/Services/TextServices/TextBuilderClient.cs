@@ -133,10 +133,8 @@ public class TextBuilderClient(
 
         // TextAugmented is always required as it's how TextManifestAugmentor reads back the generated resources
         var services = job.Config.GetRequestedServices() | JobServices.TextAugmented;
-        var coverPage = job.Config?.PdfCoverPage;
-        object[]? sourceData = coverPage == null ? null : [new { type = "pdf", input = coverPage, index = 0 }];
 
-        var body = new { id = jobId.ToString(), sourceUri = sourceS3Uri, sourceData, services = (int)services };
+        var body = new TextBuilderJobRequest(jobId, sourceS3Uri, services, job.Config?.PdfCoverPage);
         var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
         return serialisedBody;
     }

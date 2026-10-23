@@ -769,6 +769,33 @@ public class PresentationManifestValidatorTests
     }
 
     [Theory]
+    [InlineData("TextAugmented")]
+    [InlineData("textaugmented")]
+    [InlineData("TextAugmented", "TEXTAUGMENTED")]
+    public void TextPipeline_Error_WhenOutputIsOnlyTextAugmented(params string[] output)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(output.ToList()));
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage == "'output' cannot contain only 'TextAugmented'");
+    }
+
+    [Theory]
+    [InlineData("Search", "TextAugmented")]
+    [InlineData("All", "TextAugmented")]
+    public void TextPipeline_NoError_WhenTextAugmentedCombinedWithOtherValues(params string[] output)
+    {
+        var result = sut.TestValidate(ManifestWithTextPipeline(output.ToList()));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Fact]
+    public void TextPipeline_Error_WhenOnlyTextAugmentedAndPdfCoverPage()
+    {
+        // pdfCoverPage adds Pdf when building the job, but 'output' itself is still only TextAugmented
+        var result = sut.TestValidate(ManifestWithTextPipeline(["TextAugmented"], "https://cover.page/sample.pdf"));
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage == "'output' cannot contain only 'TextAugmented'");
+    }
+
+    [Theory]
     [InlineData("http://cover.page/sample.pdf")]
     [InlineData("https://cover.page/sample.pdf")]
     public void TextPipeline_NoError_WhenPdfCoverPageIsHttpUri(string pdfCoverPage)

@@ -166,6 +166,19 @@ public class PipelineHelperTests
     }
 
     [Theory]
+    [InlineData("text")]
+    [InlineData("TEXT")]
+    public void IsTextPipeline_True_ForTextName_RegardlessOfCasing(string name)
+        => new PipelineItem { Name = name }.IsTextPipeline().Should().BeTrue();
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("thumbs")]
+    public void IsTextPipeline_False_ForOtherNames(string? name)
+        => new PipelineItem { Name = name }.IsTextPipeline().Should().BeFalse();
+
+    [Theory]
     [InlineData(PipelineJobStatus.Waiting, "Waiting")]
     [InlineData(PipelineJobStatus.Running, "Running")]
     [InlineData(PipelineJobStatus.Completed, "Completed")]
