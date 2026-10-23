@@ -1,6 +1,7 @@
 ﻿using API.Features.Manifest.Validators;
 using API.Settings;
 using AWS.Settings;
+using Core.IIIF;
 using DLCS;
 using Services.Manifests.Settings;
 using FluentValidation.TestHelper;
@@ -728,10 +729,29 @@ public class PresentationManifestValidatorTests
             new PipelineItem
             {
                 Name = name,
-                Config = new PipelineConfig { Action = "Index", Output = output, PdfCoverPage = pdfCoverPage }
+                Config = new PipelineConfig
+                {
+                    Action = "Index",
+                    Settings = new Dictionary<string, JToken>
+                    {
+                        ["output"] = output == null ? JValue.CreateNull() : new JArray(output),
+                        ["pdfCoverPage"] = pdfCoverPage
+                    }
+                }
             }
         ]
     };
+
+    // Deserialises via the same path as incoming requests, so "config" binds exactly as it would for real
+    private static async Task<PresentationManifest> ManifestWithTextPipelineConfigJson(string configJson) =>
+        (await $$"""
+                 {
+                     "type": "Manifest",
+                     "slug": "test",
+                     "parent": "https://example.com/root",
+                     "pipeline": [ { "name": "text", "config": {{configJson}} } ]
+                 }
+                 """.ToPresentation<PresentationManifest>())!;
 
     [Fact]
     public void TextPipeline_NoError_WhenOutputAndPdfCoverPageNotProvided()
@@ -820,6 +840,56 @@ public class PresentationManifestValidatorTests
     public void TextPipeline_ConfigNotValidated_ForNonTextPipeline()
     {
         var result = sut.TestValidate(ManifestWithTextPipeline(["Thumbnails"], "not-a-uri", name: "other"));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Theory]
+    [InlineData("""{ "action": "Index" }""")]
+    [InlineData("""{ "action": "Index", "output": ["All"] }""")]
+    [InlineData("""{ "action": "Index", "output": ["Search"] }""")]
+    [InlineData("""{ "action": "Index", "output": ["Search"], "pdfCoverPage": "http://cover.page/sample.pdf" }""")]
+    [InlineData("""{ "Action": "Index", "Output": ["Search"], "PDFCoverPage": "http://cover.page/sample.pdf" }""")]
+    public async Task TextPipeline_NoError_ForValidConfigJson(string configJson)
+    {
+        var result = sut.TestValidate(await ManifestWithTextPipelineConfigJson(configJson));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
+    }
+
+    [Theory]
+    [InlineData("""{ "action": "Index", "outptu": ["Search"] }""", "outptu")]
+    [InlineData("""{ "action": "Index", "output": ["Search"], "coverPage": "http://cover.page/sample.pdf" }""", "coverPage")]
+    public async Task TextPipeline_Error_WhenConfigHasUnknownProperty(string configJson, string unknown)
+    {
+        var result = sut.TestValidate(await ManifestWithTextPipelineConfigJson(configJson));
+        result.Errors.Should().ContainSingle(e =>
+            e.ErrorMessage.StartsWith($"'config' contains unknown properties: {unknown}."));
+    }
+
+    [Theory]
+    [InlineData("""{ "action": "Index", "output": "Search" }""")]
+    [InlineData("""{ "action": "Index", "output": [["Search"]] }""")]
+    [InlineData("""{ "action": "Index", "pdfCoverPage": ["http://cover.page/sample.pdf"] }""")]
+    [InlineData("""{ "action": "Index", "pdfCoverPage": { "id": "http://cover.page/sample.pdf" } }""")]
+    public async Task TextPipeline_Error_WhenSettingHasWrongType(string configJson)
+    {
+        var result = sut.TestValidate(await ManifestWithTextPipelineConfigJson(configJson));
+        result.Errors.Should().ContainSingle(e =>
+            e.ErrorMessage == "'output' must be a list of strings and 'pdfCoverPage' must be a string");
+    }
+
+    [Fact]
+    public async Task TextPipeline_ConfigNotValidated_ForNonTextPipelineJson()
+    {
+        var manifest = (await """
+                               {
+                                   "type": "Manifest",
+                                   "slug": "test",
+                                   "parent": "https://example.com/root",
+                                   "pipeline": [ { "name": "ocr", "config": { "action": "Index", "anything": 1 } } ]
+                               }
+                               """.ToPresentation<PresentationManifest>())!;
+
+        var result = sut.TestValidate(manifest);
         result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
     }
 }

@@ -1,5 +1,8 @@
+using Core.IIIF;
+using IIIF.Serialisation;
 using Models.API.Manifest;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 
 namespace Services.Tests.Manifests;
 
@@ -284,5 +287,76 @@ public class PipelineHelperTests
         var result = job.ToPipelineItem();
 
         result.Warning.Should().BeNull();
+    }
+
+    [Fact]
+    public void AsTextConfig_ReturnsEmptyConfig_WhenConfigNull()
+    {
+        PipelineConfig? config = null;
+
+        var textConfig = config.AsTextConfig();
+
+        textConfig.Output.Should().BeNull();
+        textConfig.PdfCoverPage.Should().BeNull();
+    }
+
+    [Fact]
+    public void AsTextConfig_ReturnsEmptyConfig_WhenNoSettings()
+    {
+        var textConfig = new PipelineConfig { Action = "Index" }.AsTextConfig();
+
+        textConfig.Output.Should().BeNull();
+        textConfig.PdfCoverPage.Should().BeNull();
+    }
+
+    [Fact]
+    public void AsTextConfig_ReadsSettings_RegardlessOfCasing()
+    {
+        var config = new PipelineConfig
+        {
+            Action = "Index",
+            Settings = new Dictionary<string, JToken>
+            {
+                ["OUTPUT"] = new JArray("Search", "Pdf"),
+                ["pdfcoverpage"] = "http://cover.page/sample.pdf"
+            }
+        };
+
+        var textConfig = config.AsTextConfig();
+
+        textConfig.Output.Should().BeEquivalentTo("Search", "Pdf");
+        textConfig.PdfCoverPage.Should().Be("http://cover.page/sample.pdf");
+    }
+
+    [Fact]
+    public void TryGetTextConfig_ReturnsFalse_WhenSettingHasWrongType()
+    {
+        var config = new PipelineConfig
+        {
+            Action = "Index",
+            Settings = new Dictionary<string, JToken> { ["output"] = "Search" }
+        };
+
+        config.TryGetTextConfig(out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PipelineConfig_RoundTripsSettings_ThroughApiSerialisation()
+    {
+        var manifest = (await """
+                               {
+                                   "type": "Manifest",
+                                   "pipeline": [ { "name": "text", "config": { "action": "Index", "output": ["Search"], "pdfCoverPage": "http://cover.page/sample.pdf" } } ]
+                               }
+                               """.ToPresentation<PresentationManifest>())!;
+
+        manifest.Pipeline!.Single().Config!.Action.Should().Be("Index");
+        manifest.Pipeline!.Single().Config!.Settings.Should().ContainKeys("output", "pdfCoverPage");
+
+        var config = JObject.Parse(manifest.AsJson())["pipeline"]![0]!["config"]!;
+        config["action"]!.Value<string>().Should().Be("Index");
+        config["output"]!.Values<string>().Should().BeEquivalentTo("Search");
+        config["pdfCoverPage"]!.Value<string>().Should().Be("http://cover.page/sample.pdf");
+        config["settings"].Should().BeNull("extension data is written inline, not as a property");
     }
 }

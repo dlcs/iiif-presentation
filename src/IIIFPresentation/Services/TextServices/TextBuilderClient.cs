@@ -7,6 +7,7 @@ using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Models.API.Manifest;
 using Models.Database.General;
 using Services.TextServices.Http;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -132,9 +133,10 @@ public class TextBuilderClient(
         var sourceS3Uri = GetManifestS3Key(manifest);
 
         // TextAugmented is always required as it's how TextManifestAugmentor reads back the generated resources
-        var services = job.Config.GetRequestedServices() | JobServices.TextAugmented;
+        var textConfig = job.Config.AsTextConfig();
+        var services = textConfig.GetRequestedServices() | JobServices.TextAugmented;
 
-        var body = new TextBuilderJobRequest(jobId, sourceS3Uri, services, job.Config?.PdfCoverPage);
+        var body = new TextBuilderJobRequest(jobId, sourceS3Uri, services, textConfig.PdfCoverPage);
         var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
         return serialisedBody;
     }

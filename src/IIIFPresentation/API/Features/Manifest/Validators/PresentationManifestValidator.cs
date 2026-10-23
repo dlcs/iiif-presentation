@@ -7,7 +7,6 @@ using Models.API.Manifest;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Settings;
-using Services.TextServices;
 
 namespace API.Features.Manifest.Validators;
 
@@ -32,35 +31,9 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
             .When(m => !m.Items.IsNullOrEmpty())
             .WithMessage("The id in 'items' contains duplicates, which is not allowed");
 
-        When(m => !m.Pipeline.IsNullOrEmpty(), TextPipelineValidation);
-    }
-
-    // Validation rules for the "config" of "text" pipelines
-    private void TextPipelineValidation()
-    {
         RuleForEach(m => m.Pipeline)
-            .Where(p => p.IsTextPipeline() && p.Config?.Output != null)
-            .Must(p => p.Config!.Output!.Count > 0)
-            .WithMessage("'output' must contain at least one value when provided");
-
-        RuleForEach(m => m.Pipeline)
-            .Where(p => p.IsTextPipeline() && p.Config?.Output != null)
-            .Must(p => p.Config!.Output!.All(TextPipelineOutputs.IsValid))
-            .WithMessage(
-                $"'output' contains an unknown value. Allowed values are: {string.Join(", ", TextPipelineOutputs.AllowedValues)}");
-
-        // TextAugmented is always requested, so on its own it would add nothing to the Manifest
-        RuleForEach(m => m.Pipeline)
-            .Where(p => p.IsTextPipeline() && p.Config?.Output?.Count > 0)
-            .Must(p => !p.Config!.Output!.All(o =>
-                string.Equals(o, nameof(JobServices.TextAugmented), StringComparison.OrdinalIgnoreCase)))
-            .WithMessage($"'output' cannot contain only '{nameof(JobServices.TextAugmented)}'");
-
-        RuleForEach(m => m.Pipeline)
-            .Where(p => p.IsTextPipeline() && p.Config?.PdfCoverPage != null)
-            .Must(p => Uri.TryCreate(p.Config!.PdfCoverPage, UriKind.Absolute, out var uri) &&
-                       (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            .WithMessage("'pdfCoverPage' must be an absolute http(s) URI");
+            .Where(p => p.IsTextPipeline() && p.Config != null)
+            .ChildRules(p => p.RuleFor(i => i.Config!).SetValidator(new TextPipelineConfigValidator()));
     }
 
     // Validation rules specific to PaintedResources only
