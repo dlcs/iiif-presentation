@@ -18,12 +18,12 @@ public static class TextPipelineOutputs
         AllowedValues.Contains(output, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Get the <see cref="JobServices"/> requested by this config. A null config or "output" is treated as "All",
-    /// and "All" wins over any other value. A "pdfCoverPage" always adds <see cref="JobServices.Pdf"/>.
+    /// Get the <see cref="JobServices"/> requested by this config. A null "output" is treated as "All", and "All"
+    /// wins over any other value. A "pdfCoverPage" always adds <see cref="JobServices.Pdf"/>.
     /// </summary>
-    public static JobServices GetRequestedServices(this PipelineConfig? config)
+    public static JobServices GetRequestedServices(this TextPipelineConfig config)
     {
-        if (config?.Output == null) return JobServices.All;
+        if (config.Output == null) return JobServices.All;
 
         // "All" is itself a JobServices value (~0) so it naturally wins when OR'd with anything else
         var services = config.Output

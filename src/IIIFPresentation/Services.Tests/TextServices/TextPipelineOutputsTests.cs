@@ -6,17 +6,9 @@ namespace Services.Tests.TextServices;
 public class TextPipelineOutputsTests
 {
     [Fact]
-    public void GetRequestedServices_ReturnsAll_WhenConfigNull()
-    {
-        PipelineConfig? config = null;
-
-        config.GetRequestedServices().Should().Be(JobServices.All);
-    }
-
-    [Fact]
     public void GetRequestedServices_ReturnsAll_WhenOutputNull()
     {
-        var config = new PipelineConfig { Action = "Index" };
+        var config = new TextPipelineConfig();
 
         config.GetRequestedServices().Should().Be(JobServices.All);
     }
@@ -26,7 +18,7 @@ public class TextPipelineOutputsTests
     [InlineData("all")]
     public void GetRequestedServices_ReturnsAll_WhenOutputIsAll(string all)
     {
-        var config = new PipelineConfig { Output = [all] };
+        var config = new TextPipelineConfig { Output = [all] };
 
         config.GetRequestedServices().Should().Be(JobServices.All);
     }
@@ -34,7 +26,7 @@ public class TextPipelineOutputsTests
     [Fact]
     public void GetRequestedServices_AllWins_WhenCombinedWithOtherValues()
     {
-        var config = new PipelineConfig { Output = ["All", "Figures"] };
+        var config = new TextPipelineConfig { Output = ["All", "Figures"] };
 
         config.GetRequestedServices().Should().Be(JobServices.All);
     }
@@ -42,7 +34,7 @@ public class TextPipelineOutputsTests
     [Fact]
     public void GetRequestedServices_CombinesFlags_CaseInsensitive()
     {
-        var config = new PipelineConfig { Output = ["search", "Autocomplete", "FULLTEXT"] };
+        var config = new TextPipelineConfig { Output = ["search", "Autocomplete", "FULLTEXT"] };
 
         config.GetRequestedServices().Should()
             .Be(JobServices.Search | JobServices.Autocomplete | JobServices.FullText);
@@ -51,7 +43,7 @@ public class TextPipelineOutputsTests
     [Fact]
     public void GetRequestedServices_AddsPdf_WhenPdfCoverPageSet()
     {
-        var config = new PipelineConfig { Output = ["Search"], PdfCoverPage = "http://cover.page/sample.pdf" };
+        var config = new TextPipelineConfig { Output = ["Search"], PdfCoverPage = "http://cover.page/sample.pdf" };
 
         config.GetRequestedServices().Should().Be(JobServices.Search | JobServices.Pdf);
     }
@@ -59,7 +51,7 @@ public class TextPipelineOutputsTests
     [Fact]
     public void GetRequestedServices_ReturnsAll_WhenOutputNull_AndPdfCoverPageSet()
     {
-        var config = new PipelineConfig { PdfCoverPage = "http://cover.page/sample.pdf" };
+        var config = new TextPipelineConfig { PdfCoverPage = "http://cover.page/sample.pdf" };
 
         config.GetRequestedServices().Should().Be(JobServices.All);
     }
