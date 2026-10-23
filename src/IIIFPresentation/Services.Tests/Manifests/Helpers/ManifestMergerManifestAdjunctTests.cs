@@ -31,6 +31,11 @@ public class ManifestMergerManifestAdjunctTests
 
     public ManifestMergerManifestAdjunctTests()
     {
+        sut = CreateManifestMerger();
+    }
+
+    private static ManifestMerger CreateManifestMerger()
+    {
         var settingsBasedPathGenerator = new SettingsBasedPathGenerator(Options.Create(new DlcsSettings
         {
             ApiUri = new Uri("https://dlcs.api")
@@ -43,7 +48,7 @@ public class ManifestMergerManifestAdjunctTests
         var pathRewriteParser =
             new PathRewriteParser(Options.Create(PathRewriteOptions.Default), new NullLogger<PathRewriteParser>());
 
-        sut = new ManifestMerger(settingsBasedPathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
+        return new ManifestMerger(settingsBasedPathGenerator, pathRewriteParser, new NullLogger<ManifestMerger>());
     }
 
     [Fact]
@@ -258,6 +263,44 @@ public class ManifestMergerManifestAdjunctTests
         GetInlineAnnotations(result).Select(a => a.Target).Should().SatisfyRespectively(
             userTarget => userTarget.Should().BeOfType<Canvas>().Which.Id.Should().Be(stubCanvasId),
             nqTarget => nqTarget.Should().BeOfType<Manifest>().Which.Id.Should().Be(HierarchicalId));
+    }
+
+    [Fact]
+    public void MergeManifest_RewritesInlineAnnotationIds_FromStubCanvas_WithoutStubSpace()
+    {
+        var baseManifest = new Manifest { Id = FlatId };
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+        var nqPage = nqManifest.Items![0].Annotations!.Single();
+        var nqAnnotationId = nqPage.Items!.OfType<Annotation>().Single().Id!;
+        const string expectedPageId = $"https://dlcs.test/annotations/{CustomerId}/Manifest_{ManifestId}";
+
+        var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        var page = result.Annotations.Should().ContainSingle().Subject;
+        page.Id.Should().Be(expectedPageId);
+        page.Items!.OfType<Annotation>().Should().ContainSingle()
+            .Which.Id.Should().Be(expectedPageId + nqAnnotationId[nqPage.Id!.Length..]);
+        nqPage.Id.Should().Be($"https://dlcs.test/adjunct-annotations/{StubAssetId}", "NQ page is not modified");
+    }
+
+    [Fact]
+    public void MergeManifest_DoesNotDuplicateInlineAnnotationPage_WhenRewrittenIdAlreadyExists()
+    {
+        var nqManifest = ManifestTestCreator.New()
+            .WithCanvas(StubAssetId, c => c.WithImage().WithAdjunctInlineAnnotation(StubAssetId))
+            .Build();
+
+        // Base manifest was stored by a previous merge, so already has the rewritten page
+        var previous = sut.MergeManifest(new Manifest { Id = FlatId }, nqManifest, [], CustomerId, ManifestId,
+            HierarchicalId);
+        var baseManifest = previous.AsJson().FromJson<Manifest>()!;
+
+        var result = CreateManifestMerger().MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
+
+        result.Annotations.Should().ContainSingle()
+            .Which.Id.Should().Be($"https://dlcs.test/annotations/{CustomerId}/Manifest_{ManifestId}");
     }
 
     private static IEnumerable<Annotation> GetInlineAnnotations(StructureBase resource)
