@@ -274,7 +274,7 @@ public class ManifestMergerManifestAdjunctTests
             .Build();
         var nqPage = nqManifest.Items![0].Annotations!.Single();
         var nqAnnotationId = nqPage.Items!.OfType<Annotation>().Single().Id!;
-        const string expectedPageId = $"https://dlcs.test/annotations/{CustomerId}/Manifest_{ManifestId}";
+        var expectedPageId = $"https://dlcs.test/annotations/{CustomerId}/Manifest_{ManifestId}";
 
         var result = sut.MergeManifest(baseManifest, nqManifest, [], CustomerId, ManifestId, HierarchicalId);
 
