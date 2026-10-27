@@ -408,11 +408,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     private void SetAssetDerivedProperties(StructureBase structureBase, string targetId, Canvas namedQueryCanvas,
         AssetId assetId)
     {
-        var identifier = assetId.ToString();
-
         if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", assetId);
             structureBase.Annotations ??= [];
 
             AddRetargetedAnnotations(structureBase, targetId, namedQueryCanvas, assetId);
@@ -420,7 +418,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         if (!namedQueryCanvas.SeeAlso.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", assetId);
             structureBase.SeeAlso ??= [];
             structureBase.SeeAlso.AddDistinctById(namedQueryCanvas.SeeAlso);
         }
@@ -430,7 +428,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         // Canvas level. Protagonist will prevent stub assets being anything other than 'none' d-c. 
         if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", assetId);
             structureBase.Rendering ??= [];
             structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
         }
@@ -442,8 +440,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// Add annotation pages from <paramref name="namedQueryCanvas"/> to <paramref name="resource"/>, pointing any
     /// inline annotations that target the NQ canvas (the asset's single-asset-manifest canvas, which doesn't exist in
     /// this manifest) at <paramref name="targetId"/> instead. Ids of pages from a stub asset are rewritten to drop
-    /// the stub space (see <see cref="GetStubAnnotationId"/>). Pages already on the resource, including any with the
-    /// same id as an NQ page (original or rewritten), are left untouched.
+    /// the stub space (see <see cref="PathParser.GetAdjunctAnnotationIdWithoutSpace"/>), as the stub space is an
+    /// internal detail of how resource-level adjuncts are stored. Pages already on the resource, including any with
+    /// the same id as an NQ page (original or rewritten), are left untouched.
     /// </summary>
     private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas,
         AssetId assetId)
@@ -456,7 +455,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         foreach (var namedQueryPage in namedQueryCanvas.Annotations!)
         {
-            var pageId = isStub ? GetStubAnnotationId(namedQueryPage.Id, assetId) : namedQueryPage.Id;
+            var pageId = isStub
+                ? PathParser.GetAdjunctAnnotationIdWithoutSpace(namedQueryPage.Id, assetId)
+                : namedQueryPage.Id;
             if (existingPageIds.Contains(namedQueryPage.Id) || existingPageIds.Contains(pageId)) continue;
 
             var needsRetargeting = NeedsRetargeting(namedQueryPage, namedQueryCanvasId, targetId);
@@ -468,36 +469,22 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
             // NQ pages are shared between every canvas the asset is painted on, so clone before modifying
             var page = namedQueryPage.AsJson().FromJson<AnnotationPage>()!;
-            if (isStub) RewriteStubAnnotationIds(page, assetId);
+            if (isStub)
+            {
+                page.Id = pageId;
+                RewriteStubAnnotationItemIds(page, assetId);
+            }
             if (needsRetargeting) RetargetAnnotations(resource, page, targetId, namedQueryCanvasId);
             resource.Annotations!.Add(page);
         }
     }
 
-    private static void RewriteStubAnnotationIds(AnnotationPage page, AssetId stubAssetId)
+    private static void RewriteStubAnnotationItemIds(AnnotationPage page, AssetId stubAssetId)
     {
-        page.Id = GetStubAnnotationId(page.Id, stubAssetId);
         foreach (var annotation in page.Items?.OfType<Annotation>() ?? [])
         {
-            annotation.Id = GetStubAnnotationId(annotation.Id, stubAssetId);
+            annotation.Id = PathParser.GetAdjunctAnnotationIdWithoutSpace(annotation.Id, stubAssetId);
         }
-    }
-
-    /// <summary>
-    /// DLCS mints inline annotation ids as <c>/adjunct-annotations/{customer}/{space}/{asset}</c>. The stub space is
-    /// an internal detail of how resource-level adjuncts are stored, so ids for <paramref name="stubAssetId"/> are
-    /// output as <c>/annotations/{customer}/{asset}</c> instead. Ids not in that form are returned unchanged.
-    /// </summary>
-    private static string? GetStubAnnotationId(string? id, AssetId stubAssetId)
-    {
-        if (id == null) return null;
-
-        var stubPath = $"/adjunct-annotations/{stubAssetId.Customer}/{stubAssetId.Space}/";
-        var index = id.IndexOf(stubPath, StringComparison.Ordinal);
-        if (index < 0) return id;
-
-        return string.Concat(id.AsSpan(0, index), $"/annotations/{stubAssetId.Customer}/",
-            id.AsSpan(index + stubPath.Length));
     }
 
     /// <summary>

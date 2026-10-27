@@ -316,7 +316,7 @@ public class ManifestMergerTests
     }
 
     [Fact]
-    public void ProcessCanvasPaintings_DoesNotRewriteInlineAnnotationAdjunctIds()
+    public void MergeManifest_DoesNotRewriteInlineAnnotationAdjunctIds_ForCanvas()
     {
         // Arrange
         var blankManifest = new Manifest();
