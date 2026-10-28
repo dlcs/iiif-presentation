@@ -1,5 +1,9 @@
+using Core.IIIF;
+using IIIF.Serialisation;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 
 namespace Services.Tests.Manifests;
 
@@ -58,7 +62,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -89,7 +93,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = action } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = action } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -115,7 +119,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Delete" } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -139,14 +143,14 @@ public class PipelineHelperTests
     [Fact]
     public void RemoveInvalidPipelines_RemovesAllInvalid_KeepingOnlyValid()
     {
-        var validItem = new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } };
+        var validItem = new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } };
         var manifest = new PresentationManifest
         {
             Pipeline =
             [
                 new PipelineItem { Name = "thumbs", Config = new PipelineConfig { Action = "Index" } },
                 validItem,
-                new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } },
+                new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Delete" } },
                 new PipelineItem { Name = "text", Config = null }
             ]
         };
@@ -164,6 +168,19 @@ public class PipelineHelperTests
 
         manifest.RemoveInvalidPipelines().Should().BeSameAs(manifest);
     }
+
+    [Theory]
+    [InlineData("text")]
+    [InlineData("TEXT")]
+    public void IsTextPipeline_True_ForTextName_RegardlessOfCasing(string name)
+        => new PipelineItem { Name = name }.IsTextPipeline().Should().BeTrue();
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("thumbs")]
+    public void IsTextPipeline_False_ForOtherNames(string? name)
+        => new PipelineItem { Name = name }.IsTextPipeline().Should().BeFalse();
 
     [Theory]
     [InlineData(PipelineJobStatus.Waiting, "Waiting")]
@@ -271,5 +288,53 @@ public class PipelineHelperTests
         var result = job.ToPipelineItem();
 
         result.Warning.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("text", typeof(TextPipelineConfig))]
+    [InlineData("TEXT", typeof(TextPipelineConfig))]
+    [InlineData("ocr", typeof(PipelineConfig))]
+    [InlineData(null, typeof(PipelineConfig))]
+    public void GetConfigTypeByName_ReturnsExpectedType(string? name, Type expected)
+    {
+        PipelineHelper.GetConfigTypeByName(name).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Index", typeof(TextPipelineConfig))]
+    [InlineData("index", typeof(TextPipelineConfig))]
+    [InlineData("Unknown", typeof(PipelineConfig))]
+    [InlineData(null, typeof(PipelineConfig))]
+    public void GetConfigTypeByAction_ReturnsExpectedType(string? action, Type expected)
+    {
+        PipelineHelper.GetConfigTypeByAction(action).Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task TextPipelineConfig_RoundTrips_ThroughApiSerialisation()
+    {
+        var manifest = (await """
+                               {
+                                   "type": "Manifest",
+                                   "pipeline": [ { "name": "text", "config": { "action": "Index", "output": ["Search"], "pdfCoverPage": "http://cover.page/sample.pdf" } } ]
+                               }
+                               """.ToPresentation<PresentationManifest>())!;
+
+        var config = JObject.Parse(manifest.AsJson())["pipeline"]![0]!["config"]!;
+        config["action"]!.Value<string>().Should().Be("Index");
+        config["output"]!.Values<string>().Should().BeEquivalentTo("Search");
+        config["pdfCoverPage"]!.Value<string>().Should().Be("http://cover.page/sample.pdf");
+    }
+
+    [Fact]
+    public void TextPipelineConfig_OmitsUnsetSettings_WhenSerialised()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
+        };
+
+        var config = (JObject)JObject.Parse(manifest.AsJson())["pipeline"]![0]!["config"]!;
+        config.Properties().Select(p => p.Name).Should().BeEquivalentTo("action");
     }
 }

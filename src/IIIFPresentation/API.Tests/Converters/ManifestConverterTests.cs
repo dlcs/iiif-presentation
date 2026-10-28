@@ -10,6 +10,7 @@ using IIIF.Presentation.V3.Traversal;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Models.DLCS;
 using Repository.Paths;

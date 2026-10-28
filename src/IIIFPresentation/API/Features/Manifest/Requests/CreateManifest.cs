@@ -2,6 +2,7 @@ using API.Helpers;
 using API.Infrastructure.Requests;
 using MediatR;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 
 namespace API.Features.Manifest.Requests;
 
