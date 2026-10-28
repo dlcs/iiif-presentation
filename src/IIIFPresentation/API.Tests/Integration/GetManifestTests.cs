@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;

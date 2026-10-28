@@ -1,6 +1,7 @@
 using Core.IIIF;
 using IIIF.Serialisation;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 
@@ -61,7 +62,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -92,7 +93,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = action } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = action } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -118,7 +119,7 @@ public class PipelineHelperTests
     {
         var manifest = new PresentationManifest
         {
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Delete" } }]
         };
 
         manifest.RemoveInvalidPipelines();
@@ -142,14 +143,14 @@ public class PipelineHelperTests
     [Fact]
     public void RemoveInvalidPipelines_RemovesAllInvalid_KeepingOnlyValid()
     {
-        var validItem = new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } };
+        var validItem = new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } };
         var manifest = new PresentationManifest
         {
             Pipeline =
             [
                 new PipelineItem { Name = "thumbs", Config = new PipelineConfig { Action = "Index" } },
                 validItem,
-                new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Delete" } },
+                new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Delete" } },
                 new PipelineItem { Name = "text", Config = null }
             ]
         };
@@ -289,59 +290,28 @@ public class PipelineHelperTests
         result.Warning.Should().BeNull();
     }
 
-    [Fact]
-    public void AsTextConfig_ReturnsEmptyConfig_WhenConfigNull()
+    [Theory]
+    [InlineData("text", typeof(TextPipelineConfig))]
+    [InlineData("TEXT", typeof(TextPipelineConfig))]
+    [InlineData("ocr", typeof(PipelineConfig))]
+    [InlineData(null, typeof(PipelineConfig))]
+    public void GetConfigTypeByName_ReturnsExpectedType(string? name, Type expected)
     {
-        PipelineConfig? config = null;
+        PipelineHelper.GetConfigTypeByName(name).Should().Be(expected);
+    }
 
-        var textConfig = config.AsTextConfig();
-
-        textConfig.Output.Should().BeNull();
-        textConfig.PdfCoverPage.Should().BeNull();
+    [Theory]
+    [InlineData("Index", typeof(TextPipelineConfig))]
+    [InlineData("index", typeof(TextPipelineConfig))]
+    [InlineData("Unknown", typeof(PipelineConfig))]
+    [InlineData(null, typeof(PipelineConfig))]
+    public void GetConfigTypeByAction_ReturnsExpectedType(string? action, Type expected)
+    {
+        PipelineHelper.GetConfigTypeByAction(action).Should().Be(expected);
     }
 
     [Fact]
-    public void AsTextConfig_ReturnsEmptyConfig_WhenNoSettings()
-    {
-        var textConfig = new PipelineConfig { Action = "Index" }.AsTextConfig();
-
-        textConfig.Output.Should().BeNull();
-        textConfig.PdfCoverPage.Should().BeNull();
-    }
-
-    [Fact]
-    public void AsTextConfig_ReadsSettings_RegardlessOfCasing()
-    {
-        var config = new PipelineConfig
-        {
-            Action = "Index",
-            Settings = new Dictionary<string, JToken>
-            {
-                ["OUTPUT"] = new JArray("Search", "Pdf"),
-                ["pdfcoverpage"] = "http://cover.page/sample.pdf"
-            }
-        };
-
-        var textConfig = config.AsTextConfig();
-
-        textConfig.Output.Should().BeEquivalentTo("Search", "Pdf");
-        textConfig.PdfCoverPage.Should().Be("http://cover.page/sample.pdf");
-    }
-
-    [Fact]
-    public void TryGetTextConfig_ReturnsFalse_WhenSettingHasWrongType()
-    {
-        var config = new PipelineConfig
-        {
-            Action = "Index",
-            Settings = new Dictionary<string, JToken> { ["output"] = "Search" }
-        };
-
-        config.TryGetTextConfig(out _).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PipelineConfig_RoundTripsSettings_ThroughApiSerialisation()
+    public async Task TextPipelineConfig_RoundTrips_ThroughApiSerialisation()
     {
         var manifest = (await """
                                {
@@ -350,13 +320,21 @@ public class PipelineHelperTests
                                }
                                """.ToPresentation<PresentationManifest>())!;
 
-        manifest.Pipeline!.Single().Config!.Action.Should().Be("Index");
-        manifest.Pipeline!.Single().Config!.Settings.Should().ContainKeys("output", "pdfCoverPage");
-
         var config = JObject.Parse(manifest.AsJson())["pipeline"]![0]!["config"]!;
         config["action"]!.Value<string>().Should().Be("Index");
         config["output"]!.Values<string>().Should().BeEquivalentTo("Search");
         config["pdfCoverPage"]!.Value<string>().Should().Be("http://cover.page/sample.pdf");
-        config["settings"].Should().BeNull("extension data is written inline, not as a property");
+    }
+
+    [Fact]
+    public void TextPipelineConfig_OmitsUnsetSettings_WhenSerialised()
+    {
+        var manifest = new PresentationManifest
+        {
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
+        };
+
+        var config = (JObject)JObject.Parse(manifest.AsJson())["pipeline"]![0]!["config"]!;
+        config.Properties().Select(p => p.Name).Should().BeEquivalentTo("action");
     }
 }

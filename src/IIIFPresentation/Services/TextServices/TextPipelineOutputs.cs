@@ -1,4 +1,4 @@
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 
 namespace Services.TextServices;
 

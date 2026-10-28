@@ -1,4 +1,4 @@
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Newtonsoft.Json.Linq;
 using Repository.Converters;
 
@@ -8,23 +8,20 @@ public class PipelineConfigConverterTests
 {
     private readonly PipelineConfigConverter sut = new();
 
-    private string ToProvider(PipelineConfig config) =>
+    private string ToProvider(IPipelineConfig config) =>
         (string)sut.ConvertToProvider(config)!;
 
-    private PipelineConfig FromProvider(string json) =>
-        (PipelineConfig)sut.ConvertFromProvider(json)!;
+    private IPipelineConfig FromProvider(string json) =>
+        (IPipelineConfig)sut.ConvertFromProvider(json)!;
 
     [Fact]
-    public void ConvertToProvider_WritesCamelCase_WithSettingsInline()
+    public void ConvertToProvider_WritesCamelCase()
     {
-        var config = new PipelineConfig
+        var config = new TextPipelineConfig
         {
             Action = "Index",
-            Settings = new Dictionary<string, JToken>
-            {
-                ["output"] = new JArray("Search"),
-                ["pdfCoverPage"] = "http://cover.page/sample.pdf"
-            }
+            Output = ["Search"],
+            PdfCoverPage = "http://cover.page/sample.pdf"
         };
 
         var json = JObject.Parse(ToProvider(config));
@@ -33,26 +30,46 @@ public class PipelineConfigConverterTests
     }
 
     [Fact]
-    public void RoundTrip_PreservesActionAndSettings()
+    public void RoundTrip_PreservesTextConfig()
     {
-        var config = new PipelineConfig
+        var config = new TextPipelineConfig
         {
             Action = "Index",
-            Settings = new Dictionary<string, JToken> { ["output"] = new JArray("Search", "Pdf") }
+            Output = ["Search", "Pdf"],
+            PdfCoverPage = "http://cover.page/sample.pdf"
         };
 
-        var result = FromProvider(ToProvider(config));
+        var result = FromProvider(ToProvider(config)).Should().BeOfType<TextPipelineConfig>().Subject;
 
         result.Action.Should().Be("Index");
-        result.AsTextConfig().Output.Should().BeEquivalentTo("Search", "Pdf");
+        result.Output.Should().BeEquivalentTo("Search", "Pdf");
+        result.PdfCoverPage.Should().Be("http://cover.page/sample.pdf");
     }
 
     [Fact]
     public void ConvertFromProvider_ReadsPascalCaseAction()
     {
-        var result = FromProvider("""{"Action":"Index"}""");
+        var result = FromProvider("""{"Action":"Index"}""").Should().BeOfType<TextPipelineConfig>().Subject;
 
         result.Action.Should().Be("Index");
-        result.Settings.Should().BeNullOrEmpty();
+        result.Output.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConvertFromProvider_ReadsGenericConfig_WhenActionHasNoSpecificConfig()
+    {
+        var result = FromProvider("""{"action":"Other","anything":1}""");
+
+        var config = result.Should().BeOfType<PipelineConfig>().Subject;
+        config.Action.Should().Be("Other");
+        config.Settings.Should().ContainKey("anything");
+    }
+
+    [Fact]
+    public void ConvertFromProvider_ReadsGenericConfig_WhenNoAction()
+    {
+        var result = FromProvider("{}");
+
+        result.Should().BeOfType<PipelineConfig>().Which.Action.Should().BeNull();
     }
 }

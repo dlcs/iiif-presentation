@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.DLCS;
 using DbBatchStatus = Models.Database.General.BatchStatus;
 using DbDeliverableType = Models.Database.General.DeliverableType;
@@ -1176,7 +1177,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1196,7 +1197,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1258,7 +1259,7 @@ public class ManifestWriteServiceTests
                     }
                 }
             ],
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1328,7 +1329,7 @@ public class ManifestWriteServiceTests
                     }
                 }
             ],
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false,
             ResolvedLocation.None);
@@ -1358,7 +1359,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1411,7 +1412,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1439,7 +1440,7 @@ public class ManifestWriteServiceTests
         var manifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var request = new UpsertManifestRequest(resourceId, null, Customer, manifest, manifest.AsJson(), true,
             ResolvedLocation.None);
@@ -1450,7 +1451,7 @@ public class ManifestWriteServiceTests
         var updateManifest = new PresentationManifest
         {
             Slug = slug,
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var etag = presentationContext.Manifests.First(m => m.Id == flatId).Etag.ToString();
         var updateRequest = new UpsertManifestRequest(flatId, etag, Customer, updateManifest, updateManifest.AsJson(), false,

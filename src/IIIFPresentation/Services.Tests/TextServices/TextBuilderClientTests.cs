@@ -3,7 +3,7 @@ using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Services.TextServices;
@@ -196,11 +196,7 @@ public class TextBuilderClientTests
         messageHandler.Enqueue(HttpStatusCode.Conflict);
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob(customerId: 5, resourceId: "test-manifest");
-        job.Config = new PipelineConfig
-        {
-            Action = "Index",
-            Settings = new Dictionary<string, JToken> { ["pdfCoverPage"] = "http://cover.page/sample.pdf" }
-        };
+        job.Config = new TextPipelineConfig { Action = "Index", PdfCoverPage = "http://cover.page/sample.pdf" };
 
         await sut.UpsertJob(MakeManifest(customerId: 5, id: "test-manifest"), job, CancellationToken.None);
 
@@ -263,11 +259,7 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob();
-        job.Config = new PipelineConfig
-        {
-            Action = "Index",
-            Settings = new Dictionary<string, JToken> { ["output"] = new JArray("Search") }
-        };
+        job.Config = new TextPipelineConfig { Action = "Index", Output = ["Search"] };
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
@@ -283,14 +275,11 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob();
-        job.Config = new PipelineConfig
+        job.Config = new TextPipelineConfig
         {
             Action = "Index",
-            Settings = new Dictionary<string, JToken>
-            {
-                ["output"] = new JArray("Search"),
-                ["pdfCoverPage"] = "http://cover.page/sample.pdf"
-            }
+            Output = ["Search"],
+            PdfCoverPage = "http://cover.page/sample.pdf"
         };
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);

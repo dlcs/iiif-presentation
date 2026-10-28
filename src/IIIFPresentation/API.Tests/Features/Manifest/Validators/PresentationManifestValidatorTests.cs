@@ -8,6 +8,7 @@ using FluentValidation.TestHelper;
 using IIIF.Presentation.V3;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 
@@ -729,14 +730,11 @@ public class PresentationManifestValidatorTests
             new PipelineItem
             {
                 Name = name,
-                Config = new PipelineConfig
+                Config = new TextPipelineConfig
                 {
                     Action = "Index",
-                    Settings = new Dictionary<string, JToken>
-                    {
-                        ["output"] = output == null ? JValue.CreateNull() : new JArray(output),
-                        ["pdfCoverPage"] = pdfCoverPage
-                    }
+                    Output = output,
+                    PdfCoverPage = pdfCoverPage
                 }
             }
         ]
@@ -856,13 +854,12 @@ public class PresentationManifestValidatorTests
     }
 
     [Theory]
-    [InlineData("""{ "action": "Index", "outptu": ["Search"] }""", "outptu")]
-    [InlineData("""{ "action": "Index", "output": ["Search"], "coverPage": "http://cover.page/sample.pdf" }""", "coverPage")]
-    public async Task TextPipeline_Error_WhenConfigHasUnknownProperty(string configJson, string unknown)
+    [InlineData("""{ "action": "Index", "outptu": ["Search"] }""")]
+    [InlineData("""{ "action": "Index", "output": ["Search"], "coverPage": "http://cover.page/sample.pdf" }""")]
+    public async Task TextPipeline_NoError_WhenConfigHasUnknownProperty(string configJson)
     {
         var result = sut.TestValidate(await ManifestWithTextPipelineConfigJson(configJson));
-        result.Errors.Should().ContainSingle(e =>
-            e.ErrorMessage.StartsWith($"'config' contains unknown properties: {unknown}."));
+        result.Errors.Should().NotContain(e => e.PropertyName.StartsWith("Pipeline"));
     }
 
     [Theory]
