@@ -316,6 +316,29 @@ public class ManifestMergerTests
     }
 
     [Fact]
+    public void MergeManifest_DoesNotRewriteInlineAnnotationAdjunctIds_ForCanvas()
+    {
+        // Arrange
+        var blankManifest = new Manifest();
+        var assetId = TestIdentifiers.AssetId();
+
+        var namedQueryManifest = ManifestTestCreator.New()
+            .WithCanvas(assetId, c => c.WithImage().WithAdjunctInlineAnnotation(assetId))
+            .Build();
+        var namedQueryPage = namedQueryManifest.Items![0].Annotations!.Single();
+
+        var canvasPaintings = ManifestTestCreator.GenerateCanvasPaintings(assetId);
+
+        // Act
+        var mergedManifest = sut.MergeManifest(blankManifest, namedQueryManifest, canvasPaintings, 0, "test", HierarchicalId);
+
+        // Assert
+        var page = mergedManifest.Items!.Single().Annotations.Should().ContainSingle().Subject;
+        page.Id.Should().Be(namedQueryPage.Id, "only manifest-level ids drop the space");
+        page.Items!.Single().As<Annotation>().Id.Should().Be(namedQueryPage.Items!.Single().As<Annotation>().Id);
+    }
+
+    [Fact]
     public void ProcessCanvasPaintings_RetargetsInlineAnnotationAdjunct_ForEachCanvas_WhenAssetPaintedMultipleTimes()
     {
         // Arrange
