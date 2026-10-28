@@ -1,4 +1,5 @@
 ﻿using IIIF.Presentation.V3.Strings;
+using Models.API.Manifest.Pipelines;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

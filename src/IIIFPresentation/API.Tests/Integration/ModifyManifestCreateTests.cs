@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Newtonsoft.Json.Linq;
 using Repository;
@@ -2067,7 +2068,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = TestIdentifiers.Slug(),
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var requestMessage =
             HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
@@ -2090,7 +2091,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = TestIdentifiers.Slug(),
-            Pipeline = [new PipelineItem { Name = "text", Config = new PipelineConfig { Action = "Index" } }]
+            Pipeline = [new PipelineItem { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }]
         };
         var payload = manifest.AsJson();
         var requestMessage =

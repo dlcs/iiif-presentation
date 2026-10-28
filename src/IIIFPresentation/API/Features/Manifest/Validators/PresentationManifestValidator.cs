@@ -4,6 +4,7 @@ using Core.Helpers;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Services.Manifests.Settings;
@@ -33,7 +34,19 @@ public class PresentationManifestValidator : AbstractValidator<PresentationManif
 
         RuleForEach(m => m.Pipeline)
             .Where(p => p.IsTextPipeline() && p.Config != null)
-            .ChildRules(p => p.RuleFor(i => i.Config!).SetValidator(new TextPipelineConfigValidator()));
+            .ChildRules(p =>
+            {
+                // A text pipeline's config is only left as something other than TextPipelineConfig if it couldn't be
+                // read as one
+                p.RuleFor(i => i.Config)
+                    .Must(c => c is TextPipelineConfig)
+                    .WithMessage("'output' must be a list of strings and 'pdfCoverPage' must be a string");
+
+                p.RuleFor(i => (TextPipelineConfig)i.Config!)
+                    .SetValidator(new TextPipelineConfigValidator())
+                    .When(i => i.Config is TextPipelineConfig)
+                    .OverridePropertyName(nameof(PipelineItem.Config));
+            });
     }
 
     // Validation rules specific to PaintedResources only

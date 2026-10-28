@@ -1,4 +1,4 @@
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.Collections;
 
 namespace Models.Database.General;
@@ -32,7 +32,7 @@ public class PipelineJob : ICustomerEntity
 
     public DateTime? Finished { get; set; }
 
-    public PipelineConfig? Config { get; set; }
+    public IPipelineConfig? Config { get; set; }
 
     /// <summary>
     /// Identifier for this specific invocation of the pipeline, as assigned by whatever service ran it, so a

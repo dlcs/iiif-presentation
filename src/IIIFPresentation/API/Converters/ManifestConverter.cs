@@ -1,5 +1,4 @@
-﻿using API.Helpers;
-using Core.Helpers;
+﻿using Core.Helpers;
 using Core.IIIF;
 using Core.Infrastructure;
 using IIIF;
@@ -7,6 +6,7 @@ using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;

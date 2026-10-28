@@ -15,6 +15,7 @@ using DLCS.Exceptions;
 using Microsoft.Extensions.Options;
 using Models.API.General;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database;
 using Models.DLCS;
 using Models.Database.General;
