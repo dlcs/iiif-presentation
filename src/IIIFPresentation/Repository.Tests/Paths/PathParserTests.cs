@@ -59,4 +59,43 @@ public class PathParserTests
         // Asset
         slug.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("https://dlcs.example/adjunct-annotations/7/0/Manifest_foo",
+        "https://dlcs.example/annotations/7/Manifest_foo")]
+    [InlineData("https://dlcs.example/adjunct-annotations/7/0/Manifest_foo/external",
+        "https://dlcs.example/annotations/7/Manifest_foo/external")]
+    [InlineData("https://other.example/adjunct-annotations/7/0/Manifest_foo",
+        "https://other.example/annotations/7/Manifest_foo")]
+    public void GetAdjunctAnnotationIdWithoutSpace_RemovesSpace(string id, string expected)
+    {
+        var assetId = new AssetId(7, 0, "Manifest_foo");
+
+        var actual = PathParser.GetAdjunctAnnotationIdWithoutSpace(id, assetId);
+
+        actual.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("https://dlcs.example/adjunct-annotations/8/0/Manifest_foo")]
+    [InlineData("https://dlcs.example/adjunct-annotations/7/1/Manifest_foo")]
+    [InlineData("https://dlcs.example/adjuncts/7/0/Manifest_foo/annotations")]
+    [InlineData("https://dlcs.example/custom/7/0/Manifest_foo")]
+    public void GetAdjunctAnnotationIdWithoutSpace_ReturnsUnchanged_IfNotAdjunctAnnotationIdForCustomerAndSpace(
+        string id)
+    {
+        var assetId = new AssetId(7, 0, "Manifest_foo");
+
+        var actual = PathParser.GetAdjunctAnnotationIdWithoutSpace(id, assetId);
+
+        actual.Should().Be(id);
+    }
+
+    [Fact]
+    public void GetAdjunctAnnotationIdWithoutSpace_ReturnsNull_IfIdNull()
+    {
+        var actual = PathParser.GetAdjunctAnnotationIdWithoutSpace(null, new AssetId(7, 0, "Manifest_foo"));
+
+        actual.Should().BeNull();
+    }
 }

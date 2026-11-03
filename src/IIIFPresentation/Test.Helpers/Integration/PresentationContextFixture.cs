@@ -28,8 +28,7 @@ public class PresentationContextFixture : IAsyncLifetime
     
     public PresentationContextFixture()
     {
-        var postgresBuilder = new PostgreSqlBuilder()
-            .WithImage("postgres:14")
+        var postgresBuilder = new PostgreSqlBuilder("postgres:18")
             .WithDatabase("db")
             .WithUsername("postgres")
             .WithPassword("postgres_pword")

@@ -1,4 +1,4 @@
-﻿using Core.Exceptions;
+﻿    using Core.Exceptions;
 using Core.Helpers;
 using Core.IIIF;
 using IIIF;
@@ -41,6 +41,11 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 {
     private readonly CanvasLookups canvasLookups = new(pathRewriteParser, logger);
 
+    /// <summary>
+    /// Ids of manifest-level auth services referenced by the painted content and adjuncts added to the manifest
+    /// </summary>
+    private readonly HashSet<string> referencedAuthServiceIds = [];
+
     /// <inheritdoc />
     public Manifest MergeManifest(Manifest baseManifest, Manifest? namedQueryManifest,
         List<CanvasPainting>? canvasPaintings, int customerId, string manifestId, string hierarchicalId)
@@ -48,6 +53,9 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         var merged = ProcessCanvasPaintings(baseManifest, namedQueryManifest, canvasPaintings);
         if (namedQueryManifest?.Items.IsNullOrEmpty() ?? true) return merged;
         ApplyManifestLevelAdjuncts(merged, namedQueryManifest, customerId, manifestId, hierarchicalId);
+
+        // Run after canvas and manifest-level adjuncts are applied so all referenced auth services are found
+        ApplyAccessServices(merged, namedQueryManifest);
         return merged;
     }
 
@@ -78,7 +86,37 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
         return baseManifest;
     }
-    
+
+    private void ApplyAccessServices(Manifest baseManifest, Manifest namedQueryManifest)
+    {
+        if (namedQueryManifest.Services.IsNullOrEmpty() || referencedAuthServiceIds.Count == 0) return;
+
+        var accessServices = namedQueryManifest.Services!
+            .Where(s => s.Id != null && referencedAuthServiceIds.Contains(s.Id))
+            .ToList();
+
+        if (accessServices.Count == 0) return;
+
+        logger.LogDebug("Adding {Count} access service(s) to Manifest {ManifestId}", accessServices.Count,
+            baseManifest.Id);
+        baseManifest.Services ??= [];
+        baseManifest.Services.AddDistinctById(accessServices);
+    }
+
+    private static IEnumerable<IService> GetServicesForPaintable(IPaintable paintable) =>
+        paintable switch
+        {
+            PaintingChoice choice => (choice.Items ?? []).SelectMany(GetServicesForPaintable),
+            ExternalResource { Service: { } service } => service,
+            _ => []
+        };
+
+    private static IEnumerable<IService> GetServicesForAdjuncts(StructureBase resource) =>
+        (resource.SeeAlso ?? []).Cast<ResourceBase>()
+            .Concat(resource.Rendering ?? [])
+            .Concat(resource.Annotations ?? [])
+            .SelectMany(adjunct => adjunct.Service ?? []);
+
     /// <summary>
     /// Applies manifest-level adjuncts to <paramref name="baseManifest"/> from a stub canvas in
     /// <paramref name="namedQueryManifest"/>. The stub is a DLCS asset in the stub asset space with id
@@ -99,7 +137,7 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         if (stubCanvas != null)
         {
             logger.LogDebug("Found manifest-level stub canvas for {ManifestId}, applying adjuncts", manifestId);
-            SetAssetDerivedProperties(baseManifest, hierarchicalId, stubCanvas, stubAssetId.ToString());
+            SetAssetDerivedProperties(baseManifest, hierarchicalId, stubCanvas, stubAssetId);
         }
     }
 
@@ -352,8 +390,10 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
             workingCanvas.Width = namedQueryCanvas.Width;
         }
         
-        SetAssetDerivedProperties(workingCanvas, workingCanvas.Id!, namedQueryCanvas, canvasPainting.AssetId!.ToString());
-        
+        SetAssetDerivedProperties(workingCanvas, workingCanvas.Id!, namedQueryCanvas, canvasPainting.AssetId!);
+
+        referencedAuthServiceIds.UnionWith(GetServicesForPaintable(body).GetReferencedAuthServiceIds());
+
         AlignCanvasPaintingAndBody(canvasPainting, namedQueryCanvas, body);
     }
 
@@ -364,21 +404,21 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
     /// <param name="structureBase">Resource to populate</param>
     /// <param name="targetId">Id that annotations on <paramref name="structureBase"/> should target</param>
     /// <param name="namedQueryCanvas">NQ canvas to take properties from</param>
-    /// <param name="identifier">Identifier of the asset, for logging</param>
+    /// <param name="assetId">Id of the asset <paramref name="namedQueryCanvas"/> is for</param>
     private void SetAssetDerivedProperties(StructureBase structureBase, string targetId, Canvas namedQueryCanvas,
-        string identifier)
+        AssetId assetId)
     {
         if (!namedQueryCanvas.Annotations.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has annotations", assetId);
             structureBase.Annotations ??= [];
 
-            AddRetargetedAnnotations(structureBase, targetId, namedQueryCanvas);
+            AddRetargetedAnnotations(structureBase, targetId, namedQueryCanvas, assetId);
         }
 
         if (!namedQueryCanvas.SeeAlso.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has seeAlso", assetId);
             structureBase.SeeAlso ??= [];
             structureBase.SeeAlso.AddDistinctById(namedQueryCanvas.SeeAlso);
         }
@@ -388,30 +428,40 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
         // Canvas level. Protagonist will prevent stub assets being anything other than 'none' d-c. 
         if (!namedQueryCanvas.Rendering.IsNullOrEmpty())
         {
-            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", identifier);
+            logger.LogTrace("NQ Canvas for resource {ResourceId} has rendering", assetId);
             structureBase.Rendering ??= [];
             structureBase.Rendering.AddDistinctById(namedQueryCanvas.Rendering);
         }
+
+        referencedAuthServiceIds.UnionWith(GetServicesForAdjuncts(namedQueryCanvas).GetReferencedAuthServiceIds());
     }
 
     /// <summary>
     /// Add annotation pages from <paramref name="namedQueryCanvas"/> to <paramref name="resource"/>, pointing any
     /// inline annotations that target the NQ canvas (the asset's single-asset-manifest canvas, which doesn't exist in
-    /// this manifest) at <paramref name="targetId"/> instead. Pages already on the resource, including any with the
-    /// same id as an NQ page, are left untouched.
+    /// this manifest) at <paramref name="targetId"/> instead. Ids of pages from a stub asset are rewritten to drop
+    /// the stub space (see <see cref="PathParser.GetAdjunctAnnotationIdWithoutSpace"/>), as the stub space is an
+    /// internal detail of how resource-level adjuncts are stored. Pages already on the resource, including any with
+    /// the same id as an NQ page (original or rewritten), are left untouched.
     /// </summary>
-    private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas)
+    private void AddRetargetedAnnotations(StructureBase resource, string targetId, Canvas namedQueryCanvas,
+        AssetId assetId)
     {
         var namedQueryCanvasId = namedQueryCanvas.Id!;
+        var isStub = assetId.Space == ResourceAdjunctInteractions.StubAssetSpace;
 
         // Ids of pages already on the resource, which are never modified
         var existingPageIds = resource.Annotations!.Select(page => page.Id).ToHashSet();
 
         foreach (var namedQueryPage in namedQueryCanvas.Annotations!)
         {
-            if (existingPageIds.Contains(namedQueryPage.Id)) continue;
+            var pageId = isStub
+                ? PathParser.GetAdjunctAnnotationIdWithoutSpace(namedQueryPage.Id, assetId)
+                : namedQueryPage.Id;
+            if (existingPageIds.Contains(namedQueryPage.Id) || existingPageIds.Contains(pageId)) continue;
 
-            if (!NeedsRetargeting(namedQueryPage, namedQueryCanvasId, targetId))
+            var needsRetargeting = NeedsRetargeting(namedQueryPage, namedQueryCanvasId, targetId);
+            if (!needsRetargeting && pageId == namedQueryPage.Id)
             {
                 resource.Annotations!.Add(namedQueryPage);
                 continue;
@@ -419,8 +469,21 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
 
             // NQ pages are shared between every canvas the asset is painted on, so clone before modifying
             var page = namedQueryPage.AsJson().FromJson<AnnotationPage>()!;
-            RetargetAnnotations(resource, page, targetId, namedQueryCanvasId);
+            if (isStub)
+            {
+                page.Id = pageId;
+                RewriteStubAnnotationItemIds(page, assetId);
+            }
+            if (needsRetargeting) RetargetAnnotations(resource, page, targetId, namedQueryCanvasId);
             resource.Annotations!.Add(page);
+        }
+    }
+
+    private static void RewriteStubAnnotationItemIds(AnnotationPage page, AssetId stubAssetId)
+    {
+        foreach (var annotation in page.Items?.OfType<Annotation>() ?? [])
+        {
+            annotation.Id = PathParser.GetAdjunctAnnotationIdWithoutSpace(annotation.Id, stubAssetId);
         }
     }
 
@@ -576,14 +639,21 @@ public class ManifestMerger(SettingsBasedPathGenerator pathGenerator, IPathRewri
                 Height = image.Height,
                 Service = image.Service,
             },
-            Sound sound => new Sound { Id = sound.Id, Format = sound.Format, Duration = sound.Duration, },
+            Sound sound => new Sound
+            {
+                Id = sound.Id,
+                Format = sound.Format,
+                Duration = sound.Duration,
+                Service = sound.Service,
+            },
             Video video => new Video
             {
                 Id = video.Id,
                 Format = video.Format,
                 Duration = video.Duration,
                 Width = video.Width,
-                Height = video.Height
+                Height = video.Height,
+                Service = video.Service
             },
             PaintingChoice paintingChoice => new PaintingChoice
             {

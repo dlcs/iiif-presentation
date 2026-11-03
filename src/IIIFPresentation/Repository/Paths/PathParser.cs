@@ -73,4 +73,21 @@ public static class PathParser
 
     public static Uri GetParentUriFromPublicId(string publicId) => 
         new(publicId[..publicId.LastIndexOf(PathSeparator)]);
+
+    /// <summary>
+    /// DLCS mints inline annotation ids as <c>/adjunct-annotations/{customer}/{space}/{asset}</c>. This returns the id
+    /// as <c>/annotations/{customer}/{asset}</c>, keeping the host and anything after the asset. Ids that aren't
+    /// adjunct annotation ids for <paramref name="assetId"/>'s customer and space are returned unchanged.
+    /// </summary>
+    public static string? GetAdjunctAnnotationIdWithoutSpace(string? id, AssetId assetId)
+    {
+        if (id == null) return null;
+
+        var adjunctPath = $"/adjunct-annotations/{assetId.Customer}/{assetId.Space}/";
+        var index = id.IndexOf(adjunctPath, StringComparison.Ordinal);
+        if (index < 0) return id;
+
+        return string.Concat(id.AsSpan(0, index), $"/annotations/{assetId.Customer}/",
+            id.AsSpan(index + adjunctPath.Length));
+    }
 }
