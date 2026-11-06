@@ -195,6 +195,10 @@ public class PresentationContext : DbContext
                 .HasConversion<PipelineConfigConverter>()
                 .HasColumnType("jsonb");
 
+            entity.Property(e => e.Result)
+                .HasConversion<JObjectConverter, JObjectComparer>()
+                .HasColumnType("jsonb");
+
             // Enforces the invariant completion-notification correlation relies on: no two jobs for the same
             // resource+type can claim the same invocation id. NotSubmitted/FailedToSubmit rows never get a real
             // value from the pipeline service, so InvocationId stays null for them - the filter (and Postgres'

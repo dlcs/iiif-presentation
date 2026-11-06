@@ -18,7 +18,10 @@ public class TextServiceJobCompletionMessage(
     int totalPages,
     int totalWordCount,
     string? errors,
-    int invocationCount = 1)
+    int invocationCount = 1,
+    int skippedCanvases = 0,
+    int pagesWithoutTextSource = 0,
+    int pagesWithoutWords = 0)
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -38,6 +41,12 @@ public class TextServiceJobCompletionMessage(
     public string? Errors { get; } = errors;
 
     public int InvocationCount { get; } = invocationCount;
+
+    public int SkippedCanvases { get; } = skippedCanvases;
+
+    public int PagesWithoutTextSource { get; } = pagesWithoutTextSource;
+
+    public int PagesWithoutWords { get; } = pagesWithoutWords;
 
     public bool IsCompleted => Status == PipelineJobStatus.Completed;
 

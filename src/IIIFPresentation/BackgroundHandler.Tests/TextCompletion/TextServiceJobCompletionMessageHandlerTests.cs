@@ -12,6 +12,7 @@ using IIIF.Search.V2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Services.Manifests.AWS;
 using Services.TextServices;
@@ -190,6 +191,75 @@ public class TextServiceJobCompletionMessageHandlerTests
 
         var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
         job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+        job.Warning.Should().Be(TextPipelineResult.NoTextFoundWarning);
+    }
+
+    [Fact]
+    public async Task HandleMessage_SetsResult_WhenJobCompleted()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_result");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, totalWordCount: 250);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = await dbContext.PipelineJobs.AsNoTracking().SingleAsync(p => p.ManifestId == manifestId);
+        job.Status.Should().Be(PipelineJobStatus.Completed);
+        job.Warning.Should().BeNull();
+        JToken.DeepEquals(job.Result, JObject.Parse("""
+            {
+              "totalPages": 1,
+              "totalWordCount": 250,
+              "skippedCanvases": 0,
+              "pagesWithoutTextSource": 0,
+              "pagesWithoutWords": 0
+            }
+            """)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandleMessage_StoresCounts_WhenNoTextFound()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_with_counts");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, totalWordCount: 0, totalPages: 3,
+            skippedCanvases: 1, pagesWithoutTextSource: 2, pagesWithoutWords: 1);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = await dbContext.PipelineJobs.AsNoTracking().SingleAsync(p => p.ManifestId == manifestId);
+        job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+        job.Warning.Should().Be(TextPipelineResult.NoTextFoundWarning);
+        job.Result!["skippedCanvases"]!.Value<int>().Should().Be(1);
+        job.Result!["pagesWithoutTextSource"]!.Value<int>().Should().Be(2);
+        job.Result!["pagesWithoutWords"]!.Value<int>().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task HandleMessage_SetsWarningAndResultErrors_WhenCompletedJobHasErrors()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_with_errors");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        await SetupManifestWithPipelineJob(manifestId);
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, totalWordCount: 0,
+            errors: @"canvas/1: 403 Forbidden\ncanvas/2: 500 Internal Server Error", totalPages: 2);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var job = await dbContext.PipelineJobs.AsNoTracking().SingleAsync(p => p.ManifestId == manifestId);
+        job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+        job.Error.Should().BeNull("the job didn't fail");
+        job.Warning.Should().Be(TextPipelineResult.NoTextFoundWarning);
+        job.Result!["errors"]!.ToObject<string[]>().Should()
+            .Equal("canvas/1: 403 Forbidden", "canvas/2: 500 Internal Server Error");
     }
 
     [Fact]
@@ -475,6 +545,35 @@ public class TextServiceJobCompletionMessageHandlerTests
         otherJob.Status.Should().Be(PipelineJobStatus.Waiting, "the newer invocation is unrelated to this notification");
     }
 
+    [Fact]
+    public async Task HandleMessage_ClearsResultOfOlderJobs_KeepsTheirWarning()
+    {
+        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_clears_older_results");
+        var jobId = new TextJobId(CustomerId, manifestId);
+        var olderResult = JObject.Parse("""{"totalPages":1,"totalWordCount":0}""");
+        var newerResult = JObject.Parse("""{"totalPages":1,"totalWordCount":5}""");
+        await dbContext.Manifests.AddTestManifest(id: manifestId)
+            .WithTestPipelineJob(PipelineJobStatus.CompletedNoOperation, created: DateTime.UtcNow.AddMinutes(-2),
+                invocationId: 1, result: olderResult, warning: TextPipelineResult.NoTextFoundWarning)
+            .WithTestPipelineJob(PipelineJobStatus.Waiting, created: DateTime.UtcNow.AddMinutes(-1), invocationId: 2)
+            .WithTestPipelineJob(PipelineJobStatus.Completed, created: DateTime.UtcNow, invocationId: 3,
+                result: newerResult);
+        await dbContext.SaveChangesAsync();
+        SetupStagedManifest(new IIIFManifest { Id = manifestId });
+
+        var message = CreateMessage(jobId, PipelineJobStatus.Completed, invocationCount: 2);
+
+        (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
+
+        var jobs = await dbContext.PipelineJobs.AsNoTracking()
+            .Where(p => p.ManifestId == manifestId)
+            .ToDictionaryAsync(p => p.InvocationId!);
+        jobs["1"].Result.Should().BeNull("an older job's result isn't kept");
+        jobs["1"].Warning.Should().Be(TextPipelineResult.NoTextFoundWarning);
+        jobs["2"].Result.Should().NotBeNull();
+        JToken.DeepEquals(jobs["3"].Result, newerResult).Should().BeTrue("a newer job's result isn't cleared");
+    }
+
     private async Task SetupManifestWithPipelineJob(string manifestId,
         PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null)
     {
@@ -484,14 +583,17 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     private static QueueMessage CreateMessage(TextJobId jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
-        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
-        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors, invocationCount, totalWordCount);
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100, int totalPages = 1,
+        int skippedCanvases = 0, int pagesWithoutTextSource = 0, int pagesWithoutWords = 0)
+        => CreateMessageFromRawJobId(jobId.ToString(), status, approximateReceiveCount, errors, invocationCount,
+            totalWordCount, totalPages, skippedCanvases, pagesWithoutTextSource, pagesWithoutWords);
 
     private static QueueMessage CreateMessageFromRawJobId(string jobId, PipelineJobStatus status, int approximateReceiveCount = 0,
-        string? errors = null, int invocationCount = 1, int totalWordCount = 100)
+        string? errors = null, int invocationCount = 1, int totalWordCount = 100, int totalPages = 1,
+        int skippedCanvases = 0, int pagesWithoutTextSource = 0, int pagesWithoutWords = 0)
     {
         var errorsJson = errors == null ? "null" : $"\"{errors}\"";
-        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":1,"totalWordCount":{{totalWordCount}},"errors":{{errorsJson}},"invocationCount":{{invocationCount}}}""";
+        var body = $$"""{"jobId":"{{jobId}}","status":{{(int)status}},"finished":"2024-06-12T10:00:00Z","totalPages":{{totalPages}},"totalWordCount":{{totalWordCount}},"errors":{{errorsJson}},"invocationCount":{{invocationCount}},"skippedCanvases":{{skippedCanvases}},"pagesWithoutTextSource":{{pagesWithoutTextSource}},"pagesWithoutWords":{{pagesWithoutWords}}}""";
         var systemAttributes = new Dictionary<string, string>
         {
             ["ApproximateReceiveCount"] = approximateReceiveCount.ToString()

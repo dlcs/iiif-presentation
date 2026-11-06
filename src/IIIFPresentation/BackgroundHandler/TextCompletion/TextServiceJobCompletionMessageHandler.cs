@@ -3,6 +3,7 @@ using AWS.SQS;
 using BackgroundHandler.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository;
 using Repository.Helpers;
 using Services.Manifests.AWS;
@@ -120,11 +121,17 @@ public class TextServiceJobCompletionMessageHandler(
             }
 
             var finalManifest = await textManifestAugmentor.Augment(staged.Manifest, dbManifest, cancellationToken);
-            pipelineJob.Status = completionMessage.TotalWordCount == 0
+            var result = TextPipelineResult.Create(completionMessage.TotalPages, completionMessage.TotalWordCount,
+                completionMessage.Errors, completionMessage.SkippedCanvases, completionMessage.PagesWithoutTextSource,
+                completionMessage.PagesWithoutWords);
+            pipelineJob.Status = result.TotalWordCount == 0
                 ? PipelineJobStatus.CompletedNoOperation
                 : PipelineJobStatus.Completed;
+            pipelineJob.Result = result.ToJObject();
+            pipelineJob.Warning = result.GetWarning();
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
+            await ClearOlderResults(pipelineJob, cancellationToken);
             await manifestStorageManager.SaveManifestInStorage(finalManifest, dbManifest, staged.Original,
                 saveToStaging: false, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -141,4 +148,12 @@ public class TextServiceJobCompletionMessageHandler(
 
         return true;
     }
+
+    // Only the latest job's result is kept, so results don't build up as a manifest is reprocessed. Jobs created
+    // after this one are left alone, in case their completion was handled first.
+    private Task<int> ClearOlderResults(PipelineJob pipelineJob, CancellationToken cancellationToken) =>
+        dbContext.PipelineJobs
+            .Where(p => p.CustomerId == pipelineJob.CustomerId && p.ManifestId == pipelineJob.ManifestId &&
+                        p.JobType == pipelineJob.JobType && p.Created < pipelineJob.Created && p.Result != null)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Result, (JObject?)null), cancellationToken);
 }

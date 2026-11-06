@@ -9,7 +9,6 @@ public static class PipelineHelper
         public const string Name = "text";
         public const string IndexAction = "Index";
         public static readonly string[] Actions = [IndexAction];
-        public const string NoTextFoundWarning = "No text resources found";
     }
 
     /// <summary>
@@ -85,7 +84,8 @@ public static class PipelineHelper
         Config = job.Config,
         Status = job.Status.ToString(),
         Error = job.Error,
-        Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? TextPipeline.NoTextFoundWarning : null,
+        Warning = job.Warning,
+        Result = job.Result,
         Created = job.Created,
         Finished = job.Finished
     };

@@ -258,7 +258,25 @@ public class PipelineHelperTests
     }
 
     [Fact]
-    public void ToPipelineItem_SetsWarning_WhenStatusIsCompletedNoOperation()
+    public void ToPipelineItem_CopiesWarningAndResult()
+    {
+        var job = new PipelineJob
+        {
+            ManifestId = "id", CustomerId = 1,
+            JobType = PipelineJobType.TextService,
+            Status = PipelineJobStatus.Completed,
+            Warning = "a warning",
+            Result = JObject.Parse("""{"totalPages":2}""")
+        };
+
+        var result = job.ToPipelineItem();
+
+        result.Warning.Should().Be("a warning");
+        result.Result.Should().BeSameAs(job.Result);
+    }
+
+    [Fact]
+    public void ToPipelineItem_WarningAndResultNull_WhenJobHasNone()
     {
         var job = new PipelineJob
         {
@@ -269,25 +287,8 @@ public class PipelineHelperTests
 
         var result = job.ToPipelineItem();
 
-        result.Warning.Should().Be(PipelineHelper.TextPipeline.NoTextFoundWarning);
-    }
-
-    [Theory]
-    [InlineData(PipelineJobStatus.Completed)]
-    [InlineData(PipelineJobStatus.Failed)]
-    [InlineData(PipelineJobStatus.Waiting)]
-    public void ToPipelineItem_WarningIsNull_ForOtherStatuses(PipelineJobStatus status)
-    {
-        var job = new PipelineJob
-        {
-            ManifestId = "id", CustomerId = 1,
-            JobType = PipelineJobType.TextService,
-            Status = status
-        };
-
-        var result = job.ToPipelineItem();
-
-        result.Warning.Should().BeNull();
+        result.Warning.Should().BeNull("the warning is set by the pipeline, not derived from status");
+        result.Result.Should().BeNull();
     }
 
     [Theory]
