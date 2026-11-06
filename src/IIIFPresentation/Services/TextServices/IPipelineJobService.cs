@@ -1,4 +1,4 @@
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using DbManifest = Models.Database.Collections.Manifest;
 

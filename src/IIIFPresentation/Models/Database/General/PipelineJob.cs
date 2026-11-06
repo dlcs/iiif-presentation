@@ -1,5 +1,6 @@
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.Collections;
+using Newtonsoft.Json.Linq;
 
 namespace Models.Database.General;
 
@@ -28,11 +29,23 @@ public class PipelineJob : ICustomerEntity
 
     public string? Error { get; set; }
 
+    /// <summary>
+    /// Problems with a job that finished without failing, e.g. it found nothing to process or some of its inputs
+    /// couldn't be read. Set by the pipeline that ran the job.
+    /// </summary>
+    public string? Warning { get; set; }
+
+    /// <summary>
+    /// Details of what the job did. The shape depends on the type of pipeline and is set by the pipeline that ran the
+    /// job.
+    /// </summary>
+    public JObject? Result { get; set; }
+
     public DateTime Created { get; set; }
 
     public DateTime? Finished { get; set; }
 
-    public PipelineConfig? Config { get; set; }
+    public IPipelineConfig? Config { get; set; }
 
     /// <summary>
     /// Identifier for this specific invocation of the pipeline, as assigned by whatever service ran it, so a

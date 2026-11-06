@@ -10,8 +10,10 @@ using IIIF.Presentation.V3.Traversal;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 using Repository.Paths;
 using Services.Manifests.Helpers;
 using Services.Manifests.Settings;
@@ -448,7 +450,7 @@ public class ManifestConverterTests
     }
 
     [Fact]
-    public void SetGeneratedFields_SetsWarningOnFinishedPipeline_WhenJobCompletedNoOperation()
+    public void SetGeneratedFields_SetsWarningAndResultOnFinishedPipeline_FromJob()
     {
         // Arrange
         var iiifManifest = new PresentationManifest();
@@ -463,6 +465,8 @@ public class ManifestConverterTests
                     ManifestId = "id", CustomerId = 1,
                     JobType = PipelineJobType.TextService,
                     Status = PipelineJobStatus.CompletedNoOperation,
+                    Warning = "a warning",
+                    Result = JObject.Parse("""{"totalPages":2}"""),
                     Created = DateTime.UtcNow,
                     Finished = DateTime.UtcNow
                 }
@@ -473,8 +477,9 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
-        result.FinishedPipelines.Should().ContainSingle(p =>
-            p.Status == "CompletedNoOperation" && p.Warning == PipelineHelper.TextPipeline.NoTextFoundWarning);
+        var finished = result.FinishedPipelines.Should().ContainSingle().Subject;
+        finished.Warning.Should().Be("a warning");
+        finished.Result!["totalPages"]!.Value<int>().Should().Be(2);
     }
 
     [Fact]

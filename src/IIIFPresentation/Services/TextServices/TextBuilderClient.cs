@@ -7,6 +7,7 @@ using AWS.Settings;
 using Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Services.TextServices.Http;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -36,7 +37,7 @@ public class TextBuilderClient(
             return false;
         }
 
-        var serialisedBody = CreateJobRequestJsonBody(manifest, jobId);
+        var serialisedBody = CreateJobRequestJsonBody(manifest, job, jobId);
 
         var postUri = new Uri(settings.BuilderApiUri, "textbuilder");
         try
@@ -127,10 +128,15 @@ public class TextBuilderClient(
         return false;
     }
 
-    private string CreateJobRequestJsonBody(DbManifest manifest, TextJobId jobId)
+    private string CreateJobRequestJsonBody(DbManifest manifest, PipelineJob job, TextJobId jobId)
     {
         var sourceS3Uri = GetManifestS3Key(manifest);
-        var body = new { id = jobId.ToString(), sourceUri = sourceS3Uri, services = (int)JobServices.All };
+
+        // TextAugmented is always required as it's how TextManifestAugmentor reads back the generated resources
+        var textConfig = job.Config as TextPipelineConfig ?? new TextPipelineConfig();
+        var services = textConfig.GetRequestedServices() | JobServices.TextAugmented;
+
+        var body = new TextBuilderJobRequest(jobId, sourceS3Uri, services, textConfig.PdfCoverPage);
         var serialisedBody = JsonSerializer.Serialize(body, JsonOptions);
         return serialisedBody;
     }

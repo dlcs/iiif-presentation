@@ -3,6 +3,7 @@ using API.Infrastructure.Requests;
 using MediatR;
 using Microsoft.Extensions.Primitives;
 using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 
 namespace API.Features.Manifest.Requests;
 
