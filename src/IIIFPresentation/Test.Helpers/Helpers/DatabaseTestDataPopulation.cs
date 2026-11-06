@@ -6,6 +6,7 @@ using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
+using Newtonsoft.Json.Linq;
 
 namespace Test.Helpers.Helpers;
 
@@ -154,7 +155,7 @@ public static class DatabaseTestDataPopulation
 
     public static ValueTask<EntityEntry<Manifest>> WithTestPipelineJob(this ValueTask<EntityEntry<Manifest>> manifest,
         PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null, DateTime? created = null,
-        int invocationId = 1)
+        int invocationId = 1, JObject? result = null, string? warning = null)
     {
         manifest.Result.Entity.PipelineJobs ??= [];
         manifest.Result.Entity.PipelineJobs.Add(
@@ -166,6 +167,8 @@ public static class DatabaseTestDataPopulation
                 Created = created ?? DateTime.UtcNow,
                 Finished = finished,
                 InvocationId = invocationId.ToString(),
+                Result = result,
+                Warning = warning,
             });
         return manifest;
     }
