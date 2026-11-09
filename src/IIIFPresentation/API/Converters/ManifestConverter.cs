@@ -21,6 +21,14 @@ namespace API.Converters;
 public static class ManifestConverter
 {
     /// <summary>
+    /// Overwrites all base IIIF properties of <paramref name="presentationManifest"/> with those of
+    /// <paramref name="source"/>, leaving Presentation-only properties as they are.
+    /// </summary>
+    public static void ApplyIIIFProperties(this PresentationManifest presentationManifest,
+        IIIF.Presentation.V3.Manifest source)
+        => IIIFPropertyCopier.CopyProperties(source, presentationManifest);
+
+    /// <summary>
     /// Update <see cref="PresentationManifest"/> with values from DB record.
     /// </summary>
     /// <param name="iiifManifest">Presentation Manifest to update</param>

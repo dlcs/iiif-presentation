@@ -6,6 +6,8 @@ using DLCS.API;
 using DLCS.Exceptions;
 using DLCS.Models;
 using FakeItEasy;
+using IIIF.Auth.V2;
+using IIIF.Presentation;
 using IIIF.Presentation.V3;
 using IIIF.Presentation.V3.Annotation;
 using IIIF.Presentation.V3.Content;
@@ -19,6 +21,7 @@ using Models.Database.General;
 using Models.DLCS;
 using Newtonsoft.Json.Linq;
 using Repository;
+using Services.Manifests.Helpers;
 using Test.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
@@ -2229,7 +2232,95 @@ public class ModifyManifestAssetUpdateTests : IClassFixture<PresentationAppFacto
         s3Manifest.Id.Should().EndWith(dbManifest.Id);
         s3Manifest.Items.Should().NotBeNull("Manifest generated upfront");
     }
-    
+
+    [Fact]
+    public async Task UpdateManifest_ReturnsAccessServicesAndContext_WhenAllAssetsTracked_AndAssetHasAuth()
+    {
+        // Arrange
+        var (slug, id, assetId) = TestIdentifiers.SlugResourceAsset();
+        const string accessServiceId = "https://dlcs.test/auth/v2/access/1/clickthrough";
+        const string authContext = "http://iiif.io/api/auth/2/context.json";
+        var trackedAssetId = new AssetId(Customer, NewlyCreatedSpace, assetId);
+
+        var initialCanvasPaintings = new List<CanvasPainting>
+        {
+            new()
+            {
+                Id = "first",
+                CanvasOrder = 1,
+                ChoiceOrder = 1,
+                AssetId = trackedAssetId
+            }
+        };
+
+        var testManifest = await dbContext.Manifests.AddTestManifest(id: id, slug: slug, canvasPaintings: initialCanvasPaintings,
+            batchId: TestIdentifiers.BatchId(), ingested: true, spaceId: NewlyCreatedSpace);
+        await dbContext.SaveChangesAsync();
+
+        A.CallTo(() =>
+                DLCSOrchestratorClient.RetrieveAssetsForManifest(A<int>.Ignored, A<string>.Ignored,
+                    A<CancellationToken>.Ignored))
+            .ReturnsLazily(() =>
+            {
+                var namedQueryManifest = ManifestTestCreator.New()
+                    .WithCanvas(trackedAssetId, c => c.WithImage())
+                    .Build();
+
+                var image = namedQueryManifest.Items![0].GetFirstPaintingAnnotation()!.Body as Image;
+                image!.Service =
+                [
+                    new AuthProbeService2
+                    {
+                        Id = "https://dlcs.test/auth/v2/probe/1/asset",
+                        Service = [new AuthAccessService2 { Id = accessServiceId }]
+                    }
+                ];
+                namedQueryManifest.Services =
+                [
+                    new AuthAccessService2 { Id = accessServiceId, Profile = AuthAccessService2.ActiveProfile }
+                ];
+                namedQueryManifest.Context = new List<string> { authContext, Context.Presentation3Context };
+                return namedQueryManifest;
+            });
+
+        var payload = $$"""
+                         {
+                             "type": "Manifest",
+                             "slug": "{{slug}}",
+                             "parent": "http://localhost/{{Customer}}/collections/root",
+                             "paintedResources": [
+                                 {
+                                     "canvasPainting":{
+                                        "canvasOrder": 1
+                                     },
+                                      "asset": {
+                                          "id": "{{assetId}}",
+                                          "mediaType": "image/jpg"
+                                      }
+                                  }
+                             ]
+                         }
+                         """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{id}",
+                payload, dbContext.GetETag(testManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseJson = JObject.Parse(await response.Content.ReadAsStringAsync());
+
+        responseJson["services"].Should().NotBeNull("access services are returned in the PUT response");
+        responseJson["services"]!.Select(s => s["id"]!.Value<string>()).Should().ContainSingle()
+            .Which.Should().Be(accessServiceId);
+
+        responseJson["@context"]!.Values<string>().Should().Contain(authContext,
+            "context added by merge is returned in the PUT response");
+    }
+
     [Fact]
     public async Task UpdateManifest_DoesNotRequireFurtherProcessing_WhenAllAssetsTrackedFromOtherManifests()
     {
