@@ -131,6 +131,74 @@ public class TextManifestAugmentorTests
     }
 
     [Fact]
+    public async Task Augment_AddsCanvasRendering_ToMatchingCanvas()
+    {
+        var svgRendering = new ExternalResource("Image")
+            { Id = "https://example.com/svg/v1/0/1/iiif/my-manifest", Format = "image/svg+xml" };
+        var augmented = new Manifest
+        {
+            Items = [new Canvas { Id = "https://example.com/canvas/1", Rendering = [svgRendering] }]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items =
+            [
+                new Canvas { Id = "https://example.com/canvas/1" },
+                new Canvas { Id = "https://example.com/canvas/2" }
+            ]
+        };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Items![0].Rendering.Should().ContainSingle(r => r.Id == svgRendering.Id);
+        result.Items[1].Rendering.Should().BeNullOrEmpty();
+        result.Rendering.Should().BeNullOrEmpty("canvas-level rendering is not promoted to the manifest");
+    }
+
+    [Fact]
+    public async Task Augment_KeepsExistingCanvasRendering_AndDoesNotDuplicate()
+    {
+        const string svgId = "https://example.com/svg/v1/0/1/iiif/my-manifest";
+        var customerRendering = new ExternalResource("Text") { Id = "https://example.com/customer/page.txt" };
+        var augmented = new Manifest
+        {
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://example.com/canvas/1",
+                    Rendering = [new ExternalResource("Image") { Id = svgId, Format = "image/svg+xml" }]
+                }
+            ]
+        };
+        A.CallTo(() => textSearchClient.GetTextAugmentedManifest(A<TextJobId>._, A<CancellationToken>._))
+            .Returns(Task.FromResult<Manifest?>(augmented));
+
+        var manifest = new Manifest
+        {
+            Id = "https://example.com/manifest",
+            Items =
+            [
+                new Canvas
+                {
+                    Id = "https://example.com/canvas/1",
+                    Rendering = [customerRendering, new ExternalResource("Image") { Id = svgId }]
+                }
+            ]
+        };
+
+        var result = await sut.Augment(manifest, DbManifest, CancellationToken.None);
+
+        result.Items!.Single().Rendering.Should().HaveCount(2)
+            .And.Contain(customerRendering)
+            .And.ContainSingle(r => r.Id == svgId);
+    }
+
+    [Fact]
     public async Task Augment_DoesNotThrow_WhenAugmentedManifestHasDuplicateCanvasIds()
     {
         // A duplicate canvas id in text-services' response shouldn't abort augmentation entirely - the SQS handler

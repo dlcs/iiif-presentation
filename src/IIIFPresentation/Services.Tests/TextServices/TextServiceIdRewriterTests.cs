@@ -91,6 +91,33 @@ public class TextServiceIdRewriterTests
     }
 
     [Fact]
+    public void Rewrite_RewritesCanvasRenderingId_UsingConfiguredTextServiceRenderingTemplate()
+    {
+        var svgRendering = new ExternalResource("Image")
+            { Id = $"https://text-services.internal/svg/v1/0/{RawId}" };
+        var augmented = new Manifest
+        {
+            Items = [new Canvas { Id = "https://example.com/canvas/1", Rendering = [svgRendering] }]
+        };
+
+        var sut = CreateSut(new PathSettings
+        {
+            PresentationApiUrl = new Uri("https://rewritten.example"),
+            PathRules = new TypedPathTemplateOptions
+            {
+                Overrides = new Dictionary<string, Dictionary<string, PathTemplate>>
+                {
+                    ["rewritten.example"] = new() { ["TextServiceRendering"] = "/{customerId}/text/{resourceId}" }
+                }
+            }
+        });
+
+        sut.Rewrite(augmented, DbManifest, JobId);
+
+        svgRendering.Id.Should().Be("https://rewritten.example/svg/v1/0/1/text/my-manifest");
+    }
+
+    [Fact]
     public void Rewrite_RewritesManifestAndCanvasAnnotationIds_UsingConfiguredTextServiceAnnotationsTemplate()
     {
         var manifestAnnotations = new AnnotationPage

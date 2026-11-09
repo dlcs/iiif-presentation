@@ -11,17 +11,18 @@ using DbManifest = Models.Database.Collections.Manifest;
 namespace Services.TextServices;
 
 /// <summary>
-/// Rewrites ids embedded in a text-services response (search/autocomplete services, rendering, manifest- and
-/// canvas-level annotations) onto the DLCS orchestrator host, re-templating the id-portion per link category via
-/// PathRules. Kept separate from <see cref="ITextManifestAugmentor"/>'s merge logic - this is a path rewrite
-/// concern, not manifest augmentation, matching how <see cref="IPathGenerator"/>/
+/// Rewrites ids embedded in a text-services response (search/autocomplete services, manifest- and canvas-level
+/// rendering, manifest- and canvas-level annotations) onto the DLCS orchestrator host, re-templating the id-portion
+/// per link category via PathRules. Kept separate from <see cref="ITextManifestAugmentor"/>'s merge logic - this is
+/// a path rewrite concern, not manifest augmentation, matching how <see cref="IPathGenerator"/>/
 /// <see cref="IPathRewriteParser"/> are kept separate elsewhere in this codebase.
 /// </summary>
 public interface ITextServiceIdRewriter
 {
     /// <summary>
-    /// Rewrites every id in <paramref name="augmented"/> (search/autocomplete services, rendering, manifest- and
-    /// canvas-level annotations) in place, onto <paramref name="dbManifest"/>'s DLCS orchestrator host.
+    /// Rewrites every id in <paramref name="augmented"/> (search/autocomplete services, manifest- and canvas-level
+    /// rendering, manifest- and canvas-level annotations) in place, onto <paramref name="dbManifest"/>'s DLCS
+    /// orchestrator host.
     /// </summary>
     void Rewrite(Manifest augmented, DbManifest dbManifest, TextJobId jobId);
 }
@@ -33,9 +34,9 @@ public class TextServiceIdRewriter(
     : ITextServiceIdRewriter
 {
     /// <summary>
-    /// Rewrites every id text-services returned (search/autocomplete services, rendering, manifest- and
-    /// canvas-level annotations) onto <paramref name="dbManifest"/>'s DLCS orchestrator host, re-templating the
-    /// id-portion per link category via PathRules (<see cref="PresentationResourceType.TextServiceSearchService"/>,
+    /// Rewrites every id text-services returned (search/autocomplete services, manifest- and canvas-level
+    /// rendering, manifest- and canvas-level annotations) onto <paramref name="dbManifest"/>'s DLCS orchestrator
+    /// host, re-templating the id-portion per link category via PathRules (<see cref="PresentationResourceType.TextServiceSearchService"/>,
     /// <see cref="PresentationResourceType.TextServiceRendering"/>,
     /// <see cref="PresentationResourceType.TextServiceAnnotations"/> - each falling back to
     /// <see cref="PresentationResourceType.TextServiceJob"/>'s template when not explicitly configured). Only
@@ -98,10 +99,20 @@ public class TextServiceIdRewriter(
         {
             foreach (var canvas in augmented.Items)
             {
-                if (canvas.Annotations == null) continue;
-                foreach (var annotation in canvas.Annotations)
+                if (canvas.Rendering != null)
                 {
-                    rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
+                    foreach (var rendering in canvas.Rendering)
+                    {
+                        rewritten += RewriteId(rendering, jobIdString, configuredJobId, renderingId, targetHost);
+                    }
+                }
+
+                if (canvas.Annotations != null)
+                {
+                    foreach (var annotation in canvas.Annotations)
+                    {
+                        rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
+                    }
                 }
             }
         }

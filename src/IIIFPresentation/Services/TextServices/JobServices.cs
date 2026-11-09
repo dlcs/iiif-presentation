@@ -15,5 +15,6 @@ public enum JobServices
     Pdf           = 1 << 4,
     TextAugmented = 1 << 5,
     Figures       = 1 << 6,
+    Svg           = 1 << 7,
     All           = ~0,
 }
