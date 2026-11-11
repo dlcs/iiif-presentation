@@ -66,59 +66,26 @@ public class TextServiceIdRewriter(
 
         var rewritten = 0;
 
-        if (augmented.Service != null)
+        foreach (var searchService in augmented.Service?.OfType<SearchService2>() ?? [])
         {
-            foreach (var searchService in augmented.Service.OfType<SearchService2>())
-            {
-                rewritten += RewriteId(searchService, jobIdString, configuredJobId, searchId, targetHost);
-                if (searchService.Service == null) continue;
-                foreach (var nested in searchService.Service)
-                {
-                    rewritten += RewriteId(nested, jobIdString, configuredJobId, searchId, targetHost);
-                }
-            }
+            Rewrite(searchService, searchId);
+            foreach (var nested in searchService.Service ?? []) Rewrite(nested, searchId);
         }
 
-        if (augmented.Rendering != null)
-        {
-            foreach (var rendering in augmented.Rendering)
-            {
-                rewritten += RewriteId(rendering, jobIdString, configuredJobId, renderingId, targetHost);
-            }
-        }
+        foreach (var rendering in augmented.Rendering ?? []) Rewrite(rendering, renderingId);
+        foreach (var annotation in augmented.Annotations ?? []) Rewrite(annotation, annotationsId);
 
-        if (augmented.Annotations != null)
+        foreach (var canvas in augmented.Items ?? [])
         {
-            foreach (var annotation in augmented.Annotations)
-            {
-                rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
-            }
-        }
-
-        if (augmented.Items != null)
-        {
-            foreach (var canvas in augmented.Items)
-            {
-                if (canvas.Rendering != null)
-                {
-                    foreach (var rendering in canvas.Rendering)
-                    {
-                        rewritten += RewriteId(rendering, jobIdString, configuredJobId, renderingId, targetHost);
-                    }
-                }
-
-                if (canvas.Annotations != null)
-                {
-                    foreach (var annotation in canvas.Annotations)
-                    {
-                        rewritten += RewriteId(annotation, jobIdString, configuredJobId, annotationsId, targetHost);
-                    }
-                }
-            }
+            foreach (var rendering in canvas.Rendering ?? []) Rewrite(rendering, renderingId);
+            foreach (var annotation in canvas.Annotations ?? []) Rewrite(annotation, annotationsId);
         }
 
         logger.LogDebug("Rewrote {Count} text-services ids to {TargetHost} for job {JobId}", rewritten, targetHost,
             jobId);
+        
+        void Rewrite(IResource resource, ResolvedId newId) =>
+            rewritten += RewriteId(resource, jobIdString, configuredJobId, newId, targetHost);
     }
 
     /// <summary>

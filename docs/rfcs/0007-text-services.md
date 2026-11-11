@@ -4,7 +4,6 @@ This RFC explores how we can extend the processing of IIIF Manifests to support 
 
 * [IIIF Content Search V2](https://iiif.io/api/search/2.0/) and [V1](https://iiif.io/api/search/1.0/)
 * PDF w/ text layer
-* Per-canvas SVG text layer (canvas `"rendering"`)
 * Line/word annotation pages and manifest-level
 * Plain text endpoint
 
@@ -97,7 +96,7 @@ This was dismissed as it would involve IIIF-Presentation having knowledge of how
 
 When the text-services job is completed the BackgroundHandler will fetch the payload outlining what resources were generated. If no resources were generated then there is nothing more to be done to the Manifest, it can be moved from staging location and made public without any changes.
 
-If there are resources to add, these will be placed in the relevant locations on the Manifest. For example, IIIF Content-Search resources will be added to the relevant `"services"` property, PDFs will be added to the Manifest `"rendering"` property, per-canvas SVG text layers to each Canvas `"rendering"` property etc.
+If there are resources to add, these will be placed in the relevant locations on the Manifest. For example, IIIF Content-Search resources will be added to the relevant `"services"` property, PDFs will be added to `"rendering"` etc.
 
 > [!IMPORTANT]
 > All resources will be added as long as the `"id"` value does not already exist. This will allow safe round-tripping of Manifests without adding duplicate resources.
@@ -279,3 +278,11 @@ In order to support inclusion of coverpage we would need to create text-services
 Text-services allow consumer to specify which services/derivatives should be generated. A future implementation could be allow the consumer to control what is produced and exposed.
 
 This is currently modeled as a flags enum in text-services which may not be the best option to expose for consumers. We can assess the best approach when implementing.
+
+## Amendments
+
+Changes made after the initial implementation of this RFC.
+
+### Per-canvas SVG text layer
+
+Text-services can output a per-canvas SVG text layer. When present in the text-services response, it is added to each Canvas `"rendering"` property, following the same "add if `"id"` does not already exist" rule as other resources. It is not added to the Manifest `"rendering"` property.
