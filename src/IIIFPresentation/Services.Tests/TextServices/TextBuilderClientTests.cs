@@ -196,7 +196,7 @@ public class TextBuilderClientTests
         messageHandler.Enqueue(HttpStatusCode.Conflict);
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob(customerId: 5, resourceId: "test-manifest");
-        job.Config = new TextPipelineConfig { Action = "Index", PdfCoverPage = "http://cover.page/sample.pdf" };
+        job.Config = PipelineHelper.SerialiseConfig(new TextPipelineConfig { Action = "Index", PdfCoverPage = "http://cover.page/sample.pdf" });
 
         await sut.UpsertJob(MakeManifest(customerId: 5, id: "test-manifest"), job, CancellationToken.None);
 
@@ -259,7 +259,7 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob();
-        job.Config = new TextPipelineConfig { Action = "Index", Output = ["Search"] };
+        job.Config = PipelineHelper.SerialiseConfig(new TextPipelineConfig { Action = "Index", Output = ["Search"] });
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 
@@ -275,12 +275,12 @@ public class TextBuilderClientTests
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
         var job = MakeJob();
-        job.Config = new TextPipelineConfig
+        job.Config = PipelineHelper.SerialiseConfig(new TextPipelineConfig
         {
             Action = "Index",
             Output = ["Search"],
             PdfCoverPage = "http://cover.page/sample.pdf"
-        };
+        });
 
         await sut.UpsertJob(MakeManifest(), job, CancellationToken.None);
 

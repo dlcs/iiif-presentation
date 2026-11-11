@@ -1,4 +1,7 @@
 using Models.Database.General;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 
 namespace Models.API.Manifest.Pipelines;
 
@@ -13,26 +16,41 @@ public static class PipelineHelper
     }
 
     /// <summary>
-    /// A recognised pipeline, the actions it supports and the type of its config
+    /// A recognised pipeline: the type of job it's stored as, the actions it supports, the type of its config and the
+    /// warning shown when it completes without doing anything
     /// </summary>
-    private record PipelineDefinition(string Name, string[] Actions, Type ConfigType);
+    private record PipelineDefinition(
+        string Name,
+        PipelineJobType JobType,
+        string[] Actions,
+        Type ConfigType,
+        string? NoOperationWarning);
 
     /// <summary>
     /// Every recognised pipeline. Adding a pipeline only needs an entry here.
     /// </summary>
     private static readonly PipelineDefinition[] Pipelines =
     [
-        new(TextPipeline.Name, TextPipeline.Actions, typeof(TextPipelineConfig))
+        new(TextPipeline.Name, PipelineJobType.TextService, TextPipeline.Actions, typeof(TextPipelineConfig),
+            TextPipeline.NoTextFoundWarning)
     ];
 
     private static readonly Dictionary<string, PipelineDefinition> PipelinesByName =
         Pipelines.ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
 
-    // Stored config only has its action, so an action used by more than one pipeline would be ambiguous. ToDictionary
-    // throws on a duplicate action rather than picking one.
-    private static readonly Dictionary<string, Type> ConfigTypesByAction = Pipelines
-        .SelectMany(p => p.Actions.Select(action => (Action: action, p.ConfigType)))
-        .ToDictionary(a => a.Action, a => a.ConfigType, StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<PipelineJobType, PipelineDefinition> PipelinesByJobType =
+        Pipelines.ToDictionary(p => p.JobType);
+
+    private const string UnknownPipelineName = "unknown";
+
+    // camelCase matches the casing used by the API. Reading is case-insensitive, so stored config written as
+    // PascalCase ("Action") is still read.
+    private static readonly JsonSerializerSettings ConfigSerializerSettings = new()
+    {
+        ContractResolver = new CamelCasePropertyNamesContractResolver()
+    };
+
+    private static readonly JsonSerializer ConfigSerializer = JsonSerializer.Create(ConfigSerializerSettings);
 
     /// <summary>
     /// The type of config for the pipeline with this name, or <see cref="PipelineConfig"/> if the pipeline isn't
@@ -44,13 +62,48 @@ public static class PipelineHelper
             : typeof(PipelineConfig);
 
     /// <summary>
-    /// The type of config for a pipeline with this action, or <see cref="PipelineConfig"/> if the action has no
-    /// specific config type
+    /// The type of job the pipeline with this name is stored as, or null if the pipeline isn't recognised
     /// </summary>
-    public static Type GetConfigTypeByAction(string? action) =>
-        action != null && ConfigTypesByAction.TryGetValue(action, out var configType)
-            ? configType
+    public static PipelineJobType? GetJobType(this PipelineItem pipelineItem) =>
+        pipelineItem.Name != null && PipelinesByName.TryGetValue(pipelineItem.Name, out var pipeline)
+            ? pipeline.JobType
+            : null;
+
+    /// <summary>
+    /// Read <paramref name="config"/> as <paramref name="configType"/>. A config with a wrong-typed setting is read
+    /// as a generic <see cref="PipelineConfig"/> rather than failing.
+    /// </summary>
+    public static IPipelineConfig? ReadConfig(JToken config, Type configType, JsonSerializer serializer)
+    {
+        try
+        {
+            return (IPipelineConfig?)config.ToObject(configType, serializer);
+        }
+        catch (JsonException) when (configType != typeof(PipelineConfig))
+        {
+            return config.ToObject<PipelineConfig>(serializer);
+        }
+    }
+
+    /// <summary>
+    /// The stored config of this job, read as the config type of its pipeline
+    /// </summary>
+    public static IPipelineConfig? GetConfig(this PipelineJob job)
+    {
+        if (string.IsNullOrEmpty(job.Config)) return null;
+
+        var configType = PipelinesByJobType.TryGetValue(job.JobType, out var pipeline)
+            ? pipeline.ConfigType
             : typeof(PipelineConfig);
+
+        return ReadConfig(JToken.Parse(job.Config), configType, ConfigSerializer);
+    }
+
+    /// <summary>
+    /// Serialise a config to the JSON stored on a <see cref="PipelineJob"/>
+    /// </summary>
+    public static string? SerialiseConfig(IPipelineConfig? config) =>
+        config == null ? null : JsonConvert.SerializeObject(config, ConfigSerializerSettings);
 
     /// <summary>
     /// Remove any invalid pipelines from the manifest. This will only leave known, recognised pipelines. This makes
@@ -79,14 +132,19 @@ public static class PipelineHelper
     public static bool HasPipelineJob(this PresentationManifest manifest) =>
         manifest.Pipeline?.Count > 0;
 
-    public static PipelineItem ToPipelineItem(this PipelineJob job) => new ()
+    public static PipelineItem ToPipelineItem(this PipelineJob job)
     {
-        Name = job.JobType == PipelineJobType.TextService ? TextPipeline.Name : "unknown",
-        Config = job.Config,
-        Status = job.Status.ToString(),
-        Error = job.Error,
-        Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? TextPipeline.NoTextFoundWarning : null,
-        Created = job.Created,
-        Finished = job.Finished
-    };
+        var pipeline = PipelinesByJobType.GetValueOrDefault(job.JobType);
+
+        return new PipelineItem
+        {
+            Name = pipeline?.Name ?? UnknownPipelineName,
+            Config = job.GetConfig(),
+            Status = job.Status.ToString(),
+            Error = job.Error,
+            Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? pipeline?.NoOperationWarning : null,
+            Created = job.Created,
+            Finished = job.Finished
+        };
+    }
 }

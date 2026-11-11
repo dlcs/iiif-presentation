@@ -29,22 +29,10 @@ public class PipelineItemConverter : JsonConverter<PipelineItem>
 
         if (config is { Type: not JTokenType.Null })
         {
-            pipelineItem.Config = ReadConfig(config, PipelineHelper.GetConfigTypeByName(pipelineItem.Name), serializer);
+            pipelineItem.Config = PipelineHelper.ReadConfig(config,
+                PipelineHelper.GetConfigTypeByName(pipelineItem.Name), serializer);
         }
 
         return pipelineItem;
-    }
-
-    // A config with a wrong-typed setting is read as a generic config, rather than failing to read the whole request
-    private static IPipelineConfig? ReadConfig(JToken config, Type configType, JsonSerializer serializer)
-    {
-        try
-        {
-            return (IPipelineConfig?)config.ToObject(configType, serializer);
-        }
-        catch (JsonException) when (configType != typeof(PipelineConfig))
-        {
-            return config.ToObject<PipelineConfig>(serializer);
-        }
     }
 }

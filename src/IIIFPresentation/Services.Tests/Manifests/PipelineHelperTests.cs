@@ -196,7 +196,7 @@ public class PipelineHelperTests
             ManifestId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
             Status = status,
-            Config = new PipelineConfig { Action = "Index" }
+            Config = """{"action":"Index"}"""
         };
 
         var result = job.ToPipelineItem();
@@ -301,14 +301,132 @@ public class PipelineHelperTests
     }
 
     [Theory]
-    [InlineData("Index", typeof(TextPipelineConfig))]
-    [InlineData("index", typeof(TextPipelineConfig))]
-    [InlineData("Unknown", typeof(PipelineConfig))]
-    [InlineData(null, typeof(PipelineConfig))]
-    public void GetConfigTypeByAction_ReturnsExpectedType(string? action, Type expected)
+    [InlineData("text")]
+    [InlineData("TEXT")]
+    public void GetJobType_ReturnsTextService_ForTextPipeline(string name)
+        => new PipelineItem { Name = name }.GetJobType().Should().Be(PipelineJobType.TextService);
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("ocr")]
+    public void GetJobType_ReturnsNull_ForUnrecognisedPipeline(string? name)
+        => new PipelineItem { Name = name }.GetJobType().Should().BeNull();
+
+    [Fact]
+    public void ToPipelineItem_SetsUnknownName_WhenJobTypeNotRecognised()
     {
-        PipelineHelper.GetConfigTypeByAction(action).Should().Be(expected);
+        var job = new PipelineJob { ManifestId = "id", CustomerId = 1, JobType = (PipelineJobType)999 };
+
+        job.ToPipelineItem().Name.Should().Be("unknown");
     }
+
+    [Fact]
+    public void ToPipelineItem_WarningIsNull_WhenJobTypeNotRecognised()
+    {
+        var job = new PipelineJob
+        {
+            ManifestId = "id", CustomerId = 1, JobType = (PipelineJobType)999,
+            Status = PipelineJobStatus.CompletedNoOperation
+        };
+
+        job.ToPipelineItem().Warning.Should().BeNull();
+    }
+
+    [Fact]
+    public void SerialiseConfig_WritesCamelCase()
+    {
+        var config = new TextPipelineConfig
+        {
+            Action = "Index",
+            Output = ["Search"],
+            PdfCoverPage = "http://cover.page/sample.pdf"
+        };
+
+        var json = JObject.Parse(PipelineHelper.SerialiseConfig(config)!);
+
+        json.Properties().Select(p => p.Name).Should().BeEquivalentTo("action", "output", "pdfCoverPage");
+    }
+
+    [Fact]
+    public void SerialiseConfig_ReturnsNull_WhenConfigIsNull()
+        => PipelineHelper.SerialiseConfig(null).Should().BeNull();
+
+    [Fact]
+    public void GetConfig_RoundTripsTextConfig()
+    {
+        var config = new TextPipelineConfig
+        {
+            Action = "Index",
+            Output = ["Search", "Pdf"],
+            PdfCoverPage = "http://cover.page/sample.pdf"
+        };
+        var job = new PipelineJob
+        {
+            CustomerId = 1, JobType = PipelineJobType.TextService, Config = PipelineHelper.SerialiseConfig(config)
+        };
+
+        var result = job.GetConfig().Should().BeOfType<TextPipelineConfig>().Subject;
+
+        result.Action.Should().Be("Index");
+        result.Output.Should().BeEquivalentTo("Search", "Pdf");
+        result.PdfCoverPage.Should().Be("http://cover.page/sample.pdf");
+    }
+
+    [Fact]
+    public void GetConfig_ReadsPascalCase()
+    {
+        var job = new PipelineJob
+        {
+            CustomerId = 1, JobType = PipelineJobType.TextService, Config = """{"Action":"Index","Output":null}"""
+        };
+
+        var result = job.GetConfig().Should().BeOfType<TextPipelineConfig>().Subject;
+
+        result.Action.Should().Be("Index");
+        result.Output.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetConfig_ReadsTextConfig_RegardlessOfAction()
+    {
+        var job = new PipelineJob
+        {
+            CustomerId = 1, JobType = PipelineJobType.TextService, Config = """{"action":"Other"}"""
+        };
+
+        job.GetConfig().Should().BeOfType<TextPipelineConfig>().Which.Action.Should().Be("Other");
+    }
+
+    [Fact]
+    public void GetConfig_ReadsGenericConfig_WhenJobTypeNotRecognised()
+    {
+        var job = new PipelineJob
+        {
+            CustomerId = 1, JobType = (PipelineJobType)999, Config = """{"action":"Index","anything":1}"""
+        };
+
+        var config = job.GetConfig().Should().BeOfType<PipelineConfig>().Subject;
+        config.Action.Should().Be("Index");
+        config.Settings.Should().ContainKey("anything");
+    }
+
+    [Fact]
+    public void GetConfig_ReadsGenericConfig_WhenSettingHasWrongType()
+    {
+        var job = new PipelineJob
+        {
+            CustomerId = 1, JobType = PipelineJobType.TextService, Config = """{"action":"Index","output":{"a":1}}"""
+        };
+
+        job.GetConfig().Should().BeOfType<PipelineConfig>().Which.Action.Should().Be("Index");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GetConfig_ReturnsNull_WhenNoConfig(string? config)
+        => new PipelineJob { CustomerId = 1, JobType = PipelineJobType.TextService, Config = config }
+            .GetConfig().Should().BeNull();
 
     [Fact]
     public async Task TextPipelineConfig_RoundTrips_ThroughApiSerialisation()

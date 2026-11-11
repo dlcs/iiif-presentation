@@ -133,7 +133,7 @@ public class TextBuilderClient(
         var sourceS3Uri = GetManifestS3Key(manifest);
 
         // TextAugmented is always required as it's how TextManifestAugmentor reads back the generated resources
-        var textConfig = job.Config as TextPipelineConfig ?? new TextPipelineConfig();
+        var textConfig = job.GetConfig() as TextPipelineConfig ?? new TextPipelineConfig();
         var services = textConfig.GetRequestedServices() | JobServices.TextAugmented;
 
         var body = new TextBuilderJobRequest(jobId, sourceS3Uri, services, textConfig.PdfCoverPage);
