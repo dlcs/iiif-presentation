@@ -278,3 +278,11 @@ In order to support inclusion of coverpage we would need to create text-services
 Text-services allow consumer to specify which services/derivatives should be generated. A future implementation could be allow the consumer to control what is produced and exposed.
 
 This is currently modeled as a flags enum in text-services which may not be the best option to expose for consumers. We can assess the best approach when implementing.
+
+## Amendments
+
+Changes made after the initial implementation of this RFC.
+
+### Per-canvas SVG text layer
+
+Text-services can output a per-canvas SVG text layer. When present in the text-services response, it is added to each Canvas `"rendering"` property, following the same "add if `"id"` does not already exist" rule as other resources. It is not added to the Manifest `"rendering"` property.
