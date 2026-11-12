@@ -314,6 +314,46 @@ public class SearchCollectionTests : IClassFixture<PresentationAppFactory<Progra
             : $"http://localhost/{SearchCustomer}/collections/{id}";
     }
 
+    [Theory]
+    [InlineData("orderBy=modified", "hst-man", "hst-coll")]
+    [InlineData("orderByDescending=modified", "hst-coll", "hst-man")]
+    public async Task Search_OrdersResultsByModified(string orderQueryParam, string firstId, string secondId)
+    {
+        // Arrange - modified order is the opposite of both created and id order
+        await using (var ctx = await GetSeededContext(SearchCustomer))
+        {
+            var now = DateTime.UtcNow;
+            var hunterCollection = (await ctx.Collections.AddTestCollection(id: "hst-coll", customer: SearchCustomer,
+                createdDate: now.AddHours(-2))).Entity;
+            hunterCollection.Label = new LanguageMap("en", ["Hunter S. Thompson"]);
+            hunterCollection.Modified = now;
+
+            var hunterManifest = (await ctx.Manifests.AddTestManifest(id: "hst-man", customer: SearchCustomer,
+                createdDate: now.AddHours(-1), label: new LanguageMap("en", ["Thompson, Hunter"]))).Entity;
+            hunterManifest.Modified = now.AddMinutes(-30);
+
+            await ctx.SaveChangesAsync();
+        }
+
+        // Act
+        var request =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Get,
+                $"{SearchCustomer}/collections/{RootCollection.Id}/search?label=hunter+thompson&{orderQueryParam}");
+        var response = await httpClient.AsCustomer(SearchCustomer).SendAsync(request);
+        var collection = await response.ReadAsPresentationJsonAsync<PresentationCollection>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        collection!.Items!.OfType<ResourceBase>().Select(i => i.Id).Should()
+            .ContainInOrder(GetFlatId(firstId), GetFlatId(secondId));
+        collection.View!.Id.Should().EndWith(orderQueryParam);
+        return;
+
+        string GetFlatId(string id) => id.EndsWith("-man")
+            ? $"http://localhost/{SearchCustomer}/manifests/{id}"
+            : $"http://localhost/{SearchCustomer}/collections/{id}";
+    }
+
     [Fact]
     public async Task Search_ViewPreservesOrdering()
     {

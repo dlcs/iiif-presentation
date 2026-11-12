@@ -27,6 +27,9 @@ public static class CollectionQueryX
                 ? hierarchyQuery.OrderByDescending(h => h.Slug)
                 : hierarchyQuery.OrderBy(h => h.Slug),
             "created" => OrderByCreated(),
+            "modified" => descending
+                ? hierarchyQuery.OrderByDescending(h => h.Manifest == null ? h.Collection.Modified : h.Manifest.Modified)
+                : hierarchyQuery.OrderBy(h => h.Manifest == null ? h.Collection.Modified : h.Manifest.Modified),
             _ => hierarchyQuery
         };
 
