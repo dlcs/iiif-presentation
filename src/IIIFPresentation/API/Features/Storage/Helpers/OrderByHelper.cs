@@ -6,6 +6,7 @@ public static class OrderByHelper
     [
         "id",
         "slug",
-        "created"
+        "created",
+        "modified"
     ];
 }
