@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Repository;
 using DbManifest = Models.Database.Collections.Manifest;
@@ -66,15 +66,15 @@ public class PipelineJobService(
         // Returns a job for the first recognised pipeline step; additional steps of the same type are ignored.
         foreach (var pipelineItem in pipeline)
         {
-            if (string.Equals(pipelineItem.Name, PipelineHelper.TextPipeline.Name, StringComparison.OrdinalIgnoreCase))
+            if (pipelineItem.GetJobType() is { } jobType)
             {
                 return new PipelineJob
                 {
                     ManifestId = dbManifest.Id,
-                    JobType = PipelineJobType.TextService,
+                    JobType = jobType,
                     CustomerId = dbManifest.CustomerId,
                     Status = PipelineJobStatus.NotSubmitted,
-                    Config = pipelineItem.Config,
+                    Config = PipelineHelper.SerialiseConfig(pipelineItem.Config),
                     Created = DateTime.UtcNow
                 };
             }

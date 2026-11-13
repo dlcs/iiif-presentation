@@ -1,4 +1,3 @@
-using Models.API.Manifest;
 using Models.Database.Collections;
 
 namespace Models.Database.General;
@@ -32,7 +31,11 @@ public class PipelineJob : ICustomerEntity
 
     public DateTime? Finished { get; set; }
 
-    public PipelineConfig? Config { get; set; }
+    /// <summary>
+    /// Config of the pipeline, as JSON. Use <c>PipelineHelper.GetConfig</c> to read it as the config type of the
+    /// pipeline this job is for.
+    /// </summary>
+    public string? Config { get; set; }
 
     /// <summary>
     /// Identifier for this specific invocation of the pipeline, as assigned by whatever service ran it, so a

@@ -192,7 +192,6 @@ public class PresentationContext : DbContext
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
 
             entity.Property(e => e.Config)
-                .HasConversion<PipelineConfigConverter>()
                 .HasColumnType("jsonb");
 
             // Enforces the invariant completion-notification correlation relies on: no two jobs for the same

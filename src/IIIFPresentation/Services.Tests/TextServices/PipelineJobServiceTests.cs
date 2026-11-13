@@ -1,7 +1,7 @@
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.FakeItEasy;
-using Models.API.Manifest;
+using Models.API.Manifest.Pipelines;
 using Models.Database.General;
 using Repository;
 using Services.TextServices;
@@ -29,7 +29,7 @@ public class PipelineJobServiceTests
         var dbManifest = MakeManifest();
         var pipeline = new List<PipelineItem>
         {
-            new() { Name = "text", Config = new PipelineConfig { Action = "Index" } }
+            new() { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }
         };
 
         var job = await sut.PersistPipelineJob(dbManifest, pipeline, CancellationToken.None);
@@ -39,7 +39,7 @@ public class PipelineJobServiceTests
         job.CustomerId.Should().Be(dbManifest.CustomerId);
         job.JobType.Should().Be(PipelineJobType.TextService);
         job.Status.Should().Be(PipelineJobStatus.NotSubmitted);
-        job.Config!.Action.Should().Be("Index");
+        job.GetConfig()!.Action.Should().Be("Index");
         job.InvocationId.Should().BeNull("unset here - it's read from text-services' response once submitted");
         dbManifest.PipelineJobs.Should().ContainSingle().Which.Should().BeSameAs(job);
     }
@@ -63,7 +63,7 @@ public class PipelineJobServiceTests
         var pipeline = new List<PipelineItem>
         {
             new() { Name = "unknown", Config = new PipelineConfig { Action = "Index" } },
-            new() { Name = "text", Config = new PipelineConfig { Action = "Index" } }
+            new() { Name = "text", Config = new TextPipelineConfig { Action = "Index" } }
         };
 
         var job = await sut.PersistPipelineJob(dbManifest, pipeline, CancellationToken.None);
