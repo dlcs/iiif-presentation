@@ -112,10 +112,12 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Arrange
         var collection = new PresentationCollection
         {
+            // non-presentation behaviors are dropped for storage collections
             Behavior = new List<string>
             {
                 Behavior.IsPublic,
-                Behavior.IsStorageCollection
+                Behavior.IsStorageCollection,
+                "multi-part"
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
@@ -149,14 +151,16 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Behavior.Should().BeNull("storage collections only have presentation behaviors");
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection!.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, Behavior.IsStorageCollection]);
+        responseCollection.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty, "Storage collections have empty counts");
-        
+
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
@@ -208,6 +212,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Behavior = new List<string>()
             {
                 Behavior.IsPublic,
+                "multi-part"
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
@@ -241,17 +246,19 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Tags.Should().Be("some, tags");
         fromDatabase.IsPublic.Should().BeTrue();
         fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Behavior.Should().BeEquivalentTo(["multi-part"], "presentation behaviors are stored as flags");
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View.Should().BeNull();
+        responseCollection!.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, "multi-part"]);
+        responseCollection.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
-        
+
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
-    
+
     [Fact]
     public async Task EntityCreationUnderRoot_UpdatesRootCollectionModified_ButNotOthers()
     {

@@ -10,4 +10,10 @@ public static class CollectionX
     /// <returns>true if null or empty, else false</returns>
     public static bool IsNullOrEmpty<T>([NotNullWhen(false)] this IList<T>? collection)
         => collection == null || collection.Count == 0;
+
+    /// <summary>
+    /// Get the provided list, or null if it is null or empty
+    /// </summary>
+    public static List<T>? NullIfEmpty<T>(this List<T>? collection)
+        => collection.IsNullOrEmpty() ? null : collection;
 }

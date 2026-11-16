@@ -692,7 +692,44 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         hierarchy.Type.Should().Be(ResourceType.IIIFManifest);
         hierarchy.Canonical.Should().BeTrue();
     }
-    
+
+    [Fact]
+    public async Task CreateManifest_PersistsTagsAndBehavior()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        var manifest = new PresentationManifest
+        {
+            Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
+            Slug = slug,
+            Tags = "some, tags",
+            Behavior = ["paged", "public-iiif"],
+        };
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifest.AsJson());
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.Tags.Should().Be("some, tags");
+        var id = responseManifest.Id.GetLastPathElement();
+
+        var fromDatabase = dbContext.Manifests.Single(c => c.Id == id);
+        fromDatabase.Tags.Should().Be("some, tags");
+        fromDatabase.Behavior.Should().BeEquivalentTo(["paged"], "presentation behaviors are not stored");
+
+        var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
+            $"{Customer}/manifests/{id}");
+        var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
+        s3Manifest!.Behavior.Should().BeEquivalentTo(["paged"]);
+        s3Manifest.AdditionalProperties?.Keys.Should().NotContain("tags");
+    }
+
     [Fact]
     public async Task CreateManifest_IfSpaceRequested_ReturnsManifest()
     {

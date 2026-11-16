@@ -336,7 +336,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         childManifest["created"].Value<DateTime>().Should().NotBe(default);
         childManifest["modified"].Value<DateTime>().Should().NotBe(default);
         childManifest.Should().NotContainKey("modifiedBy", "the seeded manifest has never been modified");
-        childManifest.Should().NotContainKey("tags", "manifests have no tags");
+        childManifest.Should().NotContainKey("tags", "the seeded manifest has no tags");
     }
 
     [Fact]

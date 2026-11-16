@@ -221,7 +221,27 @@ public class ManifestConverterTests
         result.CreatedBy.Should().Be("creator");
         result.ModifiedBy.Should().Be("modifier");
     }
-    
+
+    [Fact]
+    public void SetGeneratedFields_SetsTags()
+    {
+        // Arrange
+        var iiifManifest = new PresentationManifest();
+        var dbManifest = new DBManifest
+        {
+            CustomerId = 123,
+            Id = "id",
+            Tags = "some, tags",
+            Hierarchy = [new Hierarchy { Slug = "slug" }],
+        };
+
+        // Act
+        var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        result.Tags.Should().Be("some, tags");
+    }
+
     [Fact]
     public void SetGeneratedFields_SetsParentAndSlug_FromSingleHierarchyByDefault()
     {

@@ -361,7 +361,60 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         fromDatabase.ModifiedBy.Should().Be("Admin");
         fromDatabase.Label.Should().BeEquivalentTo(updatedLabel);
     }
-    
+
+    [Fact]
+    public async Task PutFlatId_Update_UpdatesTagsAndBehavior()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        dbManifest.Tags = "old, tags";
+        dbManifest.Behavior = ["paged"];
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(parent: "root", slug: dbManifest.Hierarchy.Single().Slug);
+        manifest.Tags = "new, tags";
+        manifest.Behavior = ["auto-advance", "public-iiif"];
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.Tags.Should().Be("new, tags");
+
+        var fromDatabase = dbContext.Manifests.AsNoTracking().Single(c => c.Id == dbManifest.Id);
+        fromDatabase.Tags.Should().Be("new, tags");
+        fromDatabase.Behavior.Should().BeEquivalentTo(["auto-advance"], "presentation behaviors are not stored");
+    }
+
+    [Fact]
+    public async Task PutFlatId_Update_ClearsTagsAndBehavior_WhenNotProvided()
+    {
+        // Arrange
+        var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
+        dbManifest.Tags = "old, tags";
+        dbManifest.Behavior = ["paged"];
+        await dbContext.SaveChangesAsync();
+        var manifest = dbManifest.ToPresentationManifest(parent: "root", slug: dbManifest.Hierarchy.Single().Slug);
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put, $"{Customer}/manifests/{dbManifest.Id}",
+                manifest.AsJson(), dbContext.GetETag(dbManifest));
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var fromDatabase = dbContext.Manifests.AsNoTracking().Single(c => c.Id == dbManifest.Id);
+        fromDatabase.Tags.Should().BeNull();
+        fromDatabase.Behavior.Should().BeNull();
+    }
+
     [Fact]
     public async Task PutFlatId_Update_WritesToS3()
     {

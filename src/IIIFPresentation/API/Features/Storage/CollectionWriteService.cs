@@ -11,6 +11,7 @@ using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Exceptions;
+using Core.IIIF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;
@@ -357,6 +358,11 @@ public class CollectionWriteService(
         databaseCollection.Label = incomingCollection.Label;
         databaseCollection.Thumbnail = incomingCollection.GetThumbnail();
         databaseCollection.Tags = incomingCollection.Tags;
+        // presentation behaviors are persisted as the IsPublic/IsStorageCollection flags above, so Behavior holds only
+        // the remaining behaviors. Storage collections only support presentation behaviors.
+        databaseCollection.Behavior = databaseCollection.IsStorageCollection
+            ? null
+            : incomingCollection.Behavior.WithoutPresentationBehaviours();
     }
 
     private async Task UploadToS3IfRequiredAsync(Collection collection,

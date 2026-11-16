@@ -53,6 +53,12 @@ public class Collection : IHierarchyResource
     public string? Tags { get; set; }
 
     /// <summary>
+    /// IIIF behaviors of this Collection, excluding those represented by <see cref="IsStorageCollection"/> and
+    /// <see cref="IsPublic"/>
+    /// </summary>
+    public List<string>? Behavior { get; set; }
+
+    /// <summary>
     /// Marks whether this is "folder" IIIF collection; there is no JSON stored - everything DB driven
     /// </summary>
     public bool IsStorageCollection { get; set; }

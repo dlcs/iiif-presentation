@@ -57,7 +57,8 @@ public static class ManifestConverter
         iiifManifest.Parent = pathGenerator.GenerateFlatParentId(hierarchy);
         iiifManifest.Slug = hierarchy.Slug;
         iiifManifest.Space = pathGenerator.GenerateSpaceUri(dbManifest)?.ToString();
-        
+        iiifManifest.Tags = dbManifest.Tags;
+
         if (dbManifest.IsIngesting())
         {
             iiifManifest.Ingesting = GenerateIngesting(assets);

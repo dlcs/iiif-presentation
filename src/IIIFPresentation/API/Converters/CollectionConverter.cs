@@ -103,7 +103,7 @@ public static class CollectionConverter
         GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator, settingsBasedPathGenerator);
 
         collection.Behavior ??= [];
-        collection.Behavior.AddRange(GenerateBehavior(dbCollection) ?? []);
+        collection.Behavior.AddRange(GeneratePresentationBehavior(dbCollection));
 
         return collection;
     }
@@ -191,7 +191,11 @@ public static class CollectionConverter
                 Label = hierarchy.Manifest?.Label,
             };
 
-            if (flatId && hierarchy.Manifest is { } dbManifest) manifest.AddExpandedProperties(hierarchy, dbManifest);
+            if (flatId && hierarchy.Manifest is { } dbManifest)
+            {
+                manifest.Behavior = dbManifest.Behavior.IsNullOrEmpty() ? null : dbManifest.Behavior;
+                manifest.AddExpandedProperties(hierarchy, dbManifest);
+            }
 
             return manifest;
         }
@@ -206,7 +210,7 @@ public static class CollectionConverter
         {
             var dbCollection = hierarchy.Collection!;
             collection.Behavior = GenerateBehavior(dbCollection);
-            collection.AddExpandedProperties(hierarchy, dbCollection, dbCollection.Tags);
+            collection.AddExpandedProperties(hierarchy, dbCollection);
         }
 
         return collection;
@@ -221,8 +225,7 @@ public static class CollectionConverter
     /// plain IIIF types rather than our extended <see cref="PresentationCollection"/>, so they ride along in
     /// AdditionalProperties. Names match the equivalent properties on <see cref="PresentationCollection"/>.
     /// </remarks>
-    private static void AddExpandedProperties(this JsonLdBase item, Hierarchy hierarchy, IHierarchyResource resource,
-        string? tags = null)
+    private static void AddExpandedProperties(this JsonLdBase item, Hierarchy hierarchy, IHierarchyResource resource)
     {
         item.AdditionalProperties["slug"] = hierarchy.Slug;
         item.AdditionalProperties["created"] = resource.Created.ToSecondPrecision();
@@ -230,7 +233,7 @@ public static class CollectionConverter
 
         if (!string.IsNullOrEmpty(resource.CreatedBy)) item.AdditionalProperties["createdBy"] = resource.CreatedBy;
         if (!string.IsNullOrEmpty(resource.ModifiedBy)) item.AdditionalProperties["modifiedBy"] = resource.ModifiedBy;
-        if (!string.IsNullOrEmpty(tags)) item.AdditionalProperties["tags"] = tags;
+        if (!string.IsNullOrEmpty(resource.Tags)) item.AdditionalProperties["tags"] = resource.Tags;
     }
 
     /// <summary>
@@ -271,18 +274,28 @@ public static class CollectionConverter
     }
 
     /// <summary>
-    /// Generates a list of behaviors for a collection
+    /// Generates a list of behaviors for a collection, combining the presentation behaviors derived from
+    /// <see cref="DbCollection.IsPublic"/> and <see cref="DbCollection.IsStorageCollection"/> with the remaining
+    /// behaviors stored in <see cref="DbCollection.Behavior"/>
     /// </summary>
     /// <param name="collection">The database collection to use</param>
-    /// <returns>A list of behaviors</returns>
+    /// <returns>A list of behaviors, or null if there are none</returns>
     internal static List<string>? GenerateBehavior(DbCollection collection)
     {
-        var behaviours = new List<string>()
-            .AppendIf(collection.IsPublic, Behavior.IsPublic)
-            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
+        var behaviours = GeneratePresentationBehavior(collection);
+        behaviours.AddRange(collection.Behavior ?? []);
 
         return behaviours.Any() ? behaviours : null;
     }
+
+    /// <summary>
+    /// Generates the presentation-specific behaviors (public, storage-collection) for a collection from its database
+    /// flags
+    /// </summary>
+    private static List<string> GeneratePresentationBehavior(DbCollection collection) =>
+        new List<string>()
+            .AppendIf(collection.IsPublic, Behavior.IsPublic)
+            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
 
     /// <summary>
     /// Generates the PartOf field for a collection

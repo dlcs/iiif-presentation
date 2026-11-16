@@ -6,11 +6,19 @@ namespace Core.IIIF;
 
 public static class BehaviorHelper
 {
+    private static readonly string[] PresentationBehaviours = [Behavior.IsStorageCollection, Behavior.IsPublic];
+
     public static void RemovePresentationBehaviours(this ResourceBase iiifResource)
     {
-        var toRemove = new[] { Behavior.IsStorageCollection, Behavior.IsPublic };
         if (iiifResource.Behavior.IsNullOrEmpty()) return;
-        
-        iiifResource.Behavior = iiifResource.Behavior.Where(b => !toRemove.Contains(b)).ToList();
+
+        iiifResource.Behavior = iiifResource.Behavior.Where(b => !PresentationBehaviours.Contains(b)).ToList();
     }
+
+    /// <summary>
+    /// Get the provided behaviors, excluding the presentation-specific behaviors (public, storage-collection)
+    /// </summary>
+    /// <returns>Filtered list of behaviors, or null if there are none remaining</returns>
+    public static List<string>? WithoutPresentationBehaviours(this IEnumerable<string>? behaviours)
+        => behaviours?.Where(b => !PresentationBehaviours.Contains(b)).ToList().NullIfEmpty();
 }

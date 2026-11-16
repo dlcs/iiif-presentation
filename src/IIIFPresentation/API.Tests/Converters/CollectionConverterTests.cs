@@ -473,7 +473,41 @@ public class CollectionConverterTests
         presentationCollectionWithFields.PartOf![0].Id.Should().Be("http://base/0/collections/theparent");
         presentationCollectionWithFields.Behavior.IsPublic().Should().BeTrue();
     }
-    
+
+    [Fact]
+    public void SetGeneratedFields_DoesNotDuplicateStoredBehaviors()
+    {
+        // Arrange - the IIIF collection read from S3 already contains its non-presentation behaviors
+        var presentationCollection = CreateTestPresentationCollection();
+        presentationCollection.Behavior = ["multi-part"];
+        var dbCollection = CreateTestHierarchicalCollection(false, true);
+        dbCollection.Behavior = ["multi-part"];
+
+        // Act
+        var presentationCollectionWithFields = presentationCollection.SetIIIFGeneratedFields(dbCollection, null,
+            pathGenerator, settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollectionWithFields.Behavior.Should()
+            .BeEquivalentTo(["multi-part", Core.Infrastructure.Behavior.IsPublic]);
+    }
+
+    [Fact]
+    public void ToPresentationCollection_IncludesStoredBehaviors()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection(isStorageCollection: false, isPublic: true);
+        collection.Behavior = ["multi-part"];
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 0, null, null, pathGenerator,
+            settingsBasedPathGenerator);
+
+        // Assert
+        presentationCollection.Behavior.Should().BeEquivalentTo(
+            [Core.Infrastructure.Behavior.IsPublic, "multi-part"], o => o.WithStrictOrdering());
+    }
+
     [Fact]
     public void ToPresentationCollection_ConvertsCollectionWithRedirectedPublicId_WhenUsingSettingsBasedCustomer()
     {
@@ -721,7 +755,7 @@ public class CollectionConverterTests
     }
 
     [Fact]
-    public void ToPresentationCollection_ManifestItems_HaveExpandedProperties_ButNoTags()
+    public void ToPresentationCollection_ManifestItems_HaveExpandedProperties()
     {
         // Arrange
         var collection = CreateTestHierarchicalCollection();
@@ -738,7 +772,26 @@ public class CollectionConverterTests
         item.GetExpanded("modified").Should().Be(ExpectedItemModified);
         item.GetExpanded("createdBy").Should().Be("Admin");
         item.GetExpanded("modifiedBy").Should().Be("Modifier");
-        ((JsonLdBase)item).AdditionalProperties.Should().NotContainKey("tags", "manifests have no tags");
+        item.GetExpanded("tags").Should().Be("manifest, tags");
+        ((IIIF.Presentation.V3.Manifest)item).Behavior.Should().BeEquivalentTo(["paged"]);
+    }
+
+    [Fact]
+    public void ToPresentationCollection_CollectionItems_HaveFlagAndStoredBehaviors()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        var items = CreateTestItems();
+        items[0].Collection!.Behavior = ["multi-part"];
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
+            settingsBasedPathGenerator);
+
+        // Assert
+        var item = presentationCollection.Items.Should().ContainSingle().Subject;
+        ((IIIF.Presentation.V3.Collection)item).Behavior.Should()
+            .BeEquivalentTo([Core.Infrastructure.Behavior.IsPublic, "multi-part"], o => o.WithStrictOrdering());
     }
 
     [Fact]
@@ -761,6 +814,25 @@ public class CollectionConverterTests
         additionalProperties.Should().NotContainKey("createdBy");
         additionalProperties.Should().NotContainKey("modifiedBy");
         additionalProperties.Should().NotContainKey("tags");
+    }
+
+    [Fact]
+    public void ToPresentationCollection_ManifestItems_OmitOptionalProperties_WhenNotSet()
+    {
+        // Arrange
+        var collection = CreateTestHierarchicalCollection();
+        var items = CreateTestManifestItems();
+        items[0].Manifest!.Tags = null;
+        items[0].Manifest!.Behavior = null;
+
+        // Act
+        var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
+            settingsBasedPathGenerator);
+
+        // Assert
+        var item = (IIIF.Presentation.V3.Manifest)presentationCollection.Items.Single();
+        item.AdditionalProperties.Should().NotContainKey("tags");
+        item.Behavior.Should().BeNull();
     }
 
     [Fact]
@@ -840,6 +912,8 @@ public class CollectionConverterTests
                     Modified = ItemModified,
                     CreatedBy = "Admin",
                     ModifiedBy = "Modifier",
+                    Tags = "manifest, tags",
+                    Behavior = ["paged"],
                 }
             }
         };
