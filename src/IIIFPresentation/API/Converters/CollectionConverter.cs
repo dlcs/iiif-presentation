@@ -193,7 +193,7 @@ public static class CollectionConverter
 
             if (flatId && hierarchy.Manifest is { } dbManifest)
             {
-                manifest.Behavior = dbManifest.Behavior.IsNullOrEmpty() ? null : dbManifest.Behavior;
+                manifest.Behavior = dbManifest.Behavior.NullIfEmpty();
                 manifest.AddExpandedProperties(hierarchy, dbManifest);
             }
 
