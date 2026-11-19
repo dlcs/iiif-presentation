@@ -6,41 +6,42 @@ namespace Core.Tests.IIIF;
 public class BehaviorHelperTests
 {
     [Fact]
-    public void WithoutPresentationBehaviours_ReturnsNull_WhenNull()
+    public void OnlyPresentationBehaviours_ReturnsNull_WhenNull()
     {
         // Arrange
         List<string>? behaviours = null;
 
         // Act
-        var result = behaviours.WithoutPresentationBehaviours();
+        var result = behaviours.OnlyPresentationBehaviours();
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public void WithoutPresentationBehaviours_ReturnsNull_WhenOnlyPresentationBehaviours()
+    public void OnlyPresentationBehaviours_ReturnsNull_WhenNoPresentationBehaviours()
     {
         // Arrange
-        List<string> behaviours = [Behavior.IsPublic, Behavior.IsStorageCollection];
+        List<string> behaviours = ["paged", "auto-advance"];
 
         // Act
-        var result = behaviours.WithoutPresentationBehaviours();
+        var result = behaviours.OnlyPresentationBehaviours();
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public void WithoutPresentationBehaviours_RemovesPresentationBehaviours()
+    public void OnlyPresentationBehaviours_KeepsOnlyPresentationBehaviours()
     {
         // Arrange
         List<string> behaviours = ["paged", Behavior.IsPublic, "auto-advance", Behavior.IsStorageCollection];
 
         // Act
-        var result = behaviours.WithoutPresentationBehaviours();
+        var result = behaviours.OnlyPresentationBehaviours();
 
         // Assert
-        result.Should().BeEquivalentTo(["paged", "auto-advance"], o => o.WithStrictOrdering());
+        result.Should().BeEquivalentTo([Behavior.IsPublic, Behavior.IsStorageCollection],
+            o => o.WithStrictOrdering());
     }
 }

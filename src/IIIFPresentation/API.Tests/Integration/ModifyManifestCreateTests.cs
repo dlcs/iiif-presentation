@@ -187,8 +187,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
+            Tags = ["some", "tags"],
             CustomerId = 1,
             Hierarchy =
             [
@@ -234,7 +233,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = false,
             CustomerId = 1,
             Hierarchy =
             [
@@ -702,7 +700,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         {
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Slug = slug,
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             Behavior = ["paged", "public-iiif"],
         };
 
@@ -716,11 +714,11 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        responseManifest!.Tags.Should().Be("some, tags");
+        responseManifest!.Tags.Should().Equal("some", "tags");
         var id = responseManifest.Id.GetLastPathElement();
 
         var fromDatabase = dbContext.Manifests.Single(c => c.Id == id);
-        fromDatabase.Tags.Should().Be("some, tags");
+        fromDatabase.Tags.Should().Equal("some", "tags");
         fromDatabase.Behavior.Should().BeEquivalentTo(["paged"], "presentation behaviors are not stored");
 
         var savedS3 = await amazonS3.GetObjectAsync(LocalStackFixture.StorageBucketName,
@@ -728,6 +726,36 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
         var s3Manifest = savedS3.ResponseStream.FromJsonStream<IIIF.Presentation.V3.Manifest>();
         s3Manifest!.Behavior.Should().BeEquivalentTo(["paged"]);
         s3Manifest.AdditionalProperties?.Keys.Should().NotContain("tags");
+    }
+
+    [Fact]
+    public async Task CreateManifest_SplitsTags_WhenProvidedAsString()
+    {
+        // Arrange
+        var slug = TestIdentifiers.Slug();
+        var manifestJson = $$"""
+                             {
+                                 "type": "Manifest",
+                                 "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
+                                 "slug": "{{slug}}",
+                                 "tags": "some, tags"
+                             }
+                             """;
+
+        var requestMessage =
+            HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/manifests", manifestJson);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.Tags.Should().Equal("some", "tags");
+
+        var fromDatabase = dbContext.Manifests.Single(c => c.Id == responseManifest.Id.GetLastPathElement());
+        fromDatabase.Tags.Should().Equal("some", "tags");
     }
 
     [Fact]
@@ -1166,8 +1194,7 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
+            Tags = ["some", "tags"],
             CustomerId = 1,
             Hierarchy =
             [
@@ -1213,7 +1240,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = false,
             CustomerId = 1,
             Hierarchy =
             [
@@ -1259,7 +1285,6 @@ public class ModifyManifestCreateTests : IClassFixture<PresentationAppFactory<Pr
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = false,
             CustomerId = 1,
             Hierarchy =
             [

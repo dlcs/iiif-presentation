@@ -1,4 +1,5 @@
 ﻿using API.Converters;
+using Newtonsoft.Json.Linq;
 using API.Features.Storage.Helpers;
 using Core.Helpers;
 using DLCS;
@@ -15,6 +16,7 @@ using Services.Manifests.Settings;
 using Test.Helpers.Helpers;
 using Collection = Models.Database.Collections.Collection;
 using TestPathGenerator = API.Tests.Helpers.TestPathGenerator;
+using Core.Infrastructure;
 
 #nullable disable
 
@@ -60,7 +62,7 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = true,
+            Behavior = [Behavior.IsStorageCollection],
             Hierarchy = [
                 new Hierarchy
                 {
@@ -177,7 +179,7 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = true,
+            Behavior = [Behavior.IsStorageCollection],
             Hierarchy = [
                 new Hierarchy
                 {
@@ -336,7 +338,7 @@ public class CollectionConverterTests
             CustomerId = CustomerId,
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = true,
+            Behavior = [Behavior.IsStorageCollection],
             Hierarchy = [
                 new Hierarchy
                 {
@@ -368,7 +370,6 @@ public class CollectionConverterTests
             CustomerId = CustomerId,
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = false,
             Hierarchy = [
                 new Hierarchy
                 {
@@ -481,7 +482,7 @@ public class CollectionConverterTests
         var presentationCollection = CreateTestPresentationCollection();
         presentationCollection.Behavior = ["multi-part"];
         var dbCollection = CreateTestHierarchicalCollection(false, true);
-        dbCollection.Behavior = ["multi-part"];
+        dbCollection.Behavior!.Add("multi-part");
 
         // Act
         var presentationCollectionWithFields = presentationCollection.SetIIIFGeneratedFields(dbCollection, null,
@@ -497,7 +498,7 @@ public class CollectionConverterTests
     {
         // Arrange
         var collection = CreateTestHierarchicalCollection(isStorageCollection: false, isPublic: true);
-        collection.Behavior = ["multi-part"];
+        collection.Behavior!.Add("multi-part");
 
         // Act
         var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 0, null, null, pathGenerator,
@@ -640,14 +641,14 @@ public class CollectionConverterTests
     {
         // Arrange
         var collection = CreateTestHierarchicalCollection(true, true);
-        collection.Tags = "some, tags";
+        collection.Tags = ["some", "tags"];
 
         // Act
         var searchCollection = collection.ToSearchCollection("medicine", PageSize, 1, 1, CreateTestItems(),
             pathGenerator);
 
         // Assert
-        searchCollection.Tags.Should().Be("some, tags");
+        searchCollection.Tags.Should().Equal("some", "tags");
     }
 
     [Fact]
@@ -751,7 +752,7 @@ public class CollectionConverterTests
         item.GetExpanded("modified").Should().Be(ExpectedItemModified);
         item.GetExpanded("createdBy").Should().Be("Admin");
         item.GetExpanded("modifiedBy").Should().Be("Modifier");
-        item.GetExpanded("tags").Should().Be("some, tags");
+        item.GetExpanded("tags").Should().BeOfType<JArray>().Which.Values<string>().Should().Equal("some", "tags");
     }
 
     [Fact]
@@ -772,17 +773,17 @@ public class CollectionConverterTests
         item.GetExpanded("modified").Should().Be(ExpectedItemModified);
         item.GetExpanded("createdBy").Should().Be("Admin");
         item.GetExpanded("modifiedBy").Should().Be("Modifier");
-        item.GetExpanded("tags").Should().Be("manifest, tags");
+        item.GetExpanded("tags").Should().BeOfType<JArray>().Which.Values<string>().Should().Equal("manifest", "tags");
         ((IIIF.Presentation.V3.Manifest)item).Behavior.Should().BeEquivalentTo(["paged"]);
     }
 
     [Fact]
-    public void ToPresentationCollection_CollectionItems_HaveFlagAndStoredBehaviors()
+    public void ToPresentationCollection_CollectionItems_HaveStoredBehaviors()
     {
         // Arrange
         var collection = CreateTestHierarchicalCollection();
         var items = CreateTestItems();
-        items[0].Collection!.Behavior = ["multi-part"];
+        items[0].Collection!.Behavior!.Add("multi-part");
 
         // Act
         var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
@@ -852,7 +853,7 @@ public class CollectionConverterTests
         item.GetExpanded("modified").Should().Be(ExpectedItemModified);
         item.GetExpanded("createdBy").Should().Be("Admin");
         item.GetExpanded("modifiedBy").Should().Be("Modifier");
-        item.GetExpanded("tags").Should().Be("some, tags");
+        item.GetExpanded("tags").Should().BeOfType<JArray>().Which.Values<string>().Should().Equal("some", "tags");
     }
 
     [Fact]
@@ -881,12 +882,12 @@ public class CollectionConverterTests
                 Collection = new Collection
                 {
                     Id = "someId",
-                    IsPublic = true,
+                    Behavior = [Behavior.IsPublic],
                     Created = ItemCreated,
                     Modified = ItemModified,
                     CreatedBy = "Admin",
                     ModifiedBy = "Modifier",
-                    Tags = "some, tags",
+                    Tags = ["some", "tags"],
                 }
             }
         };
@@ -912,7 +913,7 @@ public class CollectionConverterTests
                     Modified = ItemModified,
                     CreatedBy = "Admin",
                     ModifiedBy = "Modifier",
-                    Tags = "manifest, tags",
+                    Tags = ["manifest", "tags"],
                     Behavior = ["paged"],
                 }
             }
@@ -933,8 +934,9 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = isStorageCollection,
-            IsPublic = isPublic,
+            Behavior = new List<string>()
+                .AppendIf(isPublic, Behavior.IsPublic)
+                .AppendIf(isStorageCollection, Behavior.IsStorageCollection),
             Hierarchy =
             [
                 new Hierarchy
@@ -965,7 +967,7 @@ public class CollectionConverterTests
             },
             Created = DateTime.MinValue,
             Modified = DateTime.MinValue,
-            IsStorageCollection = true,
+            Behavior = [Behavior.IsStorageCollection],
             Hierarchy = [
                 new Hierarchy
                 {

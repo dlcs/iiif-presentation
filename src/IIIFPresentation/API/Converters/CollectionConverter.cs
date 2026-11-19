@@ -1,4 +1,5 @@
-﻿using API.Helpers;
+﻿using API.Features.Storage.Helpers;
+using API.Helpers;
 using Core.Helpers;
 using IIIF;
 using Core.IIIF;
@@ -10,6 +11,7 @@ using IIIF.Presentation.V3.Strings;
 using Models.API.Collection;
 using Models.Database.Collections;
 using Models.Database.General;
+using Newtonsoft.Json.Linq;
 using Repository.Helpers;
 using Repository.Paths;
 using Services.Manifests.Helpers;
@@ -103,7 +105,7 @@ public static class CollectionConverter
         GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator, settingsBasedPathGenerator);
 
         collection.Behavior ??= [];
-        collection.Behavior.AddRange(GeneratePresentationBehavior(dbCollection));
+        collection.Behavior.AddRange(dbCollection.Behavior.OnlyPresentationBehaviours() ?? []);
 
         return collection;
     }
@@ -139,12 +141,12 @@ public static class CollectionConverter
         
         collection.SeeAlso = GenerateSeeAlso(dbCollection, settingsBasedPathGenerator, pathGenerator);
         collection.Service = GenerateService(dbCollection, pathGenerator);
-        collection.Behavior = GenerateBehavior(dbCollection);
+        collection.Behavior = dbCollection.Behavior.NullIfEmpty();
         collection.Totals = GetDescendantCounts(dbCollection, items);
         collection.Label = dbCollection.Label;
         
         // this is to stop IIIF collections having storage collection only fields
-        if (dbCollection.IsStorageCollection)
+        if (dbCollection.Behavior.IsStorageCollection())
         {
             collection.Items = GenerateItems(pathGenerator, items);
             collection.TotalItems = totalItems;
@@ -191,11 +193,7 @@ public static class CollectionConverter
                 Label = hierarchy.Manifest?.Label,
             };
 
-            if (flatId && hierarchy.Manifest is { } dbManifest)
-            {
-                manifest.Behavior = dbManifest.Behavior.NullIfEmpty();
-                manifest.AddExpandedProperties(hierarchy, dbManifest);
-            }
+            if (flatId && hierarchy.Manifest is { } dbManifest) manifest.AddExpandedProperties(hierarchy, dbManifest);
 
             return manifest;
         }
@@ -206,34 +204,31 @@ public static class CollectionConverter
             Label = hierarchy.Collection?.Label,
         };
 
-        if (flatId)
-        {
-            var dbCollection = hierarchy.Collection!;
-            collection.Behavior = GenerateBehavior(dbCollection);
-            collection.AddExpandedProperties(hierarchy, dbCollection);
-        }
+        if (flatId) collection.AddExpandedProperties(hierarchy, hierarchy.Collection!);
 
         return collection;
     }
 
     /// <summary>
-    /// Adds the extended, non-IIIF properties that authenticated "items" listings (storage collections and search
-    /// results) expose for each child resource.
+    /// Adds the properties that authenticated "items" listings (storage collections and search results) expose for
+    /// each child resource.
     /// </summary>
     /// <remarks>
-    /// These aren't part of the IIIF Presentation spec, and <see cref="Collection"/>/<see cref="Manifest"/> are the
-    /// plain IIIF types rather than our extended <see cref="PresentationCollection"/>, so they ride along in
-    /// AdditionalProperties. Names match the equivalent properties on <see cref="PresentationCollection"/>.
+    /// Other than behavior, these aren't part of the IIIF Presentation spec, and <see cref="Collection"/>/
+    /// <see cref="Manifest"/> are the plain IIIF types rather than our extended <see cref="PresentationCollection"/>,
+    /// so they ride along in AdditionalProperties. Names match the equivalent properties on
+    /// <see cref="PresentationCollection"/>.
     /// </remarks>
-    private static void AddExpandedProperties(this JsonLdBase item, Hierarchy hierarchy, IHierarchyResource resource)
+    private static void AddExpandedProperties(this ResourceBase item, Hierarchy hierarchy, IHierarchyResource resource)
     {
+        item.Behavior = resource.Behavior.NullIfEmpty();
         item.AdditionalProperties["slug"] = hierarchy.Slug;
         item.AdditionalProperties["created"] = resource.Created.ToSecondPrecision();
         item.AdditionalProperties["modified"] = resource.Modified.ToSecondPrecision();
 
         if (!string.IsNullOrEmpty(resource.CreatedBy)) item.AdditionalProperties["createdBy"] = resource.CreatedBy;
         if (!string.IsNullOrEmpty(resource.ModifiedBy)) item.AdditionalProperties["modifiedBy"] = resource.ModifiedBy;
-        if (!string.IsNullOrEmpty(resource.Tags)) item.AdditionalProperties["tags"] = resource.Tags;
+        if (!resource.Tags.IsNullOrEmpty()) item.AdditionalProperties["tags"] = new JArray(resource.Tags);
     }
 
     /// <summary>
@@ -274,30 +269,6 @@ public static class CollectionConverter
     }
 
     /// <summary>
-    /// Generates a list of behaviors for a collection, combining the presentation behaviors derived from
-    /// <see cref="DbCollection.IsPublic"/> and <see cref="DbCollection.IsStorageCollection"/> with the remaining
-    /// behaviors stored in <see cref="DbCollection.Behavior"/>
-    /// </summary>
-    /// <param name="collection">The database collection to use</param>
-    /// <returns>A list of behaviors, or null if there are none</returns>
-    internal static List<string>? GenerateBehavior(DbCollection collection)
-    {
-        var behaviours = GeneratePresentationBehavior(collection);
-        behaviours.AddRange(collection.Behavior ?? []);
-
-        return behaviours.Any() ? behaviours : null;
-    }
-
-    /// <summary>
-    /// Generates the presentation-specific behaviors (public, storage-collection) for a collection from its database
-    /// flags
-    /// </summary>
-    private static List<string> GeneratePresentationBehavior(DbCollection collection) =>
-        new List<string>()
-            .AppendIf(collection.IsPublic, Behavior.IsPublic)
-            .AppendIf(collection.IsStorageCollection, Behavior.IsStorageCollection);
-
-    /// <summary>
     /// Generates the PartOf field for a collection
     /// </summary>
     /// <param name="collection">The collection required</param>
@@ -326,11 +297,11 @@ public static class CollectionConverter
     private static List<ExternalResource>? GenerateSeeAlso(DbCollection collection, 
         SettingsBasedPathGenerator settingsBasedPathGenerator, IPathGenerator pathGenerator)
     {
-        if (!collection.IsStorageCollection) return null;
+        if (!collection.Behavior.IsStorageCollection()) return null;
         
         var seeAlso = new List<ExternalResource>();
 
-        if (collection.IsPublic)
+        if (collection.Behavior.IsPublic())
         {
             // if the collection is public, include the canonical path
             // NOTE that this will need changed when we implement canonical paths
@@ -360,7 +331,7 @@ public static class CollectionConverter
     private static List<IService>? GenerateService(DbCollection collection, IPathGenerator pathGenerator)
     {
         // only the root storage collection can be searched for now
-        if (!collection.IsStorageCollection || !collection.IsRoot()) return null;
+        if (!collection.Behavior.IsStorageCollection() || !collection.IsRoot()) return null;
 
         return
         [
@@ -457,7 +428,7 @@ public static class CollectionConverter
 
     private static DescendantCounts? GetDescendantCounts(DbCollection dbAsset, IList<Hierarchy>? items)
     {
-        if (!dbAsset.IsStorageCollection) return null;
+        if (!dbAsset.Behavior.IsStorageCollection()) return null;
         if (items.IsNullOrEmpty()) return DescendantCounts.Empty;
 
         var grouping = items.GroupBy(k => k.Type)

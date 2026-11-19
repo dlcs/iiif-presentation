@@ -13,7 +13,7 @@ using Repository;
 namespace Repository.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20261113154330_Add tags and behavior")]
+    [Migration("20261118161035_Add tags and behavior")]
     partial class Addtagsandbehavior
     {
         /// <inheritdoc />
@@ -150,14 +150,6 @@ namespace Repository.Migrations
                         .HasColumnName("etag")
                         .HasComputedColumnSql("deterministic_uuid_sha256(\"modified\", \"id\")", true);
 
-                    b.Property<bool>("IsPublic")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_public");
-
-                    b.Property<bool>("IsStorageCollection")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_storage_collection");
-
                     b.Property<string>("Label")
                         .HasColumnType("jsonb")
                         .HasColumnName("label");
@@ -174,8 +166,8 @@ namespace Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("modified_by");
 
-                    b.Property<string>("Tags")
-                        .HasColumnType("text")
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .HasColumnType("text[]")
                         .HasColumnName("tags");
 
                     b.Property<string>("Thumbnail")
@@ -244,8 +236,8 @@ namespace Repository.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("space_id");
 
-                    b.Property<string>("Tags")
-                        .HasColumnType("text")
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .HasColumnType("text[]")
                         .HasColumnName("tags");
 
                     b.HasKey("Id", "CustomerId")

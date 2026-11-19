@@ -231,7 +231,7 @@ public class ManifestConverterTests
         {
             CustomerId = 123,
             Id = "id",
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             Hierarchy = [new Hierarchy { Slug = "slug" }],
         };
 
@@ -239,7 +239,7 @@ public class ManifestConverterTests
         var result = iiifManifest.SetGeneratedFields(dbManifest, pathGenerator, settingsBasedPathGenerator);
 
         // Assert
-        result.Tags.Should().Be("some, tags");
+        result.Tags.Should().Equal("some", "tags");
     }
 
     [Fact]

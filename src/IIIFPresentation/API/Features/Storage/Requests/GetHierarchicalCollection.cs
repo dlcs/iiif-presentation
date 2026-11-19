@@ -42,7 +42,7 @@ public class GetHierarchicalCollectionHandler(
             return CollectionWithItems.Empty;
         }
 
-        if (!request.Hierarchy.Collection.IsPublic) return CollectionWithItems.Empty;
+        if (!request.Hierarchy.Collection.Behavior.IsPublic()) return CollectionWithItems.Empty;
 
         if (request.Hierarchy.Type != ResourceType.StorageCollection)
         {

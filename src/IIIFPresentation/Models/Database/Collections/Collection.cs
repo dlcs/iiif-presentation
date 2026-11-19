@@ -50,23 +50,13 @@ public class Collection : IHierarchyResource
     /// <summary>
     /// Arbitrary strings to tag manifest, used to create virtual collections
     /// </summary>
-    public string? Tags { get; set; }
+    public List<string>? Tags { get; set; }
 
     /// <summary>
-    /// IIIF behaviors of this Collection, excluding those represented by <see cref="IsStorageCollection"/> and
-    /// <see cref="IsPublic"/>
+    /// IIIF behaviors of this Collection, including the presentation-specific "public-iiif" (collection is publicly
+    /// available) and "storage-collection" ("folder" collection with no stored JSON - everything DB driven)
     /// </summary>
     public List<string>? Behavior { get; set; }
-
-    /// <summary>
-    /// Marks whether this is "folder" IIIF collection; there is no JSON stored - everything DB driven
-    /// </summary>
-    public bool IsStorageCollection { get; set; }
-
-    /// <summary>
-    /// Whether the collection is publicly available
-    /// </summary>
-    public bool IsPublic { get; set; }
 
     /// <summary>
     /// The customer identifier

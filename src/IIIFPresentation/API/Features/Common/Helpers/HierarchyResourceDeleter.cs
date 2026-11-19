@@ -78,7 +78,7 @@ public class HierarchyResourceDeleter(
         
         dbContext.Remove(collection);
 
-        if (!collection.IsStorageCollection)
+        if (!collection.Behavior.IsStorageCollection())
         {
             await iiifS3.DeleteIIIFFromS3(resource);
         }

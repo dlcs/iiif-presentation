@@ -1,4 +1,5 @@
 ﻿using IIIF.Presentation.V3.Strings;
+using Models.API.General;
 using Models.API.Manifest.Pipelines;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -62,7 +63,9 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// <summary>
     /// Arbitrary tags for this manifest
     /// </summary>
-    [JsonProperty(Order = 18)] public string? Tags { get; set; }
+    [JsonProperty(Order = 18)]
+    [JsonConverter(typeof(TagsConverter))]
+    public List<string>? Tags { get; set; }
 }
 
 /// <summary>

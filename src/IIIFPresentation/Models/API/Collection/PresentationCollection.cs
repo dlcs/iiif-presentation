@@ -1,4 +1,5 @@
 ﻿
+using Models.API.General;
 using Newtonsoft.Json;
 
 namespace Models.API.Collection;
@@ -31,7 +32,9 @@ public class PresentationCollection : IIIF.Presentation.V3.Collection, IPresenta
 
     [JsonProperty(Order = 13)] public int? TotalItems { get; set; }
     
-    [JsonProperty(Order = 14)] public string? Tags { get; set; }
+    [JsonProperty(Order = 14)]
+    [JsonConverter(typeof(TagsConverter))]
+    public List<string>? Tags { get; set; }
     
     [JsonProperty(Order = 15)] public DescendantCounts? Totals { get; set; }
 

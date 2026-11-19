@@ -16,6 +16,7 @@ using Repository;
 using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
+using API.Features.Storage.Helpers;
 
 namespace API.Tests.Integration;
 
@@ -191,7 +192,7 @@ public class ModifyRootCollectionTests: IClassFixture<PresentationAppFactory<Pro
         var fromDb =
             await dbContext.Collections.SingleAsync(c =>
                 c.Id == KnownCollections.RootCollection && c.CustomerId == customer);
-        fromDb.IsPublic.Should().BeFalse();
+        fromDb.Behavior.IsPublic().Should().BeFalse();
     }
     
     [Fact]

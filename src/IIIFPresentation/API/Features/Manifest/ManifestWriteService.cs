@@ -368,7 +368,7 @@ public class ManifestWriteService(
             Modified = timeStamp,
             CreatedBy = Authorizer.GetUser(),
             Label = request.PresentationManifest.Label,
-            Tags = request.PresentationManifest.Tags,
+            Tags = request.PresentationManifest.Tags.NullIfEmpty(),
             Behavior = request.PresentationManifest.Behavior.NullIfEmpty(),
             Hierarchy =
             [
@@ -394,7 +394,7 @@ public class ManifestWriteService(
         ParsedParentSlug parsedParentSlug, DbManifest existingManifest, int? manifestSpace, CancellationToken cancellationToken)
     {
         existingManifest.Label = request.PresentationManifest.Label;
-        existingManifest.Tags = request.PresentationManifest.Tags;
+        existingManifest.Tags = request.PresentationManifest.Tags.NullIfEmpty();
         existingManifest.Behavior = request.PresentationManifest.Behavior.NullIfEmpty();
 
         existingManifest.Modified = DateTime.UtcNow;

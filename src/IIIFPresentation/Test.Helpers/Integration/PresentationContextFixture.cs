@@ -8,6 +8,7 @@ using Repository;
 using Repository.Helpers;
 using Test.Helpers.Helpers;
 using Testcontainers.PostgreSql;
+using Core.Infrastructure;
 
 namespace Test.Helpers.Integration;
 
@@ -67,9 +68,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -95,9 +95,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -124,9 +123,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -153,9 +151,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -182,9 +179,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -211,9 +207,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic],
             CustomerId = CustomerId,
             Hierarchy =
             [
@@ -280,9 +275,8 @@ public class PresentationContextFixture : IAsyncLifetime
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = 10,
             Hierarchy =
             [

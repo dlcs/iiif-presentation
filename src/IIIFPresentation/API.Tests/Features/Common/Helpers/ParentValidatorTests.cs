@@ -2,6 +2,7 @@
 using FakeItEasy;
 using Models.Database.Collections;
 using Repository.Paths;
+using Core.Infrastructure;
 
 namespace API.Tests.Features.Common.Helpers;
 
@@ -14,7 +15,7 @@ public class ParentValidatorTests
         var parentCollection = new Collection()
         {
             Id = "someId",
-            IsStorageCollection = true
+            Behavior = [Behavior.IsStorageCollection]
         };
         
         // Act

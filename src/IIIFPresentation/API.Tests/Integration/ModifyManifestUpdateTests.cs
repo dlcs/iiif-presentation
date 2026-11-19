@@ -367,11 +367,11 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
-        dbManifest.Tags = "old, tags";
+        dbManifest.Tags = ["old", "tags"];
         dbManifest.Behavior = ["paged"];
         await dbContext.SaveChangesAsync();
         var manifest = dbManifest.ToPresentationManifest(parent: "root", slug: dbManifest.Hierarchy.Single().Slug);
-        manifest.Tags = "new, tags";
+        manifest.Tags = ["new", "tags"];
         manifest.Behavior = ["auto-advance", "public-iiif"];
 
         var requestMessage =
@@ -384,10 +384,10 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
-        responseManifest!.Tags.Should().Be("new, tags");
+        responseManifest!.Tags.Should().Equal("new", "tags");
 
         var fromDatabase = dbContext.Manifests.AsNoTracking().Single(c => c.Id == dbManifest.Id);
-        fromDatabase.Tags.Should().Be("new, tags");
+        fromDatabase.Tags.Should().Equal("new", "tags");
         fromDatabase.Behavior.Should().BeEquivalentTo(["auto-advance"], "presentation behaviors are not stored");
     }
 
@@ -396,7 +396,7 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
     {
         // Arrange
         var dbManifest = (await dbContext.Manifests.AddTestManifest()).Entity;
-        dbManifest.Tags = "old, tags";
+        dbManifest.Tags = ["old", "tags"];
         dbManifest.Behavior = ["paged"];
         await dbContext.SaveChangesAsync();
         var manifest = dbManifest.ToPresentationManifest(parent: "root", slug: dbManifest.Hierarchy.Single().Slug);

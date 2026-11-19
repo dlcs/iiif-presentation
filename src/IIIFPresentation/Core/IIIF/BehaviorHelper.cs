@@ -16,9 +16,9 @@ public static class BehaviorHelper
     }
 
     /// <summary>
-    /// Get the provided behaviors, excluding the presentation-specific behaviors (public, storage-collection)
+    /// Get only the presentation-specific behaviors (public, storage-collection) from the provided behaviors
     /// </summary>
-    /// <returns>Filtered list of behaviors, or null if there are none remaining</returns>
-    public static List<string>? WithoutPresentationBehaviours(this IEnumerable<string>? behaviours)
-        => behaviours?.Where(b => !PresentationBehaviours.Contains(b)).ToList().NullIfEmpty();
+    /// <returns>Filtered list of behaviors, or null if there are none</returns>
+    public static List<string>? OnlyPresentationBehaviours(this IEnumerable<string>? behaviours)
+        => behaviours?.Where(b => PresentationBehaviours.Contains(b)).ToList().NullIfEmpty();
 }

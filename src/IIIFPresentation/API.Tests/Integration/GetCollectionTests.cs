@@ -324,7 +324,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             .Single(i => i.Id == "http://localhost/1/collections/FirstChildCollection").AdditionalProperties;
         childCollection["slug"].Value<string>().Should().Be("first-child");
         childCollection["createdBy"].Value<string>().Should().Be("admin");
-        childCollection["tags"].Value<string>().Should().Be("some, tags");
+        childCollection["tags"]!.Values<string>().Should().Equal("some", "tags");
         childCollection["created"].Value<DateTime>().Should().NotBe(default);
         childCollection["modified"].Value<DateTime>().Should().NotBe(default);
         childCollection.Should().NotContainKey("modifiedBy", "the seeded collection has never been modified");

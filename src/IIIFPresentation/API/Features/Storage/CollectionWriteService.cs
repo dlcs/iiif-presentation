@@ -11,6 +11,7 @@ using AWS.Helpers;
 using Core;
 using Core.Auth;
 using Core.Exceptions;
+using Core.Helpers;
 using Core.IIIF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -141,7 +142,7 @@ public class CollectionWriteService(
 
         await transaction.CommitAsync(cancellationToken);
 
-        await UploadToS3IfRequiredAsync(collection, built.IiifCollection, collection.IsStorageCollection,
+        await UploadToS3IfRequiredAsync(collection, built.IiifCollection, collection.Behavior.IsStorageCollection(),
             cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(collection,
@@ -236,7 +237,7 @@ public class CollectionWriteService(
         }
 
         await UploadToS3IfRequiredAsync(databaseCollection, built!.IiifCollection,
-            databaseCollection.IsStorageCollection, cancellationToken);
+            databaseCollection.Behavior.IsStorageCollection(), cancellationToken);
 
         var enrichedPresentationCollection = request.Collection.EnrichPresentationCollection(databaseCollection,
             settings.PageSize, DefaultCurrentPage, total, await items.ToListAsync(cancellationToken: cancellationToken),
@@ -258,7 +259,7 @@ public class CollectionWriteService(
         if (!EtagComparer.IsMatch(databaseCollection.Etag, request.ETag))
             return (UpsertErrorHelper.EtagNonMatching(), null);
 
-        if (prepared.IsStorageCollection != databaseCollection.IsStorageCollection)
+        if (prepared.IsStorageCollection != databaseCollection.Behavior.IsStorageCollection())
         {
             logger.LogError(
                 "Customer {CustomerId} attempted to convert collection {CollectionId} to {CollectionType}",
@@ -353,16 +354,13 @@ public class CollectionWriteService(
         DateTime? specificModifiedDate = null)
     {
         databaseCollection.Modified = specificModifiedDate ?? DateTime.UtcNow;
-        databaseCollection.IsPublic = incomingCollection.Behavior.IsPublic();
-        databaseCollection.IsStorageCollection = incomingCollection.Behavior.IsStorageCollection();
         databaseCollection.Label = incomingCollection.Label;
         databaseCollection.Thumbnail = incomingCollection.GetThumbnail();
-        databaseCollection.Tags = incomingCollection.Tags;
-        // presentation behaviors are persisted as the IsPublic/IsStorageCollection flags above, so Behavior holds only
-        // the remaining behaviors. Storage collections only support presentation behaviors.
-        databaseCollection.Behavior = databaseCollection.IsStorageCollection
-            ? null
-            : incomingCollection.Behavior.WithoutPresentationBehaviours();
+        databaseCollection.Tags = incomingCollection.Tags.NullIfEmpty();
+        // storage collections only support presentation behaviors
+        databaseCollection.Behavior = incomingCollection.Behavior.IsStorageCollection()
+            ? incomingCollection.Behavior.OnlyPresentationBehaviours()
+            : incomingCollection.Behavior.NullIfEmpty();
     }
 
     private async Task UploadToS3IfRequiredAsync(Collection collection,

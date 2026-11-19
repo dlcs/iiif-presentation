@@ -3,6 +3,7 @@ using AWS.SQS;
 using BackgroundHandler.Infrastructure;
 using Core.Auth;
 using Core.Helpers;
+using Core.Infrastructure;
 using IIIF.Presentation.V3.Strings;
 using Microsoft.EntityFrameworkCore;
 using Models;
@@ -59,8 +60,7 @@ public class CustomerCreatedMessageHandler(
             Modified = dateCreated,
             CreatedBy = Authorizer.GetUser(),
             CustomerId = customerId,
-            IsPublic = true,
-            IsStorageCollection = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             Label = new LanguageMap("en", "IIIF Home"),
             Hierarchy =
             [

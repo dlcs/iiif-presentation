@@ -1,8 +1,10 @@
 """
 Backfill the `behavior` column of the `manifests` and `collections` tables from the IIIF JSON stored in S3.
 
-Only rows where `behavior` IS NULL are considered. Storage collections are skipped as they have no stored JSON.
-Presentation-specific behaviors (`public-iiif`, `storage-collection`) are excluded, matching what the API persists.
+Only rows that have no behaviors other than the presentation-specific ones (`public-iiif`, `storage-collection`)
+are considered. Storage collections are skipped as they have no stored JSON. Presentation-specific behaviors are
+ignored if found in S3 (the API removes them before writing, since October 2024); the database is the source of truth
+for them, and behaviors from S3 are appended after any already stored.
 
 Rows are processed in pages ordered by primary key (id, customer_id). S3 objects in a page are read concurrently, then any
 updates for the page are written and committed together. After each page the last processed key is logged; pass it
@@ -21,9 +23,11 @@ from psycopg2.extras import execute_values
 
 PRESENTATION_BEHAVIORS = {"public-iiif", "storage-collection"}
 
+# rows with no behaviors beyond the presentation-specific ones
 RESOURCE_FILTERS = {
     "manifests": "behavior IS NULL",
-    "collections": "behavior IS NULL AND NOT is_storage_collection",
+    "collections": "NOT ('storage-collection' = ANY(COALESCE(behavior, '{}'))) "
+                   "AND COALESCE(behavior, '{}') <@ ARRAY['public-iiif']::text[]",
 }
 
 
@@ -76,10 +80,10 @@ def read_behavior(s3, bucket, key):
 
 def fetch_page(conn, table, customer, after, page_size):
     """
-    Fetch the next page of (customer_id, id) rows with no behavior, starting after the (customer_id, id) `after`.
-    Ordered by (id, customer_id) to follow the primary key.
+    Fetch the next page of (customer_id, id, behavior) rows still to backfill, starting after the (customer_id, id)
+    `after`. Ordered by (id, customer_id) to follow the primary key.
     """
-    query = f"SELECT customer_id, id FROM {table} WHERE {RESOURCE_FILTERS[table]}"
+    query = f"SELECT customer_id, id, behavior FROM {table} WHERE {RESOURCE_FILTERS[table]}"
     params = []
     if customer is not None:
         query += " AND customer_id = %s"
@@ -97,15 +101,18 @@ def fetch_page(conn, table, customer, after, page_size):
 
 
 def write_updates(conn, table, updates):
-    """Set behavior for each (customer_id, id, behavior), only where it is still null, and commit"""
+    """
+    Set behavior for each (customer_id, id, existing, behavior), only where it still has the existing value read
+    from the database, and commit
+    """
     with conn.cursor() as cursor:
         execute_values(
             cursor,
             f"""UPDATE {table} AS t SET behavior = v.behavior
-                FROM (VALUES %s) AS v(customer_id, id, behavior)
-                WHERE t.customer_id = v.customer_id AND t.id = v.id AND t.behavior IS NULL""",
+                FROM (VALUES %s) AS v(customer_id, id, existing, behavior)
+                WHERE t.customer_id = v.customer_id AND t.id = v.id AND t.behavior IS NOT DISTINCT FROM v.existing""",
             updates,
-            template="(%s, %s, %s::text[])")
+            template="(%s, %s, %s::text[], %s::text[])")
     conn.commit()
 
 
@@ -122,27 +129,32 @@ def backfill(conn, s3, executor, args, table, start_after):
         if not rows:
             break
 
-        keys = [f"{customer_id}/{table}/{resource_id}" for customer_id, resource_id in rows]
+        keys = [f"{customer_id}/{table}/{resource_id}" for customer_id, resource_id, _ in rows]
         behaviors = executor.map(lambda k: read_behavior(s3, args.bucket, k), keys)
 
         updates = []
-        for (customer_id, resource_id), key, behavior in zip(rows, keys, behaviors):
+        for (customer_id, resource_id, existing), key, behavior in zip(rows, keys, behaviors):
             if behavior is None:
                 print(f"  {key}: not found in S3, skipping")
                 missing += 1
-            elif not behavior:
+                continue
+
+            additional = [b for b in behavior if b not in (existing or [])]
+            if not additional:
                 empty += 1
-            else:
-                if args.dry_run:
-                    print(f"  {key}: {behavior}")
-                updates.append((customer_id, resource_id, behavior))
+                continue
+
+            merged = (existing or []) + additional
+            if args.dry_run:
+                print(f"  {key}: {existing} -> {merged}")
+            updates.append((customer_id, resource_id, existing, merged))
 
         if updates and not args.dry_run:
             write_updates(conn, table, updates)
 
         processed += len(rows)
         updated += len(updates)
-        after = rows[-1]
+        after = rows[-1][:2]
         print(f"{table}: processed {processed}, last key {after[0]}/{after[1]}", flush=True)
 
     action = "would update" if args.dry_run else "updated"

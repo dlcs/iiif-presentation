@@ -3,6 +3,7 @@ using API.Features.Common.Helpers;
 using API.Infrastructure.Requests;
 using API.Settings;
 using Core;
+using Core.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Models.API.General;
 using Models.Database.Collections;
@@ -158,7 +159,7 @@ public static class PresentationContextX
 
         if (publicOnly)
         {
-            hierarchy = hierarchy.Where(c => (c.Collection != null && c.Collection.IsPublic) ||  
+            hierarchy = hierarchy.Where(c => (c.Collection != null && c.Collection.Behavior!.Contains(Behavior.IsPublic)) ||  
                                              (c.Manifest != null && c.Manifest.LastProcessed != null));
         }
 
