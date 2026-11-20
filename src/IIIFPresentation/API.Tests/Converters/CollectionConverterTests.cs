@@ -804,7 +804,7 @@ public class CollectionConverterTests
         var items = CreateTestItems();
         items[0].Collection.CreatedBy = null;
         items[0].Collection.ModifiedBy = null;
-        items[0].Collection.Tags = [];
+        items[0].Collection.Tags = null;
 
         // Act
         var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,

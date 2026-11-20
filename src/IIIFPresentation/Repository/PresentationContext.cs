@@ -80,7 +80,6 @@ public class PresentationContext : DbContext
             entity.Property(e => e.Etag)
                 .HasComputedColumnSql("""deterministic_uuid_sha256("modified", "id")""", stored: true);
 
-            entity.Property(e => e.Tags).HasDefaultValueSql("'{}'");
             entity.Property(e => e.Behavior).HasDefaultValueSql("'{}'");
         });
 
@@ -104,7 +103,6 @@ public class PresentationContext : DbContext
 
             entity.Property(p => p.Created).HasDefaultValueSql("now()");
             entity.Property(p => p.Modified).HasDefaultValueSql("now()");
-            entity.Property(e => e.Tags).HasDefaultValueSql("'{}'");
             entity.Property(e => e.Behavior).HasDefaultValueSql("'{}'");
 
             entity.Property(e => e.Etag)

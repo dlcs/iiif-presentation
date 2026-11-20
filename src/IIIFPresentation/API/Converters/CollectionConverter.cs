@@ -228,7 +228,7 @@ public static class CollectionConverter
 
         if (!string.IsNullOrEmpty(resource.CreatedBy)) item.AdditionalProperties["createdBy"] = resource.CreatedBy;
         if (!string.IsNullOrEmpty(resource.ModifiedBy)) item.AdditionalProperties["modifiedBy"] = resource.ModifiedBy;
-        if (resource.Tags.Count > 0) item.AdditionalProperties["tags"] = new JArray(resource.Tags);
+        if (!resource.Tags.IsNullOrEmpty()) item.AdditionalProperties["tags"] = new JArray(resource.Tags);
     }
 
     /// <summary>

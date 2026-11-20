@@ -18,12 +18,12 @@ namespace Repository.Migrations
                 nullable: false,
                 defaultValueSql: "'{}'");
 
-            migrationBuilder.AddColumn<List<string>>(
-                name: "tags",
-                table: "manifests",
-                type: "text[]",
-                nullable: false,
-                defaultValueSql: "'{}'");
+            // existing manifests have no tags, so they get an empty array. The default only fills existing rows, and is
+            // dropped so the column has none
+            migrationBuilder.Sql("""
+                ALTER TABLE manifests ADD tags text[] DEFAULT '{}';
+                ALTER TABLE manifests ALTER COLUMN tags DROP DEFAULT;
+                """);
 
             migrationBuilder.AddColumn<List<string>>(
                 name: "behavior",
@@ -51,13 +51,11 @@ namespace Repository.Migrations
                 name: "is_storage_collection",
                 table: "collections");
 
-            // comma-separated tags become one entry per tag, trimmed, with empty entries removed
+            // comma-separated tags become one entry per tag, trimmed, with empty entries removed. Collections with no
+            // tags get an empty array
             migrationBuilder.Sql("""
-                ALTER TABLE collections
-                    ALTER COLUMN tags TYPE text[]
-                        USING COALESCE(array_remove(regexp_split_to_array(btrim(tags), '\s*,\s*'), ''), '{}'),
-                    ALTER COLUMN tags SET DEFAULT '{}',
-                    ALTER COLUMN tags SET NOT NULL;
+                ALTER TABLE collections ALTER COLUMN tags TYPE text[]
+                USING COALESCE(array_remove(regexp_split_to_array(btrim(tags), '\s*,\s*'), ''), '{}');
                 """);
         }
 
@@ -65,10 +63,8 @@ namespace Repository.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("""
-                ALTER TABLE collections
-                    ALTER COLUMN tags DROP DEFAULT,
-                    ALTER COLUMN tags DROP NOT NULL,
-                    ALTER COLUMN tags TYPE text USING NULLIF(array_to_string(tags, ', '), '');
+                ALTER TABLE collections ALTER COLUMN tags TYPE text
+                USING NULLIF(array_to_string(tags, ', '), '');
                 """);
 
             migrationBuilder.AddColumn<bool>(

@@ -34,7 +34,7 @@ public interface IHierarchyResource : IIdentifiable
     /// <summary>
     /// Arbitrary tags for this resource
     /// </summary>
-    List<string> Tags { get; }
+    List<string>? Tags { get; }
 
     /// <summary>
     /// IIIF behaviors of this resource

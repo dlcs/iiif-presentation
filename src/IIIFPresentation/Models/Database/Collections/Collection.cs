@@ -51,7 +51,7 @@ public class Collection : IHierarchyResource
     /// <summary>
     /// Arbitrary strings to tag manifest, used to create virtual collections
     /// </summary>
-    public List<string> Tags { get; set; } = [];
+    public List<string>? Tags { get; set; } = [];
 
     /// <summary>
     /// IIIF behaviors of this Collection, including the presentation-specific "public-iiif" (collection is publicly

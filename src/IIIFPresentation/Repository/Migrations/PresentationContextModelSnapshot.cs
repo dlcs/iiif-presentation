@@ -167,11 +167,8 @@ namespace Repository.Migrations
                         .HasColumnName("modified_by");
 
                     b.PrimitiveCollection<List<string>>("Tags")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("tags")
-                        .HasDefaultValueSql("'{}'");
+                        .HasColumnName("tags");
 
                     b.Property<string>("Thumbnail")
                         .HasColumnType("text")
@@ -243,11 +240,8 @@ namespace Repository.Migrations
                         .HasColumnName("space_id");
 
                     b.PrimitiveCollection<List<string>>("Tags")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("tags")
-                        .HasDefaultValueSql("'{}'");
+                        .HasColumnName("tags");
 
                     b.HasKey("Id", "CustomerId")
                         .HasName("pk_manifests");
