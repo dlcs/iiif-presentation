@@ -247,6 +247,7 @@ public class PipelineHelperTests
     [Theory]
     [InlineData(PipelineJobStatus.Completed, true)]
     [InlineData(PipelineJobStatus.CompletedNoOperation, true)]
+    [InlineData(PipelineJobStatus.CompletedWithOnlyPdf, true)]
     [InlineData(PipelineJobStatus.Failed, true)]
     [InlineData(PipelineJobStatus.FailedToSubmit, true)]
     [InlineData(PipelineJobStatus.Waiting, false)]
@@ -257,19 +258,21 @@ public class PipelineHelperTests
         status.IsFinished().Should().Be(expected);
     }
 
-    [Fact]
-    public void ToPipelineItem_SetsWarning_WhenStatusIsCompletedNoOperation()
+    [Theory]
+    [InlineData(PipelineJobStatus.CompletedNoOperation, PipelineHelper.TextPipeline.NoTextFoundWarning)]
+    [InlineData(PipelineJobStatus.CompletedWithOnlyPdf, PipelineHelper.TextPipeline.OnlyPdfWarning)]
+    public void ToPipelineItem_SetsWarning_ForStatusesWithWarnings(PipelineJobStatus status, string expected)
     {
         var job = new PipelineJob
         {
             ManifestId = "id", CustomerId = 1,
             JobType = PipelineJobType.TextService,
-            Status = PipelineJobStatus.CompletedNoOperation
+            Status = status
         };
 
         var result = job.ToPipelineItem();
 
-        result.Warning.Should().Be(PipelineHelper.TextPipeline.NoTextFoundWarning);
+        result.Warning.Should().Be(expected);
     }
 
     [Theory]

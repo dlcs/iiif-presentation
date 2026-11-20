@@ -56,7 +56,8 @@ public enum PipelineJobStatus
     Failed = 3,
     NotSubmitted = 1000,
     FailedToSubmit = 1001,
-    CompletedNoOperation = 1002
+    CompletedNoOperation = 1002,
+    CompletedWithOnlyPdf = 1003
 }
 
 public enum PipelineJobType
@@ -71,5 +72,6 @@ public static class PipelineJobStatusX
     /// </summary>
     public static bool IsFinished(this PipelineJobStatus status) =>
         status is PipelineJobStatus.Completed or PipelineJobStatus.CompletedNoOperation
+            or PipelineJobStatus.CompletedWithOnlyPdf
             or PipelineJobStatus.Failed or PipelineJobStatus.FailedToSubmit;
 }

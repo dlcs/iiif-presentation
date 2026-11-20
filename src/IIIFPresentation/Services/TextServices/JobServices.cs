@@ -9,7 +9,7 @@ public enum JobServices
 {
     None          = 0,
     Search        = 1 << 0,
-    Autocomplete  = 1 << 1,
+    // 1 << 1 was Autocomplete, retired by text-services (autocomplete is provided by Search). Don't reuse it.
     FullText      = 1 << 2,
     Annotations   = 1 << 3,
     Pdf           = 1 << 4,

@@ -158,7 +158,7 @@ public static class DatabaseTestDataPopulation
 
     public static ValueTask<EntityEntry<Manifest>> WithTestPipelineJob(this ValueTask<EntityEntry<Manifest>> manifest,
         PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null, DateTime? created = null,
-        int invocationId = 1)
+        int invocationId = 1, string? config = null)
     {
         manifest.Result.Entity.PipelineJobs ??= [];
         manifest.Result.Entity.PipelineJobs.Add(
@@ -170,6 +170,7 @@ public static class DatabaseTestDataPopulation
                 Created = created ?? DateTime.UtcNow,
                 Finished = finished,
                 InvocationId = invocationId.ToString(),
+                Config = config,
             });
         return manifest;
     }

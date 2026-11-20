@@ -10,6 +10,7 @@ using IIIF.Presentation.V3;
 using IIIF.Search.V1;
 using IIIF.Search.V2;
 using Microsoft.EntityFrameworkCore;
+using Models.API.Manifest.Pipelines;
 using Microsoft.Extensions.Logging.Abstractions;
 using Models.Database.General;
 using Repository;
@@ -173,12 +174,20 @@ public class TextServiceJobCompletionMessageHandlerTests
             .MustHaveHappenedOnceExactly();
     }
 
-    [Fact]
-    public async Task HandleMessage_SetsStatusToCompletedNoOperation_WhenTotalWordCountIsZero()
+    [Theory]
+    [InlineData(null, PipelineJobStatus.CompletedWithOnlyPdf)]
+    [InlineData(new[] { "All" }, PipelineJobStatus.CompletedWithOnlyPdf)]
+    [InlineData(new[] { "Search", "Pdf" }, PipelineJobStatus.CompletedWithOnlyPdf)]
+    [InlineData(new[] { "Pdf" }, PipelineJobStatus.Completed)]
+    [InlineData(new[] { "Search" }, PipelineJobStatus.CompletedNoOperation)]
+    public async Task HandleMessage_SetsStatusFromRequestedOutputs_WhenTotalWordCountIsZero(string[]? output,
+        PipelineJobStatus expected)
     {
-        var manifestId = TestIdentifiers.IdWithSuffix(suffix: "_completed_no_text");
+        var manifestId =
+            TestIdentifiers.IdWithSuffix(suffix: $"_no_text_{string.Join('_', output ?? ["default"])}");
         var jobId = new TextJobId(CustomerId, manifestId);
-        await SetupManifestWithPipelineJob(manifestId);
+        var config = PipelineHelper.SerialiseConfig(new TextPipelineConfig { Action = "Index", Output = output?.ToList() });
+        await SetupManifestWithPipelineJob(manifestId, config: config);
 
         SetupStagedManifest(new IIIFManifest { Id = manifestId });
         A.CallTo(() => textServicesClient.GetTextAugmentedManifest(jobId, A<CancellationToken>._))
@@ -189,7 +198,7 @@ public class TextServiceJobCompletionMessageHandlerTests
         (await sut.HandleMessage(message, CancellationToken.None)).Should().BeTrue();
 
         var job = dbContext.PipelineJobs.Single(p => p.ManifestId == manifestId);
-        job.Status.Should().Be(PipelineJobStatus.CompletedNoOperation);
+        job.Status.Should().Be(expected);
     }
 
     [Fact]
@@ -476,10 +485,10 @@ public class TextServiceJobCompletionMessageHandlerTests
     }
 
     private async Task SetupManifestWithPipelineJob(string manifestId,
-        PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null)
+        PipelineJobStatus status = PipelineJobStatus.Waiting, DateTime? finished = null, string? config = null)
     {
         await dbContext.Manifests.AddTestManifest(id: manifestId)
-            .WithTestPipelineJob(status, finished);
+            .WithTestPipelineJob(status, finished, config: config);
         await dbContext.SaveChangesAsync();
     }
 

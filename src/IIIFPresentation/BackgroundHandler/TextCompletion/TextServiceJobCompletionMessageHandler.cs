@@ -120,9 +120,7 @@ public class TextServiceJobCompletionMessageHandler(
             }
 
             var finalManifest = await textManifestAugmentor.Augment(staged.Manifest, dbManifest, cancellationToken);
-            pipelineJob.Status = completionMessage.TotalWordCount == 0
-                ? PipelineJobStatus.CompletedNoOperation
-                : PipelineJobStatus.Completed;
+            pipelineJob.Status = pipelineJob.GetTextConfig().GetCompletedStatus(completionMessage.TotalWordCount);
             pipelineJob.Finished = completionMessage.Finished?.UtcDateTime;
 
             await manifestStorageManager.SaveManifestInStorage(finalManifest, dbManifest, staged.Original,
