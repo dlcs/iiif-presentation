@@ -2,6 +2,7 @@
 using Newtonsoft.Json.Linq;
 using API.Features.Storage.Helpers;
 using Core.Helpers;
+using Core.IIIF;
 using DLCS;
 using IIIF;
 using IIIF.Presentation.V3;
@@ -803,7 +804,7 @@ public class CollectionConverterTests
         var items = CreateTestItems();
         items[0].Collection.CreatedBy = null;
         items[0].Collection.ModifiedBy = null;
-        items[0].Collection.Tags = null;
+        items[0].Collection.Tags = [];
 
         // Act
         var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,
@@ -823,8 +824,8 @@ public class CollectionConverterTests
         // Arrange
         var collection = CreateTestHierarchicalCollection();
         var items = CreateTestManifestItems();
-        items[0].Manifest!.Tags = null;
-        items[0].Manifest!.Behavior = null;
+        items[0].Manifest!.Tags = [];
+        items[0].Manifest!.Behavior = [];
 
         // Act
         var presentationCollection = collection.ToPresentationCollection(PageSize, 1, 1, items, null, pathGenerator,

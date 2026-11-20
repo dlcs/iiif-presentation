@@ -7,8 +7,8 @@ column populated `public-iiif` and `storage-collection` for collections from the
 `is_storage_collection` columns, but any other behaviors only exist in S3 until the resource is next written. This
 script fills them in without waiting for a write.
 
-* Only rows with no behaviors beyond `public-iiif` are processed (`null` for manifests), so the script is safe to
-  re-run.
+* Only rows with no behaviors beyond `public-iiif` are processed (none at all for manifests), so the script is safe
+  to re-run. Rows written since the migration with no behaviors are read from S3 again, which finds nothing to add.
 * Storage collections are skipped, as they have no JSON in S3.
 * `public-iiif` and `storage-collection` are ignored if found in S3. The API removes them before writing (since
   October 2024), and the database is the source of truth for them. Behaviors from S3 are appended after any already

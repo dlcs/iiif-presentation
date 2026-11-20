@@ -46,12 +46,12 @@ public class Manifest : IHierarchyResource
     /// <summary>
     /// Arbitrary tags for this manifest
     /// </summary>
-    public List<string>? Tags { get; set; }
+    public List<string> Tags { get; set; } = [];
 
     /// <summary>
     /// IIIF behaviors of this Manifest
     /// </summary>
-    public List<string>? Behavior { get; set; }
+    public List<string> Behavior { get; set; } = [];
     
     public List<Hierarchy>? Hierarchy { get; set; }
     public List<CanvasPainting>? CanvasPaintings { get; set; }

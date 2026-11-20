@@ -159,7 +159,7 @@ public static class PresentationContextX
 
         if (publicOnly)
         {
-            hierarchy = hierarchy.Where(c => (c.Collection != null && c.Collection.Behavior!.Contains(Behavior.IsPublic)) ||  
+            hierarchy = hierarchy.Where(c => (c.Collection != null && c.Collection.Behavior.Contains(Behavior.IsPublic)) ||  
                                              (c.Manifest != null && c.Manifest.LastProcessed != null));
         }
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using Models.Database.Collections;
+using System.Collections.Immutable;
 using API.Converters;
 using API.Features.Storage.Helpers;
 using API.Features.Storage.Models;
@@ -82,7 +83,7 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
             }, collection.Etag);
         }
 
-        if (collection.Behavior.IsStorageCollection())
+        if (collection.IsStorageCollection())
         {
             var requestModifiers = request.GetRequestModifiers(options.Value);
             

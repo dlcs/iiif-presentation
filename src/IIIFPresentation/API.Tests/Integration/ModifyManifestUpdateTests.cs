@@ -410,9 +410,12 @@ public class ModifyManifestUpdateTests : IClassFixture<PresentationAppFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseManifest = await response.ReadAsPresentationResponseAsync<PresentationManifest>();
+        responseManifest!.Tags.Should().BeNull("empty tags are omitted from the response");
+
         var fromDatabase = dbContext.Manifests.AsNoTracking().Single(c => c.Id == dbManifest.Id);
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.Behavior.Should().BeNull();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.Behavior.Should().BeEmpty();
     }
 
     [Fact]

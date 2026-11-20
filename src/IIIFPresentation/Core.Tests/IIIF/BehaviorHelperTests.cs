@@ -6,7 +6,7 @@ namespace Core.Tests.IIIF;
 public class BehaviorHelperTests
 {
     [Fact]
-    public void OnlyPresentationBehaviours_ReturnsNull_WhenNull()
+    public void OnlyPresentationBehaviours_ReturnsEmpty_WhenNull()
     {
         // Arrange
         List<string>? behaviours = null;
@@ -15,11 +15,11 @@ public class BehaviorHelperTests
         var result = behaviours.OnlyPresentationBehaviours();
 
         // Assert
-        result.Should().BeNull();
+        result.Should().BeEmpty();
     }
 
     [Fact]
-    public void OnlyPresentationBehaviours_ReturnsNull_WhenNoPresentationBehaviours()
+    public void OnlyPresentationBehaviours_ReturnsEmpty_WhenNoPresentationBehaviours()
     {
         // Arrange
         List<string> behaviours = ["paged", "auto-advance"];
@@ -28,7 +28,7 @@ public class BehaviorHelperTests
         var result = behaviours.OnlyPresentationBehaviours();
 
         // Assert
-        result.Should().BeNull();
+        result.Should().BeEmpty();
     }
 
     [Fact]
@@ -43,5 +43,38 @@ public class BehaviorHelperTests
         // Assert
         result.Should().BeEquivalentTo([Behavior.IsPublic, Behavior.IsStorageCollection],
             o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void IsPublic_IsStorageCollection_False_WhenEmpty()
+    {
+        // Arrange
+        List<string> behaviors = [];
+
+        // Act and Assert
+        behaviors.IsPublic().Should().BeFalse();
+        behaviors.IsStorageCollection().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsPublic_IsStorageCollection_True_WhenPresent()
+    {
+        // Arrange
+        List<string> behaviors = [Behavior.IsPublic, Behavior.IsStorageCollection];
+
+        // Act and Assert
+        behaviors.IsPublic().Should().BeTrue();
+        behaviors.IsStorageCollection().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsPublic_IsStorageCollection_False_WhenNull()
+    {
+        // Arrange
+        List<string>? behaviors = null;
+
+        // Act and Assert
+        behaviors.IsPublic().Should().BeFalse();
+        behaviors.IsStorageCollection().Should().BeFalse();
     }
 }

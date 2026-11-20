@@ -23,7 +23,7 @@ using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Collection = Models.Database.Collections.Collection;
 using JsonSerializer = System.Text.Json.JsonSerializer;
-using API.Features.Storage.Helpers;
+using Models.Database.Collections;
 
 namespace API.Tests.Integration;
 
@@ -420,8 +420,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Equal("some", "tags");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View.Should().BeNull();
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
@@ -472,8 +472,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
         fromDatabase.Tags.Should().Equal("some", "tags");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
@@ -594,8 +594,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be("iiif-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Tags.Should().Equal("some", "tags");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
         responseCollection!.View!.Should().BeNull();
@@ -843,8 +843,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        fromDatabase.Behavior.IsPublic().Should().BeFalse();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.IsPublic().Should().BeFalse();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
@@ -1292,8 +1292,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Equal("some", "tags", "2");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1377,8 +1377,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Equal("some", "tags", "2");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1661,8 +1661,8 @@ $$"""
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Equal("some", "tags", "2");
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1771,8 +1771,8 @@ $$"""
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be("programmatic-child-2");
         fromDatabase.Label.Should().BeNull();
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
     }
 
@@ -2291,8 +2291,8 @@ $$"""
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
         fromDatabase.Tags.Should().Equal("some", "tags", "2");
-        fromDatabase.Behavior.IsPublic().Should().BeFalse();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.IsPublic().Should().BeFalse();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
@@ -2347,9 +2347,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2396,9 +2396,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2480,9 +2480,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.Behavior.IsPublic().Should().BeTrue();
-        fromDatabase.Behavior.IsStorageCollection().Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2597,7 +2597,7 @@ $$"""
         responseCollection!.Items.Should().BeNull("an empty 'items' array round-trips as absent over JSON");
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
     }
 
     [Fact]
@@ -2622,7 +2622,7 @@ $$"""
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        fromDatabase.Behavior.IsStorageCollection().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
     }
 
     [Fact]

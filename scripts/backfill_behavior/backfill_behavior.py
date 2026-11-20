@@ -24,10 +24,11 @@ from psycopg2.extras import execute_values
 PRESENTATION_BEHAVIORS = {"public-iiif", "storage-collection"}
 
 # rows with no behaviors beyond the presentation-specific ones
+# manifests: wherever behavior count = 0
+# collections: non-storage collections whose behavior is empty or only public-iiif
 RESOURCE_FILTERS = {
-    "manifests": "behavior IS NULL",
-    "collections": "NOT ('storage-collection' = ANY(COALESCE(behavior, '{}'))) "
-                   "AND COALESCE(behavior, '{}') <@ ARRAY['public-iiif']::text[]",
+    "manifests": "cardinality(behavior) = 0"
+    "collections": "NOT ('storage-collection' = ANY(behavior)) AND behavior <@ ARRAY['public-iiif']::text[]",
 }
 
 

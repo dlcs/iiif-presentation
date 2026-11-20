@@ -66,7 +66,7 @@ public static class CollectionConverter
             Id = pathGenerator.GenerateFlatCollectionSearchId(dbAsset),
             Context = GenerateContext(),
             Label = new LanguageMap("en", $"Search results for '{label}' in '{dbAsset.Id}'"),
-            Tags = dbAsset.Tags,
+            Tags = dbAsset.Tags.NullIfEmpty(),
             SeeAlso =
             [
                 new ExternalResource(nameof(PresentationType.Collection))
@@ -105,7 +105,7 @@ public static class CollectionConverter
         GenerateCommonFields(collection, dbCollection, hierarchy, parentCollection, pathGenerator, settingsBasedPathGenerator);
 
         collection.Behavior ??= [];
-        collection.Behavior.AddRange(dbCollection.Behavior.OnlyPresentationBehaviours() ?? []);
+        collection.Behavior.AddRange(dbCollection.Behavior.OnlyPresentationBehaviours());
 
         return collection;
     }
@@ -146,7 +146,7 @@ public static class CollectionConverter
         collection.Label = dbCollection.Label;
         
         // this is to stop IIIF collections having storage collection only fields
-        if (dbCollection.Behavior.IsStorageCollection())
+        if (dbCollection.IsStorageCollection())
         {
             collection.Items = GenerateItems(pathGenerator, items);
             collection.TotalItems = totalItems;
@@ -169,7 +169,7 @@ public static class CollectionConverter
         collection.Id = pathGenerator.GenerateFlatId(hierarchy);
         collection.Parent = GeneratePresentationCollectionParent(pathGenerator, hierarchy);
         collection.ItemsOrder = hierarchy.ItemsOrder;
-        collection.Tags = dbCollection.Tags;
+        collection.Tags = dbCollection.Tags.NullIfEmpty();
         collection.Slug = hierarchy.Slug;
         collection.PartOf = GeneratePartOf(parentCollection, pathGenerator);
     }
@@ -228,7 +228,7 @@ public static class CollectionConverter
 
         if (!string.IsNullOrEmpty(resource.CreatedBy)) item.AdditionalProperties["createdBy"] = resource.CreatedBy;
         if (!string.IsNullOrEmpty(resource.ModifiedBy)) item.AdditionalProperties["modifiedBy"] = resource.ModifiedBy;
-        if (!resource.Tags.IsNullOrEmpty()) item.AdditionalProperties["tags"] = new JArray(resource.Tags);
+        if (resource.Tags.Count > 0) item.AdditionalProperties["tags"] = new JArray(resource.Tags);
     }
 
     /// <summary>
@@ -297,11 +297,11 @@ public static class CollectionConverter
     private static List<ExternalResource>? GenerateSeeAlso(DbCollection collection, 
         SettingsBasedPathGenerator settingsBasedPathGenerator, IPathGenerator pathGenerator)
     {
-        if (!collection.Behavior.IsStorageCollection()) return null;
+        if (!collection.IsStorageCollection()) return null;
         
         var seeAlso = new List<ExternalResource>();
 
-        if (collection.Behavior.IsPublic())
+        if (collection.IsPublic())
         {
             // if the collection is public, include the canonical path
             // NOTE that this will need changed when we implement canonical paths
@@ -331,7 +331,7 @@ public static class CollectionConverter
     private static List<IService>? GenerateService(DbCollection collection, IPathGenerator pathGenerator)
     {
         // only the root storage collection can be searched for now
-        if (!collection.Behavior.IsStorageCollection() || !collection.IsRoot()) return null;
+        if (!collection.IsStorageCollection() || !collection.IsRoot()) return null;
 
         return
         [
@@ -428,7 +428,7 @@ public static class CollectionConverter
 
     private static DescendantCounts? GetDescendantCounts(DbCollection dbAsset, IList<Hierarchy>? items)
     {
-        if (!dbAsset.Behavior.IsStorageCollection()) return null;
+        if (!dbAsset.IsStorageCollection()) return null;
         if (items.IsNullOrEmpty()) return DescendantCounts.Empty;
 
         var grouping = items.GroupBy(k => k.Type)

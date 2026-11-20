@@ -130,8 +130,11 @@ namespace Repository.Migrations
                         .HasColumnName("customer_id");
 
                     b.PrimitiveCollection<List<string>>("Behavior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("behavior");
+                        .HasColumnName("behavior")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("timestamp with time zone")
@@ -164,8 +167,11 @@ namespace Repository.Migrations
                         .HasColumnName("modified_by");
 
                     b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("tags");
+                        .HasColumnName("tags")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<string>("Thumbnail")
                         .HasColumnType("text")
@@ -192,8 +198,11 @@ namespace Repository.Migrations
                         .HasColumnName("customer_id");
 
                     b.PrimitiveCollection<List<string>>("Behavior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("behavior");
+                        .HasColumnName("behavior")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<DateTime>("Created")
                         .ValueGeneratedOnAdd()
@@ -234,8 +243,11 @@ namespace Repository.Migrations
                         .HasColumnName("space_id");
 
                     b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
-                        .HasColumnName("tags");
+                        .HasColumnName("tags")
+                        .HasDefaultValueSql("'{}'");
 
                     b.HasKey("Id", "CustomerId")
                         .HasName("pk_manifests");
