@@ -324,7 +324,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
             .Single(i => i.Id == "http://localhost/1/collections/FirstChildCollection").AdditionalProperties;
         childCollection["slug"].Value<string>().Should().Be("first-child");
         childCollection["createdBy"].Value<string>().Should().Be("admin");
-        childCollection["tags"].Value<string>().Should().Be("some, tags");
+        childCollection["tags"]!.Values<string>().Should().Equal("some", "tags");
         childCollection["created"].Value<DateTime>().Should().NotBe(default);
         childCollection["modified"].Value<DateTime>().Should().NotBe(default);
         childCollection.Should().NotContainKey("modifiedBy", "the seeded collection has never been modified");
@@ -336,7 +336,7 @@ public class GetCollectionTests : IClassFixture<PresentationAppFactory<Program>>
         childManifest["created"].Value<DateTime>().Should().NotBe(default);
         childManifest["modified"].Value<DateTime>().Should().NotBe(default);
         childManifest.Should().NotContainKey("modifiedBy", "the seeded manifest has never been modified");
-        childManifest.Should().NotContainKey("tags", "manifests have no tags");
+        childManifest.Should().NotContainKey("tags", "the seeded manifest has no tags");
     }
 
     [Fact]

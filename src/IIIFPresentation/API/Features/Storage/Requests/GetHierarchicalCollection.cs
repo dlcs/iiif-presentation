@@ -6,13 +6,14 @@ using AWS.S3;
 using AWS.S3.Models;
 using AWS.Settings;
 using Core.Streams;
-using IIIF.Presentation.V3;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Models.Database.Collections;
 using Models.Database.General;
 using Repository;
 using Repository.Paths;
+using Collection = IIIF.Presentation.V3.Collection;
 
 namespace API.Features.Storage.Requests;
 
@@ -42,7 +43,7 @@ public class GetHierarchicalCollectionHandler(
             return CollectionWithItems.Empty;
         }
 
-        if (!request.Hierarchy.Collection.IsPublic) return CollectionWithItems.Empty;
+        if (!request.Hierarchy.Collection.IsPublic()) return CollectionWithItems.Empty;
 
         if (request.Hierarchy.Type != ResourceType.StorageCollection)
         {

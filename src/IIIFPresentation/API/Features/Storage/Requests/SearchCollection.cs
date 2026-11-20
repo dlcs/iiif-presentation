@@ -62,7 +62,7 @@ public class SearchCollectionHandler(
 
         // For MVP SearchCollectionItems searches every resource in the customer, so it only gives the right answer for
         // the root collection, guard here.
-        if (!collection.IsStorageCollection || !collection.IsRoot())
+        if (!collection.IsStorageCollection() || !collection.IsRoot())
         {
             return FetchEntityResult<PresentationCollection>.Invalid(
                 "Search is only supported for the root storage collection");

@@ -1,4 +1,5 @@
 ﻿using IIIF.Presentation.V3.Strings;
+using Models.API.General;
 using Models.API.Manifest.Pipelines;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -15,7 +16,7 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     [
         "slug", "publicId", "parent", "created", "modified",
         "createdBy", "modifiedBy", "flatId", "paintedResources", "space", "adjuncts", "ingesting",
-        "fullPath", "currentlyIngesting", "pipeline", "finishedPipelines"
+        "fullPath", "currentlyIngesting", "pipeline", "finishedPipelines", "tags"
     ];
 
     [JsonProperty(Order = 6)] public string? Slug { get; set; }
@@ -58,6 +59,13 @@ public class PresentationManifest : IIIF.Presentation.V3.Manifest, IPresentation
     /// History of previous (completed/failed) pipeline runs for this manifest.
     /// </summary>
     [JsonProperty(Order = 17)] public List<PipelineItem>? FinishedPipelines { get; set; }
+
+    /// <summary>
+    /// Arbitrary tags for this manifest
+    /// </summary>
+    [JsonProperty(Order = 18)]
+    [JsonConverter(typeof(TagsConverter))]
+    public List<string>? Tags { get; set; }
 }
 
 /// <summary>

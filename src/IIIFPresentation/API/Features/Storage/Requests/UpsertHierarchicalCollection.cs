@@ -3,6 +3,7 @@ using API.Helpers;
 using API.Features.Storage.Validators;
 using API.Infrastructure.Requests;
 using API.Settings;
+using Core.IIIF;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Models.API.Collection;

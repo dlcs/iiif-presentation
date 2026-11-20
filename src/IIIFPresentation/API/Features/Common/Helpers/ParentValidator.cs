@@ -15,6 +15,6 @@ public static class ParentValidator
     {
         if (parentCollection == null) return UpsertErrorHelper.NullParentResponse();
 
-        return !parentCollection.IsStorageCollection ? UpsertErrorHelper.ParentMustBeStorageCollection() : null;
+        return !parentCollection.IsStorageCollection() ? UpsertErrorHelper.ParentMustBeStorageCollection() : null;
     }
 }

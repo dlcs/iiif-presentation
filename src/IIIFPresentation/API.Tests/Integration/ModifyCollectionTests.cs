@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Amazon.S3;
 using API.Tests.Integration.Infrastructure;
+using Core.Helpers;
 using Core.Infrastructure;
 using Core.Response;
 using IIIF.Presentation.V3;
@@ -22,6 +23,7 @@ using Test.Helpers.Helpers;
 using Test.Helpers.Integration;
 using Collection = Models.Database.Collections.Collection;
 using JsonSerializer = System.Text.Json.JsonSerializer;
+using Models.Database.Collections;
 
 namespace API.Tests.Integration;
 
@@ -112,16 +114,18 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         // Arrange
         var collection = new PresentationCollection
         {
+            // non-presentation behaviors are dropped for storage collections
             Behavior = new List<string>
             {
                 Behavior.IsPublic,
-                Behavior.IsStorageCollection
+                Behavior.IsStorageCollection,
+                "multi-part"
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1,
         };
 
@@ -146,20 +150,54 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
-        fromDatabase.Tags.Should().Be("some, tags");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Tags.Should().Equal("some", "tags");
+        fromDatabase.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, Behavior.IsStorageCollection],
+            "storage collections only have presentation behaviors");
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View!.PageSize.Should().Be(20);
+        responseCollection!.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, Behavior.IsStorageCollection]);
+        responseCollection.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty, "Storage collections have empty counts");
-        
+
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
+    }
+
+    [Fact]
+    public async Task CreateCollection_SplitsTags_WhenProvidedAsString()
+    {
+        // Arrange
+        var slug = nameof(CreateCollection_SplitsTags_WhenProvidedAsString);
+        var collectionJson = $$"""
+                               {
+                                   "type": "Collection",
+                                   "behavior": ["public-iiif", "storage-collection"],
+                                   "label": { "en": ["test collection"] },
+                                   "slug": "{{slug}}",
+                                   "parent": "http://localhost/{{Customer}}/collections/{{RootCollection.Id}}",
+                                   "tags": "some, tags"
+                               }
+                               """;
+
+        var requestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Post, $"{Customer}/collections",
+            collectionJson);
+
+        // Act
+        var response = await httpClient.AsCustomer().SendAsync(requestMessage);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var responseCollection = await response.ReadAsPresentationResponseAsync<PresentationCollection>();
+        responseCollection!.Tags.Should().Equal("some", "tags");
+
+        var id = responseCollection.Id!.GetLastPathElement();
+        var fromDatabase = dbContext.Collections.Single(c => c.Id == id);
+        fromDatabase.Tags.Should().Equal("some", "tags");
     }
 
     public static TheoryData<string> ProhibitedSlugProvider =>
@@ -181,7 +219,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1
         };
 
@@ -208,12 +246,13 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Behavior = new List<string>()
             {
                 Behavior.IsPublic,
+                "multi-part"
             },
             Label = new LanguageMap("en", ["test collection"]),
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1,
         };
 
@@ -238,20 +277,20 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
-        fromDatabase.Tags.Should().Be("some, tags");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().Equal("some", "tags");
+        fromDatabase.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, "multi-part"], o => o.WithStrictOrdering());
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
-        responseCollection!.View.Should().BeNull();
+        responseCollection!.Behavior.Should().BeEquivalentTo([Behavior.IsPublic, "multi-part"]);
+        responseCollection.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
-        
+
         var context = (JArray)responseCollection.Context;
         context.First.Value<string>().Should().Be("http://tbc.org/iiif-repository/1/context.json");
         context.Last.Value<string>().Should().Be("http://iiif.io/api/presentation/3/context.json");
     }
-    
+
     [Fact]
     public async Task EntityCreationUnderRoot_UpdatesRootCollectionModified_ButNotOthers()
     {
@@ -271,7 +310,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1,
         };
 
@@ -321,7 +360,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{iiifParent}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1,
         };
 
@@ -355,7 +394,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = slug,
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1,
         };
 
@@ -380,9 +419,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
-        fromDatabase.Tags.Should().Be("some, tags");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().Equal("some", "tags");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View.Should().BeNull();
         responseCollection.Totals.Should().BeNull("IIIF collections have no totals");
@@ -407,7 +446,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "programmatic-child",
             Parent = $"http://localhost/1/collections/{parent}",
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1
         };
 
@@ -432,9 +471,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be("programmatic-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/thumbnail");
-        fromDatabase.Tags.Should().Be("some, tags");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Tags.Should().Equal("some", "tags");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
@@ -459,7 +498,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Slug = "programmatic-child",
             Parent = $"http://localhost/1/{parent}", //note how this is HIERARCHICAL uri
             Thumbnail = [new Image { Id = "some/thumbnail" }],
-            Tags = "some, tags",
+            Tags = ["some", "tags"],
             ItemsOrder = 1
         };
 
@@ -554,9 +593,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif post");
         hierarchyFromDatabase.Slug.Should().Be("iiif-child");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
-        fromDatabase.Tags.Should().Be("some, tags");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().Equal("some", "tags");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
         responseCollection!.View!.Should().BeNull();
@@ -804,8 +843,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        fromDatabase.IsPublic.Should().BeFalse();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.IsPublic().Should().BeFalse();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
@@ -1138,9 +1177,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1169,7 +1207,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2"
+            Tags = ["some", "tags", "2"]
         };
 
         // No Etag
@@ -1199,9 +1237,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1231,7 +1268,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2"
+            Tags = ["some", "tags", "2"]
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1254,9 +1291,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
-        fromDatabase.Tags.Should().Be("some, tags, 2");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Tags.Should().Equal("some", "tags", "2");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1285,9 +1322,8 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1317,7 +1353,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Parent = $"http://localhost/1/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2"
+            Tags = ["some", "tags", "2"]
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1340,9 +1376,9 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
-        fromDatabase.Tags.Should().Be("some, tags, 2");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Tags.Should().Equal("some", "tags", "2");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1367,9 +1403,7 @@ public class ModifyCollectionTests : IClassFixture<PresentationAppFactory<Progra
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
-            IsPublic = false,
+            Tags = ["some", "tags"],
             CustomerId = 1,
             Hierarchy = [
                 new Hierarchy
@@ -1482,9 +1516,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = false,
-            IsPublic = false,
+            Tags = ["some", "tags"],
             CustomerId = 1,
             Hierarchy = [
                 new Hierarchy
@@ -1511,7 +1543,7 @@ $$"""
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2"
+            Tags = ["some", "tags", "2"]
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1547,9 +1579,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1,
             Hierarchy = [
                 new Hierarchy
@@ -1572,7 +1603,7 @@ $$"""
             Parent = $"http://localhost/{Customer}/collections/{RootCollection.Id}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2"
+            Tags = ["some", "tags", "2"]
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1605,7 +1636,7 @@ $$"""
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2",
+            Tags = ["some", "tags", "2"],
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1629,9 +1660,9 @@ $$"""
         hierarchyFromDatabase.Slug.Should().Be("create-from-update");
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
-        fromDatabase.Tags.Should().Be("some, tags, 2");
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.Tags.Should().Equal("some", "tags", "2");
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection!.View!.PageSize.Should().Be(20);
         responseCollection.View.Page.Should().Be(1);
         responseCollection.View.Id.Should().Contain("?page=1&pageSize=20");
@@ -1660,7 +1691,7 @@ $$"""
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2",
+            Tags = ["some", "tags", "2"],
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -1692,9 +1723,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1741,8 +1771,8 @@ $$"""
         hierarchyFromDatabase.Parent.Should().Be(parent);
         hierarchyFromDatabase.Slug.Should().Be("programmatic-child-2");
         fromDatabase.Label.Should().BeNull();
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
         responseCollection.Totals.Should().BeEquivalentTo(DescendantCounts.Empty);
     }
 
@@ -1766,9 +1796,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1821,9 +1850,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1881,9 +1909,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1
         };
 
@@ -1969,9 +1996,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1,
             Hierarchy =
             [
@@ -1998,9 +2024,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1,
             Hierarchy =
             [
@@ -2166,9 +2191,8 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            Tags = "some, tags",
-            IsStorageCollection = true,
-            IsPublic = false,
+            Tags = ["some", "tags"],
+            Behavior = [Behavior.IsStorageCollection],
             CustomerId = 1,
             Hierarchy = [
                 new Hierarchy
@@ -2242,7 +2266,7 @@ $$"""
             Parent = $"http://localhost/{Customer}/collections/{parent}",
             ItemsOrder = 1,
             Thumbnail = [new Image { Id = "some/location/2" }],
-            Tags = "some, tags, 2",
+            Tags = ["some", "tags", "2"],
         };
 
         var updateRequestMessage = HttpRequestMessageBuilder.GetPrivateRequest(HttpMethod.Put,
@@ -2266,9 +2290,9 @@ $$"""
         hierarchyFromDatabase.Slug.Should().Be(slug);
         hierarchyFromDatabase.ItemsOrder.Should().Be(1);
         fromDatabase.Thumbnail.Should().Be("some/location/2");
-        fromDatabase.Tags.Should().Be("some, tags, 2");
-        fromDatabase.IsPublic.Should().BeFalse();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().Equal("some", "tags", "2");
+        fromDatabase.IsPublic().Should().BeFalse();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         responseCollection!.View.Should().BeNull();
         responseCollection.PartOf.Single().Id.Should().Be("http://localhost/1/collections/root");
         responseCollection.PartOf.Single().Label["en"].Single().Should().Be("repository root");
@@ -2323,9 +2347,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2372,9 +2396,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().BeNull();
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2456,9 +2480,9 @@ $$"""
         fromDatabase.Label!.Values.First()[0].Should().Be("iiif hierarchical post");
         hierarchyFromDatabase.Slug.Should().Be(slug);
         fromDatabase.Thumbnail.Should().Be("https://example.org/img/thumb.jpg");
-        fromDatabase.Tags.Should().BeNull();
-        fromDatabase.IsPublic.Should().BeTrue();
-        fromDatabase.IsStorageCollection.Should().BeFalse();
+        fromDatabase.Tags.Should().BeEmpty();
+        fromDatabase.IsPublic().Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeFalse();
         fromDatabase.Modified.Should().Be(fromDatabase.Created);
         fromS3.Should().NotBeNull();
     }
@@ -2573,7 +2597,7 @@ $$"""
         responseCollection!.Items.Should().BeNull("an empty 'items' array round-trips as absent over JSON");
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
     }
 
     [Fact]
@@ -2598,7 +2622,7 @@ $$"""
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var fromDatabase = dbContext.Collections.First(c => c.Hierarchy!.Single(h => h.Canonical).Slug == slug);
-        fromDatabase.IsStorageCollection.Should().BeTrue();
+        fromDatabase.IsStorageCollection().Should().BeTrue();
     }
 
     [Fact]
@@ -2639,8 +2663,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = Customer
         };
 
@@ -2690,8 +2713,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = Customer
         };
         await dbContext.Hierarchy.AddAsync(new Hierarchy
@@ -2906,8 +2928,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = Customer
         };
         await dbContext.Hierarchy.AddAsync(new Hierarchy
@@ -2928,8 +2949,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = Customer
         };
         await dbContext.Hierarchy.AddAsync(new Hierarchy
@@ -3015,8 +3035,7 @@ $$"""
             Created = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
             CreatedBy = "admin",
-            IsStorageCollection = true,
-            IsPublic = true,
+            Behavior = [Behavior.IsPublic, Behavior.IsStorageCollection],
             CustomerId = Customer
         };
         await dbContext.Hierarchy.AddAsync(new Hierarchy

@@ -1,4 +1,5 @@
 using API.Features.Storage.Helpers;
+using Core.IIIF;
 using Models.API.Collection;
 using Models.API.Manifest;
 

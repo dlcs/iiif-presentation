@@ -1,4 +1,5 @@
-﻿using IIIF.Presentation.V3.Strings;
+﻿using Core.IIIF;
+using IIIF.Presentation.V3.Strings;
 using Models.Database.General;
 
 namespace Models.Database.Collections;
@@ -50,17 +51,13 @@ public class Collection : IHierarchyResource
     /// <summary>
     /// Arbitrary strings to tag manifest, used to create virtual collections
     /// </summary>
-    public string? Tags { get; set; }
+    public List<string>? Tags { get; set; } = [];
 
     /// <summary>
-    /// Marks whether this is "folder" IIIF collection; there is no JSON stored - everything DB driven
+    /// IIIF behaviors of this Collection, including the presentation-specific "public-iiif" (collection is publicly
+    /// available) and "storage-collection" ("folder" collection with no stored JSON - everything DB driven)
     /// </summary>
-    public bool IsStorageCollection { get; set; }
-
-    /// <summary>
-    /// Whether the collection is publicly available
-    /// </summary>
-    public bool IsPublic { get; set; }
+    public List<string> Behavior { get; set; } = [];
 
     /// <summary>
     /// The customer identifier
@@ -85,4 +82,14 @@ public static class CollectionX
     /// Check if <see cref="Collection"/> is root collection 
     /// </summary>
     public static bool IsRoot(this Collection collection) => KnownCollections.IsRoot(collection.Id);
+
+    /// <summary>
+    /// Check if <see cref="Collection"/> is publicly available
+    /// </summary>
+    public static bool IsPublic(this Collection collection) => collection.Behavior.IsPublic();
+
+    /// <summary>
+    /// Check if <see cref="Collection"/> is a storage collection
+    /// </summary>
+    public static bool IsStorageCollection(this Collection collection) => collection.Behavior.IsStorageCollection();
 }

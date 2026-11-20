@@ -30,4 +30,14 @@ public interface IHierarchyResource : IIdentifiable
     /// Who last committed a change to this resource
     /// </summary>
     string? ModifiedBy { get; }
+
+    /// <summary>
+    /// Arbitrary tags for this resource
+    /// </summary>
+    List<string>? Tags { get; }
+
+    /// <summary>
+    /// IIIF behaviors of this resource
+    /// </summary>
+    List<string> Behavior { get; }
 }

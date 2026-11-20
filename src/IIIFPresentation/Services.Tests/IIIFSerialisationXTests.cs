@@ -157,7 +157,8 @@ public class IIIFSerialisationXTests
                      "id": "https://example.org/manifest/1",
                      "type": "Manifest",
                      "slug": "test-slug",
-                     "parent": "parent-id"
+                     "parent": "parent-id",
+                     "tags": "some, tags"
                    }
                    """;
 
@@ -166,6 +167,7 @@ public class IIIFSerialisationXTests
 
         serialised.Should().NotContain("\"slug\"");
         serialised.Should().NotContain("\"parent\"");
+        serialised.Should().NotContain("\"tags\"");
         serialised.Should().Contain("\"id\"");
     }
 
@@ -192,7 +194,7 @@ public class IIIFSerialisationXTests
 
     [Fact]
     public void ToManifest_PresentationPropertyKeys_CoversAllPresentationManifestProperties()
-        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(16);
+        => PresentationManifest.PresentationPropertyKeys.Should().HaveCount(17);
 
     [Fact]
     public void ToCollection_PresentationPropertyKeys_CoversAllPresentationCollectionProperties()

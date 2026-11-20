@@ -1,11 +1,12 @@
-﻿using System.Collections.Immutable;
+﻿using Models.Database.Collections;
+using System.Collections.Immutable;
 using API.Converters;
 using API.Features.Storage.Helpers;
-using API.Helpers;
 using API.Features.Storage.Models;
 using API.Infrastructure.Requests;
 using API.Settings;
 using AWS.Helpers;
+using Core.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -77,12 +78,12 @@ public class GetCollectionHandler(PresentationContext dbContext, IIIIFS3Service 
         {
             return FetchEntityResult<PresentationCollection>.Success(new PresentationCollection
             {
-                Behavior = CollectionConverter.GenerateBehavior(collection),
+                Behavior = collection.Behavior.NullIfEmpty(),
                 PublicId = PublicIdGenerator.GetPublicId(settingsBasedPathGenerator, pathGenerator, hierarchy)
             }, collection.Etag);
         }
 
-        if (collection.IsStorageCollection)
+        if (collection.IsStorageCollection())
         {
             var requestModifiers = request.GetRequestModifiers(options.Value);
             

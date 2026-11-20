@@ -6,6 +6,8 @@ using Models.Database;
 using Models.Database.Collections;
 using Models.Database.General;
 using Models.DLCS;
+using Core.Helpers;
+using Core.Infrastructure;
 
 namespace Test.Helpers.Helpers;
 
@@ -83,8 +85,9 @@ public static class DatabaseTestDataPopulation
             CreatedBy = "Admin",
             Created = createdDate.Value,
             Modified = createdDate.Value,
-            IsStorageCollection = isStorage,
-            IsPublic = isPublic,
+            Behavior = new List<string>()
+                .AppendIf(isPublic, Behavior.IsPublic)
+                .AppendIf(isStorage, Behavior.IsStorageCollection),
             Hierarchy =
             [
                 new Hierarchy
@@ -109,8 +112,9 @@ public static class DatabaseTestDataPopulation
             CreatedBy = "Admin",
             Created = createdDate.Value,
             Modified = createdDate.Value,
-            IsStorageCollection = true,
-            IsPublic = isPublic,
+            Behavior = isPublic
+                ? [Behavior.IsPublic, Behavior.IsStorageCollection]
+                : [Behavior.IsStorageCollection],
             Hierarchy =
             [
                 new Hierarchy
