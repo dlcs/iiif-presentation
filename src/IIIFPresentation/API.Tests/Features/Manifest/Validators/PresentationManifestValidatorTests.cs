@@ -773,6 +773,8 @@ public class PresentationManifestValidatorTests
     [InlineData("Thumbnails")]
     [InlineData("Search", "None")]
     [InlineData("All", "Unknown")]
+    [InlineData("Autocomplete")]
+    [InlineData("Search", "autocomplete")]
     public void TextPipeline_Error_WhenOutputContainsUnknownValue(params string[] output)
     {
         var result = sut.TestValidate(ManifestWithTextPipeline(output.ToList()));

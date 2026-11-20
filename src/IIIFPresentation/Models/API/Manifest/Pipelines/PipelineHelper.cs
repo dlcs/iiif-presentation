@@ -13,18 +13,19 @@ public static class PipelineHelper
         public const string IndexAction = "Index";
         public static readonly string[] Actions = [IndexAction];
         public const string NoTextFoundWarning = "No text resources found";
+        public const string OnlyPdfWarning = "No text resources found, so text operations failed. Only the PDF was produced";
     }
 
     /// <summary>
     /// A recognised pipeline: the type of job it's stored as, the actions it supports, the type of its config and the
-    /// warning shown when it completes without doing anything
+    /// warning shown for a job with each status
     /// </summary>
     private record PipelineDefinition(
         string Name,
         PipelineJobType JobType,
         string[] Actions,
         Type ConfigType,
-        string? NoOperationWarning);
+        IReadOnlyDictionary<PipelineJobStatus, string> Warnings);
 
     /// <summary>
     /// Every recognised pipeline. Adding a pipeline only needs an entry here.
@@ -32,7 +33,11 @@ public static class PipelineHelper
     private static readonly PipelineDefinition[] Pipelines =
     [
         new(TextPipeline.Name, PipelineJobType.TextService, TextPipeline.Actions, typeof(TextPipelineConfig),
-            TextPipeline.NoTextFoundWarning)
+            new Dictionary<PipelineJobStatus, string>
+            {
+                [PipelineJobStatus.CompletedNoOperation] = TextPipeline.NoTextFoundWarning,
+                [PipelineJobStatus.CompletedWithOnlyPdf] = TextPipeline.OnlyPdfWarning
+            })
     ];
 
     private static readonly Dictionary<string, PipelineDefinition> PipelinesByName =
@@ -142,7 +147,7 @@ public static class PipelineHelper
             Config = job.GetConfig(),
             Status = job.Status.ToString(),
             Error = job.Error,
-            Warning = job.Status == PipelineJobStatus.CompletedNoOperation ? pipeline?.NoOperationWarning : null,
+            Warning = pipeline?.Warnings.GetValueOrDefault(job.Status),
             Created = job.Created,
             Finished = job.Finished
         };

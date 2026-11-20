@@ -240,7 +240,7 @@ public class TextBuilderClientTests
     }
 
     [Fact]
-    public async Task UpsertJob_SendsSearchAutocompleteTextAugmented_AsServicesField()
+    public async Task UpsertJob_SendsAllServices_WhenOutputNotSet()
     {
         var sut = CreateSut(new TextServicesSettings { BuilderApiUri = new Uri("http://text-services/") });
         messageHandler.Enqueue(HttpStatusCode.OK);
